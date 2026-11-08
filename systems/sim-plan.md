@@ -45,9 +45,13 @@ Target days are `TBC`. Each phase ends with its scenarios opening correctly in F
 | 5 | Wed AM | **Motion.** Smooth drone paths with real turns; MPU6050 and BMP280 models including vibration; noise taken from a stationary recording of our own sensor. SITL, vehicle and YOW approach paths if time allows | #9, #14 | Aceinna | `accel_gyro` is available in a scenario, with seeded noise |
 | 6 | Wed PM | **Calibrate and freeze.** Each sensor stream can be simulated or replayed from a recording; sim and real residuals on the same plot; attacks injected into real sessions; first comparison replays the same real motion data in both runs | #30, #27 | TU Delft, BYU | Sim validity table updated, final results tied to a commit |
 
-**If time remains:** other signal models (#11).
+**If time remains:** other signal models (#11), then the gated Sionna RT spike below.
 
-**After the hackathon (deliverable D3, the product roadmap):** ray-traced propagation with Sionna RT. It needs a GPU-class install and a 3D model of campus buildings, which does not fit a 4-hour slot; the statistical model with measured parameters (ADR-0015) is what we ship.
+**Sionna RT spike (stretch, gated).** Sionna RT installs with `pip install sionna-rt` and can run on CPU, so the install is not the obstacle. The cost is the scene: a campus model built from OpenStreetMap through Blender (blosm and mitsuba-blender add-ons, materials renamed to Sionna's convention), and its fidelity, since Ottawa building heights are often missing, trees are not modelled and materials are guessed. Conditions:
+- Only after phases 1 to 3 are done.
+- 4 hours total; stop if a campus scene does not load in Sionna within 2 hours.
+- A human owner's go-ahead before installing anything (`AGENTS.md`, third-party code) and an ADR.
+- Its per-tower blockage, excess delay and gain shape the statistical tower-error model. Ray-traced numbers are not reported as accuracy results unless checked against our measurements (ADR-0015).
 
 ## Foxglove
 
@@ -96,7 +100,7 @@ The [AERPAW LTE recordings](https://ieee-dataport.org/documents/lte-iq-measureme
 | ID | Decision | Proposal |
 | --- | --- | --- |
 | D1 | Where the Foxglove map data lives | A `pnt viz <session>` step writes a companion `viz.mcap` (LocationFix/GeoJSON, converted with `pnt.core.frames`) beside the session. Foxglove opens both together; `session.md` stays unchanged, so no `icd` PR |
-| D2 | Sionna RT | Not during the hackathon (see *After the hackathon*). Revisit with an ADR afterwards |
+| D2 | Sionna RT | Gated stretch spike only (see *Sionna RT spike*): after phases 1 to 3, 4-hour timebox, owner go-ahead and an ADR first |
 | D3 | What `gnss_health` jam indicator means on real hardware | The sim already emits it, but the GPS HAT has no jamming flag (ADR-0014). Decide its real-data meaning with #22 |
 | D4 | Owners for #25 (dashboard), #29 (threat model), #11 and #15 | Team to assign |
 | D5 | New issues for phase 1 and the tower experiment | Open them once this plan is agreed |
