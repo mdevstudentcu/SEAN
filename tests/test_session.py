@@ -54,3 +54,37 @@ def test_folder_without_mcap_is_rejected(tmp_path):
 def test_meta_rejects_keys_outside_the_icd(tmp_path):
     with pytest.raises(ValueError, match="ICD"):
         session.write_meta(tmp_path, {"name": "x", "flavour": "spicy"})
+
+
+def test_sim_refuses_to_overwrite_an_existing_session(tmp_path):
+    folder = tmp_path / "real-recording"
+    folder.mkdir()
+    (folder / "session.mcap").write_bytes(b"precious")
+    with pytest.raises(SystemExit, match="already holds data"):
+        main(["sim", "gps-outage", "--out", str(folder)])
+    assert (folder / "session.mcap").read_bytes() == b"precious"
+
+
+def test_sim_refuses_to_overwrite_a_bare_mcap(tmp_path):
+    f = tmp_path / "s.mcap"
+    f.write_bytes(b"precious")
+    with pytest.raises(SystemExit, match="already holds data"):
+        main(["sim", "gps-outage", "--out", str(f)])
+    assert f.read_bytes() == b"precious"
+
+
+def test_force_allows_overwriting(tmp_path):
+    f = tmp_path / "s.mcap"
+    f.write_bytes(b"old")
+    main(["sim", "gps-outage", "--out", str(f), "--force"])
+    assert f.stat().st_size > 1000
+
+
+def test_default_session_names_never_collide(tmp_path, monkeypatch):
+    import pnt.cli
+
+    monkeypatch.setattr(pnt.cli, "SESSIONS", tmp_path)
+    main(["sim", "gps-outage"])
+    main(["sim", "gps-outage"])  # same second, most likely
+    folders = sorted(p.name for p in tmp_path.iterdir())
+    assert len(folders) == 2 and all((tmp_path / f / "session.mcap").exists() for f in folders)
