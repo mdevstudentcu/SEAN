@@ -1,6 +1,6 @@
 # ESP32-S3 sensor hub
 
-Reads the payload's IMU (BMI160, SPI), barometer (BME280, I2C), GPS (UART + PPS) and Wi-Fi (scans + FTM ranging), timestamps everything with the ESP32's microsecond timer, and sends it to the Pi as MAVLink messages defined in [`systems/icd/pnt.xml`](../../systems/icd/pnt.xml).
+Reads the payload's IMU (MPU6050, I2C), barometer (BMP280, I2C), the GPS PPS edge (wired from the Pi's GPS HAT) and Wi-Fi (scans + FTM ranging), timestamps everything with the ESP32's microsecond timer, and sends it to the Pi as MAVLink messages defined in [`systems/icd/pnt.xml`](../../systems/icd/pnt.xml).
 
 ```bash
 just gen        # after any change to pnt.xml: regenerates lib/pnt_mavlink (never edit it by hand)
