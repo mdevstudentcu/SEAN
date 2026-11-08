@@ -1,0 +1,19 @@
+# GPS slowly dragged off course (a classic "carry-off" spoof). Verifies REQ-04.
+description: GPS position drifts at 2 m/s towards the north-east from t=150 s.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]
+trajectory: {type: square, side_m: 200, speed_mps: 8, altitude_m: 30}
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    n_emitters: 6
+    ring_radius_m: [800, 3000]
+    sigma_m: 20.0
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+faults:
+  - {type: spoof_ramp, source: gnss, start_s: 150, rate_mps: 2.0, direction_deg: 45}

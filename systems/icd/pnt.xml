@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<!-- ESP32 hub -> Pi wire protocol (ADR-0005). Regenerate with `just gen`. IDs 61000-61099 are ours. -->
+<mavlink>
+  <version>1</version>
+  <dialect>0</dialect>
+  <messages>
+    <message id="61000" name="PNT_HUB_STATUS">
+      <description>Hub health, sent at 1 Hz.</description>
+      <field type="uint64_t" name="time_us">Hub monotonic time.</field>
+      <field type="uint32_t" name="pps_count">PPS edges seen since boot.</field>
+      <field type="uint32_t" name="imu_overruns">IMU samples dropped.</field>
+      <field type="uint8_t" name="gnss_fix">0 none, 2 2D, 3 3D.</field>
+    </message>
+    <message id="61001" name="PNT_PPS">
+      <description>One GPS PPS edge, timestamped by hardware capture.</description>
+      <field type="uint64_t" name="time_us">Hub monotonic time of the edge.</field>
+      <field type="uint32_t" name="gps_week">GPS week the edge belongs to (from the next NMEA/UBX).</field>
+      <field type="uint32_t" name="gps_tow_ms">GPS time of week at the edge.</field>
+    </message>
+    <message id="61002" name="PNT_IMU_RAW">
+      <description>One IMU sample, body frame.</description>
+      <field type="uint64_t" name="time_us">Hub monotonic time.</field>
+      <field type="float[3]" name="accel">m/s^2</field>
+      <field type="float[3]" name="gyro">rad/s</field>
+      <field type="float" name="temp">degC</field>
+    </message>
+    <message id="61003" name="PNT_BARO">
+      <description>One barometer sample.</description>
+      <field type="uint64_t" name="time_us">Hub monotonic time.</field>
+      <field type="float" name="pressure">Pa</field>
+      <field type="float" name="temp">degC</field>
+    </message>
+    <message id="61004" name="PNT_WIFI_AP">
+      <description>One access point seen in a scan. BSSID is salted+hashed on the hub (ADR-0011).</description>
+      <field type="uint64_t" name="time_us">Hub monotonic time.</field>
+      <field type="uint8_t[8]" name="bssid_hash">First 8 bytes of SHA-256(salt || BSSID).</field>
+      <field type="int8_t" name="rssi">dBm</field>
+      <field type="uint8_t" name="channel"></field>
+      <field type="uint8_t" name="ftm_responder">1 if the AP advertises FTM responder.</field>
+    </message>
+    <message id="61005" name="PNT_FTM_RANGE">
+      <description>Result of one Wi-Fi FTM (802.11mc) session.</description>
+      <field type="uint64_t" name="time_us">Hub monotonic time.</field>
+      <field type="uint8_t[8]" name="bssid_hash"></field>
+      <field type="float" name="range_m"></field>
+      <field type="float" name="rtt_sigma_ns"></field>
+      <field type="uint8_t" name="n_frames"></field>
+    </message>
+    <message id="61006" name="PNT_GNSS_RAW_NMEA">
+      <description>A raw NMEA sentence from the payload GPS, forwarded for logging.</description>
+      <field type="uint64_t" name="time_us">Hub monotonic time of the first byte.</field>
+      <field type="char[96]" name="sentence"></field>
+    </message>
+  </messages>
+</mavlink>

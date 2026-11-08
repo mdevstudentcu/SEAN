@@ -1,0 +1,20 @@
+# GPS lost for 2 minutes mid-flight. Verifies REQ-01, REQ-02.
+# Error parameters marked TBC are placeholders until the RF survey and real sessions measure them.
+description: GPS outage from t=120 s to t=240 s; LTE pseudoranges and baro continue.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: loop, radius_m: 150, speed_mps: 8, altitude_m: 30}
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5}                  # TBC
+  baro: {rate_hz: 10, sigma_m: 0.5}                 # TBC
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    n_emitters: 6
+    ring_radius_m: [800, 3000]   # SYNTHETIC geometry; real towers come from data/reference/
+    sigma_m: 20.0                # TBC: RTL-SDR PSS/SSS ranging, RF survey (RSK-02)
+    clock_rw_m: 0.2              # TBC: tower clock random walk, m/sqrt(s)
+    init_bias_m: 1000.0
+faults:
+  - {type: outage, source: gnss, start_s: 120, end_s: 240}
