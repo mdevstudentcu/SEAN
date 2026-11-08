@@ -7,9 +7,10 @@ from mcap.reader import make_reader
 
 from pnt.cli import main
 from pnt.core.frames import enu_to_llh
-from pnt.io.mcap_log import read_session
-from pnt.sim.scenario import T0_NS, load
-from pnt.viz import default_output, session_file, write_viz
+from pnt.io.mcap_log import SessionWriter, read_session
+from pnt.nav import baseline
+from pnt.sim.scenario import T0_NS, generate, load
+from pnt.viz import default_output, write_viz
 
 LAYOUT = Path(__file__).parents[1] / "analysis" / "foxglove-layout.json"
 
@@ -70,16 +71,14 @@ def test_truth_lands_at_the_right_place_on_the_map(session, viz):
     assert abs(fix["latitude"] - origin[0]) < 0.01
 
 
-def test_towers_are_points_with_lon_lat_order_and_status(viz):
-    collection = json.loads(_on(viz, "/viz/towers")[0][1]["geojson"])
+def test_towers_are_points_in_lon_lat_order_and_published_once(viz):
+    messages = _on(viz, "/viz/towers")
+    assert len(messages) == 1
+    collection = json.loads(messages[0][1]["geojson"])
     assert len(collection["features"]) == 6
     lon, lat = collection["features"][0]["geometry"]["coordinates"]
     assert -77 < lon < -74 and 44 < lat < 47
-    assert collection["features"][0]["properties"]["metadata"]["status"] in {"heard", "lost"}
-
-
-def test_towers_are_refreshed_once_a_second(viz):
-    assert 300 <= len(_on(viz, "/viz/towers")) <= 365
+    assert collection["features"][0]["properties"]["name"].startswith("lte:")
 
 
 def test_nav_marks_the_fault_window_and_reports_error_and_towers(viz):
@@ -89,6 +88,31 @@ def test_nav_marks_the_fault_window_and_reports_error_and_towers(viz):
         assert m["fault_active"] == int(120 <= seconds < 240)
         assert m["h_error_m"] >= 0 and m["hpl_m"] > 0
     assert nav[-1][1]["towers_heard"] == 6
+    assert nav[-1][1]["towers_lost"] == "none"
+
+
+def test_nav_names_towers_that_stop_reporting(tmp_path):
+    session = tmp_path / "s.mcap"
+    run = generate(load("gps-outage"), seed=0)
+    silent = "lte:sim2"
+    cutoff = T0_NS + 100_000_000_000
+    meas = [m for m in run.measurements if not (m.emitter == silent and m.t_ns >= cutoff)]
+    estimates = list(baseline.run(meas, origin_llh=run.spec["origin_llh"]))
+    with SessionWriter(session, metadata={"origin_llh": run.spec["origin_llh"]}) as w:
+        for m in meas:
+            w.write(f"/meas/{m.source}", m)
+        for e in estimates:
+            w.write("/nav/baseline", e)
+    out = tmp_path / "v.mcap"
+    write_viz(session, out)
+    with open(out, "rb") as f:
+        nav = [
+            json.loads(message.data)
+            for _, channel, message in make_reader(f).iter_messages(log_time_order=True)
+            if channel.topic == "/viz/nav"
+        ]
+    assert nav[-1]["towers_lost"] == silent and nav[-1]["towers_heard"] == 5
+    assert nav[10]["towers_lost"] != silent or nav[10]["towers_heard"] != 5
 
 
 def test_missing_estimator_is_a_clear_error(session, tmp_path):
@@ -96,8 +120,7 @@ def test_missing_estimator_is_a_clear_error(session, tmp_path):
         write_viz(session, tmp_path / "x.mcap", estimator="nope")
 
 
-def test_paths_resolve_for_files_and_session_folders(tmp_path):
-    assert session_file(tmp_path) == tmp_path / "session.mcap"
+def test_output_goes_beside_the_session(tmp_path):
     assert default_output(tmp_path) == tmp_path / "viz.mcap"
     assert default_output(tmp_path / "s.mcap") == tmp_path / "s.viz.mcap"
 

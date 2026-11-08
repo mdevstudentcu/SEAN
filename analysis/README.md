@@ -18,6 +18,6 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
 3. Open that `viz.mcap` in [Foxglove](https://foxglove.dev) (`Cmd/Ctrl+O`, or drag it in). To see raw measurements too, select it together with the session file.
 4. In the Layouts menu choose **Import from file...** and pick `analysis/foxglove-layout.json`.
 
-The layout shows true and estimated position on a map with towers (blue heard, red lost), error against HPL, towers heard, fault and alarm state, and status and flags over time. Foxglove is our internal viewer; the operator display is the dashboard (ADR-0010).
+The layout shows true (green) and estimated (orange) position on a map with the towers, error against HPL, towers heard, fault and alarm state, and status, flags and lost towers over time. The clock in the viewer reads about ten years early, because logs use GPS time and the viewer treats it as Unix time. Plots fill in as the file loads. Foxglove is our internal viewer; the operator display is the dashboard (ADR-0010).
 
 Rules: every figure's caption names its scenario (or session) and commit (REQ-10). Figures go in `results/`; bulky run data in `results/runs/` (ignored). Images that only back a PR description go in `pr-evidence/<n>/` (`systems/quality.md`).

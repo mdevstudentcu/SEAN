@@ -6,8 +6,8 @@ draw. This writes a separate `viz.mcap` in Foxglove's schemas, leaving the sessi
 
 Topics, all stamped with the session's GPS-time log time:
 - /viz/truth, /viz/estimate: foxglove.LocationFix
-- /viz/towers: foxglove.GeoJSON, once a second, each tower coloured by whether it is being heard
-- /viz/nav: error, HPL, status, alarm and fault state, for the plot panels
+- /viz/towers: foxglove.GeoJSON, published once, because the viewer keeps every message it draws
+- /viz/nav: error, HPL, status, alarm, fault state and which towers are lost, for the panels
 """
 
 from __future__ import annotations
@@ -22,11 +22,11 @@ from mcap.writer import Writer
 from pnt.core.frames import emitter_enu, enu_to_llh
 from pnt.core.measurement import Estimate, Measurement, Truth
 from pnt.core.time import s_to_ns
+from pnt.io import session as session_io
 from pnt.io.mcap_log import read_metadata, read_session
 
 ALARM_FLAGS = {"gnss_excluded", "spoof_suspected", "time_spoof_suspected"}
 STATUS_CODE = {"nominal": 0, "degraded": 1, "unsafe": 2}
-TOWER_TICK_NS = s_to_ns(1.0)
 TOWER_HEARD_WITHIN_NS = s_to_ns(2.5)  # a tower is "heard" if it reported this recently
 
 _TIME = {
@@ -84,6 +84,7 @@ NAV_SCHEMA = {
         "alarm": {"type": "integer"},
         "fault_active": {"type": "integer"},
         "towers_heard": {"type": "integer"},
+        "towers_lost": {"type": "string"},
         "flags": {"type": "string"},
     },
 }
@@ -92,13 +93,6 @@ COVARIANCE_KNOWN = 3
 COVARIANCE_UNKNOWN = 0
 TRUTH_COLOR = {"r": 0.13, "g": 0.65, "b": 0.31, "a": 1.0}
 ESTIMATE_COLOR = {"r": 0.95, "g": 0.45, "b": 0.10, "a": 1.0}
-HEARD_COLOR, LOST_COLOR = "#1f77b4", "#d62728"
-
-
-def session_file(path: str | Path) -> Path:
-    """The MCAP inside a session folder, or the path itself if it is already a file."""
-    p = Path(path)
-    return p / "session.mcap" if p.is_dir() else p
 
 
 def default_output(path: str | Path) -> Path:
@@ -123,21 +117,15 @@ def _fix(t_ns, llh, color, cov=None) -> dict:
     }
 
 
-def _towers_geojson(towers: dict, heard: set[str]) -> str:
-    features = []
-    for emitter, llh in sorted(towers.items()):
-        is_heard = emitter in heard
-        features.append(
-            {
-                "type": "Feature",
-                "geometry": {"type": "Point", "coordinates": [float(llh[1]), float(llh[0])]},
-                "properties": {
-                    "name": emitter,
-                    "metadata": {"status": "heard" if is_heard else "lost"},
-                    "style": {"color": HEARD_COLOR if is_heard else LOST_COLOR},
-                },
-            }
-        )
+def _towers_geojson(towers: dict) -> str:
+    features = [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [float(llh[1]), float(llh[0])]},
+            "properties": {"name": emitter},
+        }
+        for emitter, llh in sorted(towers.items())
+    ]
     return json.dumps({"type": "FeatureCollection", "features": features})
 
 
@@ -174,7 +162,7 @@ def write_viz(
     fault_windows: list[tuple[int, int | None]] | None = None,
 ) -> dict:
     """Write the companion file. `fault_windows` are (start_ns, end_ns or None). Returns counts."""
-    path = session_file(session)
+    path = session_io.mcap_path(session)
     origin = yaml.safe_load(read_metadata(path).get("origin_llh", "null"))
     if origin is None:
         raise ValueError(f"{path} has no origin_llh in its metadata, so it can't be put on a map")
@@ -212,8 +200,9 @@ def write_viz(
         w.channel("/viz/estimate", LOCATION_FIX_SCHEMA)
         w.channel("/viz/towers", GEOJSON_SCHEMA)
         w.channel("/viz/nav", NAV_SCHEMA)
-        next_tick = None
         n_truth = 0
+        if towers:
+            w.write("/viz/towers", estimates[0].t_ns, {"geojson": _towers_geojson(towers)})
         for e in estimates:
             g = truth.get(e.t_ns)
             if g is not None:
@@ -235,6 +224,7 @@ def write_viz(
                     any(s <= e.t_ns and (end is None or e.t_ns < end) for s, end in windows)
                 ),
                 "towers_heard": len(current),
+                "towers_lost": ",".join(sorted(set(heard_at) - current)) or "none",
                 "flags": ",".join(e.flags),
             }
             if e.hpl_m is not None:
@@ -242,8 +232,5 @@ def write_viz(
             if g is not None:
                 nav["h_error_m"] = float(np.hypot(*np.subtract(e.pos_enu, g.pos_enu)[:2]))
             w.write("/viz/nav", e.t_ns, nav)
-            if towers and (next_tick is None or e.t_ns >= next_tick):
-                w.write("/viz/towers", e.t_ns, {"geojson": _towers_geojson(towers, current)})
-                next_tick = e.t_ns + TOWER_TICK_NS
         w.finish()
     return {"estimates": len(estimates), "truth": n_truth, "towers": len(towers)}
