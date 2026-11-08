@@ -12,6 +12,7 @@ The source of truth for what we are building and why. When code or another doc d
 | [`risks.md`](risks.md) | Ranked risks (`RSK-nn`) with mitigations |
 | [`safety.md`](safety.md) | RF/spectrum, legal, flight, privacy and cybersecurity considerations |
 | [`verification.md`](verification.md) | Requirement → method → test → result, and how the sim aligns to reality |
+| [`quality.md`](quality.md) | What every change must show before it is called ready: evidence per claim, verdicts |
 | [`mentor-qa.md`](mentor-qa.md) | Answers from our Honeywell mentors, dated |
 | [`sim-plan.md`](sim-plan.md) | What the simulation work will build, in what order, and what is still undecided |
 
