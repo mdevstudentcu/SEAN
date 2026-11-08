@@ -8,7 +8,7 @@ Small, committed datasets the pipeline needs. **Every file states its source and
 | `navaids.csv` (TODO) | VOR/DME near YOW: ident, freq, lat, lon, magnetic variation | Canada Flight Supplement / NAV CANADA | TBD |
 | `broadcast.csv` (TODO) | FM/TV transmitters (mostly Camp Fortune) | ISED broadcasting database | TBD |
 | `chu.csv` (TODO) | CHU transmitter site and frequencies | NRC | TBD |
-| `tle-*.txt` (TODO) | Orbital elements snapshot for the simulated LEO layer | CelesTrak | TBD |
+| `tle-iridium-20261108.txt` | Orbital elements snapshot of Iridium NEXT, for the simulated LEO layer | [CelesTrak](https://celestrak.org/NORAD/elements/gp.php?GROUP=iridium-NEXT&FORMAT=tle) | 2026-11-08 |
 
 `cells-ottawa.csv` is an extract of *Spectrum Licences Site Data* by Innovation, Science and Economic Development Canada, reproduced for non-commercial use under the [Government of Canada terms](https://ised-isde.canada.ca/site/ised/en/terms-and-conditions). It is derived from the version at the source link above (filtered by distance and frequency, heights summed, distance computed); it is not an official version and is not endorsed by ISED. The SHA-256 of the source zip was not recorded: `TBD` on the next download. Commercial redistribution needs ISED's written permission.
 
