@@ -36,16 +36,18 @@ Target days are `TBC`. Each phase ends with its scenarios opening correctly in F
 
 | # | Target | What gets built | Issues | References | Done when |
 | --- | --- | --- | --- | --- | --- |
-| 0 | Sun | **Base.** Re-land the scoring work from closed PR #1 on current `main`: estimator option, sustained-alarm detection, false-alarm rate, time scoring, NEES, a no-fault scenario. Sim writes session folders | #2, #10, new | | Merged, CI green, `pnt sim` matches `session.md` |
+| 0 | Sun | **Base.** Scoring from closed PR #1 is ported in #36 (estimator option, sustained-alarm detection, false-alarm rate, time scoring, NEES, `nominal` scenario). Remaining: NEES/NIS check in CI. Session folders (#2) are owned by Shrikar, not this plan | #10 | | #36 merged; CI fails on an inconsistent filter |
 | 0F | Sun–Mon | **Foxglove view.** Map of true and estimated position, error plot, HPL, flags, tower locations and status | #6 | Foxglove schemas | One session opens in the committed layout and shows all of the above |
 | 1 | Mon AM | **Core realism.** Receiver clock shifts all tower readings together; separate tower clocks; lingering per-tower errors; tower dropouts; separate "true" and "told to the filter" values for tower position and noise. Every parameter labelled `datasheet`, `literature` or `measured` | new | Khalife & Kassas | Two named tests pass: a receiver clock change moves all towers together, and one tower's clock change moves only that tower |
 | 2 | Mon PM | **Scenario library.** `easy`, `realistic` and `worst` sets across the attacks. New GPS-quality cases: still talking but no fix, few satellites but still good, good GPS returning. Sensor degradation | #16, #29 | PX4 GPS tests | Each set runs by name and appears in `pnt results` |
 | 3 | Tue AM | **Real-world anchors.** Ottawa tower locations; error ranges bounded from published data; experiment removing one tower at a time on the same route, plus tower count, speed and oscillator grid | #8, #27, new | TU Delft, Khalife & Kassas, AERPAW, MedComNet | Report shows which towers matter most; reference files state source and date |
-| 4 | Tue PM, 4 hours max | **Sionna trial.** One campus area, one route, 3 to 6 candidate towers, exported as a small per-tower table of blockage, excess delay and gain | new, ADR first | Sionna RT | The table drives a scenario, or we stop and keep the statistical model |
+| 4 | Tue PM | **Minimal Iridium layer.** Iridium NEXT orbits from a TLE snapshot, visibility above an elevation mask, Doppler with a stated error bound; one scenario where it helps through a GPS outage | #15 | ADR-0013, mentor Q5 | One scenario runs with the layer on and off in `pnt eval` |
 | 5 | Wed AM | **Motion.** Smooth drone paths with real turns; MPU6050 and BMP280 models including vibration; noise taken from a stationary recording of our own sensor. SITL, vehicle and YOW approach paths if time allows | #9, #14 | Aceinna | `accel_gyro` is available in a scenario, with seeded noise |
 | 6 | Wed PM | **Calibrate and freeze.** Each sensor stream can be simulated or replayed from a recording; sim and real residuals on the same plot; attacks injected into real sessions; first comparison replays the same real motion data in both runs | #30, #27 | TU Delft, BYU | Sim validity table updated, final results tied to a commit |
 
-**If time remains:** other signal models (#11) and the simulated Iridium layer (#15). ADR-0013 and mentor Q5 keep Iridium in the roadmap, so dropping it from the demo is a team decision.
+**If time remains:** other signal models (#11).
+
+**After the hackathon (deliverable D3, the product roadmap):** ray-traced propagation with Sionna RT. It needs a GPU-class install and a 3D model of campus buildings, which does not fit a 4-hour slot; the statistical model with measured parameters (ADR-0015) is what we ship.
 
 ## Foxglove
 
@@ -54,7 +56,7 @@ Foxglove is our internal viewer (ADR-0010). It shows what the simulator and filt
 - **Layout:** `analysis/foxglove-layout.json`, as issue #6 specifies, plus how to load it in the README.
 - **Data for the map:** Foxglove's Map panel expects `foxglove.LocationFix` and `foxglove.GeoJSON`. Our records use ENU metres, so true position, estimate and tower locations are converted for display with `pnt.core.frames` (ADR-0008 allows lat/lon for display).
 - **Use in every phase:** each new effect gets checked by eye, for example a tower dropping out at the intended time.
-- **To confirm:** whether free desktop use needs a sign-in. The free plan covers up to three developer seats.
+- **To confirm:** whether free desktop use needs a sign-in, and what the free plan allows (`TBC`; not yet checked against Foxglove's pricing page).
 
 ## What we have at the end
 
@@ -74,7 +76,7 @@ Foxglove is our internal viewer (ADR-0010). It shows what the simulator and filt
 
 ## References
 
-We reuse ideas and experiment designs, and write seeded code of our own (REQ-10). Copied code keeps its license notice. Downloaded datasets stay out of git.
+We reuse ideas and experiment designs, and write seeded code of our own (REQ-10). Downloading or copying anything below follows the third-party rule in `AGENTS.md`: a human owner's go-ahead first, license notice kept, source and license recorded in the PR, nothing copied without a published license, datasets out of git.
 
 | Reference | License | What we take | Limits |
 | --- | --- | --- | --- |
@@ -93,11 +95,11 @@ The [AERPAW LTE recordings](https://ieee-dataport.org/documents/lte-iq-measureme
 
 | ID | Decision | Proposal |
 | --- | --- | --- |
-| D1 | Where the Foxglove map data lives | Add optional `/viz/*` topics to `session.mcap`, so one file opens everything. This changes `session.md`, so it needs an `icd` PR |
-| D2 | Whether to adopt Sionna | Write the ADR before the trial, and accept it only if the trial delivers its table |
+| D1 | Where the Foxglove map data lives | A `pnt viz <session>` step writes a companion `viz.mcap` (LocationFix/GeoJSON, converted with `pnt.core.frames`) beside the session. Foxglove opens both together; `session.md` stays unchanged, so no `icd` PR |
+| D2 | Sionna RT | Not during the hackathon (see *After the hackathon*). Revisit with an ADR afterwards |
 | D3 | What `gnss_health` jam indicator means on real hardware | The sim already emits it, but the GPS HAT has no jamming flag (ADR-0014). Decide its real-data meaning with #22 |
 | D4 | Owners for #25 (dashboard), #29 (threat model), #11 and #15 | Team to assign |
-| D5 | New issues for phases 0, 1, the tower experiment and 4 | Open them once this plan is agreed |
+| D5 | New issues for phase 1 and the tower experiment | Open them once this plan is agreed |
 
 ## Needed from others
 
