@@ -1,18 +1,24 @@
+<!-- Dead to the point: single lines or short bullets. No background, no restating the issue or diff. Rules: systems/quality.md -->
+
 ## What and why
 
-<!-- What this changes and why. Link the issue: "Closes #12". -->
+<!-- One or two lines. Link the issue: "Closes #12". -->
 
 ## Traces to
 
 <!-- REQ-nn, UC-nn, ADR-nnnn, ICD-<name>, RSK-nn this implements or changes, or "none". -->
 
+## Evidence
+
+<!-- Images first: plots, screenshots, photos, before/after against main. Caption each with scenario/session, commit and kind (sim, replay, real session, hardware). If no image can show it: "No image: <reason>". -->
+
 ## How it was tested
 
-<!-- Commit and clean/dirty state. Commands you ran (`just qa`, `pnt sim …`, `pnt eval …`), before/after numbers against main, plots or screenshots. Say whether evidence is sim, replay, real session or hardware. See systems/quality.md for what each claim needs. -->
+<!-- Commit and clean/dirty state. One line per command, with its result. -->
 
 ## Not checked
 
-<!-- What you did not or could not check, and known limits. "Nothing" only if that is true. -->
+<!-- One line each, including known limits. "Nothing" only if that is true. -->
 
 ## Verdict
 
@@ -26,6 +32,7 @@
 
 - [ ] `just qa` passes on the final commit
 - [ ] Each claim has the evidence `systems/quality.md` asks for
+- [ ] Description is dead to the point; evidence is images, or it says `No image: <reason>`
 - [ ] `systems/` updated if behaviour, a requirement or an interface changed (new decision → ADR)
 - [ ] Changes `systems/icd/*`: has the `icd` label and the other owner approved
 - [ ] Any reported number or figure names its scenario/session and commit

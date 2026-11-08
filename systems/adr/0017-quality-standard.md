@@ -25,6 +25,7 @@ Two owners and several coding agents are landing work quickly before judging on 
 
 - While a REQ target is `TBD`, changes are compared against `main` and both numbers are reported. No target is invented to make a gate possible.
 - A PR stays in draft until it has a verdict, and a check that did not run is reported as unverified.
+- PR descriptions are short and use images as the default evidence. Agents commit their images under `analysis/results/pr-<n>/`, because `gh` cannot upload them.
 - No new dependencies or CI jobs come with this decision. `just qa` runs what CI already runs, minus generated code and firmware.
 - Automating the hard rules in `AGENTS.md` (REQ-07, REQ-08) and adding a `Source` contract test are follow-up work. Until then those rules depend on review.
 - Reopen when the REQ targets are set: the numeric gate should then move from "no worse than `main`" to the target itself.
