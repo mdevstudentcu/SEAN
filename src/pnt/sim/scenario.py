@@ -142,6 +142,8 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
             meas += models.baro(ts_ns, pos, rng, **cfg)
         elif model == "pseudorange":
             em_llh = cfg.pop("emitters_llh", None)
+            if "ray_table" in cfg:
+                cfg["ray_table"] = load_ray_table(cfg["ray_table"])
             if "towers_from" in cfg:
                 em_llh = select_towers(**cfg.pop("towers_from"))
             if em_llh is not None:  # real transmitter positions (data/reference)
@@ -196,6 +198,20 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     meas, events = attacks.apply(meas, spec.get("faults", []), ctx)
     meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter))
     return SimRun(spec["name"], spec, seed, truth, meas, events, emitters)
+
+
+def load_ray_table(file: str) -> dict[int, tuple[np.ndarray, np.ndarray]]:
+    """A ray tracer's output, per tower: (times in s, excess delay in m, NaN where no path)."""
+    with open(REFERENCE_DIR / file, newline="") as f:
+        rows = list(csv.DictReader(f))
+    table: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+    for tower in sorted({int(r["tower"]) for r in rows}):
+        mine = sorted((r for r in rows if int(r["tower"]) == tower), key=lambda r: float(r["t_s"]))
+        table[tower] = (
+            np.array([float(r["t_s"]) for r in mine]),
+            np.array([float(r["excess_m"]) if r["excess_m"] else np.nan for r in mine]),
+        )
+    return table
 
 
 def select_towers(

@@ -5,6 +5,7 @@ Small, committed datasets the pipeline needs. **Every file states its source and
 | File | What | Source | Retrieved |
 | --- | --- | --- | --- |
 | `cells-ottawa.csv` | Cell carriers within 10 km of Carleton that our radios can tune (600–1750 MHz): lat, lon, height, carrier, frequency, bandwidth, location, distance. Built by `analysis/extract_cells.py`. `height_m` is ground elevation plus antenna height as filed, and ground elevation is sometimes missing. No PCI or EARFCN: the registry doesn't list them | [ISED Spectrum Licences Site Data](https://ised-isde.canada.ca/site/spectrum-management-system/en/download-sms-data), `Site_Data_Extract.zip` (file dated 2024-10-30) | 2026-11-08 |
+| `sionna-campus-route.csv` | Ray-traced line of sight, excess delay and gain from six TELUS sites along the 150 m loop, every 5 s. Built by `analysis/sionna_campus.py`. Assumed heights and materials, no trees (ADR-0016) | Sionna RT 2.2.0 over [OpenStreetMap](https://www.openstreetmap.org/copyright) buildings (ODbL) | 2026-11-08 |
 | `navaids.csv` (TODO) | VOR/DME near YOW: ident, freq, lat, lon, magnetic variation | Canada Flight Supplement / NAV CANADA | TBD |
 | `broadcast.csv` (TODO) | FM/TV transmitters (mostly Camp Fortune) | ISED broadcasting database | TBD |
 | `chu.csv` (TODO) | CHU transmitter site and frequencies | NRC | TBD |

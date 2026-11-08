@@ -1,0 +1,25 @@
+# ottawa-towers with building blockage and excess delay from a Sionna ray trace of campus
+# (ADR-0016). A stretch experiment. Its numbers shape the error model and are not accuracy results.
+description: GPS outage with real towers and ray-traced blockage along the campus route.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: loop, radius_m: 150, speed_mps: 8, altitude_m: 30}
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    towers_from: {file: cells-ottawa.csv, carrier: TELUS, tx_mhz: 886.25, min_km: 0.8, count: 6}
+    sigma_m: 20.0
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+    ray_table: sionna-campus-route.csv
+    max_excess_m: 300.0
+provenance:
+  lte_geometry: literature   # ISED site registry
+  blockage: TBC   # ray-traced with assumed heights and materials, not checked against measurements
+  max_excess: TBC
+faults:
+  - {type: outage, source: gnss, start_s: 120, end_s: 240}

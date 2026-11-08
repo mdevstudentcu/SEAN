@@ -32,6 +32,7 @@ How each simulated model aligns to reality. Status: `placeholder` (datasheet/lit
 | Iridium (LEO) | Doppler σ, visibility | literature + real orbits | Not measurable this week: bound stated | placeholder |
 | Attacks (spoof, jam) | injected in software | — | Same attacks injected into real sessions | placeholder |
 | Board capture (Pi 4B, Pi 3B+) | radio gaps, timestamp jitter, stream loss | TBC (`sim/scenarios/sets/_attacks.yaml`) | Rehearsal on each board (`deploy/pi/REHEARSAL.md`) | placeholder |
+| Ray-traced blockage (Sionna) | excess delay, blocked segments | ray trace with assumed heights and materials (ADR-0016) | LTE sessions along the traced route | placeholder |
 
 ## Results
 
