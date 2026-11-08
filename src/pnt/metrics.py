@@ -9,6 +9,9 @@ import numpy as np
 from pnt.core.measurement import Estimate, Truth
 from pnt.core.time import s_to_ns
 
+SPOOF_ATTACKS = {"spoof_ramp", "spoof_jump", "meaconing", "time_spoof"}
+DETECTION_FLAGS = {"gnss_excluded", "spoof_suspected", "time_spoof_suspected"}
+
 
 @dataclass
 class RunMetrics:
@@ -39,12 +42,12 @@ def score(estimates: list[Estimate], truth: list[Truth], spec: dict, t0_ns: int)
     in_fault = np.zeros(len(t), bool)
     detect = float("nan")
     for f in spec.get("faults", []):
-        start = t0_ns + s_to_ns(f["start_s"])
+        start = t0_ns + s_to_ns(f.get("start_s", 0.0))
         end = t0_ns + s_to_ns(f["end_s"]) if "end_s" in f else t[-1] + 1
         in_fault |= (t >= start) & (t < end)
-        if f["type"] == "spoof_ramp":
+        if f["type"] in SPOOF_ATTACKS and detect != detect:  # first spoof attack only
             for e, _ in pairs:
-                if e.t_ns >= start and {"gnss_excluded", "spoof_suspected"} & set(e.flags):
+                if e.t_ns >= start and DETECTION_FLAGS & set(e.flags):
                     detect = (e.t_ns - start) / 1e9
                     break
 
