@@ -1,0 +1,27 @@
+# A ground vehicle on a street-grid route (200 m blocks) near campus. Not real roads: an
+# OpenStreetMap route needs a go-ahead for downloading third-party data (AGENTS.md).
+# GPS lost for 2 minutes, as under an overpass or in an urban canyon. REQ-01.
+description: Car at 14 m/s (50 km/h) around a street-grid loop; GPS outage from t=100 s to t=220 s.
+duration_s: 300
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]
+trajectory:
+  type: waypoints
+  vehicle: ground
+  closed: true
+  speed_mps: 14
+  corner_radius_m: 12
+  points: [[0, 0, 1.5], [400, 0, 1.5], [400, 200, 1.5], [200, 200, 1.5], [200, 400, 1.5], [0, 400, 1.5]]
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    n_emitters: 6
+    ring_radius_m: [800, 3000]   # SYNTHETIC geometry until data/reference/ has real sites
+    sigma_m: 20.0                # TBC (RSK-02)
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+faults:
+  - {type: outage, source: gnss, start_s: 100, end_s: 220}

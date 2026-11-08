@@ -1,0 +1,29 @@
+# UC-02: a crewed aircraft on a straight-in 3-degree approach to YOW runway 32, jammed on final.
+# The threshold is the airport reference point: APPROXIMATE, TBC against the Canada Flight
+# Supplement before any result is quoted. REQ-01, REQ-02.
+description: Fixed-wing straight-in approach at 70 m/s from 10 km out; GPS lost for the last 80 s.
+duration_s: 140
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]
+trajectory:
+  type: waypoints
+  vehicle: fixedwing
+  closed: false
+  speed_mps: 70
+  points_llh:   # 10 km, 5 km and 0 km from the threshold on course 320, 3-degree glide path
+    - [45.253536, -75.587358, 656.7]
+    - [45.288024, -75.628252, 383.4]
+    - [45.3225, -75.6692, 114.0]
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    n_emitters: 6
+    ring_radius_m: [800, 3000]   # SYNTHETIC geometry until data/reference/ has real sites
+    sigma_m: 20.0                # TBC (RSK-02)
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+faults:
+  - {type: outage, source: gnss, start_s: 60}
