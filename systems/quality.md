@@ -87,7 +87,7 @@ Rules for images:
 - Each caption names the scenario or session, the commit, and the kind of evidence (sim, replay, real session, hardware).
 - If no image can show the change (docs, a pure refactor), write `No image: <reason>`.
 - A change with visible output and no image cannot carry the *Ready* verdict.
-- People drag images into the description. Agents cannot upload with `gh`, so they commit the image under `analysis/results/pr-<n>/` and link it pinned to the commit: `![caption](https://github.com/<owner>/<repo>/blob/<sha>/analysis/results/pr-<n>/<file>.png?raw=true)`.
+- Drag images into the description. Where that is not possible (`gh` cannot upload), commit the image under `analysis/pr-evidence/<n>/`, kept apart from `analysis/results/`, which holds the figures we present, and link it pinned to the commit: `![caption](https://github.com/<owner>/<repo>/blob/<sha>/analysis/pr-evidence/<n>/<file>.png?raw=true)`.
 - Images follow the data rules: no raw data, unhashed BSSIDs, tokens, personal details or confidential slides.
 
 The reviewer checks these rules; no CI job does yet.

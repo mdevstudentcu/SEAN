@@ -11,4 +11,4 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
   - `time.png`: clock error and ±1σ, only when the estimator estimates the clock
 - Planned: ablation table (REQ-06), timing holdover from real sessions
 
-Rules: every figure's caption names its scenario (or session) and commit (REQ-10). Figures go in `results/`; bulky run data in `results/runs/` (ignored).
+Rules: every figure's caption names its scenario (or session) and commit (REQ-10). Figures go in `results/`; bulky run data in `results/runs/` (ignored). Images that only back a PR description go in `pr-evidence/<n>/` (`systems/quality.md`).
