@@ -11,7 +11,7 @@
 
 namespace {
 
-constexpr int PIN_PPS = 4;          // TODO: real pin. GPS PPS (3.3 V) via the LED-pad mod
+constexpr int PIN_PPS = 4;          // TODO: real pin. PPS wire tapped from the GPS HAT (Pi GPIO4)
 constexpr uint8_t SYS_ID = 42;      // payload hub
 constexpr uint8_t COMP_ID = 191;    // MAV_COMP_ID_ONBOARD_COMPUTER
 
@@ -38,9 +38,10 @@ void setup() {
   Serial.begin(921600);
   pinMode(PIN_PPS, INPUT);
   attachInterrupt(digitalPinToInterrupt(PIN_PPS), onPps, RISING);
-  // TODO: GPS UART (NMEA/UBX) on Serial1 -> GPS week/TOW for each PPS edge + PNT_GNSS_RAW_NMEA
-  // TODO: BMI160 on SPI at >= 400 Hz -> PNT_IMU_RAW
-  // TODO: BME280 on I2C -> PNT_BARO
+  // GPS NMEA goes to the Pi (GPS HAT, ADR-0014): the hub only timestamps PPS edges, and the Pi
+  // labels each edge with GPS week/TOW. PNT_GNSS_RAW_NMEA is unused (ICD follow-up).
+  // TODO: MPU6050 on I2C (400 kHz) at up to 1 kHz -> PNT_IMU_RAW
+  // TODO: BMP280 on I2C -> PNT_BARO
   // TODO: Wi-Fi scan loop -> PNT_WIFI_AP, BSSID = first 8 bytes of SHA-256(salt || bssid) (ADR-0011)
   // TODO: FTM sessions to responders -> PNT_FTM_RANGE (esp_wifi_ftm_initiate_session)
 }

@@ -1,0 +1,28 @@
+# ADR-0014: Use the Honeywell-provided GPS HAT, IMU and barometer
+
+- **Status:** Accepted
+- **Date:** 2026-11-08
+- **Deciders:** team
+- **Traces to:** REQ-03, REQ-09, RSK-05
+
+## Context
+
+Honeywell's supplies list (2026-11-08) includes an Adafruit Ultimate GPS HAT with an active antenna, and a sensor kit with an MPU6050 IMU and a BMP280 barometer. We had planned to buy a NEO-6M GPS (with a soldered PPS tap), a BMI160 IMU and a BME280 barometer. The team also already owns a Pi camera.
+
+## Options
+
+| Option | Pros | Cons |
+| --- | --- | --- |
+| Use the provided parts | In hand now; GPS HAT has PPS wired to GPIO4 (no soldering); saves ~CAD 50 and a Tuesday delivery | MediaTek GPS: no raw measurements, no built-in jamming indicator. MPU6050 is noisier than the BMI160 and I2C-only |
+| Buy the planned parts | BMI160 lower noise, SPI | Arrives Tuesday at best; more soldering |
+
+## Decision
+
+Use the GPS HAT on the payload Pi (NMEA on `/dev/serial0`, PPS on GPIO4, read by gpsd and chrony), the MPU6050 and BMP280 on the ESP32 hub's I2C bus, and the Pi camera we own.
+
+## Consequences
+
+- GPS data now enters through the Pi, not the ESP32. The hub only timestamps the PPS edge (a wire from the HAT's PPS pin) and the Pi labels each edge with GPS time. `PNT_GNSS_RAW_NMEA` in `pnt.xml` becomes unused: remove it in an ICD PR.
+- Interference cues come from per-satellite SNR in the NMEA GSV sentences instead of a receiver jamming flag.
+- Reopen if the lab has a u-blox M8T or ZED-F9P (raw measurements, RTK truth), or if MPU6050 noise limits REQ-01.
+- The NEO-6M is still worth buying for the ground reference station, which gets the provided spare Pi.

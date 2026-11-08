@@ -4,11 +4,16 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 sudo apt-get update -qq
-sudo apt-get install -y -qq chrony pps-tools rtl-sdr python3-venv
+sudo apt-get install -y -qq chrony pps-tools gpsd gpsd-clients rtl-sdr python3-venv
 sudo apt-get install -y -qq mavlink-router 2>/dev/null || echo "mavlink-router not packaged: build from source (TODO)"
 
 CFG=/boot/firmware/config.txt
-grep -q '^dtoverlay=pps-gpio' "$CFG" || echo 'dtoverlay=pps-gpio,gpiopin=18' | sudo tee -a "$CFG"
+# Adafruit Ultimate GPS HAT: NMEA on /dev/serial0, PPS on GPIO4 (ADR-0014)
+grep -q '^dtoverlay=pps-gpio' "$CFG" || echo 'dtoverlay=pps-gpio,gpiopin=4' | sudo tee -a "$CFG"
+sudo raspi-config nonint do_serial_cons 1   # no login console on the UART
+sudo raspi-config nonint do_serial_hw 0     # UART hardware on
+printf 'DEVICES="/dev/serial0 /dev/pps0"\nGPSD_OPTIONS="-n"\nUSBAUTO="false"\n' | sudo tee /etc/default/gpsd >/dev/null
+sudo systemctl enable --now gpsd
 echo 'blacklist dvb_usb_rtl28xxu' | sudo tee /etc/modprobe.d/rtlsdr.conf >/dev/null
 
 sudo install -m 644 deploy/pi/chrony.conf /etc/chrony/conf.d/pnt.conf
