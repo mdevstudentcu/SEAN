@@ -19,4 +19,5 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0013](0013-no-iridium-hardware.md) | LEO (Iridium) is simulated, not received | Accepted |
 | [0014](0014-provided-gps-and-sensors.md) | Use the Honeywell-provided GPS HAT, IMU and barometer | Accepted |
 | [0015](0015-sim-calibrated-to-reality.md) | The simulation is calibrated against real measurements | Accepted |
+| [0016](0016-sionna-campus-trial.md) | Ray-traced campus blockage is an optional, unvalidated model input | Proposed |
 | [0017](0017-quality-standard.md) | Work is ready when evidence matches the claim | Proposed |

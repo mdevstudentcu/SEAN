@@ -31,6 +31,7 @@ How each simulated model aligns to reality. Status: `placeholder` (datasheet/lit
 | CHU time | delay, σ | literature | Static session vs PPS | placeholder |
 | Iridium (LEO) | Doppler σ, visibility; the filter is told the exact satellite position and velocity (no ephemeris error, TBC) | literature + real orbits | Not measurable this week: bound stated | placeholder |
 | Attacks (spoof, jam) | injected in software | — | Same attacks injected into real sessions | placeholder |
+| Ray-traced blockage (Sionna) | excess delay, blocked segments | ray trace with assumed heights and materials (ADR-0016) | LTE sessions along the traced route | placeholder |
 
 ## Results
 
