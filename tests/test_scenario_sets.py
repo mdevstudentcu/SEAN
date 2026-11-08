@@ -49,7 +49,8 @@ def test_every_environment_states_where_its_numbers_come_from(name):
 def test_environments_get_harder():
     lte = {s: load(f"{s}-nominal")["sources"]["lte"] for s in set_names()}
     assert lte["easy"]["sigma_m"] < lte["realistic"]["sigma_m"] < lte["worst"]["sigma_m"]
-    assert lte["easy"]["n_emitters"] > lte["realistic"]["n_emitters"] > lte["worst"]["n_emitters"]
+    count = lte["realistic"]["towers_from"]["count"], lte["worst"]["towers_from"]["count"]
+    assert lte["easy"]["n_emitters"] > count[0] > count[1]
 
 
 def test_session_names_can_refer_to_combinations_but_not_arbitrary_paths():

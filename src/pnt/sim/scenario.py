@@ -5,6 +5,7 @@ Faults live here (and in sources), never in the estimator: the estimator must no
 
 from __future__ import annotations
 
+import csv
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -21,6 +22,7 @@ from pnt.sim import attacks, models, trajectory
 SCENARIO_DIR = Path(__file__).parent / "scenarios"
 SET_DIR = SCENARIO_DIR / "sets"
 ATTACK_MENU = SET_DIR / "_attacks.yaml"
+REFERENCE_DIR = Path(__file__).parents[3] / "data" / "reference"
 # Fixed scenario start so runs are reproducible (REQ-10): judging day, 18:00 UTC.
 T0_NS = utc_to_gps_ns(datetime(2026, 11, 12, 18, 0, tzinfo=UTC))
 
@@ -140,6 +142,8 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
             meas += models.baro(ts_ns, pos, rng, **cfg)
         elif model == "pseudorange":
             em_llh = cfg.pop("emitters_llh", None)
+            if "towers_from" in cfg:
+                em_llh = select_towers(**cfg.pop("towers_from"))
             if em_llh is not None:  # real transmitter positions (data/reference)
                 em = np.array([llh_to_enu(x, spec["origin_llh"]) for x in em_llh])
             else:
@@ -177,6 +181,32 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     meas, events = attacks.apply(meas, spec.get("faults", []), ctx)
     meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter))
     return SimRun(spec["name"], spec, seed, truth, meas, events, emitters)
+
+
+def select_towers(
+    file: str, carrier: str, tx_mhz: float, count: int, min_km: float = 0.0
+) -> list[list[float]]:
+    """The `count` nearest sites broadcasting one carrier, as [lat, lon, height]. Deterministic.
+
+    One radio hears one carrier at a time, so a scenario's towers share an operator and frequency.
+    """
+    with open(REFERENCE_DIR / file, newline="") as f:
+        rows = [
+            r
+            for r in csv.DictReader(f)
+            if carrier.lower() in r["carrier"].lower()
+            and float(r["tx_mhz"]) == float(tx_mhz)
+            and float(r["dist_km"]) >= min_km
+        ]
+    sites: dict[tuple[str, str], dict] = {}
+    for r in sorted(rows, key=lambda r: float(r["dist_km"])):
+        sites.setdefault((r["lat"], r["lon"]), r)
+    if len(sites) < count:
+        raise ValueError(f"only {len(sites)} sites match {carrier} at {tx_mhz} MHz, need {count}")
+    return [
+        [float(r["lat"]), float(r["lon"]), float(r["height_m"])]
+        for r in list(sites.values())[:count]
+    ]
 
 
 def _told_positions(sigma_m: float, em: np.ndarray, em_llh, spec: dict, rng):

@@ -1,0 +1,19 @@
+# A 2-minute GPS outage using real Ottawa tower locations and otherwise ideal conditions. The
+# reference case for asking which real towers matter (REQ-06). Tower noise values are TBC.
+description: GPS outage from t=120 s to t=240 s with six real TELUS sites around Carleton.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: loop, radius_m: 150, speed_mps: 8, altitude_m: 30}
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    towers_from: {file: cells-ottawa.csv, carrier: TELUS, tx_mhz: 886.25, min_km: 0.8, count: 6}
+    sigma_m: 20.0
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+faults:
+  - {type: outage, source: gnss, start_s: 120, end_s: 240}
