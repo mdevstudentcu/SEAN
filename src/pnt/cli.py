@@ -9,8 +9,10 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+import yaml
+
 from pnt.core.measurement import Measurement
-from pnt.io.mcap_log import SessionWriter, read_session
+from pnt.io.mcap_log import SessionWriter, read_metadata, read_session
 from pnt.metrics import score, summarize
 from pnt.nav import baseline
 from pnt.sim.scenario import SCENARIO_DIR, T0_NS, generate, load
@@ -42,7 +44,7 @@ def _fmt(metrics: dict) -> str:
 def cmd_sim(args) -> None:
     spec = load(args.scenario)
     run = generate(spec, seed=args.seed)
-    estimates = list(baseline.run(run.measurements))
+    estimates = list(baseline.run(run.measurements, origin_llh=spec.get("origin_llh")))
     m = score(estimates, run.truth, spec, T0_NS)
 
     SESSIONS.mkdir(parents=True, exist_ok=True)
@@ -78,7 +80,8 @@ def _eval(scenario: str, runs: int) -> dict:
     results = []
     for seed in range(runs):
         run = generate(spec, seed=seed)
-        results.append(score(list(baseline.run(run.measurements)), run.truth, spec, T0_NS))
+        est = baseline.run(run.measurements, origin_llh=spec.get("origin_llh"))
+        results.append(score(list(est), run.truth, spec, T0_NS))
     return summarize(results)
 
 
@@ -92,7 +95,9 @@ def cmd_eval(args) -> None:
 
 def cmd_replay(args) -> None:
     meas = (r for _, r in read_session(args.path, topics=["/meas/"]) if isinstance(r, Measurement))
-    estimates = list(baseline.run(meas))
+    session_meta = read_metadata(args.path).get("session", {})
+    origin = yaml.safe_load(session_meta.get("origin_llh", "null"))
+    estimates = list(baseline.run(meas, origin_llh=origin))
     truth = [r for _, r in read_session(args.path, topics=["/truth"])]
     print(f"replayed {args.path}: {len(estimates)} estimates")
     if truth:

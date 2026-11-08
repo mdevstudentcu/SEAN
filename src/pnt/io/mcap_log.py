@@ -64,6 +64,12 @@ class SessionWriter:
         self.close()
 
 
+def read_metadata(path: str | Path) -> dict[str, dict[str, str]]:
+    """All metadata records in a session file, by name (e.g. 'session')."""
+    with open(path, "rb") as f:
+        return {m.name: dict(m.metadata) for m in make_reader(f).iter_metadata()}
+
+
 def read_session(
     path: str | Path, topics: list[str] | None = None
 ) -> Iterator[tuple[str, Record]]:

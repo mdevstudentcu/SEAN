@@ -12,9 +12,10 @@ from pathlib import Path
 import numpy as np
 import yaml
 
+from pnt.core.frames import llh_to_enu
 from pnt.core.measurement import Measurement, Truth
 from pnt.core.time import s_to_ns, utc_to_gps_ns
-from pnt.sim import models, trajectory
+from pnt.sim import attacks, models, trajectory
 
 SCENARIO_DIR = Path(__file__).parent / "scenarios"
 # Fixed scenario start so runs are reproducible (REQ-10): judging day, 18:00 UTC.
@@ -53,9 +54,10 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
 
     t_truth = _times(dur, 1.0 / spec.get("dt_s", 0.1))
     pos_t, vel_t = trajectory.make(traj, t_truth)
+    clock_t = _clock(spec.get("clock"), t_truth, rng)
     truth = [
-        Truth(t_ns=T0_NS + s_to_ns(t), pos_enu=tuple(p), vel_enu=tuple(v))
-        for t, p, v in zip(t_truth, pos_t, vel_t, strict=True)
+        Truth(t_ns=T0_NS + s_to_ns(t), pos_enu=tuple(p), vel_enu=tuple(v), clock_bias_s=float(c))
+        for t, p, v, c in zip(t_truth, pos_t, vel_t, clock_t, strict=True)
     ]
 
     meas: list[Measurement] = []
@@ -67,57 +69,42 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
         pos, _ = trajectory.make(traj, ts)
         model = cfg.pop("model", source)
         if model == "gnss":
-            meas += models.gnss(ts_ns, pos, rng, **cfg)
+            clock_s = np.interp(ts, t_truth, clock_t) if "clock" in spec else None
+            meas += models.gnss(ts_ns, pos, rng, clock_s=clock_s, **cfg)
         elif model == "baro":
             meas += models.baro(ts_ns, pos, rng, **cfg)
         elif model == "pseudorange":
-            em = models.synthetic_emitters(
-                rng, cfg.pop("n_emitters"), tuple(cfg.pop("ring_radius_m"))
-            )
+            em_llh = cfg.pop("emitters_llh", None)
+            if em_llh is not None:  # real transmitter positions (data/reference)
+                em = np.array([llh_to_enu(x, spec["origin_llh"]) for x in em_llh])
+            else:
+                em = models.synthetic_emitters(
+                    rng, cfg.pop("n_emitters"), tuple(cfg.pop("ring_radius_m"))
+                )
             for i, e in enumerate(em):
                 emitters[f"{source}:sim{i}"] = [float(x) for x in e]
-            meas += models.pseudoranges(ts_ns, pos, rng, source=source, emitters=em, **cfg)
+            meas += models.pseudoranges(
+                ts_ns, pos, rng, source=source, emitters=em, emitters_llh=em_llh, **cfg
+            )
         else:
             raise ValueError(f"unknown model {model!r} for source {source!r}")
 
-    meas, events = apply_faults(meas, spec.get("faults", []))
-    meas.sort(key=lambda m: (m.t_ns, m.source, m.emitter))
+    ctx = attacks.Context(
+        t0_ns=T0_NS,
+        origin_llh=spec.get("origin_llh"),
+        truth_pos=lambda t: trajectory.make(traj, np.atleast_1d(t))[0],
+        rng=rng,
+    )
+    meas, events = attacks.apply(meas, spec.get("faults", []), ctx)
+    meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter))
     return SimRun(spec["name"], spec, seed, truth, meas, events, emitters)
 
 
-def apply_faults(meas: list[Measurement], faults: list[dict]):
-    events: list[tuple[int, str]] = []
-    for f in faults:
-        start = T0_NS + s_to_ns(f["start_s"])
-        end = T0_NS + s_to_ns(f["end_s"]) if "end_s" in f else None
-
-        def active(m, f=f, start=start, end=end):
-            return m.source == f["source"] and m.t_ns >= start and (end is None or m.t_ns < end)
-
-        if f["type"] == "outage":
-            meas = [m for m in meas if not active(m)]
-            events.append((start, f"{f['source']} outage starts"))
-            if end:
-                events.append((end, f"{f['source']} outage ends"))
-        elif f["type"] == "spoof_ramp":
-            d = np.radians(f.get("direction_deg", 0.0))
-            u = np.array([np.sin(d), np.cos(d), 0.0])  # direction clockwise from north
-            out = []
-            for m in meas:
-                if active(m) and m.kind == "position_enu":
-                    off = f["rate_mps"] * (m.t_ns - start) / 1e9 * u
-                    m = Measurement(
-                        t_ns=m.t_ns,
-                        source=m.source,
-                        kind=m.kind,
-                        value=tuple(np.add(m.value, off)),
-                        sigma=m.sigma,
-                        emitter=m.emitter,
-                        meta=m.meta,
-                    )
-                out.append(m)
-            meas = out
-            events.append((start, f"{f['source']} spoof ramp starts ({f['rate_mps']} m/s)"))
-        else:
-            raise ValueError(f"unknown fault type {f['type']!r}")
-    return meas, events
+def _clock(spec: dict | None, t: np.ndarray, rng) -> np.ndarray:
+    """True local clock offset from GPS time (s): offset + drift + random walk. Zero if the
+    scenario has no `clock:` block. Parameters are placeholders until measured (ADR-0015)."""
+    if not spec:
+        return np.zeros_like(t)
+    dt = np.diff(t, prepend=t[0])
+    walk = np.cumsum(rng.normal(0.0, spec.get("rw_ns", 0.0) * 1e-9 * np.sqrt(dt)))
+    return spec.get("offset_s", 0.0) + spec.get("drift_ppb", 0.0) * 1e-9 * t + walk

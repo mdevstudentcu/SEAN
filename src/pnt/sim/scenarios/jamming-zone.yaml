@@ -1,0 +1,20 @@
+# A jammer at a fixed point on the flight path (e.g. a vehicle with an in-car jammer).
+# The loop passes it once a lap: GPS degrades within 250 m and is lost within 60 m. REQ-01, REQ-04.
+description: Jammer on the loop path; GPS degraded within 250 m, lost within 60 m, every lap.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: loop, radius_m: 150, speed_mps: 8, altitude_m: 30}
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5, health: true}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    n_emitters: 6
+    ring_radius_m: [800, 3000]   # SYNTHETIC geometry until data/reference/ has real sites
+    sigma_m: 20.0                # TBC (RSK-02)
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+faults:
+  - {type: jamming_zone, source: gnss, center_llh: [45.3876, -75.694085, 70.0], radius_m: 60, onset_m: 250}

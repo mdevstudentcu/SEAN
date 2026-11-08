@@ -1,0 +1,20 @@
+# GPS recorded and rebroadcast 5 s late: plausible positions, just lagging. Verifies REQ-04.
+description: GNSS replayed with a 5 s delay from t=150 s.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: loop, radius_m: 150, speed_mps: 8, altitude_m: 30}
+clock: {drift_ppb: 50, rw_ns: 2.0}   # TBC: receiver oscillator, until measured (ADR-0015)
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5, time_sigma_ns: 20}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    n_emitters: 6
+    ring_radius_m: [800, 3000]   # SYNTHETIC geometry until data/reference/ has real sites
+    sigma_m: 20.0                # TBC (RSK-02)
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+faults:
+  - {type: meaconing, source: gnss, start_s: 150, delay_s: 5.0}
