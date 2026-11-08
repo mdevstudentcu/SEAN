@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 
-from pnt.core.frames import llh_to_enu
+from pnt.core.frames import enu_to_llh, llh_to_enu
 from pnt.core.measurement import Measurement, Truth
 from pnt.core.time import s_to_ns, utc_to_gps_ns
 from pnt.sim import attacks, models, trajectory
@@ -101,8 +101,22 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
                 )
             for i, e in enumerate(em):
                 emitters[f"{source}:sim{i}"] = [float(x) for x in e]
+            told_em, em_llh = _told_positions(
+                cfg.pop("told_position_sigma_m", 0.0), em, em_llh, spec, rng
+            )
+            if cfg.pop("receiver_clock", False):
+                if "clock" not in spec:
+                    raise ValueError("receiver_clock needs a `clock:` model in the scenario")
+                cfg["clock_s"] = np.interp(ts, t_truth, clock_t)
             meas += models.pseudoranges(
-                ts_ns, pos, rng, source=source, emitters=em, emitters_llh=em_llh, **cfg
+                ts_ns,
+                pos,
+                rng,
+                source=source,
+                emitters=em,
+                emitters_llh=em_llh,
+                told_emitters=told_em,
+                **cfg,
             )
         else:
             raise ValueError(f"unknown model {model!r} for source {source!r}")
@@ -116,6 +130,16 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     meas, events = attacks.apply(meas, spec.get("faults", []), ctx)
     meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter))
     return SimRun(spec["name"], spec, seed, truth, meas, events, emitters)
+
+
+def _told_positions(sigma_m: float, em: np.ndarray, em_llh, spec: dict, rng):
+    """Tower positions as published: the truth plus a horizontal error. (told ENU, told lat/lon)"""
+    if not sigma_m:
+        return None, em_llh
+    told = em + np.column_stack([rng.normal(0.0, sigma_m, (len(em), 2)), np.zeros(len(em))])
+    if em_llh is not None:
+        return None, [enu_to_llh(e, spec["origin_llh"]) for e in told]
+    return told, None
 
 
 def _clock(spec: dict | None, t: np.ndarray, rng) -> np.ndarray:
