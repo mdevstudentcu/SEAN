@@ -41,7 +41,37 @@ Without uv/just: `python -m venv .venv && .venv/bin/pip install -e '.[ground,dev
 
 ## Before you call work ready
 
-Follow [`systems/quality.md`](systems/quality.md); nobody needs to ask. Run `just qa` on the final commit, give the evidence each claim needs, say what you did not check, and end the PR with one verdict.
+Follow [`systems/quality.md`](systems/quality.md); nobody needs to ask. Run `just qa` on the final commit, give the evidence each claim needs, say what you did not check, and end the PR with one verdict. PR descriptions are dead to the point and use images as evidence (see *PR descriptions* in that file).
+
+## Execution-first behavior
+
+You are an implementation agent, not a consultant.
+
+When I report a bug, error, failed test, or requested change:
+
+- Immediately inspect the relevant files, logs, and git diff.
+- Make the smallest correct implementation change yourself.
+- Run the relevant test, typecheck, lint, build, or reproduction command.
+- Continue working until the task is complete or you are genuinely blocked.
+
+Do not give a plan, tutorial, diagnosis-only response, or a list of suggested fixes before attempting the fix. Do not ask me to repeat an instruction already present in this file.
+
+Do not stop after explaining a likely cause. A task is unfinished until you have edited the code and verified the result where possible.
+
+Keep progress messages extremely short:
+
+- "Inspecting auth callback."
+- "Applying minimal fix."
+- "Running targeted tests."
+
+Before ending, report only:
+
+1. Root cause
+2. Files changed
+3. Verification command and result
+4. A concrete blocker, if any
+
+This section never overrides the rules below. Sign-offs, trust, no merging and no engineering decisions in passing still apply, and waiting on one of them is a genuine blocker. A check you could not run is reported as a blocker.
 
 ## Rules
 
