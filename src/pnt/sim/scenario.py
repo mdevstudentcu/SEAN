@@ -5,6 +5,7 @@ Faults live here (and in sources), never in the estimator: the estimator must no
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -31,6 +32,23 @@ class SimRun:
     measurements: list[Measurement]
     events: list[tuple[int, str]] = field(default_factory=list)
     emitters: dict[str, list[float]] = field(default_factory=dict)
+
+
+_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
+
+
+def load_named(name: str) -> dict:
+    """Load a bundled scenario by plain name only (e.g. 'spoof-ramp').
+
+    For names read from session files, which are untrusted input (AGENTS.md): no paths, no
+    suffixes, so a session cannot point the loader at an arbitrary file.
+    """
+    if not isinstance(name, str) or not _NAME.fullmatch(name):
+        raise ValueError(f"not a scenario name: {name!r}")
+    path = SCENARIO_DIR / f"{name}.yaml"
+    if not path.is_file():
+        raise FileNotFoundError(f"no bundled scenario named {name!r}")
+    return load(str(path))
 
 
 def load(name_or_path: str) -> dict:

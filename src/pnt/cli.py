@@ -15,7 +15,7 @@ from pnt.core.measurement import Measurement
 from pnt.io.mcap_log import SessionWriter, read_metadata, read_session
 from pnt.metrics import score, summarize
 from pnt.nav import ESTIMATORS
-from pnt.sim.scenario import SCENARIO_DIR, T0_NS, generate, load
+from pnt.sim.scenario import SCENARIO_DIR, T0_NS, generate, load, load_named
 
 REPO = Path(__file__).resolve().parents[2]
 SESSIONS = REPO / "data" / "sessions"
@@ -26,7 +26,10 @@ def _commit() -> str:
     try:
         return (
             subprocess.run(
-                ["git", "rev-parse", "--short", "HEAD"], cwd=REPO, capture_output=True, text=True
+                ["git", "describe", "--always", "--dirty", "--abbrev=7"],
+                cwd=REPO,
+                capture_output=True,
+                text=True,
             ).stdout.strip()
             or "uncommitted"
         )
@@ -100,9 +103,9 @@ def _replay_spec(path: str) -> dict:
     if not name:
         return {"faults": []}
     try:
-        return load(name)
-    except FileNotFoundError:
-        print(f"scenario {name!r} not found: scoring without fault windows")
+        return load_named(name)
+    except (ValueError, FileNotFoundError) as exc:
+        print(f"{exc}: scoring without fault windows")
         return {"faults": []}
 
 

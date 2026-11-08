@@ -12,6 +12,7 @@ Every figure carries a caption naming the scenario (or session), seed, estimator
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -58,12 +59,12 @@ def load(path: str | Path) -> RunData:
             estimates.setdefault(topic.removeprefix("/nav/"), []).append(rec)
     spec: dict = {"faults": []}
     if meta.get("scenario"):
-        from pnt.sim.scenario import load as load_scenario
+        from pnt.sim.scenario import load_named
 
         try:
-            spec = load_scenario(meta["scenario"])
-        except FileNotFoundError:
-            pass
+            spec = load_named(meta["scenario"])
+        except (ValueError, FileNotFoundError) as exc:
+            warnings.warn(f"no fault shading: {exc}", stacklevel=2)
     if "origin_llh" not in spec and meta.get("origin_llh"):
         spec["origin_llh"] = yaml.safe_load(meta["origin_llh"])
     return RunData(path.stem, meta, spec, truth, estimates)
@@ -75,7 +76,6 @@ class Series:
     err_h: np.ndarray  # horizontal error (m), nan where no truth
     hpl: np.ndarray
     alarm: np.ndarray  # epochs carrying an alarm flag
-    unsafe: np.ndarray
     truth_enu: np.ndarray  # (N, 3), nan where no truth
     clock_err: np.ndarray  # s, nan where not estimated
     clock_sigma: np.ndarray
@@ -96,7 +96,6 @@ def series(run: RunData, estimator: str) -> Series:
         err_h=np.hypot(*(pos - tru)[:, :2].T),
         hpl=np.array([np.nan if e.hpl_m is None else e.hpl_m for e in est]),
         alarm=np.array([bool(ALARM_FLAGS & set(e.flags)) for e in est]),
-        unsafe=np.array([e.status == "unsafe" for e in est]),
         truth_enu=tru,
         clock_err=np.where(has_clock, [e.clock_bias_s for e in est] - clock_truth, np.nan),
         clock_sigma=np.array(
