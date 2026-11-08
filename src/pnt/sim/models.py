@@ -11,6 +11,8 @@ import numpy as np
 
 from pnt.core.measurement import Measurement
 
+C_MPS = 299_792_458.0
+
 
 def gnss(
     ts_ns,
@@ -88,23 +90,47 @@ def pseudoranges(
     clock_rw_m: float,
     init_bias_m: float,
     emitters_llh=None,
+    told_emitters: np.ndarray | None = None,
+    told_sigma_m: float | None = None,
+    clock_s: np.ndarray | None = None,
+    drift_sigma_mps: float = 0.0,
+    multipath: dict | None = None,
+    dropout: dict | None = None,
     **_,
 ) -> list[Measurement]:
-    """Range to each emitter + that emitter's clock bias (random walk) + white noise.
+    """Range to each emitter + clock terms + lingering error + white noise.
 
-    Models terrestrial SoOP (LTE, NR) whose transmitter clocks are unknown to us.
+    Models terrestrial SoOP (LTE, NR) whose transmitter clocks are unknown to us. Beyond the base
+    model, each of these is optional and off by default (issue #46):
+    - clock_s: the receiver's clock offset (s). It shifts every tower's reading together.
+    - drift_sigma_mps: each tower's own constant clock drift, drawn per tower.
+    - multipath: {sigma_m, tau_s}, a first-order Gauss-Markov error per tower, as a reflection
+      that stays wrong for many seconds.
+    - dropout: {availability, block_s}, each tower heard or lost in random blocks of time.
+    - told_emitters / told_sigma_m: what the filter is told, when that differs from the truth.
+      `emitters` and `sigma_m` always describe the truth.
     """
     out: list[Measurement] = []
+    t_s = (ts_ns - ts_ns[0]) / 1e9
     dt = np.diff(ts_ns, prepend=ts_ns[0]) / 1e9
+    reported_sigma = sigma_m if told_sigma_m is None else told_sigma_m
     for i, e in enumerate(emitters):
         bias = rng.uniform(-init_bias_m, init_bias_m) + np.cumsum(
             rng.normal(0.0, clock_rw_m * np.sqrt(np.maximum(dt, 1e-9)))
         )
         rho = np.linalg.norm(pos - e, axis=1) + bias + rng.normal(0.0, sigma_m, len(pos))
+        if clock_s is not None:
+            rho = rho + C_MPS * clock_s
+        if drift_sigma_mps:
+            rho = rho + rng.normal(0.0, drift_sigma_mps) * t_s
+        if multipath:
+            rho = rho + _gauss_markov(rng, dt, multipath["sigma_m"], multipath["tau_s"])
+        keep = _available(rng, t_s, dropout) if dropout else np.ones(len(ts_ns), bool)
         if emitters_llh is not None:  # real transmitter: carry lat/lon, as a front-end would
             meta = {"emitter_llh": [float(x) for x in emitters_llh[i]]}
         else:
-            meta = {"emitter_enu": [float(x) for x in e]}
+            told = e if told_emitters is None else told_emitters[i]
+            meta = {"emitter_enu": [float(x) for x in told]}
         out += [
             Measurement(
                 t_ns=int(t),
@@ -112,9 +138,25 @@ def pseudoranges(
                 kind="pseudorange",
                 emitter=f"{source}:sim{i}",
                 value=(float(r),),
-                sigma=(sigma_m,),
+                sigma=(reported_sigma,),
                 meta=meta,
             )
-            for t, r in zip(ts_ns, rho, strict=True)
+            for t, r in zip(ts_ns[keep], rho[keep], strict=True)
         ]
     return out
+
+
+def _gauss_markov(rng, dt: np.ndarray, sigma: float, tau_s: float) -> np.ndarray:
+    """First-order Gauss-Markov sequence with steady-state std `sigma` and time constant tau."""
+    phi = np.exp(-dt / tau_s)
+    x = np.empty(len(dt))
+    x[0] = rng.normal(0.0, sigma)
+    for k in range(1, len(dt)):
+        x[k] = phi[k] * x[k - 1] + rng.normal(0.0, sigma * np.sqrt(1.0 - phi[k] ** 2))
+    return x
+
+
+def _available(rng, t_s: np.ndarray, dropout: dict) -> np.ndarray:
+    """True where a tower is heard: on or off for whole blocks, independently per block."""
+    blocks = (t_s // dropout["block_s"]).astype(int)
+    return (rng.random(blocks.max() + 1) < dropout["availability"])[blocks]

@@ -12,6 +12,8 @@ Attacks (`type` in a scenario's `faults:` list):
 - time_spoof: receiver time offset steps/ramps, position untouched (timing attack)
 - meaconing: position and time lag by delay_s (record-and-rebroadcast)
 - jamming_zone: accuracy degrades near a fixed place, lost inside it (e.g. in-car jammer)
+- tower_clock_step: one tower's clock offset changes by offset_m (not an attack on GNSS: a
+  tower fault that a filter must not confuse with a receiver clock change)
 """
 
 from __future__ import annotations
@@ -148,6 +150,17 @@ def meaconing(meas, f, ctx, start, end):
         for m in out
     ]
     return out, [(start, f"meaconing: GNSS replayed {delay} s late{_window(f, end)}")]
+
+
+@attack("tower_clock_step")
+def tower_clock_step(meas, f, ctx, start, end):
+    out = [
+        _replace(m, value=(m.value[0] + f["offset_m"],))
+        if _active(m, f, start, end) and m.kind == "pseudorange" and m.emitter == f["emitter"]
+        else m
+        for m in meas
+    ]
+    return out, [(start, f"{f['emitter']} clock steps by {f['offset_m']} m{_window(f, end)}")]
 
 
 @attack("jamming_zone")
