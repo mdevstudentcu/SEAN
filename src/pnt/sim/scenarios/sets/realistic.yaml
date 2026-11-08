@@ -1,0 +1,34 @@
+# Realistic: our best current estimate of a low-cost receiver in the real world. Every value is
+# TBC until the radio test and published data replace it (ADR-0015).
+description: Best current estimate of real conditions for a low-cost receiver.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: loop, radius_m: 150, speed_mps: 8, altitude_m: 30}
+clock: {drift_ppb: 20, rw_ns: 2.0}
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5, time_sigma_ns: 20, health: true}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    n_emitters: 4
+    ring_radius_m: [800, 3000]   # SYNTHETIC geometry
+    sigma_m: 50.0
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+    receiver_clock: true
+    drift_sigma_mps: 0.05
+    multipath: {sigma_m: 50.0, tau_s: 30.0}
+    dropout: {availability: 0.75, block_s: 30.0}
+    told_position_sigma_m: 100.0
+provenance:
+  clock: TBC
+  gnss: TBC
+  baro: TBC
+  lte_noise: TBC
+  lte_geometry: TBC
+  tower_drift: TBC
+  multipath: TBC
+  dropout: TBC
+  tower_position_error: TBC

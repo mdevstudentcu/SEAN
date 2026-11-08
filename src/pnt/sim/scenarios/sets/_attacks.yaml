@@ -1,0 +1,27 @@
+# The faults every environment in this folder is tested against (issue #16). A scenario name is
+# <environment>-<entry>, for example `realistic-outage`. `pnt eval realistic` runs them all.
+nominal: []
+outage:
+  - {type: outage, source: gnss, start_s: 120, end_s: 240}
+gps-no-fix:   # receiver keeps talking but has no position (PX4 test: gpsFixLoss)
+  - {type: gps_no_fix, source: gnss, start_s: 120, end_s: 240}
+gps-low-sats:   # few satellites but position still good: must not raise an alarm
+  - {type: gps_low_sats, source: gnss, start_s: 120, end_s: 240, satellites: 3}
+gps-return:   # GPS jumps, then good GPS returns (PX4 test: gnssJumpDetectionDRMode)
+  - {type: spoof_jump, source: gnss, start_s: 150, end_s: 200, offset_enu_m: [300, 0, 0]}
+spoof-ramp:
+  - {type: spoof_ramp, source: gnss, start_s: 150, rate_mps: 2.0, direction_deg: 45}
+spoof-jump:
+  - {type: spoof_jump, source: gnss, start_s: 150, offset_enu_m: [300, 0, 0]}
+time-spoof:
+  - {type: time_spoof, source: gnss, start_s: 150, rate_ns_per_s: 50}
+meaconing:
+  - {type: meaconing, source: gnss, start_s: 150, delay_s: 5.0}
+jamming-zone:
+  - {type: jamming_zone, source: gnss, center_llh: [45.3876, -75.694085, 70.0], radius_m: 60, onset_m: 250}
+baro-drift:   # sensor degradation
+  - {type: baro_drift, source: baro, start_s: 120, rate_mps: 0.2}
+tower-loss:   # all towers lost while GPS keeps working
+  - {type: outage, source: lte, start_s: 120, end_s: 240}
+tower-clock-step:   # one tower's clock jumps
+  - {type: tower_clock_step, source: lte, emitter: "lte:sim1", start_s: 150, offset_m: 300.0}
