@@ -47,6 +47,7 @@ def pseudoranges(
     sigma_m: float,
     clock_rw_m: float,
     init_bias_m: float,
+    emitters_llh=None,
     **_,
 ) -> list[Measurement]:
     """Range to each emitter + that emitter's clock bias (random walk) + white noise.
@@ -60,7 +61,10 @@ def pseudoranges(
             rng.normal(0.0, clock_rw_m * np.sqrt(np.maximum(dt, 1e-9)))
         )
         rho = np.linalg.norm(pos - e, axis=1) + bias + rng.normal(0.0, sigma_m, len(pos))
-        meta = {"emitter_enu": [float(x) for x in e]}
+        if emitters_llh is not None:  # real transmitter: carry lat/lon, as a front-end would
+            meta = {"emitter_llh": [float(x) for x in emitters_llh[i]]}
+        else:
+            meta = {"emitter_enu": [float(x) for x in e]}
         out += [
             Measurement(
                 t_ns=int(t),

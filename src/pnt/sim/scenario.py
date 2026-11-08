@@ -12,6 +12,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 
+from pnt.core.frames import llh_to_enu
 from pnt.core.measurement import Measurement, Truth
 from pnt.core.time import s_to_ns, utc_to_gps_ns
 from pnt.sim import models, trajectory
@@ -71,12 +72,18 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
         elif model == "baro":
             meas += models.baro(ts_ns, pos, rng, **cfg)
         elif model == "pseudorange":
-            em = models.synthetic_emitters(
-                rng, cfg.pop("n_emitters"), tuple(cfg.pop("ring_radius_m"))
-            )
+            em_llh = cfg.pop("emitters_llh", None)
+            if em_llh is not None:  # real transmitter positions (data/reference)
+                em = np.array([llh_to_enu(x, spec["origin_llh"]) for x in em_llh])
+            else:
+                em = models.synthetic_emitters(
+                    rng, cfg.pop("n_emitters"), tuple(cfg.pop("ring_radius_m"))
+                )
             for i, e in enumerate(em):
                 emitters[f"{source}:sim{i}"] = [float(x) for x in e]
-            meas += models.pseudoranges(ts_ns, pos, rng, source=source, emitters=em, **cfg)
+            meas += models.pseudoranges(
+                ts_ns, pos, rng, source=source, emitters=em, emitters_llh=em_llh, **cfg
+            )
         else:
             raise ValueError(f"unknown model {model!r} for source {source!r}")
 

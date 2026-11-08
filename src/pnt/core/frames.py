@@ -58,3 +58,18 @@ def llh_to_enu(llh, origin_llh) -> np.ndarray:
 
 def enu_to_llh(enu, origin_llh) -> np.ndarray:
     return ecef_to_llh(enu_to_ecef(enu, origin_llh))
+
+
+def emitter_enu(meta: dict, origin_llh) -> np.ndarray | None:
+    """Transmitter position in session ENU from a measurement's meta.
+
+    Accepts `emitter_enu` (already local) or `emitter_llh` (lat deg, lon deg, h m), which needs
+    the session origin. Returns None when the measurement carries no emitter position.
+    """
+    if "emitter_enu" in meta:
+        return np.asarray(meta["emitter_enu"], dtype=float)
+    if "emitter_llh" in meta:
+        if origin_llh is None:
+            raise ValueError("emitter_llh needs the session origin_llh")
+        return llh_to_enu(meta["emitter_llh"], origin_llh)
+    return None

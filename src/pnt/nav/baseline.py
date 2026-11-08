@@ -13,6 +13,7 @@ from collections.abc import Iterable, Iterator
 
 import numpy as np
 
+from pnt.core.frames import emitter_enu
 from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.protection import hpl, vpl
 
@@ -29,6 +30,7 @@ class BaselineEKF:
         init_bias_sigma: float = 2000.0,
         alert_limit_m: float = 50.0,  # TBC: from REQ-01/REQ-02 targets
         gnss_timeout_s: float = 2.0,
+        origin_llh=None,  # session origin; needed for measurements that carry emitter_llh
     ):
         self.q_accel, self.q_bias = q_accel, q_bias
         self.init_bias_sigma = init_bias_sigma
@@ -40,6 +42,8 @@ class BaselineEKF:
         self.bias_idx: dict[str, int] = {}
         self.last_used: dict[str, int] = {}
         self.last_rejected: dict[str, int] = {}
+        self.origin_llh = origin_llh
+        self._emitter_cache: dict[str, np.ndarray | None] = {}
 
     # --- state handling ---------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -91,6 +95,12 @@ class BaselineEKF:
         return True
 
     # --- measurement handling --------------------------------------------------------
+    def _emitter(self, m: Measurement) -> np.ndarray | None:
+        # Emitters don't move: convert once per emitter (ADR-0008, one conversion point)
+        if m.emitter not in self._emitter_cache:
+            self._emitter_cache[m.emitter] = emitter_enu(m.meta, self.origin_llh)
+        return self._emitter_cache[m.emitter]
+
     def process(self, m: Measurement) -> None:
         if self.x is None:
             if m.kind == "position_enu":
@@ -106,8 +116,7 @@ class BaselineEKF:
             H = np.zeros((1, n))
             H[0, 2] = 1.0
             self._update(m, m.value[0], self.x[2], H, np.diag(np.square(m.sigma)), 1)
-        elif m.kind == "pseudorange" and "emitter_enu" in m.meta:
-            e = np.asarray(m.meta["emitter_enu"])
+        elif m.kind == "pseudorange" and (e := self._emitter(m)) is not None:
             d = self.x[:3] - e
             r = float(np.linalg.norm(d))
             new = m.emitter not in self.bias_idx
@@ -151,9 +160,10 @@ def run(
     measurements: Iterable[Measurement],
     epoch_ns: int = 100_000_000,
     ekf: BaselineEKF | None = None,
+    origin_llh=None,
 ) -> Iterator[Estimate]:
     """Feed time-ordered measurements; yield an Estimate on every epoch boundary."""
-    ekf = ekf or BaselineEKF()
+    ekf = ekf or BaselineEKF(origin_llh=origin_llh)
     next_epoch = None
     for m in measurements:
         if ekf.x is not None:
