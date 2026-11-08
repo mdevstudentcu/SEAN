@@ -1,6 +1,6 @@
 # Quality standard
 
-What every change must show before it is called ready. It applies to people and agents, without anyone having to ask. Decision: [ADR-0017](adr/0017-quality-standard.md).
+What every change must show before it is called ready, whoever made it. Decision: [ADR-0017](adr/0017-quality-standard.md).
 
 **The rule:** a claim is only as good as the evidence for it. Run what you claim, on the commit you are submitting, and say what you did not check.
 
@@ -107,11 +107,4 @@ Alongside the verdict, the PR gives the commit and whether the tree was clean, t
 
 An unrun check is unverified, never a pass. A green test run cannot override something you saw go wrong.
 
-## For agents
-
-`AGENTS.md` still governs merging, trust and third-party code. In addition:
-
-- Follow this file by default; do not wait for a request to verify your work.
-- Report only what you observed. "Should work" is not evidence.
-- If you cannot run a check (no hardware, needs a sign-in, a tool is missing), the verdict is blocked. Do not substitute an easier check and call it the same thing.
-- Read your whole diff before giving a verdict, and keep unrelated findings out of the PR. Raise them as issues.
+Instructions for coding agents live in `AGENTS.md` only (*Before you call work ready*), so they keep its sign-off rule.

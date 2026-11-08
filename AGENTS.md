@@ -43,6 +43,10 @@ Without uv/just: `python -m venv .venv && .venv/bin/pip install -e '.[ground,dev
 
 Follow [`systems/quality.md`](systems/quality.md); nobody needs to ask. Run `just qa` on the final commit, give the evidence each claim needs, say what you did not check, and end the PR with one verdict. PR descriptions are dead to the point and use images as evidence (see *PR descriptions* in that file).
 
+- Report only what you observed. "Should work" is not evidence.
+- If you cannot run a check (no hardware, needs a sign-in, a tool is missing), the verdict is blocked. Do not substitute an easier check and call it the same thing.
+- Read your whole diff before giving a verdict, and keep unrelated findings out of the PR. Raise them as issues.
+
 ## Rules
 
 - **`systems/` wins.** If code or a README disagrees with a requirement, ADR or ICD, the `systems/` file is right. Flag the conflict; don't silently pick one.
