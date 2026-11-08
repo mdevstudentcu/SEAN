@@ -71,3 +71,41 @@ def test_plot_needs_truth(tmp_path):
             w.write("/nav/baseline", e)
     with pytest.raises(ValueError, match="truth"):
         plots.save_all(path, tmp_path / "out")
+
+
+@pytest.mark.parametrize(
+    "bad", ["../../etc/passwd.yaml", "/tmp/x.yaml", "a/b", "x.yaml", "", None]
+)
+def test_session_files_can_only_name_bundled_scenarios(bad):
+    from pnt.sim.scenario import load_named
+
+    with pytest.raises((ValueError, FileNotFoundError)):
+        load_named(bad)
+
+
+def test_bundled_scenario_loads_by_name():
+    from pnt.sim.scenario import load_named
+
+    assert load_named("spoof-ramp")["name"] == "spoof-ramp"
+
+
+def test_plot_ignores_a_session_pointing_at_another_file(tmp_path):
+    from pnt.io.mcap_log import SessionWriter
+
+    run = _run("gps-outage")
+    path = tmp_path / "evil.mcap"
+    with SessionWriter(path, metadata={"scenario": "../../pyproject.toml"}) as w:
+        for t in run.truth:
+            w.write("/truth", t)
+        for e in run.estimates["baseline"]:
+            w.write("/nav/baseline", e)
+    with pytest.warns(UserWarning, match="no fault shading"):
+        loaded = plots.load(path)
+    assert loaded.spec == {"faults": []}
+
+
+def test_commit_label_marks_uncommitted_changes():
+    from pnt.cli import _commit
+
+    label = _commit()
+    assert label and " " not in label  # e.g. f42d50f or f42d50f-dirty
