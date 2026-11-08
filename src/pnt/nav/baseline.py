@@ -44,6 +44,7 @@ class BaselineEKF:
         self.bias_idx: dict[str, int] = {}
         self.last_used: dict[str, int] = {}
         self.last_rejected: dict[str, int] = {}
+        self.nis_log: list[tuple[str, int, float]] = []  # (source, dim, NIS) per gated update
         self.origin_llh = origin_llh
         self._emitter_cache: dict[str, np.ndarray | None] = {}
 
@@ -88,6 +89,8 @@ class BaselineEKF:
         y = np.atleast_1d(z - h)
         S = H @ self.P @ H.T + R
         nis = float(y @ np.linalg.solve(S, y))
+        if gate:
+            self.nis_log.append((m.source, gate_dim, nis))
         if gate and nis > CHI2_999[gate_dim]:
             self.last_rejected[m.source] = m.t_ns
             return False
