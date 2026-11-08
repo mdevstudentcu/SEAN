@@ -22,8 +22,8 @@ How each simulated model aligns to reality. Status: `placeholder` (datasheet/lit
 | Model | Parameters | Current source | Real check | Status |
 | --- | --- | --- | --- | --- |
 | GNSS position | σ, outage/attack behaviour | literature | Static + walk sessions with the GPS HAT | placeholder |
-| Barometer (BMP280) | σ, bias | datasheet | Static session | placeholder |
-| IMU (MPU6050) | noise, bias instability | datasheet | Static Allan variance | placeholder |
+| Barometer (BMP280) | σ, offset, drift | datasheet + TBC (`sim/sensors.py`, `BMP280`) | Static session | placeholder |
+| IMU (MPU6050) | noise, residual bias, bias instability, scale, range, vibration | noise: datasheet; rest literature/TBC (`sim/sensors.py`, `MPU6050`) | Static Allan variance | placeholder |
 | LTE pseudorange | σ, tower clock drift, NLOS bias | literature | LTE timing spike (fixed spot, 1 h) | placeholder |
 | VOR bearing | bias, σ | literature | RF survey at known points | placeholder |
 | ADS-B | message rate, NIC/NACp behaviour | literature | RF survey | placeholder |
