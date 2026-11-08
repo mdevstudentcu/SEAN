@@ -15,6 +15,10 @@ sim scenario="gps-outage" *args="":
 eval scenario="gps-outage" runs="50":
     {{py}} pnt eval {{scenario}} --runs {{runs}}
 
+# Re-run every scenario's Monte Carlo and rewrite the results table in systems/verification.md
+results runs="50":
+    {{py}} pnt results --runs {{runs}}
+
 # Re-run the estimator over a recorded MCAP (sim or real session)
 replay path:
     {{py}} pnt replay {{path}}
@@ -57,3 +61,19 @@ lint:
 fmt:
     {{py}} ruff format .
     {{py}} ruff check --fix .
+
+# Everything to run before calling work ready (systems/quality.md). CI adds generated code and firmware
+qa:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    commit="$(git rev-parse --short HEAD)"
+    state="clean"
+    if [ -n "$(git status --porcelain)" ]; then state="DIRTY, not valid for a verdict"; fi
+    tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' EXIT
+    {{py}} ruff check .
+    {{py}} ruff format --check .
+    {{py}} pytest -q
+    {{py}} pnt sim gps-outage --out "$tmp/smoke"
+    {{py}} pnt plot "$tmp/smoke" --out "$tmp/plots"
+    echo "qa passed at $commit ($state)"
