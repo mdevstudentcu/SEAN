@@ -52,8 +52,14 @@ def cmd_sim(args) -> None:
 
     SESSIONS.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    # A session folder (ICD-session) unless --out names a bare .mcap file
-    out = Path(args.out) if args.out else SESSIONS / f"sim-{spec['name']}-{stamp}"
+    # A session folder (ICD-session) unless --out names a bare .mcap file. Never overwrite
+    # an existing session: real recordings can't be regenerated.
+    if args.out:
+        out = Path(args.out)
+        if _holds_data(out) and not args.force:
+            raise SystemExit(f"{out} already holds data; choose another --out or pass --force")
+    else:
+        out = _unique(SESSIONS / f"sim-{spec['name']}-{stamp}")
     if out.suffix != ".mcap":
         out.mkdir(parents=True, exist_ok=True)
         session.write_meta(out, {
@@ -87,6 +93,19 @@ def cmd_sim(args) -> None:
         print(f"  event @ {(t - T0_NS) / 1e9:6.1f} s: {text}")
     print(_fmt(m.as_dict()))
     print(f"wrote {out.relative_to(REPO) if out.is_relative_to(REPO) else out}")
+
+
+def _holds_data(path: Path) -> bool:
+    """An existing file, or a folder with anything in it."""
+    return path.is_file() or (path.is_dir() and any(path.iterdir()))
+
+
+def _unique(path: Path) -> Path:
+    """`path`, or `path-2`, `path-3`... if it is taken (two runs in the same second)."""
+    n, candidate = 2, path
+    while candidate.exists():
+        candidate, n = path.with_name(f"{path.name}-{n}"), n + 1
+    return candidate
 
 
 def _eval(scenario: str, runs: int, estimator: str) -> dict:
@@ -190,7 +209,8 @@ def main(argv=None) -> None:
     s = sub.add_parser("sim", help="run one simulated scenario, write an MCAP, print metrics")
     s.add_argument("scenario")
     s.add_argument("--seed", type=int, default=0)
-    s.add_argument("--out")
+    s.add_argument("--out", help="session folder (default: data/sessions/sim-<scenario>-<time>)")
+    s.add_argument("--force", action="store_true", help="overwrite an existing --out")
     add_estimator(s)
     s.set_defaults(fn=cmd_sim)
 
