@@ -12,9 +12,14 @@ State (metres and metres per second throughout, so the matrix stays well conditi
 - Measurements are a registry (`MODELS`): each kind maps to a function returning the predicted
   value, Jacobian row(s) and noise. Unknown kinds are ignored, so new sources add a model only.
 
-The pseudorange model includes the receiver clock (c*dt), as real measurements do. The sim only
-adds it when the receiver-clock option exists (#47); until then, set
-`pseudorange_receiver_clock=False` for scenarios that model a clock but not its effect on towers.
+Receiver clock in pseudoranges: a real radio's tower ranges all carry our clock offset (c*dt).
+The sim doesn't add it yet (#47), so `pseudorange_receiver_clock` defaults to False to match the
+data. Turned on against data without the term, a drifting clock makes the filter reject nearly
+every tower. Turn it on when the sim (or real data) has the term, and only with a time source:
+towers alone can't separate our clock from theirs, so its variance grows without bound.
+
+GNSS position and GNSS time are tracked separately for health, so rejecting one is never hidden
+by accepting the other at the same instant.
 """
 
 from __future__ import annotations
@@ -26,9 +31,10 @@ import numpy as np
 from pnt.core.frames import emitter_enu
 from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.protection import hpl, vpl
+from pnt.nav.baseline import CHI2_999
 
 C = 299_792_458.0
-CHI2_999 = {1: 10.83, 2: 13.82, 3: 16.27}
+GNSS_TIME = "gnss:time"  # health key for GNSS time, separate from GNSS position ("gnss")
 POS, VEL, CLK, DRIFT = slice(0, 3), slice(3, 6), 6, 7
 N_CORE = 8
 
@@ -49,7 +55,7 @@ class EKF:
         init_emitter_sigma: float = 2000.0,
         alert_limit_m: float = 50.0,  # TBC: REQ-01/REQ-02
         gnss_timeout_s: float = 2.0,
-        pseudorange_receiver_clock: bool = True,
+        pseudorange_receiver_clock: bool = False,  # True once the sim models it (#47)
     ):
         self.origin_llh = origin_llh
         self.q_accel, self.q_emitter = q_accel, q_emitter
@@ -116,18 +122,18 @@ class EKF:
         self.P = F @ self.P @ F.T + Q
         self.t_ns = t_ns
 
-    def _update(self, source: str, t_ns: int, y, H, R, gate: bool = True) -> bool:
+    def _update(self, key: str, t_ns: int, y, H, R, gate: bool = True) -> bool:
         y = np.atleast_1d(y)
-        S = H @ self.P @ H.T + R
-        nis = float(y @ np.linalg.solve(S, y))
+        S_inv = np.linalg.inv(H @ self.P @ H.T + R)
+        nis = float(y @ S_inv @ y)
         if gate and nis > CHI2_999[len(y)]:
-            self.last_rejected[source] = t_ns
+            self.last_rejected[key] = t_ns
             return False
-        K = self.P @ H.T @ np.linalg.inv(S)
+        K = self.P @ H.T @ S_inv
         self.x = self.x + K @ y
         I_KH = np.eye(len(self.x)) - K @ H
         self.P = I_KH @ self.P @ I_KH.T + K @ R @ K.T  # Joseph form
-        self.last_used[source] = t_ns
+        self.last_used[key] = t_ns
         return True
 
     # --- measurements ------------------------------------------------------------------------
@@ -144,7 +150,8 @@ class EKF:
         if out is None:
             return
         y, H, R, gate = out
-        self._update(m.source, m.t_ns, y, H, R, gate)
+        key = GNSS_TIME if (m.source, m.kind) == ("gnss", "time") else m.source
+        self._update(key, m.t_ns, y, H, R, gate)
 
     def _emitter(self, m: Measurement) -> np.ndarray | None:
         if m.emitter not in self._emitter_pos:
@@ -160,19 +167,24 @@ class EKF:
             flags.append("gnss_unavailable")
         if self.last_rejected.get("gnss", never) > self.last_used.get("gnss", never):
             flags.append("gnss_excluded")
+        if self.last_rejected.get(GNSS_TIME, never) > self.last_used.get(GNSS_TIME, never):
+            flags.append("time_spoof_suspected")  # GNSS time disagrees with our clock model
         h = hpl(P3)
         status = "unsafe" if h > self.alert_limit_m else ("degraded" if flags else "nominal")
         trust = {
             s: (1.0 if self.t_ns - t <= self.gnss_timeout_ns else 0.0)
             for s, t in self.last_used.items()
+            if s != GNSS_TIME
         }
+        # The clock is only estimated once a time source has observed it (ICD: null otherwise)
+        observed = GNSS_TIME in self.last_used
         return Estimate(
             t_ns=self.t_ns,
             pos_enu=tuple(self.x[POS]),
             vel_enu=tuple(self.x[VEL]),
             pos_cov=tuple(P3.ravel()),
-            clock_bias_s=float(self.x[CLK] / C),
-            clock_sigma_s=float(np.sqrt(self.P[CLK, CLK]) / C),
+            clock_bias_s=float(self.x[CLK] / C) if observed else 0.0,
+            clock_sigma_s=float(np.sqrt(self.P[CLK, CLK]) / C) if observed else None,
             hpl_m=h,
             vpl_m=vpl(P3),
             status=status,
@@ -199,7 +211,12 @@ def _altitude(ekf: EKF, m: Measurement):
 
 
 def _time(ekf: EKF, m: Measurement):
-    """GNSS time solution: local clock minus GPS time, in seconds (ICD `time`)."""
+    """GNSS time solution: local clock minus GPS time, in seconds (ICD `time`).
+
+    Only GNSS for now. Broadcast time (CHU, WWVB) is UTC plus a propagation delay, so it needs
+    the leap-second offset and its own model before it can update this state."""
+    if m.source != "gnss":
+        return None
     H = _row(ekf)
     H[0, CLK] = 1.0
     sigma_m = C * m.sigma[0]
