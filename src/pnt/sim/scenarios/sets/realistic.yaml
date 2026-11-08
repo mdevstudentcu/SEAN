@@ -15,8 +15,7 @@ sources:
   lte:
     model: pseudorange
     rate_hz: 1
-    n_emitters: 4
-    ring_radius_m: [800, 3000]   # SYNTHETIC geometry
+    towers_from: {file: cells-ottawa.csv, carrier: TELUS, tx_mhz: 886.25, min_km: 0.8, count: 4}   # one radio hears one carrier
     sigma_m: 50.0
     clock_rw_m: 0.2
     init_bias_m: 1000.0
@@ -30,7 +29,7 @@ provenance:
   gnss: TBC
   baro: TBC
   lte_noise: TBC
-  lte_geometry: TBC
+  lte_geometry: literature   # ISED site registry (data/reference/README.md)
   tower_drift: TBC
   multipath: TBC
   dropout: TBC
