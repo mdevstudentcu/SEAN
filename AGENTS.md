@@ -58,7 +58,7 @@ Without uv/just: `python -m venv .venv && .venv/bin/pip install -e '.[ground,dev
 - Branch from an up-to-date `main`: `name/<type>/<issue>-<short-name>` (e.g. `shrikar/feat/3-plots`). One issue per branch where possible.
 - [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): summary`, imperative, ≤ 72 chars. Scopes: `systems`, `core`, `sim`, `nav`, `integrity`, `frontends`, `payload`, `dashboard`, `firmware`, `flight`, `deploy`, `analysis`, `ci`. One logical change per commit.
 - **No AI attribution:** no `Co-Authored-By: Claude`, `Claude-Session:` or "Generated with" lines in commits or PR descriptions.
-- PRs: title in Conventional Commit form, body says what changed and why, and links the issue (`Closes #n`). CI must be green. The other owner reviews; `icd` PRs need their approval.
+- PRs: title in Conventional Commit form, body follows `.github/pull_request_template.md` and links the issue (`Closes #n`). CI must be green. `CODEOWNERS` requests a review from the other owner; `icd` PRs need their approval. New issues use the Task or Bug template.
 - Merge with "Rebase and merge" (or "Squash and merge" for messy branches); delete the branch after.
 - Keep branches current by rebasing on `origin/main`; never merge `main` into a branch, and don't use GitHub's "Update branch" button (it makes a merge commit).
 - Check `git status` before committing so stray files (sessions, PDFs) don't get swept in.
