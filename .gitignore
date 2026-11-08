@@ -1,0 +1,34 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Data: raw sessions never go in git (ADR-0007). Reference CSVs do.
+data/sessions/*
+!data/sessions/.gitkeep
+*.mcap
+*.cu8
+!tests/fixtures/**/*.mcap
+
+# Analysis outputs: figures are committed, bulky run data is not
+analysis/results/runs/
+
+# Confidential: the kickoff deck is marked "Confidential—Not for public consumption"
+Kick Off Presentation Combined.pdf
+*.confidential.*
+
+# Firmware build output
+firmware/**/.pio/
+
+# Editors, OS, agents
+.vscode/
+.idea/
+.DS_Store
+.claude/
+.env
+.env.*
