@@ -32,6 +32,7 @@ platform: handheld        # drone | handheld | vehicle | sim
 origin_llh: [45.3876, -75.6960, 70.0]   # session ENU origin
 simulated: false
 scenario: null            # scenario file for sim sessions
+seed: null                # sim random seed, so the run can be regenerated (REQ-10)
 commit: <git sha>
 hardware: [pi4b, esp32-s3, nesdr-smart-v5 x2, adafruit-gps-hat, mpu6050, bmp280, pi-camera]
 notes: ""
