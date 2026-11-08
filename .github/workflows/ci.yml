@@ -10,12 +10,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uv sync --extra dev
+      # ground: the laptop-side stack (matplotlib for plots, etc.), so its tests run in CI too
+      - run: uv sync --extra ground --extra dev
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest -q
       - name: Smoke-test the sim end to end
         run: uv run pnt sim gps-outage --out /tmp/smoke.mcap
+      - name: Smoke-test plotting
+        run: uv run pnt plot /tmp/smoke.mcap --out /tmp/smoke-plots
 
   generated-code:
     runs-on: ubuntu-latest
