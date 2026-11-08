@@ -32,6 +32,7 @@ Stop when the evidence is sufficient. Do not invent extra tests to look thorough
 ## Reporting numbers
 
 - **While a REQ target is `TBD`, compare against `main`** and report both values. A worse number needs a stated reason in the PR, or the PR is not ready.
+- **Compare paired runs.** `pnt eval` uses seeds `0` to `N-1`, so the same scenario and run count gives both sides the same draws, and a difference in an estimator change is a real effect on those runs, not noise. A change to the sim alters the draws and breaks the pairing: say so, and do not read a small difference as better or worse.
 - **One seed shows that it runs.** It does not show that it is better. Use at least the `just eval` default of 50 runs for any claim of improvement.
 - **Every number names its scenario or session and its commit** (REQ-10).
 - **Say what kind of evidence it is:** sim, replay of a real session, real session with injected faults, or hardware.
