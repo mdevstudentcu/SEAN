@@ -4,13 +4,15 @@ The source of truth for what we are building and why. When code or another doc d
 
 | File / folder | What lives there |
 | --- | --- |
+| [`use-cases.md`](use-cases.md) | Use cases (`UC-nn`) the requirements trace to |
 | [`requirements.md`](requirements.md) | Mission and requirements (`REQ-nn`), each with a success measure and verification method |
 | [`assumptions.md`](assumptions.md) | Assumptions (`ASM-nn`) the design rests on |
 | [`adr/`](adr/README.md) | Architecture decision records (`ADR-nnnn`), one file per decision |
 | [`icd/`](icd) | Interfaces: `measurement.md` (pipeline record), `pnt.xml` (ESP32↔Pi wire protocol), `session.md` (log layout) |
 | [`risks.md`](risks.md) | Ranked risks (`RSK-nn`) with mitigations |
 | [`safety.md`](safety.md) | RF/spectrum, legal, flight, privacy and cybersecurity considerations |
-| [`verification.md`](verification.md) | Requirement → method → test → result |
+| [`verification.md`](verification.md) | Requirement → method → test → result, and how the sim aligns to reality |
+| [`mentor-qa.md`](mentor-qa.md) | Answers from our Honeywell mentors, dated |
 
 ## Rules
 

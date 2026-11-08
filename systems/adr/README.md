@@ -18,3 +18,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0012](0012-flight-control-levels.md) | RC stays the safety layer; scripted flights first | Accepted |
 | [0013](0013-no-iridium-hardware.md) | LEO (Iridium) is simulated, not received | Accepted |
 | [0014](0014-provided-gps-and-sensors.md) | Use the Honeywell-provided GPS HAT, IMU and barometer | Accepted |
+| [0015](0015-sim-calibrated-to-reality.md) | The simulation is calibrated against real measurements | Accepted |

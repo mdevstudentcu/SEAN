@@ -15,6 +15,23 @@ How each requirement is shown to be met. The **Result** column between the marke
 | REQ-09 | D | Same pipeline on drone, handheld and vehicle sessions | Session metadata |
 | REQ-10 | I | Every figure names its scenario or session + commit | `analysis/` |
 
+## Sim validity (ADR-0015)
+
+How each simulated model aligns to reality. Status: `placeholder` (datasheet/literature value), `measured` (parameter from a real session), `validated` (sim and real residual distributions compared, gap recorded).
+
+| Model | Parameters | Current source | Real check | Status |
+| --- | --- | --- | --- | --- |
+| GNSS position | σ, outage/attack behaviour | literature | Static + walk sessions with the GPS HAT | placeholder |
+| Barometer (BMP280) | σ, bias | datasheet | Static session | placeholder |
+| IMU (MPU6050) | noise, bias instability | datasheet | Static Allan variance | placeholder |
+| LTE pseudorange | σ, tower clock drift, NLOS bias | literature | LTE timing spike (fixed spot, 1 h) | placeholder |
+| VOR bearing | bias, σ | literature | RF survey at known points | placeholder |
+| ADS-B | message rate, NIC/NACp behaviour | literature | RF survey | placeholder |
+| Wi-Fi FTM / RSSI | σ, NLOS bias | literature | Indoor session with surveyed responders | placeholder |
+| CHU time | delay, σ | literature | Static session vs PPS | placeholder |
+| Iridium (LEO) | Doppler σ, visibility | literature + real orbits | Not measurable this week: bound stated | placeholder |
+| Attacks (spoof, jam) | injected in software | — | Same attacks injected into real sessions | placeholder |
+
 ## Results
 
 <!-- results:start -->
