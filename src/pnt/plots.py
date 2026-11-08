@@ -17,12 +17,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
-import yaml
 
 from pnt.core.frames import llh_to_enu
 from pnt.core.measurement import Estimate, Truth
 from pnt.core.time import s_to_ns
-from pnt.io.mcap_log import read_metadata, read_session
+from pnt.io import session
+from pnt.io.mcap_log import read_session
 from pnt.metrics import ALARM_FLAGS
 
 # TBC: REQ-01/REQ-02 targets set the real alert limit (same placeholder as the baseline).
@@ -47,9 +47,11 @@ class RunData:
 
 
 def load(path: str | Path) -> RunData:
-    """Truth, every estimator's output and the scenario (for fault windows) from a session."""
-    path = Path(path)
-    meta = read_metadata(path)
+    """Truth, every estimator's output and the scenario (for fault windows) from a session
+    folder or a bare session MCAP."""
+    meta = session.read_meta(path)
+    name = session.session_name(path)
+    path = session.mcap_path(path)
     truth: list[Truth] = []
     estimates: dict[str, list[Estimate]] = {}
     for topic, rec in read_session(path, topics=["/truth", "/nav/"]):
@@ -66,8 +68,8 @@ def load(path: str | Path) -> RunData:
         except (ValueError, FileNotFoundError) as exc:
             warnings.warn(f"no fault shading: {exc}", stacklevel=2)
     if "origin_llh" not in spec and meta.get("origin_llh"):
-        spec["origin_llh"] = yaml.safe_load(meta["origin_llh"])
-    return RunData(path.stem, meta, spec, truth, estimates)
+        spec["origin_llh"] = meta["origin_llh"]
+    return RunData(name, meta, spec, truth, estimates)
 
 
 @dataclass

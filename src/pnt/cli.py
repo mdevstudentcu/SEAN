@@ -9,10 +9,9 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-import yaml
-
 from pnt.core.measurement import Measurement
-from pnt.io.mcap_log import SessionWriter, read_metadata, read_session
+from pnt.io import session
+from pnt.io.mcap_log import SessionWriter, read_session
 from pnt.metrics import score, summarize
 from pnt.nav import ESTIMATORS
 from pnt.sim.scenario import SCENARIO_DIR, T0_NS, generate, load, load_named
@@ -53,7 +52,18 @@ def cmd_sim(args) -> None:
 
     SESSIONS.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    out = Path(args.out) if args.out else SESSIONS / f"sim-{spec['name']}-{stamp}.mcap"
+    # A session folder (ICD-session) unless --out names a bare .mcap file
+    out = Path(args.out) if args.out else SESSIONS / f"sim-{spec['name']}-{stamp}"
+    if out.suffix != ".mcap":
+        out.mkdir(parents=True, exist_ok=True)
+        session.write_meta(out, {
+            "name": out.name, "platform": "sim", "origin_llh": spec.get("origin_llh"),
+            "simulated": True, "scenario": spec["name"], "seed": args.seed,
+            "commit": _commit(), "hardware": [], "notes": spec.get("description", ""),
+        })  # fmt: skip
+        mcap = out / session.MCAP_NAME
+    else:
+        mcap = out
     meta = {
         "platform": "sim",
         "simulated": True,
@@ -62,7 +72,7 @@ def cmd_sim(args) -> None:
         "commit": _commit(),
         "origin_llh": spec.get("origin_llh"),
     }
-    with SessionWriter(out, metadata=meta) as w:
+    with SessionWriter(mcap, metadata=meta) as w:
         for t in run.truth:
             w.write("/truth", t)
         for meas in run.measurements:
@@ -99,7 +109,7 @@ def cmd_eval(args) -> None:
 
 def _replay_spec(path: str) -> dict:
     """The scenario a simulated session came from, so replay scores its fault windows too."""
-    name = read_metadata(path).get("scenario")
+    name = session.read_meta(path).get("scenario")
     if not name:
         return {"faults": []}
     try:
@@ -110,10 +120,11 @@ def _replay_spec(path: str) -> dict:
 
 
 def cmd_replay(args) -> None:
-    meas = (r for _, r in read_session(args.path, topics=["/meas/"]) if isinstance(r, Measurement))
-    origin = yaml.safe_load(read_metadata(args.path).get("origin_llh", "null"))
+    mcap = session.mcap_path(args.path)
+    meas = (r for _, r in read_session(mcap, topics=["/meas/"]) if isinstance(r, Measurement))
+    origin = session.read_meta(args.path).get("origin_llh")
     estimates = list(ESTIMATORS[args.estimator](meas, origin_llh=origin))
-    truth = [r for _, r in read_session(args.path, topics=["/truth"])]
+    truth = [r for _, r in read_session(mcap, topics=["/truth"])]
     print(f"replayed {args.path}: {len(estimates)} estimates")
     if truth:
         print(_fmt(score(estimates, truth, _replay_spec(args.path), T0_NS).as_dict()))
@@ -156,9 +167,11 @@ def cmd_results(args) -> None:
 def cmd_plot(args) -> None:
     from pnt import plots  # needs matplotlib (ground extra)
 
-    path = Path(args.path)
-    out = Path(args.out) if args.out else REPO / "analysis" / "results" / path.stem
-    written = plots.save_all(path, out, estimator=args.estimator, alert_limit_m=args.alert_limit)
+    name = session.session_name(args.path)
+    out = Path(args.out) if args.out else REPO / "analysis" / "results" / name
+    written = plots.save_all(
+        args.path, out, estimator=args.estimator, alert_limit_m=args.alert_limit
+    )
     for w in written:
         print(f"wrote {w.relative_to(REPO) if w.is_relative_to(REPO) else w}")
 
