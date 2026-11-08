@@ -21,6 +21,7 @@ ground = [
     "pymavlink>=2.4.41",
     "pyModeS>=2.18",
     "matplotlib>=3.8",
+    "sgp4>=2.23",
 ]
 # Raspberry Pi: capture and streaming only (keep it light)
 payload = [
