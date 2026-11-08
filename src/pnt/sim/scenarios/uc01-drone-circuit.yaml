@@ -1,0 +1,26 @@
+# UC-01: a drone circuit over Carleton with smooth turns (usable by the IMU model, #9).
+# GPS lost for 2 minutes mid-flight. REQ-01, REQ-02.
+description: Multirotor circuit over campus at 8 m/s and 40 m; GPS outage from t=120 s to t=240 s.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory:
+  type: waypoints
+  vehicle: multirotor
+  closed: true
+  speed_mps: 8
+  corner_radius_m: 40
+  points: [[0, 0, 40], [250, 50, 40], [300, 300, 45], [0, 350, 40], [-200, 150, 40]]
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    n_emitters: 6
+    ring_radius_m: [800, 3000]   # SYNTHETIC geometry until data/reference/ has real sites
+    sigma_m: 20.0                # TBC (RSK-02)
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+faults:
+  - {type: outage, source: gnss, start_s: 120, end_s: 240}

@@ -68,7 +68,7 @@ def _times(duration_s: float, rate_hz: float) -> np.ndarray:
 def generate(spec: dict, seed: int = 0) -> SimRun:
     rng = np.random.default_rng(seed)
     dur = float(spec["duration_s"])
-    traj = spec["trajectory"]
+    traj = {**spec["trajectory"], "_origin_llh": spec.get("origin_llh")}  # for points_llh
 
     t_truth = _times(dur, 1.0 / spec.get("dt_s", 0.1))
     pos_t, vel_t = trajectory.make(traj, t_truth)

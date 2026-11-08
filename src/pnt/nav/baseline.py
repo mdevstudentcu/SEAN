@@ -28,12 +28,14 @@ class BaselineEKF:
         q_accel: float = 1.0,  # m/s^2 / sqrt(Hz), white-acceleration process noise
         q_bias: float = 0.2,  # m / sqrt(s), emitter clock random walk
         init_bias_sigma: float = 2000.0,
+        init_vel_sigma: float = 100.0,  # m/s: start unsure of speed, up to aircraft speeds
         alert_limit_m: float = 50.0,  # TBC: from REQ-01/REQ-02 targets
         gnss_timeout_s: float = 2.0,
         origin_llh=None,  # session origin; needed for measurements that carry emitter_llh
     ):
         self.q_accel, self.q_bias = q_accel, q_bias
         self.init_bias_sigma = init_bias_sigma
+        self.init_vel_sigma = init_vel_sigma
         self.alert_limit_m = alert_limit_m
         self.gnss_timeout_ns = int(gnss_timeout_s * 1e9)
         self.x: np.ndarray | None = None
@@ -49,7 +51,9 @@ class BaselineEKF:
     def _init(self, m: Measurement) -> None:
         self.x = np.zeros(6)
         self.x[:3] = m.value
-        self.P = np.diag([*(np.square(m.sigma)), 25.0, 25.0, 4.0])
+        # A tight initial velocity at 0 locks GNSS out at aircraft speeds: every fix fails the
+        # gate before velocity converges (found on uc02-yow-approach).
+        self.P = np.diag([*(np.square(m.sigma)), *([self.init_vel_sigma**2] * 3)])
         self.t_ns = m.t_ns
 
     def _augment(self, emitter: str, bias0: float) -> int:
