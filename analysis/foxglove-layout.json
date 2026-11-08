@@ -1,18 +1,34 @@
 {
   "configById": {
     "map!pntmap": {
-      "center": { "lat": 45.3876, "lon": -75.696 },
+      "center": {
+        "lat": 45.3876,
+        "lon": -75.696
+      },
       "zoomLevel": 15,
       "layer": "map",
       "customTileUrl": "",
       "followTopic": "/viz/estimate",
       "disabledTopics": [],
-      "topicColors": {}
+      "topicColors": {
+        "/viz/truth": "#21a650",
+        "/viz/estimate": "#f27319"
+      }
     },
     "Plot!pnterror": {
       "paths": [
-        { "value": "/viz/nav.h_error_m", "enabled": true, "timestampMethod": "receiveTime", "label": "Horizontal error (m)" },
-        { "value": "/viz/nav.hpl_m", "enabled": true, "timestampMethod": "receiveTime", "label": "HPL (m)" }
+        {
+          "value": "/viz/nav.h_error_m",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "Horizontal error (m)"
+        },
+        {
+          "value": "/viz/nav.hpl_m",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "HPL (m)"
+        }
       ],
       "showXAxisLabels": true,
       "showYAxisLabels": true,
@@ -25,9 +41,24 @@
     },
     "Plot!pntsignals": {
       "paths": [
-        { "value": "/viz/nav.towers_heard", "enabled": true, "timestampMethod": "receiveTime", "label": "Towers heard" },
-        { "value": "/viz/nav.fault_active", "enabled": true, "timestampMethod": "receiveTime", "label": "Fault active" },
-        { "value": "/viz/nav.alarm", "enabled": true, "timestampMethod": "receiveTime", "label": "Alarm" }
+        {
+          "value": "/viz/nav.towers_heard",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "Towers heard"
+        },
+        {
+          "value": "/viz/nav.fault_active",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "Fault active"
+        },
+        {
+          "value": "/viz/nav.alarm",
+          "enabled": true,
+          "timestampMethod": "receiveTime",
+          "label": "Alarm"
+        }
       ],
       "showXAxisLabels": true,
       "showYAxisLabels": true,
@@ -40,26 +71,41 @@
     },
     "StateTransitions!pntstatus": {
       "paths": [
-        { "value": "/viz/nav.status", "timestampMethod": "receiveTime", "label": "Status" },
-        { "value": "/viz/nav.flags", "timestampMethod": "receiveTime", "label": "Flags" }
+        {
+          "value": "/viz/nav.status",
+          "timestampMethod": "receiveTime",
+          "label": "Status"
+        },
+        {
+          "value": "/viz/nav.flags",
+          "timestampMethod": "receiveTime",
+          "label": "Flags"
+        },
+        {
+          "value": "/viz/nav.towers_lost",
+          "timestampMethod": "receiveTime",
+          "label": "Towers lost"
+        }
       ],
       "isSynced": true
     }
   },
   "globalVariables": {},
   "userNodes": {},
-  "playbackConfig": { "speed": 1 },
+  "playbackConfig": {
+    "speed": 1
+  },
   "layout": {
     "direction": "row",
     "splitPercentage": 50,
     "first": "map!pntmap",
     "second": {
       "direction": "column",
-      "splitPercentage": 45,
+      "splitPercentage": 35,
       "first": "Plot!pnterror",
       "second": {
         "direction": "column",
-        "splitPercentage": 55,
+        "splitPercentage": 40,
         "first": "Plot!pntsignals",
         "second": "StateTransitions!pntstatus"
       }

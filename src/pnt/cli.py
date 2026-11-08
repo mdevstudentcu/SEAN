@@ -16,7 +16,7 @@ from pnt.io.mcap_log import SessionWriter, read_session
 from pnt.metrics import score, summarize
 from pnt.nav import ESTIMATORS
 from pnt.sim.scenario import SCENARIO_DIR, T0_NS, generate, load, load_named
-from pnt.viz import default_output, session_file, write_viz
+from pnt.viz import default_output, write_viz
 
 REPO = Path(__file__).resolve().parents[2]
 SESSIONS = REPO / "data" / "sessions"
@@ -158,7 +158,7 @@ def cmd_viz(args) -> None:
             T0_NS + s_to_ns(f.get("start_s", 0.0)),
             T0_NS + s_to_ns(f["end_s"]) if "end_s" in f else None,
         )
-        for f in _replay_spec(session_file(args.session)).get("faults", [])
+        for f in _replay_spec(args.session).get("faults", [])
     ]
     counts = write_viz(args.session, out, estimator=args.estimator, fault_windows=windows)
     print(f"wrote {out}: {counts['estimates']} estimates, {counts['towers']} towers")
