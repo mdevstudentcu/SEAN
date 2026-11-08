@@ -69,7 +69,9 @@ Do not add an abstraction before a second implementation exists.
 
 Without uv or just, run the same commands through `.venv` and say so in the PR. If you edit anything after `just qa`, run it again.
 
-Not automated yet: the requirement-named tests, the `Source` contract test and checks for the hard rules in `AGENTS.md`. A ticked checklist does not prove that anything ran.
+`just qa` and CI also run `tests/test_source_contract.py` (the `Source` contract) and `tests/test_hard_rules.py` (no SDR transmit calls, REQ-07; no raw session data in git; same seed gives the same run, REQ-10). The REQ-07 scan knows a fixed list of transmit APIs, so it does not replace inspecting changed code.
+
+Not automated yet: BSSID hashing at capture (REQ-08, no capture code exists to test), the session audit, a requirement-named test for every other requirement, and the remaining hard rules in `AGENTS.md`. A ticked checklist does not prove that anything ran.
 
 ## Verdict
 
