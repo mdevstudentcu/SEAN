@@ -12,6 +12,9 @@ Attacks (`type` in a scenario's `faults:` list):
 - time_spoof: receiver time offset steps/ramps, position untouched (timing attack)
 - meaconing: position and time lag by delay_s (record-and-rebroadcast)
 - jamming_zone: accuracy degrades near a fixed place, lost inside it (e.g. in-car jammer)
+- gps_no_fix: position and time stop but the receiver keeps reporting health
+- gps_low_sats: few satellites reported while the position stays good (false-alarm check)
+- baro_drift: the barometer drifts at rate_mps (sensor degradation)
 - tower_clock_step: one tower's clock offset changes by offset_m (not an attack on GNSS: a
   tower fault that a filter must not confuse with a receiver clock change)
 """
@@ -30,6 +33,7 @@ from pnt.core.time import s_to_ns
 
 # Nominal GNSS health reported outside any jamming: (jam indicator 0..1, satellites, HDOP)
 NOMINAL_HEALTH = (0.0, 10.0, 1.0)
+NO_FIX_HDOP = 99.0  # what receivers conventionally report with no geometry
 
 
 @dataclass
@@ -150,6 +154,45 @@ def meaconing(meas, f, ctx, start, end):
         for m in out
     ]
     return out, [(start, f"meaconing: GNSS replayed {delay} s late{_window(f, end)}")]
+
+
+@attack("gps_no_fix")
+def gps_no_fix(meas, f, ctx, start, end):
+    """The receiver keeps reporting, but has no position or time to give."""
+    out = []
+    for m in meas:
+        if _active(m, f, start, end):
+            if m.kind in ("position_enu", "time"):
+                continue
+            if m.kind == "gnss_health":
+                m = _replace(m, value=(m.value[0], 0.0, NO_FIX_HDOP))
+        out.append(m)
+    return out, [(start, f"GPS reports no fix{_window(f, end)}")]
+
+
+@attack("gps_low_sats")
+def gps_low_sats(meas, f, ctx, start, end):
+    """Few satellites and poor geometry, while the position stays good: a false-alarm check."""
+    sats, hdop = float(f.get("satellites", 3)), float(f.get("hdop", 4.0))
+    out = [
+        _replace(m, value=(m.value[0], sats, hdop))
+        if _active(m, f, start, end) and m.kind == "gnss_health"
+        else m
+        for m in meas
+    ]
+    return out, [(start, f"GPS down to {sats:.0f} satellites{_window(f, end)}")]
+
+
+@attack("baro_drift")
+def baro_drift(meas, f, ctx, start, end):
+    """A barometer reading that drifts away at rate_mps (sensor degradation)."""
+    out = [
+        _replace(m, value=(m.value[0] + f["rate_mps"] * _since(m, start),))
+        if _active(m, f, start, end) and m.kind == "altitude"
+        else m
+        for m in meas
+    ]
+    return out, [(start, f"barometer drifts at {f['rate_mps']} m/s{_window(f, end)}")]
 
 
 @attack("tower_clock_step")
