@@ -11,4 +11,13 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
   - `time.png`: clock error and ±1σ, only when the estimator estimates the clock
 - Planned: ablation table (REQ-06), timing holdover from real sessions
 
+## Viewing a run in Foxglove
+
+1. `pnt sim gps-outage --out data/sessions/demo`
+2. `pnt viz data/sessions/demo` writes `data/sessions/demo/viz.mcap`
+3. Open that `viz.mcap` in [Foxglove](https://foxglove.dev) (`Cmd/Ctrl+O`, or drag it in). To see raw measurements too, select it together with the session file.
+4. In the Layouts menu choose **Import from file...** and pick `analysis/foxglove-layout.json`.
+
+The layout shows true and estimated position on a map with towers (blue heard, red lost), error against HPL, towers heard, fault and alarm state, and status and flags over time. Foxglove is our internal viewer; the operator display is the dashboard (ADR-0010).
+
 Rules: every figure's caption names its scenario (or session) and commit (REQ-10). Figures go in `results/`; bulky run data in `results/runs/` (ignored). Images that only back a PR description go in `pr-evidence/<n>/` (`systems/quality.md`).

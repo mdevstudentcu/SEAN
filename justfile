@@ -27,6 +27,10 @@ replay path:
 plot path *args="":
     {{py}} pnt plot {{path}} {{args}}
 
+# Write a Foxglove companion file for a session (see analysis/README.md)
+viz path:
+    {{py}} pnt viz {{path}}
+
 # Subscribe to the Pi's live stream, run nav + dashboard (not built yet)
 live:
     {{py}} pnt live

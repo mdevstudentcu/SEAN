@@ -1,0 +1,68 @@
+{
+  "configById": {
+    "map!pntmap": {
+      "center": { "lat": 45.3876, "lon": -75.696 },
+      "zoomLevel": 15,
+      "layer": "map",
+      "customTileUrl": "",
+      "followTopic": "/viz/estimate",
+      "disabledTopics": [],
+      "topicColors": {}
+    },
+    "Plot!pnterror": {
+      "paths": [
+        { "value": "/viz/nav.h_error_m", "enabled": true, "timestampMethod": "receiveTime", "label": "Horizontal error (m)" },
+        { "value": "/viz/nav.hpl_m", "enabled": true, "timestampMethod": "receiveTime", "label": "HPL (m)" }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "sidebarDimension": 240
+    },
+    "Plot!pntsignals": {
+      "paths": [
+        { "value": "/viz/nav.towers_heard", "enabled": true, "timestampMethod": "receiveTime", "label": "Towers heard" },
+        { "value": "/viz/nav.fault_active", "enabled": true, "timestampMethod": "receiveTime", "label": "Fault active" },
+        { "value": "/viz/nav.alarm", "enabled": true, "timestampMethod": "receiveTime", "label": "Alarm" }
+      ],
+      "showXAxisLabels": true,
+      "showYAxisLabels": true,
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp",
+      "sidebarDimension": 240
+    },
+    "StateTransitions!pntstatus": {
+      "paths": [
+        { "value": "/viz/nav.status", "timestampMethod": "receiveTime", "label": "Status" },
+        { "value": "/viz/nav.flags", "timestampMethod": "receiveTime", "label": "Flags" }
+      ],
+      "isSynced": true
+    }
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "playbackConfig": { "speed": 1 },
+  "layout": {
+    "direction": "row",
+    "splitPercentage": 50,
+    "first": "map!pntmap",
+    "second": {
+      "direction": "column",
+      "splitPercentage": 45,
+      "first": "Plot!pnterror",
+      "second": {
+        "direction": "column",
+        "splitPercentage": 55,
+        "first": "Plot!pntsignals",
+        "second": "StateTransitions!pntstatus"
+      }
+    }
+  }
+}
