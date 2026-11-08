@@ -1,4 +1,4 @@
-"""`pnt` command line: sim, eval, replay, results, live."""
+"""`pnt` command line: sim, eval, replay, viz, results, live."""
 
 from __future__ import annotations
 
@@ -10,11 +10,13 @@ from datetime import datetime
 from pathlib import Path
 
 from pnt.core.measurement import Measurement
+from pnt.core.time import s_to_ns
 from pnt.io import session
 from pnt.io.mcap_log import SessionWriter, read_session
 from pnt.metrics import score, summarize
 from pnt.nav import ESTIMATORS
 from pnt.sim.scenario import SCENARIO_DIR, T0_NS, generate, load, load_named
+from pnt.viz import default_output, session_file, write_viz
 
 REPO = Path(__file__).resolve().parents[2]
 SESSIONS = REPO / "data" / "sessions"
@@ -149,6 +151,20 @@ def cmd_replay(args) -> None:
         print(_fmt(score(estimates, truth, _replay_spec(args.path), T0_NS).as_dict()))
 
 
+def cmd_viz(args) -> None:
+    out = Path(args.out) if args.out else default_output(args.session)
+    windows = [
+        (
+            T0_NS + s_to_ns(f.get("start_s", 0.0)),
+            T0_NS + s_to_ns(f["end_s"]) if "end_s" in f else None,
+        )
+        for f in _replay_spec(session_file(args.session)).get("faults", [])
+    ]
+    counts = write_viz(args.session, out, estimator=args.estimator, fault_windows=windows)
+    print(f"wrote {out}: {counts['estimates']} estimates, {counts['towers']} towers")
+    print("open it in Foxglove, then import analysis/foxglove-layout.json")
+
+
 def cmd_results(args) -> None:
     """Re-run every scenario's Monte Carlo and rewrite the results block in verification.md."""
     rows = [
@@ -225,6 +241,12 @@ def main(argv=None) -> None:
     s.add_argument("path")
     add_estimator(s)
     s.set_defaults(fn=cmd_replay)
+
+    s = sub.add_parser("viz", help="write a companion file that Foxglove can draw on a map")
+    s.add_argument("session", help="session folder or .mcap file")
+    s.add_argument("--out", help="default: viz.mcap in the folder, or <file>.viz.mcap")
+    add_estimator(s)
+    s.set_defaults(fn=cmd_viz)
 
     s = sub.add_parser("results", help="regenerate the results table in systems/verification.md")
     s.add_argument("--runs", type=int, default=50)
