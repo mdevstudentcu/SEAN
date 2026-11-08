@@ -1,0 +1,97 @@
+# Quality standard
+
+What every change must show before it is called ready. It applies to people and agents, without anyone having to ask. Decision: [ADR-0017](adr/0017-quality-standard.md).
+
+**The rule:** a claim is only as good as the evidence for it. Run what you claim, on the commit you are submitting, and say what you did not check.
+
+Our worst failure is not a crash. It is a wrong or overconfident number in front of the judges, so most of this file is about numbers and honesty.
+
+## Before coding
+
+Use the issue's *Done when* as the acceptance note. It should say what will be true afterwards, how you will observe it, what would count as failing, and which module owns the rule (see the table in `AGENTS.md`). Ordinary implementation choices need no approval; new engineering decisions still get an ADR.
+
+## Evidence must match the claim
+
+| Claim | Evidence required |
+| --- | --- |
+| A function or model behaves | Focused test through its public function |
+| Sim, replay and live are interchangeable (ADR-0004) | The same assertions run against each source; replay equals what was recorded |
+| An estimator or sim change is better, or no worse | `just eval <scenario>` on the branch and on `main`, same scenario and run count, both numbers in the PR |
+| Position or time confidence is honest (REQ-02, REQ-03) | Stanford plot, HPL bound rate and misleading epochs across fault scenarios, not only `nominal` |
+| A fault or spoof is detected (REQ-04) | Detection time and rate on the attack scenarios, and false alarms on `nominal` |
+| The sim reflects reality (ADR-0015) | The *Sim validity* row in `verification.md` moved, with the session that moved it |
+| An interface is unchanged or correctly changed | `just gen` output committed, the CI `generated-code` job green, `icd` label and the other owner's approval when `systems/icd/*` changes |
+| The dashboard or a viewer works | Opened and looked at in the real app, screenshot attached, viewer and version named |
+| Code works on the Pi, ESP32 or drone | Run on that board, session named. A compile or a simulation does not show this |
+| Still receive-only and private (REQ-07, REQ-08) | Changed code inspected against `safety.md`; a session audit when capture changes |
+| A result shown to the judges | `just results`, or `pnt eval` / `pnt plot`, from a clean commit that the figure names |
+| Documentation is correct | Links and commands in it checked. Docs work makes no runtime claim |
+
+Stop when the evidence is sufficient. Do not invent extra tests to look thorough.
+
+## Reporting numbers
+
+- **While a REQ target is `TBD`, compare against `main`** and report both values. A worse number needs a stated reason in the PR, or the PR is not ready.
+- **One seed shows that it runs.** It does not show that it is better. Use at least the `just eval` default of 50 runs for any claim of improvement.
+- **Every number names its scenario or session and its commit** (REQ-10).
+- **Say what kind of evidence it is:** sim, replay of a real session, real session with injected faults, or hardware.
+- **A result from a `placeholder` sim model is never described as validated or real-world** (ADR-0015).
+- **Report the bad cases too:** worst run, misleading epochs and false alarms, not only the average.
+- **Do not pick a target inside a test.** A threshold that is not a requirement is a regression guard and says so in a comment.
+
+## Tests
+
+- Test behaviour through public functions, not internals. Do not chase a coverage figure.
+- Tests are deterministic: seeded, with no network, no hardware and no raw data. Small fixtures only.
+- For a bug fix, write the failing test first where practical.
+- Never skip, xfail, loosen or delete a test to get a green run. If the contract really changed, say so in the PR and give the replacement evidence.
+- A test that backs a requirement names it, for example `test_no_transmit_calls_req07`.
+
+## Design review questions
+
+These come from [SOLID](https://www.digitalocean.com/community/conceptual-articles/s-o-l-i-d-the-first-five-principles-of-object-oriented-design), applied to a codebase of functions, dataclasses and one `Source` protocol. They are questions for review, not a checklist to tick.
+
+- **One reason to change:** does this rule live in the module that owns it, or is it now copied somewhere else?
+- **Extend without editing:** can a new attack, source or scenario be added without changing `nav/`?
+- **Substitutable:** can any `Source` stand in for another, with no source-type branch in the estimator (ADR-0004)?
+- **Small dependencies:** does Pi code still need only the `payload` extra?
+- **Depend on the contract:** do `nav/` and `integrity/` use `Measurement` and `Source`, never MCAP or ZeroMQ directly?
+
+Do not add an abstraction before a second implementation exists.
+
+## Checks
+
+| Check | What it covers | When |
+| --- | --- | --- |
+| `just qa` | Lint, format, tests, sim and plot smoke. Prints the commit and whether the tree is clean | On the final commit, before asking for review |
+| CI | The same checks, plus generated code and the firmware build | Every PR. Must be green |
+| Author and reviewer | Everything else in the evidence table | Every PR |
+
+Without uv or just, run the same commands through `.venv` and say so in the PR. If you edit anything after `just qa`, run it again.
+
+Not automated yet: the requirement-named tests, the `Source` contract test and checks for the hard rules in `AGENTS.md`. A ticked checklist does not prove that anything ran.
+
+## Verdict
+
+Every PR ends with one verdict, scoped to what the issue agreed:
+
+| Verdict | Means | PR state |
+| --- | --- | --- |
+| **Ready for the agreed scope** | Evidence from the final commit supports every criterion and nothing observed contradicts it | Ready for review |
+| **Implemented, named check blocked** | Name the unverified criterion, why it could not run, and what is needed to finish it | Draft, unless only the reviewer can run that check |
+| **Not ready** | Name the failed criterion and where the evidence is | Draft |
+
+A draft PR has no verdict yet.
+
+Alongside the verdict, the PR gives the commit and whether the tree was clean, the commands run, the results, what was **not** checked, and known limits. The description of PR #45 is a good model: looking at the real output caught a bug the tests missed, and it says plainly what was not checked.
+
+An unrun check is unverified, never a pass. A green test run cannot override something you saw go wrong.
+
+## For agents
+
+`AGENTS.md` still governs merging, trust and third-party code. In addition:
+
+- Follow this file by default; do not wait for a request to verify your work.
+- Report only what you observed. "Should work" is not evidence.
+- If you cannot run a check (no hardware, needs a sign-in, a tool is missing), the verdict is blocked. Do not substitute an easier check and call it the same thing.
+- Read your whole diff before giving a verdict, and keep unrelated findings out of the PR. Raise them as issues.

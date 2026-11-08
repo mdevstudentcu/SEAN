@@ -33,10 +33,15 @@ just sim gps-outage        # scenario -> data/sessions/sim-*.mcap + metrics
 just eval gps-outage 50    # Monte Carlo
 just replay <file.mcap>    # re-run nav over a log
 just test && just lint
+just qa                    # everything to run before calling work ready
 just gen                   # regenerate MAVLink code from systems/icd/pnt.xml
 ```
 
 Without uv/just: `python -m venv .venv && .venv/bin/pip install -e '.[ground,dev]'`, then `.venv/bin/pnt sim gps-outage`.
+
+## Before you call work ready
+
+Follow [`systems/quality.md`](systems/quality.md); nobody needs to ask. Run `just qa` on the final commit, give the evidence each claim needs, say what you did not check, and end the PR with one verdict.
 
 ## Rules
 
