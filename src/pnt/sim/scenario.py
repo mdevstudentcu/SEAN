@@ -175,6 +175,21 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
                 told_emitters=told_em,
                 **cfg,
             )
+        elif model == "leo_doppler":
+            from pnt.sim import leo  # needs sgp4 (ground extra)
+
+            clock_s = np.interp(ts, t_truth, clock_t) if cfg.pop("receiver_clock", False) else None
+            meas += leo.doppler(
+                ts_ns,
+                pos,
+                trajectory.make(traj, ts)[1],
+                rng,
+                spec["origin_llh"],
+                REFERENCE_DIR / cfg.pop("tle_file"),
+                source=source,
+                clock_s=clock_s,
+                **cfg,
+            )
         else:
             raise ValueError(f"unknown model {model!r} for source {source!r}")
 
