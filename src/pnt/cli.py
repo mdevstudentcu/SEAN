@@ -150,6 +150,16 @@ def cmd_results(args) -> None:
     print(block)
 
 
+def cmd_plot(args) -> None:
+    from pnt import plots  # needs matplotlib (ground extra)
+
+    path = Path(args.path)
+    out = Path(args.out) if args.out else REPO / "analysis" / "results" / path.stem
+    written = plots.save_all(path, out, estimator=args.estimator, alert_limit_m=args.alert_limit)
+    for w in written:
+        print(f"wrote {w.relative_to(REPO) if w.is_relative_to(REPO) else w}")
+
+
 def cmd_live(args) -> None:
     raise SystemExit("live: not built yet (ADR-0009). Use `pnt replay` on a recorded session.")
 
@@ -184,6 +194,13 @@ def main(argv=None) -> None:
     s.add_argument("--runs", type=int, default=50)
     add_estimator(s)
     s.set_defaults(fn=cmd_results)
+
+    s = sub.add_parser("plot", help="error, Stanford, trust and clock figures for a session")
+    s.add_argument("path")
+    s.add_argument("--estimator", help="which /nav/<name> topic to plot (default: the first)")
+    s.add_argument("--out", help="output folder (default: analysis/results/<session>)")
+    s.add_argument("--alert-limit", type=float, default=50.0, help="m, TBC (REQ-01/02)")
+    s.set_defaults(fn=cmd_plot)
 
     s = sub.add_parser("live", help="run on the payload's live stream (not built yet)")
     s.set_defaults(fn=cmd_live)

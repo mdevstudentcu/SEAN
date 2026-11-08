@@ -19,6 +19,10 @@ eval scenario="gps-outage" runs="50":
 replay path:
     {{py}} pnt replay {{path}}
 
+# Error, Stanford, trust and clock figures for a session -> analysis/results/<session>/
+plot path *args="":
+    {{py}} pnt plot {{path}} {{args}}
+
 # Subscribe to the Pi's live stream, run nav + dashboard (not built yet)
 live:
     {{py}} pnt live
