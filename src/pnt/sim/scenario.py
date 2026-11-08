@@ -19,6 +19,8 @@ from pnt.core.time import s_to_ns, utc_to_gps_ns
 from pnt.sim import attacks, models, trajectory
 
 SCENARIO_DIR = Path(__file__).parent / "scenarios"
+SET_DIR = SCENARIO_DIR / "sets"
+ATTACK_MENU = SET_DIR / "_attacks.yaml"
 # Fixed scenario start so runs are reproducible (REQ-10): judging day, 18:00 UTC.
 T0_NS = utc_to_gps_ns(datetime(2026, 11, 12, 18, 0, tzinfo=UTC))
 
@@ -45,15 +47,60 @@ def load_named(name: str) -> dict:
     """
     if not isinstance(name, str) or not _NAME.fullmatch(name):
         raise ValueError(f"not a scenario name: {name!r}")
+    composed = _compose(name)
+    if composed is not None:
+        return composed
     path = SCENARIO_DIR / f"{name}.yaml"
     if not path.is_file():
         raise FileNotFoundError(f"no bundled scenario named {name!r}")
     return load(str(path))
 
 
+def _read(path: Path) -> dict:
+    with open(path) as f:
+        return yaml.safe_load(f)
+
+
+def set_names() -> list[str]:
+    """The environments in scenarios/sets/ (issue #16)."""
+    return sorted(p.stem for p in SET_DIR.glob("*.yaml") if not p.stem.startswith("_"))
+
+
+def attack_names() -> list[str]:
+    return list(_read(ATTACK_MENU))
+
+
+def expand(name: str) -> list[str]:
+    """Every scenario a name stands for: a whole environment, or just itself."""
+    return [f"{name}-{a}" for a in attack_names()] if name in set_names() else [name]
+
+
+def scenario_names() -> list[str]:
+    """Every bundled scenario: the standalone files, then each environment with each attack."""
+    standalone = sorted(p.stem for p in SCENARIO_DIR.glob("*.yaml"))
+    return standalone + [n for s in set_names() for n in expand(s)]
+
+
+def _compose(name: str) -> dict | None:
+    """Build `<environment>-<attack>`, or None if the name isn't one. Unknown attacks raise."""
+    environment = next((s for s in set_names() if name.startswith(f"{s}-")), None)
+    if environment is None:
+        return None
+    menu = _read(ATTACK_MENU)
+    attack_name = name[len(environment) + 1 :]
+    if attack_name not in menu:
+        raise FileNotFoundError(f"no attack named {attack_name!r} for environment {environment!r}")
+    spec = _read(SET_DIR / f"{environment}.yaml")
+    spec.update(name=name, faults=menu[attack_name] or [])
+    return spec
+
+
 def load(name_or_path: str) -> dict:
     p = Path(name_or_path)
     if not p.suffix:
+        composed = _compose(name_or_path)
+        if composed is not None:
+            return composed
         p = SCENARIO_DIR / f"{name_or_path}.yaml"
     with open(p) as f:
         spec = yaml.safe_load(f)

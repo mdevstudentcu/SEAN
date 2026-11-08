@@ -14,7 +14,7 @@ from pnt.io import session
 from pnt.io.mcap_log import SessionWriter, read_session
 from pnt.metrics import score, summarize
 from pnt.nav import ESTIMATORS
-from pnt.sim.scenario import SCENARIO_DIR, T0_NS, generate, load, load_named
+from pnt.sim.scenario import T0_NS, expand, generate, load, load_named, scenario_names
 
 REPO = Path(__file__).resolve().parents[2]
 SESSIONS = REPO / "data" / "sessions"
@@ -119,11 +119,14 @@ def _eval(scenario: str, runs: int, estimator: str) -> dict:
 
 
 def cmd_eval(args) -> None:
-    s = _eval(args.scenario, args.runs, args.estimator)
-    print(f"scenario {args.scenario}, estimator {args.estimator}, {args.runs} runs")
-    print(_fmt(s))
+    summaries = {}
+    for name in expand(args.scenario):
+        summaries[name] = _eval(name, args.runs, args.estimator)
+        print(f"scenario {name}, estimator {args.estimator}, {args.runs} runs")
+        print(_fmt(summaries[name]))
     if args.json:
-        Path(args.json).write_text(json.dumps(s, indent=2))
+        data = summaries[args.scenario] if args.scenario in summaries else summaries
+        Path(args.json).write_text(json.dumps(data, indent=2))
 
 
 def _replay_spec(path: str) -> dict:
@@ -156,14 +159,14 @@ def cmd_results(args) -> None:
         "HPL bounds error | Misleading epochs | Spoof detect (s) | False alarms (/h) |",
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
-    for p in sorted(SCENARIO_DIR.glob("*.yaml")):
-        s = _eval(p.stem, args.runs, args.estimator)
+    for name in scenario_names():
+        s = _eval(name, args.runs, args.estimator)
         detect = s["detect_delay_s"]
         rate = s["spoof_detected"]
         # nan -> no spoof in the scenario, or never detected
         detect_txt = "—" if detect != detect else f"{detect:.1f} ({100 * rate:.0f} % of runs)"
         rows.append(
-            f"| `{p.stem}` | {s['runs']} | {s['h_rmse_m']:.1f} | {s['fault_h_p95_m']:.1f} "
+            f"| `{name}` | {s['runs']} | {s['h_rmse_m']:.1f} | {s['fault_h_p95_m']:.1f} "
             f"| {s['worst_fault_h_max_m']:.1f} | {100 * s['min_hpl_bound_frac']:.1f} % "
             f"(worst run) | {s['misleading_epochs']:.0f} (mean) | {detect_txt} "
             f"| {s['false_alarms_per_h']:.1f} |"

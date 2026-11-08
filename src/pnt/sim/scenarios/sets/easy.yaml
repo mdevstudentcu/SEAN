@@ -1,0 +1,26 @@
+# Easy: ideal towers. Errors are independent, positions and noise are known exactly, and the
+# receiver clock does not touch the tower readings. A filter should do well here.
+description: Ideal environment for checking that a filter works at all.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: loop, radius_m: 150, speed_mps: 8, altitude_m: 30}
+clock: {drift_ppb: 50, rw_ns: 2.0}
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5, time_sigma_ns: 20, health: true}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    n_emitters: 6
+    ring_radius_m: [800, 3000]   # SYNTHETIC geometry
+    sigma_m: 20.0
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+# Where each number comes from (ADR-0015): datasheet, literature, measured, or TBC if unsourced.
+provenance:
+  clock: TBC
+  gnss: TBC
+  baro: TBC
+  lte_noise: TBC
+  lte_geometry: TBC
