@@ -1,0 +1,35 @@
+from pnt.cli import main
+from pnt.experiments import OSCILLATORS, grid, markdown, towers
+
+
+def test_tower_removal_covers_each_tower_and_ranks_by_damage():
+    rows = towers("ottawa-towers", runs=2)
+    assert rows[0]["removed"] == "none" and rows[0]["added_m"] == 0.0
+    assert len(rows) == 7
+    added = [r["added_m"] for r in rows[1:]]
+    assert added == sorted(added, reverse=True)
+
+
+def test_losing_towers_hurts_on_average():
+    rows = towers("ottawa-towers", runs=3)
+    assert sum(r["added_m"] for r in rows[1:]) > 0
+
+
+def test_grid_covers_every_combination():
+    rows = grid("gps-outage", runs=1, tower_counts=(3, 6), speeds=(4.0,), oscillators=("ocxo",))
+    assert [(r["towers"], r["oscillator"]) for r in rows] == [(3, "ocxo"), (6, "ocxo")]
+
+
+def test_grid_works_with_real_towers_and_has_two_oscillators():
+    assert set(OSCILLATORS) == {"tcxo", "ocxo"}
+    assert grid("ottawa-towers", runs=1, tower_counts=(4,), speeds=(8.0,), oscillators=("tcxo",))
+
+
+def test_markdown_table_has_a_header_and_a_row_each():
+    table = markdown([{"a": 1.0, "b": "x"}, {"a": 2.5, "b": "y"}])
+    assert table.splitlines()[0] == "| a | b |" and len(table.splitlines()) == 4
+
+
+def test_command_line_prints_a_table(capsys):
+    main(["experiment", "towers", "ottawa-towers", "--runs", "1"])
+    assert "| removed |" in capsys.readouterr().out

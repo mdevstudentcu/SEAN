@@ -9,6 +9,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+from pnt import experiments
 from pnt.core.measurement import Measurement
 from pnt.core.time import s_to_ns
 from pnt.io import session
@@ -223,6 +224,15 @@ def cmd_plot(args) -> None:
         print(f"wrote {w.relative_to(REPO) if w.is_relative_to(REPO) else w}")
 
 
+def cmd_experiment(args) -> None:
+    run = experiments.towers if args.name == "towers" else experiments.grid
+    rows = run(args.scenario, runs=args.runs, estimator=args.estimator)
+    print(f"{args.name} experiment, scenario {args.scenario}, {args.runs} runs, {_commit()}")
+    print(experiments.markdown(rows))
+    if args.json:
+        Path(args.json).write_text(json.dumps(rows, indent=2))
+
+
 def cmd_live(args) -> None:
     raise SystemExit("live: not built yet (ADR-0009). Use `pnt replay` on a recorded session.")
 
@@ -272,6 +282,14 @@ def main(argv=None) -> None:
     s.add_argument("--out", help="output folder (default: analysis/results/<session>)")
     s.add_argument("--alert-limit", type=float, default=50.0, help="m, TBC (REQ-01/02)")
     s.set_defaults(fn=cmd_plot)
+
+    s = sub.add_parser("experiment", help="tower-removal or sensitivity-grid experiment")
+    s.add_argument("name", choices=["towers", "grid"])
+    s.add_argument("scenario")
+    s.add_argument("--runs", type=int, default=10)
+    s.add_argument("--json")
+    add_estimator(s)
+    s.set_defaults(fn=cmd_experiment)
 
     s = sub.add_parser("live", help="run on the payload's live stream (not built yet)")
     s.set_defaults(fn=cmd_live)
