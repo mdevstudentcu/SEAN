@@ -12,13 +12,53 @@ import numpy as np
 from pnt.core.measurement import Measurement
 
 
-def gnss(ts_ns, pos, rng, sigma_m: float, **_) -> list[Measurement]:
+def gnss(
+    ts_ns,
+    pos,
+    rng,
+    sigma_m: float,
+    clock_s=None,
+    time_sigma_ns: float | None = None,
+    health: bool = False,
+    **_,
+) -> list[Measurement]:
+    """Receiver fixes. Optionally also the receiver's time solution (`time`: local clock minus
+    GPS time, needs `clock_s`, the true local clock offset at each sample) and a health report
+    (`gnss_health`: jam indicator 0..1, satellites used, HDOP)."""
     noisy = pos + rng.normal(0.0, sigma_m, pos.shape) * np.array([1.0, 1.0, 1.5])
     sig = (sigma_m, sigma_m, 1.5 * sigma_m)
-    return [
+    out = [
         Measurement(t_ns=int(t), source="gnss", kind="position_enu", value=tuple(p), sigma=sig)
         for t, p in zip(ts_ns, noisy, strict=True)
     ]
+    if time_sigma_ns is not None:
+        if clock_s is None:
+            raise ValueError("time_sigma_ns needs a `clock:` model in the scenario")
+        meas_t = clock_s + rng.normal(0.0, time_sigma_ns * 1e-9, len(ts_ns))
+        out += [
+            Measurement(
+                t_ns=int(t),
+                source="gnss",
+                kind="time",
+                value=(float(c),),
+                sigma=(time_sigma_ns * 1e-9,),
+            )  # fmt: skip
+            for t, c in zip(ts_ns, meas_t, strict=True)
+        ]
+    if health:
+        from pnt.sim.attacks import NOMINAL_HEALTH
+
+        out += [
+            Measurement(
+                t_ns=int(t),
+                source="gnss",
+                kind="gnss_health",
+                value=NOMINAL_HEALTH,
+                sigma=(0.0, 0.0, 0.0),
+            )  # fmt: skip
+            for t in ts_ns
+        ]
+    return out
 
 
 def baro(ts_ns, pos, rng, sigma_m: float, bias_sigma_m: float = 1.0, **_) -> list[Measurement]:
