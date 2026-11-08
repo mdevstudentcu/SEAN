@@ -9,7 +9,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from pnt import experiments
+from pnt import compare, experiments
 from pnt.core.measurement import Measurement
 from pnt.core.time import s_to_ns
 from pnt.io import session
@@ -146,13 +146,25 @@ def _replay_spec(path: str) -> dict:
 
 def cmd_replay(args) -> None:
     mcap = session.mcap_path(args.path)
-    meas = (r for _, r in read_session(mcap, topics=["/meas/"]) if isinstance(r, Measurement))
     origin = session.read_meta(args.path).get("origin_llh")
+    if args.inject:
+        spec = load_named(args.inject)
+        meas, t0 = compare.inject(args.path, spec["faults"])
+        print(f"injected faults from {args.inject}")
+    else:
+        spec, t0 = _replay_spec(args.path), T0_NS
+        meas = (r for _, r in read_session(mcap, topics=["/meas/"]) if isinstance(r, Measurement))
     estimates = list(ESTIMATORS[args.estimator](meas, origin_llh=origin))
     truth = [r for _, r in read_session(mcap, topics=["/truth"])]
     print(f"replayed {args.path}: {len(estimates)} estimates")
     if truth:
-        print(_fmt(score(estimates, truth, _replay_spec(args.path), T0_NS).as_dict()))
+        print(_fmt(score(estimates, truth, spec, t0).as_dict()))
+
+
+def cmd_compare(args) -> None:
+    print(compare.table(args.simulated, args.real, args.source))
+    if args.out:
+        print(f"wrote {compare.plot(args.simulated, args.real, args.source, args.out)}")
 
 
 def cmd_viz(args) -> None:
@@ -267,6 +279,7 @@ def main(argv=None) -> None:
 
     s = sub.add_parser("replay", help="re-run the estimator over a recorded MCAP")
     s.add_argument("path")
+    s.add_argument("--inject", help="apply this bundled scenario's faults to the recording")
     add_estimator(s)
     s.set_defaults(fn=cmd_replay)
 
@@ -276,6 +289,13 @@ def main(argv=None) -> None:
     s.add_argument("--force", action="store_true", help="overwrite an existing --out")
     add_estimator(s)
     s.set_defaults(fn=cmd_viz)
+
+    s = sub.add_parser("compare", help="compare a simulated session with a real one (ADR-0015)")
+    s.add_argument("simulated")
+    s.add_argument("real")
+    s.add_argument("--source", default="lte", help="lte, gnss or baro")
+    s.add_argument("--out", help="also save both residual distributions as a figure")
+    s.set_defaults(fn=cmd_compare)
 
     s = sub.add_parser("results", help="regenerate the results table in systems/verification.md")
     s.add_argument("--runs", type=int, default=50)

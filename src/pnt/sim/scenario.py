@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+import msgspec
 import numpy as np
 import yaml
 
@@ -197,6 +198,8 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
         else:
             raise ValueError(f"unknown model {model!r} for source {source!r}")
 
+    if "replay_streams" in spec:
+        meas = _replay_streams(meas, **spec["replay_streams"])
     ctx = attacks.Context(
         t0_ns=T0_NS,
         origin_llh=spec.get("origin_llh"),
@@ -206,6 +209,23 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     meas, events = attacks.apply(meas, spec.get("faults", []), ctx)
     meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter))
     return SimRun(spec["name"], spec, seed, truth, meas, events, emitters)
+
+
+def _replay_streams(meas: list[Measurement], session: str, sources: list[str]):
+    """Replace simulated sources with a recording's (ADR-0015), shifted to start at T0_NS.
+
+    Replaying the same real sensor stream in two runs removes it as a source of difference.
+    """
+    from pnt.io import session as session_io
+    from pnt.io.mcap_log import read_session
+
+    topics = [f"/meas/{s}" for s in sources]
+    recorded = [r for _, r in read_session(session_io.mcap_path(session), topics=topics)]
+    if not recorded:
+        raise ValueError(f"{session} has none of the streams {sources}")
+    shift = T0_NS - min(m.t_ns for m in recorded)
+    kept = [m for m in meas if m.source not in sources]
+    return kept + [msgspec.structs.replace(m, t_ns=m.t_ns + shift) for m in recorded]
 
 
 def tower_height_m(filed_m: float, ground_m: float) -> float:
