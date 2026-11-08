@@ -5,6 +5,6 @@ takes time-ordered Measurements and an optional `origin_llh` (the session origin
 given in lat/lon) and yields Estimates (see `baseline.run`).
 """
 
-from pnt.nav import baseline
+from pnt.nav import baseline, ekf
 
-ESTIMATORS = {"baseline": baseline.run}
+ESTIMATORS = {"baseline": baseline.run, "ekf": ekf.run}
