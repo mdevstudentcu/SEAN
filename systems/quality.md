@@ -20,7 +20,7 @@ Use the issue's *Done when* as the acceptance note. It should say what will be t
 | Position or time confidence is honest (REQ-02, REQ-03) | Stanford plot, HPL bound rate and misleading epochs across fault scenarios, not only `nominal` |
 | A fault or spoof is detected (REQ-04) | Detection time and rate on the attack scenarios, and false alarms on `nominal` |
 | The sim reflects reality (ADR-0015) | The *Sim validity* row in `verification.md` moved, with the session that moved it |
-| An interface is unchanged or correctly changed | `just gen` output committed, the CI `generated-code` job green, `icd` label and the other owner's approval when `systems/icd/*` changes |
+| An interface is unchanged or correctly changed | The ICD and generated-code rules in `AGENTS.md` met, and the CI `generated-code` job green |
 | The dashboard or a viewer works | Opened and looked at in the real app, screenshot attached, viewer and version named |
 | Code works on the Pi, ESP32 or drone | Run on that board, session named. A compile or a simulation does not show this |
 | Still receive-only and private (REQ-07, REQ-08) | Changed code inspected against `safety.md`; a session audit when capture changes |
@@ -34,9 +34,9 @@ Stop when the evidence is sufficient. Do not invent extra tests to look thorough
 - **While a REQ target is `TBD`, compare against `main`** and report both values. A worse number needs a stated reason in the PR, or the PR is not ready.
 - **Compare paired runs.** `pnt eval` uses seeds `0` to `N-1`, so the same scenario and run count gives both sides the same draws, and a difference in an estimator change is a real effect on those runs, not noise. A change to the sim alters the draws and breaks the pairing: say so, and do not read a small difference as better or worse.
 - **One seed shows that it runs.** It does not show that it is better. Use at least the `just eval` default of 50 runs for any claim of improvement.
-- **Every number names its scenario or session and its commit** (REQ-10).
+- **Every number is reproducible** as REQ-10 and `AGENTS.md` require.
 - **Say what kind of evidence it is:** sim, replay of a real session, real session with injected faults, or hardware.
-- **A result from a `placeholder` sim model is never described as validated or real-world** (ADR-0015).
+- **Describe a sim result by its model's status** in the *Sim validity* table of `verification.md` (ADR-0015): a `placeholder` result is never called validated or real-world.
 - **Report the bad cases too:** worst run, misleading epochs and false alarms, not only the average.
 - **Do not pick a target inside a test.** A threshold that is not a requirement is a regression guard and says so in a comment.
 
