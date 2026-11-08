@@ -17,6 +17,8 @@ Attacks (`type` in a scenario's `faults:` list):
 - baro_drift: the barometer drifts at rate_mps (sensor degradation)
 - tower_clock_step: one tower's clock offset changes by offset_m (not an attack on GNSS: a
   tower fault that a filter must not confuse with a receiver clock change)
+- capture_faults: what a busy payload board does to the data, not an attack: radio sample gaps,
+  radio timestamp jitter and lost stream messages (issue #53)
 """
 
 from __future__ import annotations
@@ -193,6 +195,36 @@ def baro_drift(meas, f, ctx, start, end):
         for m in meas
     ]
     return out, [(start, f"barometer drifts at {f['rate_mps']} m/s{_window(f, end)}")]
+
+
+@attack("capture_faults")
+def capture_faults(meas, f, ctx, start, end):
+    """Gaps in radio samples drop radio measurements; radio timestamps jitter; a fraction of
+    every source's messages is lost, as on a Wi-Fi stream. Gap times are random but seeded."""
+    radios = set(f.get("radios", ["lte", "leo"]))
+    duration_s = max((m.t_ns - ctx.t0_ns) / 1e9 for m in meas)
+    count = ctx.rng.poisson(f["gaps_per_min"] * duration_s / 60.0)
+    gap_starts = np.sort(
+        ctx.t0_ns + (ctx.rng.uniform(0.0, duration_s, count) * 1e9).astype(np.int64)
+    )
+    gap_ns = s_to_ns(f["gap_s"])
+    jitter_s = f["timestamp_jitter_ms"] * 1e-3
+    loss = f["stream_loss"]
+
+    def in_gap(t_ns: int) -> bool:
+        i = int(np.searchsorted(gap_starts, t_ns, side="right"))
+        return i > 0 and t_ns < int(gap_starts[i - 1]) + gap_ns
+
+    out = []
+    for m in meas:
+        if m.source in radios and in_gap(m.t_ns):
+            continue
+        if loss and ctx.rng.random() < loss:
+            continue
+        if m.source in radios and jitter_s:
+            m = _replace(m, t_ns=m.t_ns + int(ctx.rng.normal(0.0, jitter_s) * 1e9))
+        out.append(m)
+    return out, [(ctx.t0_ns, f"capture faults: {f['board']}, {count} radio gaps")]
 
 
 @attack("tower_clock_step")

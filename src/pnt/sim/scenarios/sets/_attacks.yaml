@@ -25,3 +25,9 @@ tower-loss:   # all towers lost while GPS keeps working
   - {type: outage, source: lte, start_s: 120, end_s: 240}
 tower-clock-step:   # one tower's clock jumps
   - {type: tower_clock_step, source: lte, emitter: "lte:sim1", start_s: 150, offset_m: 300.0}
+# Board capture effects, with both radios at full rate. All values are TBC until a rehearsal on
+# each board measures them (deploy/pi/REHEARSAL.md, ADR-0015).
+capture-pi4b:
+  - {type: capture_faults, board: pi4b, gaps_per_min: 0.2, gap_s: 0.05, timestamp_jitter_ms: 1.0, stream_loss: 0.0}
+capture-pi3bplus:
+  - {type: capture_faults, board: pi3bplus, gaps_per_min: 2.0, gap_s: 0.2, timestamp_jitter_ms: 5.0, stream_loss: 0.01}
