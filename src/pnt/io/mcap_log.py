@@ -64,6 +64,15 @@ class SessionWriter:
         self.close()
 
 
+def read_metadata(path: str | Path) -> dict[str, str]:
+    """The session metadata written by SessionWriter ({} if the file has none)."""
+    with open(path, "rb") as f:
+        for record in make_reader(f).iter_metadata():
+            if record.name == "session":
+                return dict(record.metadata)
+    return {}
+
+
 def read_session(
     path: str | Path, topics: list[str] | None = None
 ) -> Iterator[tuple[str, Record]]:

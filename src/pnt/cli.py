@@ -10,9 +10,9 @@ from datetime import datetime
 from pathlib import Path
 
 from pnt.core.measurement import Measurement
-from pnt.io.mcap_log import SessionWriter, read_session
+from pnt.io.mcap_log import SessionWriter, read_metadata, read_session
 from pnt.metrics import score, summarize
-from pnt.nav import baseline
+from pnt.nav import ESTIMATORS
 from pnt.sim.scenario import SCENARIO_DIR, T0_NS, generate, load
 
 REPO = Path(__file__).resolve().parents[2]
@@ -42,7 +42,7 @@ def _fmt(metrics: dict) -> str:
 def cmd_sim(args) -> None:
     spec = load(args.scenario)
     run = generate(spec, seed=args.seed)
-    estimates = list(baseline.run(run.measurements))
+    estimates = list(ESTIMATORS[args.estimator](run.measurements))
     m = score(estimates, run.truth, spec, T0_NS)
 
     SESSIONS.mkdir(parents=True, exist_ok=True)
@@ -62,7 +62,7 @@ def cmd_sim(args) -> None:
         for meas in run.measurements:
             w.write(f"/meas/{meas.source}", meas)
         for e in estimates:
-            w.write("/nav/baseline", e)
+            w.write(f"/nav/{args.estimator}", e)
     print(
         f"scenario {spec['name']} (seed {args.seed}): {len(run.measurements)} measurements, "
         f"{len(estimates)} estimates"
@@ -73,51 +73,66 @@ def cmd_sim(args) -> None:
     print(f"wrote {out.relative_to(REPO) if out.is_relative_to(REPO) else out}")
 
 
-def _eval(scenario: str, runs: int) -> dict:
+def _eval(scenario: str, runs: int, estimator: str) -> dict:
     spec = load(scenario)
     results = []
     for seed in range(runs):
         run = generate(spec, seed=seed)
-        results.append(score(list(baseline.run(run.measurements)), run.truth, spec, T0_NS))
+        estimates = list(ESTIMATORS[estimator](run.measurements))
+        results.append(score(estimates, run.truth, spec, T0_NS))
     return summarize(results)
 
 
 def cmd_eval(args) -> None:
-    s = _eval(args.scenario, args.runs)
-    print(f"scenario {args.scenario}, estimator baseline, {args.runs} runs")
+    s = _eval(args.scenario, args.runs, args.estimator)
+    print(f"scenario {args.scenario}, estimator {args.estimator}, {args.runs} runs")
     print(_fmt(s))
     if args.json:
         Path(args.json).write_text(json.dumps(s, indent=2))
 
 
+def _replay_spec(path: str) -> dict:
+    """The scenario a simulated session came from, so replay scores its fault windows too."""
+    name = read_metadata(path).get("scenario")
+    if not name:
+        return {"faults": []}
+    try:
+        return load(name)
+    except FileNotFoundError:
+        print(f"scenario {name!r} not found: scoring without fault windows")
+        return {"faults": []}
+
+
 def cmd_replay(args) -> None:
     meas = (r for _, r in read_session(args.path, topics=["/meas/"]) if isinstance(r, Measurement))
-    estimates = list(baseline.run(meas))
+    estimates = list(ESTIMATORS[args.estimator](meas))
     truth = [r for _, r in read_session(args.path, topics=["/truth"])]
     print(f"replayed {args.path}: {len(estimates)} estimates")
     if truth:
-        spec = {"faults": []}
-        print(_fmt(score(estimates, truth, spec, T0_NS).as_dict()))
+        print(_fmt(score(estimates, truth, _replay_spec(args.path), T0_NS).as_dict()))
 
 
 def cmd_results(args) -> None:
     """Re-run every scenario's Monte Carlo and rewrite the results block in verification.md."""
     rows = [
         "| Scenario | Runs | H RMSE (m) | Fault H p95 (m) | Fault H max (m) | "
-        "HPL bounds error | Misleading epochs | Spoof detect (s) |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "HPL bounds error | Misleading epochs | Spoof detect (s) | False alarms (/h) |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for p in sorted(SCENARIO_DIR.glob("*.yaml")):
-        s = _eval(p.stem, args.runs)
+        s = _eval(p.stem, args.runs, args.estimator)
         detect = s["detect_delay_s"]
-        detect_txt = "—" if detect != detect else f"{detect:.1f}"  # nan -> not detected
+        rate = s["spoof_detected"]
+        # nan -> no spoof in the scenario, or never detected
+        detect_txt = "—" if detect != detect else f"{detect:.1f} ({100 * rate:.0f} % of runs)"
         rows.append(
             f"| `{p.stem}` | {s['runs']} | {s['h_rmse_m']:.1f} | {s['fault_h_p95_m']:.1f} "
             f"| {s['worst_fault_h_max_m']:.1f} | {100 * s['min_hpl_bound_frac']:.1f} % "
-            f"(worst run) | {s['misleading_epochs']:.0f} (mean) | {detect_txt} |"
+            f"(worst run) | {s['misleading_epochs']:.0f} (mean) | {detect_txt} "
+            f"| {s['false_alarms_per_h']:.1f} |"
         )
     block = (
-        f"Estimator: `baseline`. Commit `{_commit()}`, "
+        f"Estimator: `{args.estimator}`. Commit `{_commit()}`, "
         f"{datetime.now():%Y-%m-%d %H:%M}. Regenerate with `just results`.\n\n" + "\n".join(rows)
     )
     text = VERIFICATION.read_text()
@@ -139,24 +154,31 @@ def main(argv=None) -> None:
     p = argparse.ArgumentParser(prog="pnt", description=__doc__)
     sub = p.add_subparsers(dest="cmd", required=True)
 
+    def add_estimator(parser) -> None:
+        parser.add_argument("--estimator", choices=sorted(ESTIMATORS), default="baseline")
+
     s = sub.add_parser("sim", help="run one simulated scenario, write an MCAP, print metrics")
     s.add_argument("scenario")
     s.add_argument("--seed", type=int, default=0)
     s.add_argument("--out")
+    add_estimator(s)
     s.set_defaults(fn=cmd_sim)
 
     s = sub.add_parser("eval", help="Monte Carlo over a scenario")
     s.add_argument("scenario")
     s.add_argument("--runs", type=int, default=50)
     s.add_argument("--json")
+    add_estimator(s)
     s.set_defaults(fn=cmd_eval)
 
     s = sub.add_parser("replay", help="re-run the estimator over a recorded MCAP")
     s.add_argument("path")
+    add_estimator(s)
     s.set_defaults(fn=cmd_replay)
 
     s = sub.add_parser("results", help="regenerate the results table in systems/verification.md")
     s.add_argument("--runs", type=int, default=50)
+    add_estimator(s)
     s.set_defaults(fn=cmd_results)
 
     s = sub.add_parser("live", help="run on the payload's live stream (not built yet)")
