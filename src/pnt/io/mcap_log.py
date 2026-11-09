@@ -15,6 +15,8 @@ from mcap.writer import Writer
 
 from pnt.core.measurement import Estimate, Measurement, Record, Truth, to_json
 
+_json_enc = msgspec.json.Encoder()
+
 _TYPES: dict[str, type[Record]] = {
     "pnt.Measurement": Measurement,
     "pnt.Estimate": Estimate,
@@ -51,6 +53,25 @@ class SessionWriter:
         t = max(record.t_ns, 0)
         self._writer.add_message(
             channel_id=self._channels[topic], log_time=t, publish_time=t, data=to_json(record)
+        )
+
+    def write_json(self, topic: str, t_ns: int, data: dict, schema: str = "pnt.Event") -> None:
+        """A record that is not a `Record` (ICD-session): `/events` markers and `/mavlink/fc`
+        messages. `read_session` skips these; `read_json` reads them."""
+        if topic not in self._channels:
+            if schema not in self._schemas:
+                self._schemas[schema] = self._writer.register_schema(
+                    name=schema, encoding="jsonschema", data=b'{"type": "object"}'
+                )
+            self._channels[topic] = self._writer.register_channel(
+                topic=topic, message_encoding="json", schema_id=self._schemas[schema]
+            )
+        t = max(int(t_ns), 0)
+        self._writer.add_message(
+            channel_id=self._channels[topic],
+            log_time=t,
+            publish_time=t,
+            data=_json_enc.encode({"t_ns": int(t_ns), **data}),
         )
 
     def close(self) -> None:
@@ -90,3 +111,18 @@ def read_session(
             if record_type is None:
                 continue
             yield channel.topic, msgspec.json.decode(message.data, type=record_type)
+
+
+def read_json(path: str | Path, topics: list[str]) -> Iterator[tuple[str, dict]]:
+    """Yield (topic, dict) for JSON topics written by `SessionWriter.write_json`, in log-time
+    order. `topics` match as in `read_session`."""
+    with open(path, "rb") as f:
+        reader = make_reader(f)
+        for schema, channel, message in reader.iter_messages(log_time_order=True):
+            if schema is None or schema.name in _TYPES:
+                continue
+            if any(
+                channel.topic == t or (t.endswith("/") and channel.topic.startswith(t))
+                for t in topics
+            ):
+                yield channel.topic, json.loads(message.data)
