@@ -640,12 +640,14 @@ class _Track:
             else f0
         )
         n_drop, ambiguous = jump % (2 * L), True  # the signal only sizes a drop modulo a frame
+        n_host = None
         if self.cap.buffers is not None:
             n_host = _host_gap(self.cap.buffers, fs, at, f0 + n)
             if n_host is not None and n_host > 0:
                 n_drop = n_host + int((jump - n_host + L) % (2 * L) - L)
                 ambiguous = False
-        path_moved = ambiguous and -cfg.max_path_jump_us * 1e-6 * fs <= jump < 0
+        host_stalled = n_host is not None and n_host >= L  # well beyond the stamps' jitter
+        path_moved = abs(jump) <= cfg.max_path_jump_us * 1e-6 * fs and not host_stalled
         if path_moved or n_drop <= 0 or good is None:
             # Not a drop: the cell came back somewhere else (another path, or a reused PCI).
             return ("found", k_found, theta_at + resid, True)

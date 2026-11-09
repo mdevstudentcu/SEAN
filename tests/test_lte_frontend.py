@@ -41,13 +41,13 @@ def write(tmp, name, towers, dur, snr, drops=(), fs=FS, fc=FC, seed=1, **sidecar
     return capture.write_capture(tmp / f"{name}.cu8", capture.complex_to_cu8(x), meta)
 
 
-def splice(tmp, name, first, second, at_s, dur, snr, seed=1):
+def splice(tmp, name, first, second, at_s, dur, snr, seed=1, **sidecar):
     """A capture of towers `first` becoming towers `second` at `at_s` (same noise and clock)."""
     x, y = (synth.synthesize(t, dur, fs=FS, fc=FC, clock_ppm=PPM, snr_db=snr, seed=seed)
             for t in (first, second))  # fmt: skip
     at = round(at_s * FS)
     z = np.r_[x[:at], y[at:]]
-    meta = {"sample_rate_hz": FS, "center_freq_hz": FC, "t_ns": T0}
+    meta = {"sample_rate_hz": FS, "center_freq_hz": FC, "t_ns": T0, **sidecar}
     return capture.write_capture(tmp / f"{name}.cu8", capture.complex_to_cu8(z), meta)
 
 
@@ -246,6 +246,22 @@ def test_unstamped_drop_past_half_a_frame_is_still_flagged(tmp_path, n):
 def test_cell_found_a_little_late_is_a_new_arc_not_a_gap(tmp_path):
     late = replace(TOWER, delay_s=TOWER.delay_s + 3 / FS)  # past the code gate, within a CP
     r = process_file(splice(tmp_path, "late", [TOWER], [late], 0.6, 1.3, 10.0))
+    assert r.gaps == []
+    pr = [m for m in r.measurements if m.kind == "pseudorange"]
+    assert not any(m.meta["flags"] for m in pr)
+    assert {m.meta["arc"] for m in pr} == {0, 1}
+
+
+@pytest.mark.parametrize("stamped", [False, True])
+def test_path_found_a_little_early_is_not_a_gap(tmp_path, stamped):
+    early = replace(TOWER, delay_s=TOWER.delay_s - 3 / FS)  # past the code gate, within a CP
+    extra = {}
+    if stamped:  # no drop, but the host stamps jitter by ±0.5 ms
+        rng = np.random.default_rng(5)
+        f = np.arange(0, int(1.3 * FS), 16384)
+        host = T0 + np.round(f * 1e9 / FS + rng.uniform(-5e5, 5e5, f.size)).astype(int)
+        extra = {"buffers": [[int(a), int(b)] for a, b in zip(f, host, strict=True)]}
+    r = process_file(splice(tmp_path, "early", [TOWER], [early], 0.6, 1.3, 10.0, **extra))
     assert r.gaps == []
     pr = [m for m in r.measurements if m.kind == "pseudorange"]
     assert not any(m.meta["flags"] for m in pr)
