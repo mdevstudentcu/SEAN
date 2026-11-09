@@ -159,15 +159,35 @@ def emit(
             for name in ("k", "c_ref", "theta_meas", "nu", "sigma", "snr_post", "psi", "n_ref",
                          "locked", "arc", "n0")
         }  # fmt: skip
+        arc_shift, marks = _gap_effects(a["n_ref"], gaps)
+        a["arc"] = a["arc"] + arc_shift
         a["t"] = cap.t0_ns + a["c_ref"] * 1e9 / fs
         key = np.floor(a["t"] / period_ns).astype(np.int64) * 1_000_000 + a["arc"]
         cuts = np.r_[0, np.nonzero(np.diff(key))[0] + 1, len(ep)]
         for lo, hi in zip(cuts[:-1], cuts[1:], strict=True):
             g = {name: v[lo:hi] for name, v in a.items()}
-            flags = sorted({f for e in ep[lo:hi] for f in e.flags})
+            flags = sorted({f for i in range(int(lo), int(hi)) for f in marks.get(i, ())})
             out += _outputs(cell, g, flags, cap, gaps, cfg, receiver, L)
     out.sort(key=lambda m: (m.t_ns, m.emitter, m.kind))
     return out
+
+
+def _gap_effects(n_ref: np.ndarray, gaps: GapMap) -> tuple[np.ndarray, dict[int, set[str]]]:
+    """What the capture's gaps do to one cell, whichever cell found them: per epoch, how many
+    arcs its unsized gaps have started, and the flags of the first epoch after each gap. Only a
+    gap with epochs of this cell on both sides counts."""
+    shift = np.zeros(n_ref.size, np.int64)
+    marks: dict[int, set[str]] = {}
+    for gap, end in zip(gaps.gaps, gaps.corrected_ends(), strict=True):
+        after = n_ref >= end
+        if after.all() or not after.any():
+            continue
+        first = int(np.flatnonzero(after)[np.argmin(n_ref[after])])
+        marks.setdefault(first, set()).add("sample_gap")
+        if gap.ambiguous:
+            marks[first].add("gap_ambiguous")
+            shift[after] += 1
+    return shift, marks
 
 
 def _outputs(cell, g, flags, cap, gaps, cfg, receiver, L) -> list[Measurement]:

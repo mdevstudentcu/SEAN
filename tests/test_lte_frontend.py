@@ -252,6 +252,26 @@ def test_cell_found_a_little_late_is_a_new_arc_not_a_gap(tmp_path):
     assert {m.meta["arc"] for m in pr} == {0, 1}
 
 
+@pytest.mark.parametrize("stamped", [False, True])
+def test_gap_reaches_every_tracked_cell(tmp_path, stamped):
+    at = int(0.6 * FS) + 777
+    n = 131_072 if stamped else 1234
+    towers = [TOWER, synth.Tower(pci=9, delay_s=7.891e-3, power_db=-3, phase=2.0)]
+    extra = {}
+    if stamped:
+        f = np.arange(0, int(1.3 * FS), 16384)
+        host = T0 + np.round((f + np.where(f >= at, n, 0)) * 1e9 / FS).astype(int)
+        extra = {"buffers": [[int(a), int(b)] for a, b in zip(f, host, strict=True)]}
+    r = process_file(write(tmp_path, "gap", towers, 1.3, 10.0, drops=((at, n),), **extra))
+    assert len(r.gaps) == 1
+    for emitter in ("lte:2460:8", "lte:2460:9"):
+        pr = [m for m in r.measurements if m.kind == "pseudorange" and m.emitter == emitter]
+        flagged = [m for m in pr if "sample_gap" in m.meta["flags"]]
+        assert len(flagged) == 1
+        assert ("gap_ambiguous" in flagged[0].meta["flags"]) is (not stamped)
+        assert {m.meta["arc"] for m in pr} == ({0} if stamped else {0, 1})
+
+
 def _epochs(n0, t_s, arc):
     """Twenty 5 ms epochs of one arc, its k counted from 0, starting at `t_s`."""
     L = sig.half_frame_length(FS)
