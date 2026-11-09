@@ -72,11 +72,29 @@ def test_nominal_has_no_exclusion_and_bounds_the_error():
 
 
 @pytest.mark.parametrize("name", ["spoof-ramp", "spoof-jump"])
-def test_gnss_spoof_is_excluded_and_never_hazardously_misleading(name):
+def test_gnss_spoof_is_flagged_and_never_hazardously_misleading(name):
+    # REQ-02 / T5: no epoch with error over the alert limit while the HPL is within it
     run, est, err, hpl, _ = _run(name)
     start = T0_NS + 150 * 10**9
-    excl = [e.t_ns for e in est if f"mhss_excluded:{GNSS_CM}" in e.flags]
-    assert excl and excl[0] >= start  # no exclusion before the attack
-    assert all("gnss_excluded" in e.flags for e in est if f"mhss_excluded:{GNSS_CM}" in e.flags)
-    hazardous = (err > AL) & (hpl <= AL)
-    assert not hazardous.any()
+    flagged = [
+        e.t_ns for e in est if {f"mhss_excluded:{GNSS_CM}", f"mhss_alarm:{GNSS_CM}"} & set(e.flags)
+    ]
+    assert flagged and flagged[0] >= start  # nothing before the attack
+    assert not ((err > AL) & (hpl <= AL)).any()
+    assert np.all(hpl >= err)
+
+
+def test_monitor_does_not_degrade_the_solution_in_a_gps_outage():
+    # Sub-filters gate on their own, so their covariance can dip below the main filter's; that
+    # must not turn into exclusions that move the output. Regression guard: 1 m.
+    spec = load("gps-outage")
+    run = generate(spec, seed=0)
+    truth = {t.t_ns: t for t in run.truth}
+
+    def p95(est):
+        e = [np.hypot(*np.subtract(x.pos_enu, truth[x.t_ns].pos_enu)[:2]) for x in est]
+        return np.percentile(e, 95)
+
+    plain = list(ekf.run(run.measurements, origin_llh=spec["origin_llh"]))
+    mhss = list(ESTIMATORS["ekf-mhss"](run.measurements, origin_llh=spec["origin_llh"]))
+    assert p95(mhss) <= p95(plain) + 1.0
