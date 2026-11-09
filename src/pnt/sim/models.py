@@ -87,8 +87,8 @@ def pseudoranges(
     source: str,
     emitters: np.ndarray,
     sigma_m: float,
-    clock_rw_m: float,
-    init_bias_m: float,
+    clock_rw_m: float | None = None,
+    init_bias_m: float | None = None,
     emitters_llh=None,
     told_emitters: np.ndarray | None = None,
     told_sigma_m: float | None = None,
@@ -98,12 +98,16 @@ def pseudoranges(
     dropout: dict | None = None,
     ray_table: dict | None = None,
     max_excess_m: float = 300.0,
+    tower_clock_m: np.ndarray | None = None,
     **_,
 ) -> list[Measurement]:
     """Range to each emitter + clock terms + lingering error + white noise.
 
-    Models terrestrial SoOP (LTE, NR) whose transmitter clocks are unknown to us. Beyond the base
-    model, each of these is optional and off by default (issue #46):
+    Models terrestrial SoOP (LTE, NR) whose transmitter clocks are unknown to us. Each tower's
+    clock is either its own (a uniform offset within init_bias_m plus a clock_rw_m random walk),
+    or given whole as `tower_clock_m` (towers x samples, m), which the scenario's `tower_clocks:`
+    block builds from shared builder and site clocks (ADR-0022). Not both. Beyond the base model,
+    each of these is optional and off by default (issue #46):
     - clock_s: the receiver's clock offset (s). It shifts every tower's reading together.
     - drift_sigma_mps: each tower's own constant clock drift, drawn per tower.
     - multipath: {sigma_m, tau_s}, a first-order Gauss-Markov error per tower, as a reflection
@@ -115,14 +119,22 @@ def pseudoranges(
       the excess delay of the nearest sample in time, and loses the tower with no path or beyond
       max_excess_m (TBC).
     """
+    own_clock = (clock_rw_m, init_bias_m, drift_sigma_mps or None)
+    if tower_clock_m is None and None in own_clock[:2]:
+        raise ValueError("pseudoranges need clock_rw_m and init_bias_m, or tower_clocks")
+    if tower_clock_m is not None and any(x is not None for x in own_clock):
+        raise ValueError("tower_clocks replaces clock_rw_m, init_bias_m and drift_sigma_mps")
     out: list[Measurement] = []
     t_s = (ts_ns - ts_ns[0]) / 1e9
     dt = np.diff(ts_ns, prepend=ts_ns[0]) / 1e9
     reported_sigma = sigma_m if told_sigma_m is None else told_sigma_m
     for i, e in enumerate(emitters):
-        bias = rng.uniform(-init_bias_m, init_bias_m) + np.cumsum(
-            rng.normal(0.0, clock_rw_m * np.sqrt(np.maximum(dt, 1e-9)))
-        )
+        if tower_clock_m is None:
+            bias = rng.uniform(-init_bias_m, init_bias_m) + np.cumsum(
+                rng.normal(0.0, clock_rw_m * np.sqrt(np.maximum(dt, 1e-9)))
+            )
+        else:
+            bias = tower_clock_m[i]
         rho = np.linalg.norm(pos - e, axis=1) + bias + rng.normal(0.0, sigma_m, len(pos))
         if clock_s is not None:
             rho = rho + C_MPS * clock_s
@@ -154,6 +166,42 @@ def pseudoranges(
             for t, r in zip(ts_ns[keep], rho[keep], strict=True)
         ]
     return out
+
+
+def oscillator(
+    rng,
+    t_s: np.ndarray,
+    offset_m: float = 0.0,
+    drift_mps: float = 0.0,
+    offset_rw_m: float = 0.0,
+    drift_rw_mps: float = 0.0,
+) -> np.ndarray:
+    """One clock's offset (m) at times t_s: the two-state (offset, drift) oscillator model of
+    Shamaei, Khalife & Kassas (IEEE TWC 2018), started from a random offset and drift.
+
+    - offset_m: initial offset, uniform in +-offset_m.
+    - drift_mps: initial drift, normal with this std (m/s; 1 m/s is 3.3 ppb).
+    - offset_rw_m: white frequency noise, m/sqrt(s), a random walk in offset. c * sqrt(h0 / 2).
+    - drift_rw_mps: random-walk frequency noise, m/s/sqrt(s). c * sqrt(2 pi^2 h_-2).
+    Drawn exactly per step, so any time spacing works. All zero: zeros, and nothing is drawn.
+    """
+    if not (offset_m or drift_mps or offset_rw_m or drift_rw_mps):
+        return np.zeros(len(t_s))
+    dt = np.diff(t_s, prepend=t_s[0])
+    x0 = rng.uniform(-offset_m, offset_m)
+    y0 = rng.normal(0.0, drift_mps)
+    n = rng.normal(0.0, 1.0, (3, len(t_s)))
+    w_drift = drift_rw_mps * np.sqrt(dt) * n[0]
+    # The drift noise also moves the offset within a step: its exact share, given w_drift, is
+    # dt/2 * w_drift plus an independent part of variance drift_rw^2 dt^3 / 12.
+    w_offset = (
+        offset_rw_m * np.sqrt(dt) * n[1]
+        + dt / 2 * w_drift
+        + drift_rw_mps * np.sqrt(dt**3 / 12) * n[2]
+    )
+    drift = y0 + np.cumsum(w_drift)
+    drift_before = np.concatenate([[y0], drift[:-1]])
+    return x0 + np.cumsum(drift_before * dt + w_offset)
 
 
 def _gauss_markov(rng, dt: np.ndarray, sigma: float, tau_s: float) -> np.ndarray:
