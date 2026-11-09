@@ -449,6 +449,50 @@ def cmd_frontend_lte(args) -> None:
     print(f"wrote {out}")
 
 
+def _key_dir(args) -> Path:
+    from pnt.io import linkauth
+
+    return Path(args.keys).expanduser() if args.keys else linkauth.default_dir()
+
+
+def _link_auth(args, make):
+    """ADR-0026: the stream is authenticated unless `--insecure`; when it cannot be, refuse and
+    say why. `make(key_dir)` builds the keys; returns None for a plaintext stream."""
+    from pnt.io import linkauth
+
+    if args.insecure:
+        print(
+            "WARNING: --insecure: the stream is neither authenticated nor encrypted. Anyone on "
+            "the network can read it or forge records. Use a private link only (ADR-0026)."
+        )
+        return None
+    try:
+        return make(_key_dir(args))
+    except linkauth.LinkSecurityError as e:
+        raise SystemExit(f"{args.cmd}: {e}") from None
+
+
+def cmd_keys(args) -> None:
+    """CurveZMQ keys for the ground links (ADR-0026, #89)."""
+    from pnt.io import linkauth
+
+    key_dir = _key_dir(args)
+    try:
+        if args.keys_cmd == "gen":
+            pub = linkauth.generate(args.role, key_dir, force=args.force)
+            print(f"wrote {key_dir / (args.role + linkauth.SECRET_SUFFIX)} (secret, mode 600)")
+            print(f"public key of {args.role} (id {linkauth.key_id(pub)}); on each peer run:")
+            print(f"  pnt keys trust {args.role} -- '{pub.decode()}'")  # z85 may start with -
+            print(f"or copy {key_dir / (args.role + linkauth.PUBLIC_SUFFIX)} and trust the file")
+        elif args.keys_cmd == "trust":
+            pub = linkauth.trust(args.name, args.key, key_dir, force=args.force)
+            print(f"trusted {args.name}: {pub.decode()} (id {linkauth.key_id(pub)})")
+        else:
+            print(linkauth.show(key_dir))
+    except linkauth.LinkSecurityError as e:
+        raise SystemExit(f"keys: {e}") from None
+
+
 def cmd_record(args) -> None:
     """Capture a real session on the Pi (payload or reference station, #19)."""
     import signal
@@ -463,9 +507,11 @@ def cmd_record(args) -> None:
     reference = load_reference(args.reference) if args.reference else None
     streamer = None
     if not args.no_stream:
+        from pnt.io import linkauth
         from pnt.payload.streamer import Streamer
 
-        streamer = Streamer(args.stream)
+        auth = _link_auth(args, lambda d: linkauth.server_auth(args.receiver, d))
+        streamer = Streamer(args.stream, auth=auth)
     rec = Recorder(
         folder,
         config.build(args),
@@ -486,13 +532,15 @@ def cmd_record(args) -> None:
     if "NOT locked" in clock:
         print(f"WARNING: {clock}: timestamps are not GPS time yet (wait for chrony, RUNBOOK A4)")
     if streamer:
-        print(f"streaming on {streamer.endpoint}")
+        print(f"streaming on {streamer.endpoint}; {streamer.describe()}")
     try:
         meta = rec.run(args.duration, stop)
     finally:
         for sig, handler in before.items():
             signal.signal(sig, handler)
     if streamer:
+        if streamer.refused:
+            print(f"stream: {streamer.refused} connection(s) refused: client key not trusted")
         streamer.close()
     print(f"wrote {folder}")
     for line in meta["notes"].splitlines():
@@ -544,11 +592,22 @@ def cmd_live(args) -> None:
     """Run an estimator on the payload's (and base's) live stream (ADR-0009)."""
     import threading
 
+    from pnt.io import linkauth
     from pnt.payload.config import parse_llh
     from pnt.payload.survey import load_reference
     from pnt.sources.live import LiveSource
 
-    src = LiveSource(args.connect or ["tcp://pnt.local:5556"], reorder_s=args.reorder)
+    # --connect [ROLE=]ENDPOINT; without a role the first is the payload, the second the base
+    roles = {}
+    for i, c in enumerate(args.connect or ["tcp://pnt.local:5556"]):
+        role, sep, ep = c.partition("=")
+        if not sep:
+            role, ep = (linkauth.SERVER_ROLES[i] if i < 2 else ""), c
+        if role not in linkauth.SERVER_ROLES:
+            raise SystemExit(f"live: give the role of {c!r}: payload=ENDPOINT or reference=...")
+        roles[ep] = role
+    auth = _link_auth(args, lambda d: linkauth.client_auth(roles, d))
+    src = LiveSource(list(roles), reorder_s=args.reorder, auth=auth)
     origin = parse_llh(args.origin)
     if origin is None:
         print("waiting for the payload's session origin (or give --origin) ...")
@@ -558,7 +617,11 @@ def cmd_live(args) -> None:
             if origin is None:
                 src.meta.pop("payload", None)  # no fix yet on the Pi: wait for a newer one
         if origin is None:
-            raise SystemExit("no origin from the payload stream; give --origin lat,lon,h")
+            hint = "" if auth is None else (
+                " If the Pi is recording, check that the keys match: a wrong pinned key or a "
+                "laptop key the Pi does not trust fails the handshake silently (`pnt keys show` "
+                "on both)")  # fmt: skip
+            raise SystemExit(f"no origin from the payload stream; give --origin lat,lon,h.{hint}")
     reference = load_reference(args.reference) if args.reference else None
     if args.duration:
         threading.Timer(args.duration, src.stop).start()
@@ -571,6 +634,7 @@ def cmd_live(args) -> None:
         notes += f"payload commit {pi.get('commit') or 'unknown'}"
         if not pi:
             notes += " (the payload sent no session metadata)"
+        notes += "\n" + src.describe()
         return {"name": out.name, "platform": pi.get("platform") or "unknown",
                 "origin_llh": list(origin), "simulated": False, "commit": _commit(),
                 "hardware": pi.get("hardware") or ["unknown"], "reference": reference,
@@ -615,6 +679,17 @@ def main(argv=None) -> None:
 
     def add_estimator(parser) -> None:
         parser.add_argument("--estimator", choices=sorted(ESTIMATORS), default="baseline")
+
+    def add_keys_dir(parser) -> None:
+        parser.add_argument("--keys", help="key folder (default: ~/.config/pnt/keys)")
+
+    def add_link(parser) -> None:  # ADR-0026, #89
+        add_keys_dir(parser)
+        parser.add_argument(
+            "--insecure",
+            action="store_true",
+            help="plaintext, unauthenticated stream (private link only); else keys are required",
+        )
 
     def add_dash(parser) -> None:
         """Options of the operator panel (pnt.dashboard)."""
@@ -748,6 +823,7 @@ def main(argv=None) -> None:
     s.add_argument("--wifi-iface", default="wlan0")
     s.add_argument("--stream", default="tcp://*:5556", help="ZeroMQ endpoint to publish on")
     s.add_argument("--no-stream", action="store_true")
+    add_link(s)
     s.set_defaults(fn=cmd_record)
 
     s = sub.add_parser("survey", help="survey the reference station from a session's fixes")
@@ -769,7 +845,8 @@ def main(argv=None) -> None:
     s.set_defaults(fn=cmd_pps_check)
 
     s = sub.add_parser("live", help="run an estimator on the payload's live stream")
-    s.add_argument("--connect", action="append", help="endpoint, repeat for the base station "
+    s.add_argument("--connect", action="append", help="[payload=|reference=]endpoint, repeat "
+                   "for the base; untagged: payload first, then reference "
                    "(default: tcp://pnt.local:5556)")  # fmt: skip
     s.add_argument("--origin", help="lat,lon,h (default: from the payload's stream)")
     s.add_argument("--wait", type=float, default=60.0, help="s to wait for the origin")
@@ -778,7 +855,23 @@ def main(argv=None) -> None:
     s.add_argument("--duration", type=float, help="seconds (default: until Ctrl-C)")
     s.add_argument("--out", help="also record the stream and estimates to this session folder")
     add_estimator(s)
+    add_link(s)
     s.set_defaults(fn=cmd_live)
+
+    s = sub.add_parser("keys", help="CurveZMQ keys for the payload/base/laptop links (ADR-0026)")
+    ks = s.add_subparsers(dest="keys_cmd", required=True)
+    k = ks.add_parser("gen", help="make this host's key pair (secret stays here, mode 600)")
+    k.add_argument("--role", required=True, choices=["payload", "reference", "laptop"])
+    k.add_argument("--force", action="store_true", help="replace an existing key pair")
+    add_keys_dir(k)
+    k = ks.add_parser("show", help="this host's public keys and the keys it trusts")
+    add_keys_dir(k)
+    k = ks.add_parser("trust", help="trust a peer's public key")
+    k.add_argument("name", help="payload | reference | laptop[-suffix]")
+    k.add_argument("key", help="the peer's public key (z85, from its `pnt keys show`) or file")
+    k.add_argument("--force", action="store_true", help="replace an existing trusted key")
+    add_keys_dir(k)
+    s.set_defaults(fn=cmd_keys)
 
     args = p.parse_args(argv)
     args.fn(args)

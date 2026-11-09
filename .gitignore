@@ -39,3 +39,6 @@ firmware/**/.pio/
 # Sionna RT trial (analysis/sionna_campus.py): its own environment and the raw OSM extract
 .sionna/
 osm.json
+
+# CurveZMQ secret keys never go in git (ADR-0026, #89); they live in ~/.config/pnt/keys
+*.key_secret
