@@ -164,6 +164,7 @@ class Recorder:
         self.ctx = Context(self.folder, receiver, origin_llh)
         self.counts: dict[str, int] = {}
         self._writer_thread: threading.Thread | None = None
+        self._abandon = threading.Event()  # set when a device would not stop: finish without it
 
     # --- metadata --------------------------------------------------------------------------
     def meta(self) -> dict:
@@ -213,7 +214,10 @@ class Recorder:
                 self.ctx.event(t0, f"{s.device.name} absent", device=s.device.name, reason=reason)
                 continue
             s.state = "running"
-            s.thread = threading.Thread(target=self._run_device, args=(s,), name=s.device.name)
+            # daemon: a device stuck in a driver call cannot keep the process alive after stop()
+            s.thread = threading.Thread(
+                target=self._run_device, args=(s,), name=s.device.name, daemon=True
+            )
         self._write_meta()
         self._writer_thread = threading.Thread(target=self._drain, name="writer")
         self._writer_thread.start()
@@ -264,8 +268,9 @@ class Recorder:
             self._writer.write_json(topic, t_ns, data, schema)
 
     def _finished(self) -> bool:
-        return self.ctx.stop.is_set() and not any(
-            s.thread and s.thread.is_alive() for s in self.devices
+        return self.ctx.stop.is_set() and (
+            self._abandon.is_set()
+            or not any(s.thread and s.thread.is_alive() for s in self.devices)
         )
 
     def _status_event(self) -> None:
@@ -294,6 +299,7 @@ class Recorder:
                 s.thread.join(timeout=15)
                 if s.thread.is_alive():
                     s.state, s.reason = "failed", "did not stop within 15 s"
+        self._abandon.set()
         if self._writer_thread:
             self._writer_thread.join()
         self._status_event()

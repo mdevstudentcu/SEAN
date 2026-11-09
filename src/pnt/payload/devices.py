@@ -186,7 +186,9 @@ class Camera:
         out = Path(ctx.folder) / "camera.mp4"
         log = tempfile.TemporaryFile()  # noqa: SIM115 - closed below; tail goes to /events
         t_launch = now_gps_ns()
-        self.proc = subprocess.Popen(self.command(out), stdout=log, stderr=subprocess.STDOUT)
+        self.proc = subprocess.Popen(  # own session: Ctrl-C is for the recorder, which stops it
+            self.command(out), stdout=log, stderr=subprocess.STDOUT, start_new_session=True
+        )
         side = {"t_ns": None, "t_ns_launch": t_launch, "width": self.width,
                 "height": self.height, "fps": self.fps,
                 "t_ns_method": "host time the file first grew (upper bound); TBD"}  # fmt: skip
