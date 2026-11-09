@@ -24,7 +24,7 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0018](0018-payload-boards.md) | The payload is a Pi 4B recorder; a Pi Zero 2 W hub only if day-1 tests need it | Proposed |
 | [0019](0019-no-chu.md) | Drop CHU broadcast time | Proposed |
 | [0020](0020-ground-reference-station.md) | A ground reference station measures tower clocks for differential LTE | Proposed |
-| [0021](0021-what-we-build-and-pitch.md) | We pitch integrity-first navigation that treats signals of opportunity as things that can fail | Proposed |
+| [0021](0021-what-we-build-and-pitch.md) | We pitch integrity-first navigation that treats signals of opportunity as things that can fail | Accepted |
 | [0022](0022-tower-clock-model.md) | Tower clock model: site and network-builder grouping, learned while GPS is trusted | Proposed |
 | [0023](0023-tower-identity.md) | Tower identity: ISED registry, PCI scan and mapper | Proposed |
 | [0024](0024-gnss-dependency-tags.md) | Every source carries a GNSS-dependency tag | Proposed |

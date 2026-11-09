@@ -91,7 +91,7 @@ ADR-0021 says "first" is never claimed and the wording stays "we found no publis
 - Countermeasure: a RAIM-style consistency score over subset positions, thresholded on an ROC curve. No protection level.
 - Rogue cellular base stations are in the adversary model but not implemented or evaluated. No tower clocks, timing attacks or cost-of-attack metric.
 
-**Tedeschi, Oligeri & Di Pietro, IEEE Access 2020 (JAM-ME).** Read in full (open access, CC BY), 2026-11-09, by the owner's browser session.
+**Tedeschi, Oligeri & Di Pietro, IEEE Access 2020 (JAM-ME).** Read in full (open access, CC BY), 2026-11-09, in Shrikar Vempati's browser session.
 - A drone with no other sensors (no IMU, explicitly) navigates on the received signal strength (RSS) of one jammer, using a free-space path-loss model with no multipath.
 - **It calibrates the jammer while GPS still works:** a PID controller flies the drone along the jamming boundary at constant RSS, and a circle fit of its GPS positions locates the jammer (25 m error after about 190 m of boundary flight). Inside the jammed area it flies on RSS alone and stops when RSS reaches the value expected at the target.
 - It assumes a constant-power, isotropic, stationary jammer. It names power-modulated and distance-adaptive jamming as the countermeasures that would defeat it, and doesn't defend against them.
