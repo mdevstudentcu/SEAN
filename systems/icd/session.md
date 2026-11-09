@@ -1,6 +1,6 @@
 # ICD-session: recorded session layout
 
-- **Status:** Baselined 2026-11-08 (ADR-0007)
+- **Status:** Baselined 2026-11-08 (ADR-0007); `reference` block added 2026-11-09 (ADR-0020)
 
 A session is one folder in `data/sessions/` (never committed):
 
@@ -38,7 +38,8 @@ hardware: [pi3bplus, pi-zero-2w, airnav-flightstick, nesdr-smart-v5, adafruit-gp
 reference: null           # or the reference station, when the session has `reference` records:
 #   position_llh: [<lat>, <lon>, <h>]  # its antenna: WGS84 deg, deg, m
 #   surveyed: true        # true: averaged GPS fix (ADR-0020); false: set by a sim scenario
+#   sigma_m: TBD          # 1-sigma of position_llh, metres; TBD while unsurveyed; absent: unknown
 notes: ""
 ```
 
-`reference` is `null` when the session holds only payload records. A session with `reference` records must give its `position_llh`.
+`reference` is `null` when the session holds only payload records. A session with `reference` records must give its `position_llh`. `sigma_m` is a number of metres (≥ 0) or `TBD`; when it is absent the accuracy is unknown and a consumer must not assume one. `pnt.io.session` rejects any other `reference` key or value on write and on read.
