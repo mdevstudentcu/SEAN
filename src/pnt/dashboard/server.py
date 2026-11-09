@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -90,7 +91,8 @@ def create_app(
     time_alert_limit_s: float = 1.5e-6,
     max_rate_hz: float = 10.0,
 ) -> FastAPI:
-    hub = Hub({**feed.info(alert_limit_m, time_alert_limit_s), "speed": speed})
+    shown_speed = speed if math.isfinite(speed) else None  # JSON has no infinity
+    hub = Hub({**feed.info(alert_limit_m, time_alert_limit_s), "speed": shown_speed})
     monitor = HealthMonitor(alert_limit_m, time_alert_limit_s)
     lock = threading.Lock()
     stop = threading.Event()

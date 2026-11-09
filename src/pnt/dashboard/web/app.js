@@ -24,7 +24,7 @@ const fm = (v, d = 1) => (v == null ? "—" : `${v.toFixed(d)} m`);
 const fns = (s) => (s == null ? "—" : s < 1e-6 ? `${(s * 1e9).toFixed(0)} ns` : `${(s * 1e6).toFixed(2)} µs`);
 function ftta(s) {
   if (s === undefined) return "—";
-  if (s === null) return "not on this trend (level flat or falling)";
+  if (s === null) return "none within 10 min on the last 10 s trend";
   if (s <= 0) return "NOW: over the limit";
   if (s < 120) return `${s.toFixed(0)} s on the last 10 s trend`;
   return `${(s / 60).toFixed(1)} min on the last 10 s trend`;
@@ -192,13 +192,14 @@ function logTicks(lo, hi) {
   return out;
 }
 // series: [{x: [...], y: [...], color, dash}], refline: {y, label}
-function drawChart(canvas, { series, limit, unit, scale = 1, shade = [], tmax }) {
+function drawChart(canvas, { series, limit, unit, scale = 1, shade = [], tmax, emptyText = "No data yet" }) {
   const [ctx, w, h] = fit(canvas);
   ctx.fillStyle = C.surface; ctx.fillRect(0, 0, w, h);
   const L = 54, R = 10, T = 8, B = 22;
   let lo = Infinity, hi = -Infinity;
   for (const s of series) for (const v of s.y) if (v != null && v > 0) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-  if (!isFinite(lo)) { lo = limit / 10; hi = limit * 2; }
+  const empty = !isFinite(lo);
+  if (empty) { lo = limit / 10; hi = limit * 2; }
   lo = Math.max(Math.min(lo * 0.8, limit / 2), limit / 1e4); hi = Math.max(hi * 1.25, limit * 1.6);
   const x1 = Math.max(tmax || 0, 10);
   const X = (t) => L + (t / x1) * (w - L - R);
@@ -229,6 +230,11 @@ function drawChart(canvas, { series, limit, unit, scale = 1, shade = [], tmax })
       if (pen) ctx.lineTo(px, py); else { ctx.moveTo(px, py); pen = true; }
     }
     ctx.stroke(); ctx.setLineDash([]);
+  }
+  if (empty) {
+    ctx.fillStyle = C.muted; ctx.font = "13px system-ui"; ctx.textAlign = "center";
+    ctx.fillText(emptyText, (L + w - R) / 2, (T + h - B) / 2 + 20);
+    ctx.textAlign = "left";
   }
   // hover crosshair + values
   const hx = hover[canvas.id];
@@ -271,7 +277,8 @@ function drawCharts() {
   const ts = [];
   if (S.info.has_truth) ts.push({ name: "clock error", x: t, y: S.hist.map((p) => p[P.cerr]), color: C.err });
   ts.push({ name: "time PL", x: t, y: S.hist.map((p) => p[P.tpl]), color: C.est });
-  drawChart($("chart-tpl"), { series: ts, limit: S.info.time_alert_limit_s, unit: " ns", scale: 1e9, tmax });
+  drawChart($("chart-tpl"), { series: ts, limit: S.info.time_alert_limit_s, unit: " ns", scale: 1e9, tmax,
+    emptyText: S.hist.length ? "Clock not estimated: no time source in this run, or the estimator has no clock" : "No data yet" });
 }
 
 // ---- side panel --------------------------------------------------------------------------
@@ -285,13 +292,16 @@ function renderAlerts(alerts) {
   if (!alerts.length) { ul.innerHTML = '<li class="muted">No alerts.</li>'; return; }
   ul.innerHTML = alerts.map((a) => {
     const state = a.active ? (a.acked ? "active, acknowledged" : "active") : `cleared at T+${a.last_s.toFixed(1)} s`;
+    const times = a.count > 1 ? ` (${a.count} times; first T+${a.since_s.toFixed(1)} s)` : "";
     const btn = a.acked ? "" : `<button data-id="${a.id}">Ack</button>`;
-    return `<li class="${a.severity}${a.active ? "" : " cleared"}"><div class="txt"><span class="sev">${a.severity}</span>${esc(a.text)}<span class="when">since T+${a.since_s.toFixed(1)} s · ${state}</span></div>${btn}</li>`;
+    return `<li class="${a.severity}${a.active ? "" : " cleared"}"><div class="txt"><span class="sev">${a.severity}</span>${esc(a.text)}<span class="when">since T+${a.onset_s.toFixed(1)} s${times} · ${state}</span></div>${btn}</li>`;
   }).join("");
   ul.querySelectorAll("button").forEach((b) => (b.onclick = () => ack({ id: +b.dataset.id })));
 }
 function ack(body) {
-  fetch("/api/ack", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  // The reply carries the alerts too: the stream is closed once a replay has finished
+  fetch("/api/ack", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    .then((r) => r.json()).then((d) => renderAlerts(d.alerts));
 }
 $("ack-all").onclick = () => ack({});
 
@@ -352,7 +362,7 @@ es.addEventListener("info", (ev) => {
   $("kind").textContent = i.kind.toUpperCase();
   $("name").textContent = i.name;
   $("estimator").textContent = `estimator ${i.estimator}`;
-  $("speed").textContent = i.kind === "live" ? "" : `×${i.speed}`;
+  $("speed").textContent = i.kind === "live" ? "" : i.speed == null ? "as fast as possible" : `×${i.speed}`;
   $("lg-truth").style.display = i.has_truth ? "" : "none";
   $("lg-err").style.display = i.has_truth ? "" : "none";
   $("lg-terr").style.display = i.has_truth ? "" : "none";
@@ -378,6 +388,7 @@ es.addEventListener("frame", (ev) => {
 es.addEventListener("alerts", (ev) => renderAlerts(JSON.parse(ev.data)));
 es.addEventListener("end", () => {
   S.done = true; conn.className = "dot done"; conn.title = "finished";
+  es.close(); // nothing more will come; otherwise the browser would reconnect and replay the history
   $("speed").textContent += "  finished";
 });
 es.addEventListener("error", (ev) => {
