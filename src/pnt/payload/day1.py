@@ -157,6 +157,8 @@ def to_markdown(r: dict) -> str:
             f"{jit.get('std')} / {jit.get('p99_abs')} / {jit.get('max_abs')}"),
         row("IMU intervals > 1.5x nominal", imu.get("intervals_over_1.5x")),
     ]  # fmt: skip
+    if not r["sdr"]:
+        lines.append(row("SDR captures", "none in this session"))
     for s in r["sdr"]:
         lat = s.get("latency_above_envelope_ms") or {}
         lines += [
@@ -237,6 +239,7 @@ def pps_check(seconds: float = 30.0, device: str = "/dev/pps0") -> dict:
     return {
         "ppstest": pps_summary(parse_ppstest(text)),
         "ppstest_tail": text.strip().splitlines()[-3:],
+        "chronyc_ok": bool(tracking),
         "pps_source": pps_src,
         "pps_selected": bool(pps_src and pps_src.get("state") == "*"),
         "pps_sourcestats": next((s for s in stats if s.get("name") == "PPS"), None),

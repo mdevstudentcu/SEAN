@@ -30,14 +30,14 @@ A checklist to follow with the Pi in hand. Commands run **on the Pi in `~/pnt`**
 
    ```bash
    .venv/bin/pnt record --platform static --place <site> --duration 900 \
-     --sdr a:875e6:rate=1.92e6:dev=0 --notes "day-1 LTE, EARFCN 2460, antenna <where>"
+     --sdr a:875e6:rate=1.92e6:dev=0:earfcn=2460 --notes "day-1 LTE, EARFCN 2460, antenna <where>"
    ```
 
    Good output at the end: `captured: adafruit-gps-hat, ... rtl-sdr`, and `sdr_a.json` in the session with `"samples"` near 1.92e6 × 900 and `"gaps_suspected": []`. The GPS fixes in `/meas/gnss` are the position truth. Add `:gain=<dB>` for a fixed gain; without it the dongle uses AGC.
 
 ## D. Handheld walk and replay (#19)
 
-9. `.venv/bin/pnt record --platform handheld --place carleton --sdr a:875e6:rate=1.92e6` and walk; Ctrl-C to stop. The summary lists what was captured, absent or failed.
+9. `.venv/bin/pnt record --platform handheld --place carleton --sdr a:875e6:rate=1.92e6:earfcn=2460` and walk; Ctrl-C to stop. The summary lists what was captured, absent or failed.
 10. *Laptop:* `rsync -av pi@pnt.local:~/pnt/data/sessions/ data/sessions/` then `pnt replay data/sessions/<session>` (prints the number of estimates) and `pnt viz data/sessions/<session>` for Foxglove.
 
 ## E. Live (laptop)
@@ -51,13 +51,13 @@ A checklist to follow with the Pi in hand. Commands run **on the Pi in `~/pnt`**
 
     ```bash
     .venv/bin/pnt record --receiver reference --platform static --place <site> --gnss-hw neo-6m \
-      --no-imu --no-baro --no-camera --no-fc --duration 4000 --sdr a:875e6:rate=1.92e6
+      --no-imu --no-baro --no-camera --no-fc --duration 4000 --sdr a:875e6:rate=1.92e6:earfcn=2460
     .venv/bin/pnt survey data/sessions/<session>
     ```
 
     Good output: `data/sessions/<session>.survey.yaml` with `reference.position_llh` and a numeric `sigma_m` from the averaging (it is `TBD` if fewer than four 10-min batches). Do not edit `sigma_m` by hand.
 14. Base-and-payload sessions: give both Pis the **same origin**, the surveyed point (`O=<lat>,<lon>,<h>` from the survey file):
-    - base: `pnt record --receiver reference --origin $O --reference data/sessions/<survey>.survey.yaml --gnss-hw neo-6m --no-imu --no-baro --no-camera --no-fc --sdr a:875e6`
+    - base: `pnt record --receiver reference --origin $O --reference data/sessions/<survey>.survey.yaml --gnss-hw neo-6m --no-imu --no-baro --no-camera --no-fc --sdr a:875e6:earfcn=2460`
     - payload: `pnt record --origin $O ...` as in D
     - *laptop:* `pnt live --connect tcp://pnt.local:5556 --connect tcp://pnt-base.local:5556 --origin $O --reference <survey.yaml> --estimator ekf-base --out data/sessions/<date>-live-base`
 

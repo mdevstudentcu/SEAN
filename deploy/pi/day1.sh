@@ -7,6 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 MIN="${1:-10}"
 FA="${2:-875e6}"     # SDR A: LTE, Rogers EARFCN 2460 (top of the #87 scan list)
+EARFCN_A="${EARFCN_A-2460}"  # written to the sidecar; set empty if FA is not 875 MHz
 FB="${3:-1090e6}"    # SDR B: ADS-B, at 2.4 MS/s, the worst case for USB and CPU
 PNT=.venv/bin/pnt
 name="$(date +%Y%m%d-%H%M)-static-day1"
@@ -19,7 +20,7 @@ $PNT pps-check --seconds 30 --out "$out.pps.json"
 echo "== Recording $MIN min: both SDRs, GPS, IMU, baro, camera, streaming =="
 echo "   While it runs, read the USB current off the DPS-150."
 $PNT record --out "$out" --platform static --duration "$((MIN * 60))" \
-  --sdr "a:$FA:rate=1.92e6:dev=${DEV_A:-0}" --sdr "b:$FB:rate=2.4e6:dev=${DEV_B:-1}"
+  --sdr "a:$FA:rate=1.92e6:dev=${DEV_A:-0}${EARFCN_A:+:earfcn=$EARFCN_A}" --sdr "b:$FB:rate=2.4e6:dev=${DEV_B:-1}"
 
 read -r -p "USB current from the DPS-150, amps (blank if not read): " AMPS
 $PNT day1 "$out" ${AMPS:+--usb-current-a "$AMPS"}
