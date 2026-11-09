@@ -320,6 +320,28 @@ def test_t_ns_is_exact_integer_gps_time():
     assert pr[0].t_ns == t0 + 50_000_000  # the middle epoch: k = 10, 5 ms each
 
 
+def test_band_hop_tracks_each_carrier_and_continues_the_arc(tmp_path):
+    fc2 = 731.5e6
+    other = synth.Tower(pci=9, delay_s=2.2345678e-3)
+    a, b = round(0.5 * FS), round(1.0 * FS)
+    x, y = (synth.synthesize([t], 1.5, fs=FS, fc=f, clock_ppm=PPM, snr_db=10.0, seed=1)
+            for t, f in ((TOWER, FC), (other, fc2)))  # fmt: skip
+    hops = [{"sample_index": i, "center_freq_hz": f} for i, f in ((0, FC), (a, fc2), (b, FC))]
+    meta = {"sample_rate_hz": FS, "t_ns": T0, "hops": hops}
+    z = capture.complex_to_cu8(np.r_[x[:a], y[a:b], x[b:]])
+    r = process_file(capture.write_capture(tmp_path / "hop.cu8", z, meta))
+    pr = {e: [m for m in r.measurements if m.kind == "pseudorange" and m.emitter == e]
+          for e in ("lte:2460:8", "lte:5035:9")}  # fmt: skip
+    assert all(pr.values()) and sum(map(len, pr.values())) == sum(
+        m.kind == "pseudorange" for m in r.measurements
+    )
+    # The first carrier is left for 0.5 s and picked up again on the same arc and timing.
+    times = np.array([(m.t_ns - T0) / 1e9 for m in pr["lte:2460:8"]])
+    assert times.min() < 0.5 and times.max() > 1.0 and not np.any((times > 0.55) & (times < 0.95))
+    assert {m.meta["arc"] for m in pr["lte:2460:8"]} == {0}
+    assert np.max(np.abs(epoch_errors(r, TOWER))) < 1.0  # regression guard
+
+
 def test_sample_rate_2_4_msps(tmp_path):
     tower = synth.Tower(pci=9, delay_s=2.2345678e-3, delay_rate=-20 / synth.C)
     r = process_file(write(tmp_path, "fs24", [tower], 0.8, 0.0, fs=2.4e6, fc=731.5e6))
