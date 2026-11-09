@@ -43,7 +43,7 @@ Target days are `TBC`. Each phase ends with its scenarios opening correctly in F
 | 3 | Tue AM | **Real-world anchors.** Ottawa tower locations; error ranges bounded from published data; experiment removing one tower at a time on the same route, plus tower count, speed and oscillator grid | #8, #27, new | TU Delft, Khalife & Kassas, AERPAW, MedComNet | Report shows which towers matter most; reference files state source and date |
 | 4 | Tue PM | **Minimal Iridium layer.** Iridium NEXT orbits from a TLE snapshot, visibility above an elevation mask, Doppler with a stated error bound; one scenario where it helps through a GPS outage | #15 | ADR-0013, mentor Q5 | One scenario runs with the layer on and off in `pnt eval` |
 | 5 | Wed AM | **Motion.** Smooth drone paths with real turns; MPU6050 and BMP280 models including vibration; noise taken from a stationary recording of our own sensor. SITL, vehicle and YOW approach paths if time allows | #9, #14 | Aceinna | `accel_gyro` is available in a scenario, with seeded noise |
-| P | Mon to Wed | **Board readiness (Pi 4B and Pi 3B+).** Recorder tests using fake GPS, sensor and radio input; install test in a `linux/arm64` container; rehearsal on each board with both radios at their planned sample rate (`TBD`); capture faults added to the sim (sample gaps, timestamp jitter, lost stream data), sized from that rehearsal | #17, #19, #53 | | Recorder tests run in CI; install passes in the container; a rehearsal session per board replays through `pnt replay`, with dropped samples and PPS jitter recorded; each board's capture profile is labelled `measured` |
+| P | Mon to Wed | **Board readiness (Pi 3B+, ADR-0018).** Recorder tests using fake GPS, sensor and radio input; install test in a `linux/arm64` container; rehearsal on the board with both radios and the hub attached at their planned sample rate (`TBD`); capture faults added to the sim (sample gaps, timestamp jitter, lost stream data), sized from that rehearsal | #17, #19, #53 | | Recorder tests run in CI; install passes in the container; a rehearsal session replays through `pnt replay`, with dropped samples and PPS jitter recorded; the board's capture profile is labelled `measured` |
 | 6 | Wed PM | **Calibrate and freeze.** Each sensor stream can be simulated or replayed from a recording; sim and real residuals on the same plot; attacks injected into real sessions; first comparison replays the same real motion data in both runs | #30, #27 | TU Delft, BYU | Sim validity table updated, final results tied to a commit |
 
 The recorder tests in phase P depend on the recorder itself (#19), which is not built yet. The capture faults can start without it, using placeholder sizes marked `TBC`. The CI job for the recorder tests and the `linux/arm64` container, which pulls an image and runs it under emulation, need a human owner's go-ahead before they are added (`AGENTS.md`).
@@ -70,7 +70,7 @@ Foxglove is our internal viewer (ADR-0010). It shows what the simulator and filt
 - One command per test, for example `pnt eval realistic --runs 50`.
 - A report card for any filter: position error, whether the confidence number was honest, time error, spoof detection delay and false alarms.
 - A Foxglove layout that shows any run.
-- Payload code installed and rehearsed on each candidate board, with its measured capture problems reproduced in the sim.
+- Payload code installed and rehearsed on the Pi 3B+, with its measured capture problems reproduced in the sim.
 - A clear "before" picture. We expect the baseline filter to do badly on `realistic` and `worst`.
 - Charts of which towers matter, which errors hurt most, and real against simulated.
 - Every parameter traceable under ADR-0015.
@@ -109,7 +109,7 @@ The [AERPAW LTE recordings](https://ieee-dataport.org/documents/lte-iq-measureme
 | D3 | What `gnss_health` jam indicator means on real hardware | The sim already emits it, but the GPS HAT has no jamming flag (ADR-0014). Decide its real-data meaning with #22 |
 | D4 | Owners for #25 (dashboard), #29 (threat model), #11 and #15 | Team to assign |
 | D5 | New issues for phase 1 and the tower experiment | Open them once this plan is agreed |
-| D6 | Which board flies | The Pi 3B+ is a candidate from #40; `main` still says Pi 4B. Plan for both until the team settles it, then record it in an ADR and update the remaining references. The rehearsal must show that both radios fit at their planned sample rate on the chosen board; if not, decide between one radio and a lower sample rate |
+| D6 | Which board flies | Decided: Pi 3B+ with a Pi Zero 2 W hub (ADR-0018). The rehearsal must show that both radios fit at their planned sample rate on the chosen board; if not, decide between one radio and a lower sample rate |
 
 ## Needed from others
 
