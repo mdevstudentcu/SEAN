@@ -8,12 +8,13 @@ from pnt.payload.i2c import Bmp280, Mpu6050
 from pnt.payload.sdr import RtlSdr
 from pnt.payload.wifi import WifiScan
 
-SDR_KEYS = {"rate": float, "gain": float, "dev": str, "ppm": int}
+SDR_KEYS = {"rate": float, "gain": float, "dev": str, "ppm": int, "earfcn": int}
 
 
 def parse_sdr(spec: str, index: int) -> RtlSdr:
     """`NAME:FREQ_HZ[:key=value...]`, keys rate (S/s), gain (dB; omit for auto), dev (index or
-    serial; default: the order given), ppm. E.g. `a:875e6:rate=1.92e6:gain=40`."""
+    serial; default: the order given), ppm, earfcn (written to the sidecar for the LTE front
+    end). E.g. `a:875e6:rate=1.92e6:gain=40:earfcn=2460`."""
     name, freq, *rest = spec.split(":")
     if not name or not name.isalnum():
         raise ValueError(f"SDR name must be letters/digits, e.g. 'a': {spec!r}")
@@ -30,6 +31,7 @@ def parse_sdr(spec: str, index: int) -> RtlSdr:
         gain_db=opts.get("gain"),
         device=opts["dev"],
         ppm=opts.get("ppm", 0),
+        earfcn=opts.get("earfcn"),
     )
 
 
