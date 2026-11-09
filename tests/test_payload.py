@@ -18,8 +18,15 @@ from pnt.cli import main
 from pnt.core import frames
 from pnt.core.measurement import Measurement
 from pnt.core.time import now_gps_ns
-from pnt.io import session
-from pnt.io.mcap_log import SessionWriter, read_json, read_session
+from pnt.io import mcap_log, session
+from pnt.io.mcap_log import (
+    SessionWriter,
+    TruncatedSessionWarning,
+    is_complete,
+    read_json,
+    read_metadata,
+    read_session,
+)
 from pnt.payload import day1
 from pnt.payload.devices import TRACKING_FIELDS, FlightController, Health, parse_chrony_csv
 from pnt.payload.gpsd import Gpsd, tpv_measurements
@@ -625,3 +632,125 @@ def test_gpsd_repeats_of_one_fix_are_fused_once():
         g.handle(msg, ctx)
     assert [m.t_ns for m in ctx.out] == [1_478_356_218_000_000_000, 1_478_356_219_000_000_000]
     assert g.status()["repeated_tpv"] == 1
+
+
+# --- sessions cut off without close -----------------------------------------------------------
+
+CUT_OFF_WRITER = """
+import os, sys
+from pnt.core.measurement import Measurement
+from pnt.io.mcap_log import SessionWriter
+
+w = SessionWriter(sys.argv[1], metadata={"name": "cut"})
+for k in range(int(sys.argv[2])):
+    w.write("/meas/imu", Measurement(t_ns=k * 10**7, source="imu", kind="accel_gyro",
+            value=(0.1 * k, 0.2, 9.8, 0.0, 0.0, 0.0), sigma=(1.0,) * 6))
+    w.write_json("/events", k * 10**7, {"text": "tick", "k": k})
+os._exit(0)  # no close: what a kill or a crash leaves
+"""
+
+
+@pytest.fixture(scope="module")
+def cut_off(tmp_path_factory):
+    """A session whose writer process ended without closing it."""
+    import subprocess
+    import sys
+
+    path = tmp_path_factory.mktemp("cut") / "session.mcap"
+    n = 30_000
+    subprocess.run([sys.executable, "-c", CUT_OFF_WRITER, str(path), str(n)], check=True)
+    return path, n
+
+
+def test_cut_off_session_is_read_up_to_its_last_complete_chunk(cut_off):
+    path, n = cut_off
+    assert not is_complete(path)
+    with pytest.warns(TruncatedSessionWarning, match="cut off"):
+        recs = [r for _, r in read_session(path, topics=["/meas/"])]
+    with pytest.warns(TruncatedSessionWarning):
+        events = [e for _, e in read_json(path, ["/events"])]
+    # the records are a gapless prefix of what was written
+    assert [r.t_ns for r in recs] == [k * 10**7 for k in range(len(recs))]
+    assert [e["k"] for e in events] == list(range(len(events)))
+    # at most one chunk in progress is lost: each pair is at least 150 bytes of JSON
+    assert n - len(recs) <= mcap_log.CHUNK_SIZE / 150
+    assert len(recs) > 0
+    assert read_metadata(path) == {"name": "cut"}
+
+
+def test_pnt_replay_reads_a_cut_off_session_and_says_so(cut_off, capsys):
+    path, _ = cut_off
+    with pytest.warns(TruncatedSessionWarning, match="cut off"):
+        main(["replay", str(path)])
+    assert "replayed" in capsys.readouterr().out
+
+
+def test_torn_chunk_is_dropped_and_records_come_back_in_time_order(tmp_path):
+    """A cut in the middle of a chunk: the torn chunk is left out, the earlier ones are read,
+    and records logged out of order still come back in log-time order."""
+    path = tmp_path / "torn.mcap"
+
+    def m(t):
+        return Measurement(t_ns=t, source="baro", kind="altitude", value=(0.0,), sigma=(1.0,))
+
+    with SessionWriter(path) as w:
+        for t in (30, 10, 20):
+            w.write("/meas/baro", m(t))
+        w.flush()
+        first_chunk_end = path.stat().st_size
+        for t in (60, 50):
+            w.write("/meas/baro", m(t))
+    data = path.read_bytes()
+    path.write_bytes(data[: first_chunk_end + 20])
+    with pytest.warns(TruncatedSessionWarning):
+        assert [r.t_ns for _, r in read_session(path)] == [10, 20, 30]
+
+
+def test_empty_file_reads_as_an_empty_truncated_session(tmp_path):
+    path = tmp_path / "empty.mcap"
+    path.touch()
+    with pytest.warns(TruncatedSessionWarning):
+        assert list(read_session(path)) == []
+    assert read_metadata(path) == {}
+
+
+def test_closed_session_is_still_complete_valid_mcap(tmp_path):
+    from mcap.reader import make_reader
+
+    path = tmp_path / "ok.mcap"
+    with SessionWriter(path) as w:
+        w.write_json("/events", 5, {"text": "x"})
+        w.flush()  # a flush mid-file changes the chunking only
+        w.write_json("/events", 6, {"text": "y"})
+    assert is_complete(path)
+    with open(path, "rb") as f:
+        reader = make_reader(f, validate_crcs=True)
+        assert reader.get_summary().statistics.message_count == 2
+        assert len(list(reader.iter_messages())) == 2
+
+
+def test_killed_recorder_leaves_a_session_that_replays(tmp_path):
+    """`kill -9` of a running `pnt record`, no devices: the file has its header, and
+    `pnt replay` reports the cut instead of crashing."""
+    import subprocess
+    import sys
+
+    out = tmp_path / "s"
+    code = "import sys; from pnt.cli import main; main(sys.argv[1:])"
+    cmd = [sys.executable, "-u", "-c", code, "record", "--out", str(out), "--no-stream",
+           "--no-gnss", "--no-imu", "--no-baro", "--no-camera", "--no-fc"]  # fmt: skip
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True)
+    try:
+        assert "recording" in proc.stdout.readline()
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline and not (out / "meta.yaml").exists():
+            time.sleep(0.05)
+        proc.kill()
+    finally:
+        proc.kill()
+        proc.wait()
+        proc.stdout.close()
+    assert (out / "session.mcap").stat().st_size > 0
+    assert not is_complete(out / "session.mcap")
+    with pytest.warns(TruncatedSessionWarning, match="cut off"):
+        main(["replay", str(out)])
