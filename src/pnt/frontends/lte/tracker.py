@@ -74,6 +74,9 @@ class Config:
     first_path_rel_db: float = -10.0  # earlier path must be within this of the tracked, TBC
     first_path_sidelobe: float = 3.0  # and this many times the tracked path's own sidelobe, TBC
     first_path_epochs: int = 40  # epochs averaged before a first-path decision (200 ms)
+    # Regression guard, TBC: about one normal CP. A re-found cell this close to its prediction
+    # moved to another path; beyond it, without host stamps, the jump counts as dropped samples.
+    max_path_jump_us: float = 5.0
     accel_ms2: float = 2.0  # rate random walk of the loop, as an acceleration, TBC
     carrier_lock_hz: float = 20.0  # loop rate 1σ below which carrier aiding starts, TBC
     miss_limit: int = 4  # consecutive misses before re-searching near the prediction
@@ -630,19 +633,20 @@ class _Track:
         resid = b - cell.n0 - k_found * L - theta_at
         if abs(resid) < 0.5:
             return ("found", k_found, theta_at + resid, False)
-        n_drop = -int(round(resid))
+        jump = -int(round(resid))  # > 0: arrives early, as every cell does after a drop
         at = (
             self.file_index(last.c_ref + self.pss_off - self.backoff + self.n_u) + 1
             if last is not None
             else f0
         )
-        ambiguous = True
+        n_drop, ambiguous = jump % (2 * L), True  # the signal only sizes a drop modulo a frame
         if self.cap.buffers is not None:
             n_host = _host_gap(self.cap.buffers, fs, at, f0 + n)
             if n_host is not None and n_host > 0:
-                n_drop = n_host + int((n_drop - n_host + L) % (2 * L) - L)
+                n_drop = n_host + int((jump - n_host + L) % (2 * L) - L)
                 ambiguous = False
-        if n_drop <= 0 or good is None:
+        path_moved = ambiguous and -cfg.max_path_jump_us * 1e-6 * fs <= jump < 0
+        if path_moved or n_drop <= 0 or good is None:
             # Not a drop: the cell came back somewhere else (another path, or a reused PCI).
             return ("found", k_found, theta_at + resid, True)
         return ("gap", Gap(at=at, n=n_drop, until=at, ambiguous=ambiguous))

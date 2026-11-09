@@ -6,6 +6,7 @@ against the Cramér-Rao bound, not requirements.
 """
 
 import math
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -35,6 +36,16 @@ def write(tmp, name, towers, dur, snr, drops=(), fs=FS, fc=FC, seed=1, **sidecar
                          drops=drops)  # fmt: skip
     meta = {"sample_rate_hz": fs, "center_freq_hz": fc, "t_ns": T0, **sidecar}
     return capture.write_capture(tmp / f"{name}.cu8", capture.complex_to_cu8(x), meta)
+
+
+def splice(tmp, name, first, second, at_s, dur, snr, seed=1):
+    """A capture of towers `first` becoming towers `second` at `at_s` (same noise and clock)."""
+    x, y = (synth.synthesize(t, dur, fs=FS, fc=FC, clock_ppm=PPM, snr_db=snr, seed=seed)
+            for t in (first, second))  # fmt: skip
+    at = round(at_s * FS)
+    z = np.r_[x[:at], y[at:]]
+    meta = {"sample_rate_hz": FS, "center_freq_hz": FC, "t_ns": T0}
+    return capture.write_capture(tmp / f"{name}.cu8", capture.complex_to_cu8(z), meta)
 
 
 def epoch_errors(result, tower, fs=FS):
@@ -213,6 +224,29 @@ def test_sample_drop_is_detected_and_sized(tmp_path, stamped):
     assert np.all(np.abs(np.diff(v)) < 50)  # continuous: ~13 m per 100 ms of clock drift
     arcs = {m.meta["arc"] for m in pr}
     assert arcs == ({0} if stamped else {0, 1})  # unsized gap: the arc restarts
+
+
+@pytest.mark.parametrize("n", [12_000, 131_072])
+def test_unstamped_drop_past_half_a_frame_is_still_flagged(tmp_path, n):
+    # n mod 19200 > 9600 looks like the cell arriving late. 131072 is rtl_sdr's default buffer.
+    at = int(0.6 * FS) + 777
+    r = process_file(write(tmp_path, "gap", [TOWER], 1.3, 0.0, drops=((at, n),)))
+    assert len(r.gaps) == 1
+    g = r.gaps[0]
+    assert g.ambiguous and g.n == n % (2 * sig.half_frame_length(FS)) and g.at <= at
+    assert np.max(np.abs(epoch_errors(r, TOWER))) < 1.0  # regression guard: timed right after it
+    pr = [m for m in r.measurements if m.kind == "pseudorange"]
+    assert sum("gap_ambiguous" in m.meta["flags"] for m in pr) == 1
+    assert {m.meta["arc"] for m in pr} == {0, 1}
+
+
+def test_cell_found_a_little_late_is_a_new_arc_not_a_gap(tmp_path):
+    late = replace(TOWER, delay_s=TOWER.delay_s + 3 / FS)  # past the code gate, within a CP
+    r = process_file(splice(tmp_path, "late", [TOWER], [late], 0.6, 1.3, 10.0))
+    assert r.gaps == []
+    pr = [m for m in r.measurements if m.kind == "pseudorange"]
+    assert not any(m.meta["flags"] for m in pr)
+    assert {m.meta["arc"] for m in pr} == {0, 1}
 
 
 def test_sample_rate_2_4_msps(tmp_path):
