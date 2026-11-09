@@ -47,7 +47,7 @@ We chose CurveZMQ over WireGuard (decided 2026-11-09):
 - **Unauthenticated input is dropped, not fused.**
   - The panel shows per-link counts of rejected, unsigned and replayed messages.
   - Which unsigned MAVLink messages, if any, are still accepted is `TBD`; the default is none.
-- **Session logs (roadmap, not before judging).** The hash chain needs an `icd` PR. For the demo, I16 covers MAVLink signing, CurveZMQ, and a test that a forged message is rejected.
+- **Session logs (roadmap, not before judging).** The hash chain needs an `icd` PR. For the demo, #89 covers MAVLink signing, CurveZMQ, and a test that a forged message is rejected.
   - Each recorded record (or chunk, `TBD`) carries a hash over the previous hash and its own content.
   - The head is streamed to the laptop every `TBD` s, so an edit, a deletion or a truncation on the payload is detectable.
   - This changes `systems/icd/session.md`, so it needs an `icd` PR with the other owner's approval. Old sessions still load and are marked unverified.
@@ -55,7 +55,7 @@ We chose CurveZMQ over WireGuard (decided 2026-11-09):
 - **Limits:** this does not defend a payload or base that has been physically compromised. The logs then help forensics, not prevention.
 - **Cost:** the CPU and latency cost on the Pi is `TBD` and is checked against REQ-05.
 - **Radio:** no new radio. The Wi-Fi and telemetry links are the existing licence-exempt ones (REQ-07).
-- **Evidence (I16):** a test shows that a forged or modified message is rejected and that a log edit is detected.
+- **Evidence (#89):** a test shows that a forged or modified message is rejected and that a log edit is detected.
 - **Reopen if:**
   - libzmq on the Pi lacks CURVE (then B or C)
   - signing or encryption breaks the REQ-05 latency target
