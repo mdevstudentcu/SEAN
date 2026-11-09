@@ -61,9 +61,54 @@ def process_file(path: str | Path, cfg: Config | None = None, **kw) -> Result:
 
 
 def process_capture(cap: Capture, cfg: Config | None = None, receiver: str = "payload") -> Result:
+    t_start = time.perf_counter()
+    r = _process(cap, cfg, receiver, list(cap.gaps))
+    # A drop of a whole number of frames leaves the signal's timing unchanged, so the tracker
+    # can't see it; only the recorder's buffer stamps can. Put any such drop in as a known gap
+    # and run again (once).
+    extra = _unexplained_stalls(cap, r.gaps)
+    if extra:
+        r = _process(cap, cfg, receiver, [*cap.gaps, *extra])
+    r.elapsed_s = time.perf_counter() - t_start
+    return r
+
+
+# Buffers each side of a stamp step whose latency floor is compared (TBC). A real drop moves the
+# floor for good; a stall that catches up does not.
+STALL_WINDOW = 8
+
+
+def _unexplained_stalls(cap: Capture, found: list) -> list[tuple[int, int]]:
+    """Drops the buffer stamps show (latency floor up by at least half a frame) that no gap the
+    tracker found explains, as (file index, samples). The signal saw no jump there, so each is a
+    whole number of frames: the stamps' size, rounded to one. Sizes more than a quarter frame
+    from a whole frame are left out (not a clean frame drop: the tracker should have seen it)."""
+    if cap.buffers is None or len(cap.buffers) < 2:
+        return []
+    L = sig.half_frame_length(cap.fs)
+    frame = 2 * L
+    idx = cap.buffers[:, 0]
+    lat = (cap.buffers[:, 1] - cap.buffers[0, 1]) - idx * 1e9 / cap.fs  # ns, minus a constant
+    out, prev = [], False
+    for i in range(1, len(idx)):
+        before = lat[max(0, i - STALL_WINDOW) : i].min()
+        after = lat[i : i + STALL_WINDOW].min()
+        n_host = (after - before) * cap.fs / 1e9
+        step = n_host >= L
+        if step and not prev:
+            at = int(idx[i])
+            k = round(n_host / frame)
+            near = any(abs(g.at - at) <= 2 * frame for g in found)
+            if k >= 1 and abs(n_host - k * frame) < L / 2 and not near:
+                out.append((at, k * frame))
+        prev = step
+    return out
+
+
+def _process(cap: Capture, cfg: Config | None, receiver: str, known: list) -> Result:
     cfg = cfg or Config()
     t_start = time.perf_counter()
-    gaps = GapMap([Gap(at=a, n=n, until=a) for a, n in cap.gaps])
+    gaps = GapMap([Gap(at=a, n=n, until=a) for a, n in known])
     carry: dict[tuple, tuple[CellTrack, State]] = {}
     cells: list[CellTrack] = []
     found_log: list[tuple[int, Found]] = []

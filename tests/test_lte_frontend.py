@@ -373,3 +373,34 @@ def test_cli_says_so_when_a_capture_is_too_short(tmp_path):
     with pytest.raises(SystemExit, match="no LTE cells"):
         main(["frontend", "lte", str(cu8), "--out", str(out)])
     assert not out.exists()
+
+
+def _stamps(n_samples, drop_at=None, n=0, stall_at=None, stall_ns=0, jitter_ns=500_000, seed=5):
+    """Host stamps per 16384-sample buffer, as the recorder writes them: a drop moves every later
+    stamp; a stall delays some buffers that then catch up (the floor doesn't move)."""
+    rng = np.random.default_rng(seed)
+    f = np.arange(0, n_samples, 16384)
+    local = f + (np.where(f >= drop_at, n, 0) if drop_at is not None else 0)
+    host = local * 1e9 / FS + rng.uniform(0, jitter_ns, f.size)
+    if stall_at is not None:
+        late = (f >= stall_at) & (f < stall_at + 3 * 16384)
+        host = host + np.where(late, stall_ns, 0)
+    return {"buffers": [[int(a), int(T0 + b)] for a, b in zip(f, np.round(host), strict=True)]}
+
+
+@pytest.mark.parametrize("frames", [1, 2])
+def test_stamped_drop_of_whole_frames_is_sized(tmp_path, frames):
+    # A whole-frame drop leaves the signal's timing unchanged; only the stamps show it. It lands
+    # on a buffer boundary, as rtl_sdr drops whole USB transfers.
+    n = frames * 2 * sig.half_frame_length(FS)
+    at = 16384 * 70  # 0.6 s
+    extra = _stamps(int(1.3 * FS), drop_at=at, n=n)
+    r = process_file(write(tmp_path, "frames", [TOWER], 1.3, 0.0, drops=((at, n),), **extra))
+    assert [(g.at, g.n, g.ambiguous) for g in r.gaps] == [(at, n, False)]
+    assert np.max(np.abs(epoch_errors(r, TOWER))) < 1.0  # regression guard: timed right after it
+
+
+def test_stamp_stall_that_catches_up_is_not_a_drop(tmp_path):
+    extra = _stamps(int(1.3 * FS), stall_at=16384 * 70, stall_ns=40_000_000)  # 40 ms late
+    r = process_file(write(tmp_path, "stall", [TOWER], 1.3, 0.0, **extra))
+    assert r.gaps == []
