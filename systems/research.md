@@ -140,9 +140,9 @@ Each could still change a verdict.
 - Full texts of Kirkko-Jaakkola 2017, Lin 2024 (P5), Crosara 2025 and Bai 2024 (P3): abstracts only.
 - An IEEE Xplore and ION full-text search for "signals of opportunity" with timing integrity or time spoofing. The web and arXiv searches done (2026-11-09) found the papers above and nothing that computes a time protection level for SoOP-held time or detects time-only spoofs from calibrated tower clocks.
 
-### Proposed wording changes after the second reading (pending owner)
+### Wording changes after the second reading (adopted 2026-11-09)
 
-These change wording adopted earlier the same day. ADR-0021 is not edited here: its "Reopen if" names exactly this case (a still-unread paper shows P3 or P5 published), so the owner decides.
+These change wording adopted earlier the same day. The owner adopted 1–3 on 2026-11-09 and ADR-0021 carries them; 4 is done in `protection.py`.
 
 1. **P5.** From "Time protection level" to "A time protection level for time held by signals of opportunity, which accounts for the towers' GNSS-disciplined clocks". Pitch line: "Time protection levels exist for GNSS timing receivers (Kirkko-Jaakkola et al. 2017). We found no published one for time held by cell towers through a GNSS outage."
 2. **P3.** From "Calibrated clocks as a time-spoof and meaconing detector" to "Calibrated tower clocks as a passive time-spoof and meaconing detector that can refute GNSS time but never confirm it". Pitch line: "Checking GNSS time against other clocks is known (Zhang, Spanghero & Papadimitratos 2020, with Wi-Fi and NTP). We found no published detector that uses calibrated cell-tower clocks, or that treats tower time as failing with GPS."
