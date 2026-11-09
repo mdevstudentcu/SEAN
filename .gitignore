@@ -25,6 +25,9 @@ Kick Off Presentation Combined.pdf
 # Firmware build output
 firmware/**/.pio/
 
+# Commit stamp `just pi-deploy` copies to the Pi
+.pnt-commit
+
 # Editors, OS, agents
 .vscode/
 .idea/

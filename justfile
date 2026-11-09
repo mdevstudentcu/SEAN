@@ -66,6 +66,7 @@ mission pattern="square":
 
 # Copy the repo to the Pi and restart its services (PI_HOST=pi@pnt.local)
 pi-deploy host="pi@pnt.local":
+    git describe --always --dirty --abbrev=7 > .pnt-commit  # the Pi copy has no .git (REQ-10)
     rsync -az --delete --exclude .venv --exclude data/sessions --exclude .git ./ {{host}}:~/pnt/
     ssh {{host}} 'cd ~/pnt && bash deploy/pi/setup.sh'
 
