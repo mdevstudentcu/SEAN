@@ -100,7 +100,6 @@ class Epoch:
     locked: bool  # carrier aiding on
     arc: int
     n0: float  # the arc's reference boundary (`CellTrack.n0` moves when a new arc starts)
-    flags: tuple[str, ...] = ()
 
 
 @dataclass
@@ -147,6 +146,10 @@ class GapMap:
         self._cstart = at + np.concatenate([[0], self._cum[:-1]])  # corrected start of each gap
         self._cend = at + self._cum
         self._until = np.array([g.until for g in self.gaps], np.int64)
+
+    def corrected_ends(self) -> np.ndarray:
+        """Corrected index just after each gap, in the order of `gaps`."""
+        return self._cend if self.gaps else np.zeros(0, np.int64)
 
     def to_corrected(self, f):
         if not self.gaps:
@@ -524,13 +527,11 @@ class _Track:
                     r_nu = var_phi * (fs / (2 * math.pi * dn * fc)) ** 2
                     if abs(nu_meas - st.nu) < 4 * math.sqrt(st.s(1, r_nu)):
                         st.update(1, nu_meas, r_nu)
-                flags: tuple[str, ...] = ()
                 if pending is not None:
                     pending.until = max(
                         pending.at, self.file_index(bounds[r] + self.sss_off - self.backoff)
                     )
                     self.gaps.refresh()
-                    flags = ("sample_gap",) + (("gap_ambiguous",) if pending.ambiguous else ())
                     pending = None
                 ep = Epoch(
                     k=kk,
@@ -544,7 +545,6 @@ class _Track:
                     locked=locked,
                     arc=cell.arc,
                     n0=cell.n0,
-                    flags=flags,
                 )
                 if settled:
                     cell.epochs.append(ep)
@@ -580,8 +580,6 @@ class _Track:
                 gap = action[1]
                 self.gaps.add(gap)
                 pending = gap
-                if gap.ambiguous:
-                    cell.arc += 1
                 st = good.copy()
                 k, last, miss = good.k + 1, None, 0
         cell.snr_db = (10 * math.log10(max(snr_ema, 1e-3) / (2 * sig.N_SYNC))
