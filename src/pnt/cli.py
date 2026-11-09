@@ -331,7 +331,33 @@ def cmd_plot(args) -> None:
         print(f"wrote {w.relative_to(REPO) if w.is_relative_to(REPO) else w}")
 
 
+def _sweep_params(items: list[str] | None) -> dict[str, list[float]] | None:
+    """`--param PATH=v1,v2,...` options as {path: values}; None if there are none."""
+    if not items:
+        return None
+    out = {}
+    for item in items:
+        path, sep, values = item.partition("=")
+        try:
+            if not sep or not path:
+                raise ValueError
+            out[path] = [float(v) for v in values.split(",")]
+        except ValueError:
+            raise SystemExit(f"--param wants PATH=v1,v2,..., not {item!r}") from None
+    return out
+
+
+def _fmt_cell(v) -> str:
+    if isinstance(v, float):
+        return "—" if v != v else f"{v:.4g}"
+    return str(v)
+
+
 def cmd_experiment(args) -> None:
+    if args.name == "sweep":
+        return _cmd_sweep(args)
+    if args.param:
+        raise SystemExit("--param is only for the sweep experiment")
     run = experiments.towers if args.name == "towers" else experiments.grid
     rows = run(args.scenario, runs=args.runs, estimator=args.estimator, jobs=args.jobs)
     commit = _commit()
@@ -344,6 +370,28 @@ def cmd_experiment(args) -> None:
         meta = {"experiment": args.name, "scenario": args.scenario, "estimator": args.estimator}
         out = {**meta, "runs": args.runs, "commit": commit, "rows": rows}
         Path(args.json).write_text(json.dumps(out, indent=2))
+
+
+def _cmd_sweep(args) -> None:
+    try:
+        params = _sweep_params(args.param)
+        rows = experiments.sweep(
+            args.scenario, params, runs=args.runs, estimator=args.estimator, jobs=args.jobs
+        )
+    except ValueError as exc:
+        raise SystemExit(f"sweep: {exc}") from exc
+    commit = _commit()
+    print(
+        f"sweep experiment, scenario {args.scenario}, estimator {args.estimator}, {args.runs} "
+        f"runs per row (seeds 0..{args.runs - 1}, paired), {commit}. One value changed per row; "
+        "the estimator keeps its own model. Means over runs; hpl_bound_worst is the worst run, "
+        "hazardous_epochs the total."
+    )
+    print(experiments.markdown(rows, fmt=_fmt_cell))
+    if args.json:
+        meta = {"experiment": "sweep", "scenario": args.scenario, "estimator": args.estimator}
+        out = {**meta, "runs": args.runs, "seeds": list(range(args.runs)), "commit": commit}
+        Path(args.json).write_text(json.dumps({**out, "rows": rows}, indent=2))
 
 
 def _serve_dash(feed, args) -> None:
@@ -683,12 +731,19 @@ def main(argv=None) -> None:
     )
     s.set_defaults(fn=cmd_plot)
 
-    s = sub.add_parser("experiment", help="tower-removal or sensitivity-grid experiment")
-    s.add_argument("name", choices=["towers", "grid"])
+    s = sub.add_parser("experiment", help="tower-removal, sensitivity-grid or sweep experiment")
+    s.add_argument("name", choices=["towers", "grid", "sweep"])
     s.add_argument("scenario")
     s.add_argument("--runs", type=int, default=10)
     s.add_argument("--jobs", type=int, help="worker processes (default: all cores)")
     s.add_argument("--json")
+    s.add_argument(
+        "--param",
+        action="append",
+        metavar="PATH=v1,v2,...",
+        help="sweep only: a dotted path into the scenario (or `towers`) and its values; "
+        "repeat for more (default: experiments.DEFAULT_SWEEP)",
+    )
     add_estimator(s)
     s.set_defaults(fn=cmd_experiment)
 

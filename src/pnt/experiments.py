@@ -3,6 +3,7 @@
 - towers: remove one tower at a time on the same route and rank them by the damage.
 - grid: sweep tower count, speed and receiver oscillator, as Khalife & Kassas (IEEE TAES 2020)
   do for their carrier-phase filter. Their accuracy figures do not transfer to our pseudoranges.
+- sweep: change one error-model value at a time from the committed scenario (issue #128).
 """
 
 from __future__ import annotations
@@ -21,6 +22,26 @@ from pnt.sim.scenario import T0_NS, generate, load
 
 # Oscillator grades for the grid, as a clock drift in ppb. TBC until our radio's is measured.
 OSCILLATORS = {"tcxo": 100.0, "ocxo": 5.0}
+
+# The sweep's pseudo-path for the tower count, set through `_with_towers`
+TOWERS = "towers"
+# Multiples of the committed value for the default sweep (TBC): they bracket it.
+FACTORS = (0.25, 0.5, 2.0, 4.0)
+# Default sweep (TBC): the LTE error model of the `realistic` set, one parameter at a time.
+# `times` multiplies the committed value; `values` are absolute where a multiple makes no sense.
+# Entries the scenario does not have are skipped.
+DEFAULT_SWEEP: tuple[dict, ...] = (
+    {"path": "sources.lte.sigma_m", "times": FACTORS},  # range noise
+    {"path": "sources.lte.multipath.sigma_m", "times": FACTORS},  # multipath size
+    {"path": "sources.lte.multipath.tau_s", "times": FACTORS},  # multipath time constant
+    # share of time each tower is heard: a fraction, so absolute values up to 1
+    {"path": "sources.lte.dropout.availability", "values": (0.5, 0.9, 1.0)},
+    {"path": "sources.lte.told_position_sigma_m", "times": FACTORS},  # told tower position error
+    {"path": TOWERS, "values": (2, 3, 6, 8)},  # tower count: a count, so absolute values
+    {"path": "clock.drift_ppb", "times": FACTORS},  # receiver clock drift
+    {"path": "tower_clocks.site.drift_rw_mps", "times": FACTORS},  # tower clock wander, per site
+    {"path": "tower_clocks.builder.drift_rw_mps", "times": FACTORS},  # same, shared by builder
+)
 
 
 def _run(spec: dict, estimator: str, seed: int, drop: str | None = None):
@@ -139,9 +160,110 @@ def grid(
     return rows
 
 
-def markdown(rows: list[dict]) -> str:
+def _tower_count(spec: dict) -> int:
+    lte = spec.get("sources", {}).get("lte", {})
+    if "towers_from" in lte:
+        return int(lte["towers_from"]["count"])
+    if "n_emitters" in lte:
+        return int(lte["n_emitters"])
+    raise KeyError(TOWERS)
+
+
+def get_param(spec: dict, path: str) -> float:
+    """The number at a dotted path in a loaded spec (`towers`: the tower count). A path that is
+    not there, or that does not end on a number, is a ValueError naming it."""
+    try:
+        if path == TOWERS:
+            return _tower_count(spec)
+        node = spec
+        for key in path.split("."):
+            node = node[key]
+    except (KeyError, TypeError):
+        raise ValueError(f"{spec.get('name', 'scenario')} has no parameter {path!r}") from None
+    if isinstance(node, bool) or not isinstance(node, int | float):
+        raise ValueError(f"{path!r} is not a number in {spec.get('name', 'scenario')}: {node!r}")
+    return node
+
+
+def set_param(spec: dict, path: str, value: float) -> dict:
+    """A copy of `spec` with only the value at `path` changed (checked as `get_param`)."""
+    get_param(spec, path)
+    spec = copy.deepcopy(spec)
+    if path == TOWERS:
+        _with_towers(spec, int(value))
+        return spec
+    *parents, leaf = path.split(".")
+    node = spec
+    for key in parents:
+        node = node[key]
+    node[leaf] = value
+    return spec
+
+
+def default_params(spec: dict) -> dict[str, list[float]]:
+    """DEFAULT_SWEEP made concrete for one spec, skipping what it doesn't have."""
+    out = {}
+    for entry in DEFAULT_SWEEP:
+        try:
+            base = get_param(spec, entry["path"])
+        except ValueError:
+            continue
+        out[entry["path"]] = (
+            [base * k for k in entry["times"]] if "times" in entry else list(entry["values"])
+        )
+    return out
+
+
+def _mean(xs) -> float:
+    v = np.array(list(xs), float)
+    return float(np.nanmean(v)) if not np.all(np.isnan(v)) else float("nan")
+
+
+def sweep(
+    scenario: str | dict,
+    params: dict[str, list[float]] | None = None,
+    runs: int = 10,
+    estimator: str = "baseline",
+    jobs: int | None = 1,
+) -> list[dict]:
+    """One-at-a-time sensitivity: the scenario as committed, then each value of each parameter
+    with everything else as committed. Every row runs seeds 0..runs-1, so rows are paired.
+
+    `scenario` is a name or an already loaded spec. `params` maps a dotted path into the loaded
+    spec (or `towers`) to its values; None uses DEFAULT_SWEEP. The estimator is not told about
+    the change: it keeps its own model."""
+    base = load(scenario) if isinstance(scenario, str) else scenario
+    params = default_params(base) if params is None else params
+    cases: list[tuple[str, float | None, dict]] = [("baseline", None, base)]
+    for path, values in params.items():
+        cases += [(path, v, set_param(base, path, v)) for v in values]
+    tasks = [(spec, estimator, s) for _, _, spec in cases for s in range(runs)]
+    metrics = _map(_run_metrics, tasks, jobs)
+    rows = []
+    for i, (path, value, _) in enumerate(cases):
+        results = metrics[i * runs : (i + 1) * runs]
+        committed = get_param(base, path) if value is not None else None
+        rows.append(
+            {
+                "parameter": path if value is not None else "baseline (as committed)",
+                "value": value if value is not None else float("nan"),
+                "relative": (
+                    1.0 if value is None else value / committed if committed else float("nan")
+                ),
+                "fault_p95_m": _mean(r.fault_h_p95_m for r in results),
+                "outage_p95_300s_m": _mean(r.outage_h_p95_300s_m for r in results),
+                "hpl_bound_worst": float(min(r.hpl_bound_frac for r in results)),
+                "hazardous_epochs": int(sum(r.hazardous_epochs for r in results)),
+                "fault_time_err_p95_us": _mean(r.fault_time_err_p95_us for r in results),
+            }
+        )
+    return rows
+
+
+def markdown(rows: list[dict], fmt=None) -> str:
+    """`rows` as a Markdown table; `fmt` formats each value (default: floats to 2 places)."""
     keys = list(rows[0])
-    fmt = lambda v: f"{v:.2f}" if isinstance(v, float) else str(v)  # noqa: E731
+    fmt = fmt or (lambda v: f"{v:.2f}" if isinstance(v, float) else str(v))
     lines = ["| " + " | ".join(keys) + " |", "| " + " | ".join("---" for _ in keys) + " |"]
     lines += ["| " + " | ".join(fmt(r[k]) for k in keys) + " |" for r in rows]
     return "\n".join(lines)
