@@ -286,6 +286,13 @@ class MHSS:
     def process(self, m: Measurement) -> None:
         if self.main.x is None:
             return
+        if m.kind == "accel_gyro":
+            # IMU samples drive every copy's prediction and never update it, so they open no
+            # fault hypothesis. An IMU fault hypothesis (motion="imu") is not modelled yet.
+            for h in self.hyps.values():
+                for f in h.filters:
+                    f.process(m)
+            return
         mine = self.groups(m)
         for name, prior in mine.items():
             if name not in self.hyps:
