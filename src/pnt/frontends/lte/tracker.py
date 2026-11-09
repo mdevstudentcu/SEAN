@@ -99,6 +99,7 @@ class Epoch:
     n_ref: float  # sample index the phase refers to
     locked: bool  # carrier aiding on
     arc: int
+    n0: float  # the arc's reference boundary (`CellTrack.n0` moves when a new arc starts)
     flags: tuple[str, ...] = ()
 
 
@@ -542,6 +543,7 @@ class _Track:
                     n_ref=n_ref,
                     locked=locked,
                     arc=cell.arc,
+                    n0=cell.n0,
                     flags=flags,
                 )
                 if settled:

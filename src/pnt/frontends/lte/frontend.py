@@ -153,11 +153,11 @@ def emit(
     for cell in cells:
         if not cell.epochs:
             continue
-        ep = sorted(cell.epochs, key=lambda e: e.k)
+        ep = sorted(cell.epochs, key=lambda e: (e.arc, e.k))  # k restarts when n0 moves
         a = {
             name: np.array([getattr(e, name) for e in ep])
             for name in ("k", "c_ref", "theta_meas", "nu", "sigma", "snr_post", "psi", "n_ref",
-                         "locked", "arc")
+                         "locked", "arc", "n0")
         }  # fmt: skip
         a["t"] = cap.t0_ns + a["c_ref"] * 1e9 / fs
         key = np.floor(a["t"] / period_ns).astype(np.int64) * 1_000_000 + a["arc"]
@@ -177,7 +177,7 @@ def _outputs(cell, g, flags, cap, gaps, cfg, receiver, L) -> list[Measurement]:
         return []
     ref = n // 2
     t, t_ref = g["t"], g["t"][ref]
-    base = cell.n0 % (2 * L)
+    base = g["n0"] % (2 * L)
     rho = C * (base + g["theta_meas"]) / fs
     sig_m = cfg.sigma_scale * C * g["sigma"] / fs
     w = 1 / sig_m**2
