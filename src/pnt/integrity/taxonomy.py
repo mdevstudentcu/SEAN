@@ -42,6 +42,11 @@ TAXONOMY: dict[str, FaultClass] = {
     # them, so they corrupt position and the relative clock
     "reference_moved": FaultClass("reference station fault", (POSITION, TIME), "none"),
     "reference_clock_step": FaultClass("reference station fault", (POSITION, TIME), "none"),
+    # TBC (owners confirm): like tower_clock_step, but it also corrupts time, since time held
+    # through an outage rests on the towers
+    "tower_holdover": FaultClass("SoOP fault", (POSITION, TIME), "none"),
+    # TBC (owners confirm): like baro_drift
+    "imu_degradation": FaultClass("sensor degradation", (POSITION,), "none"),
 }
 
 

@@ -24,7 +24,7 @@ def test_every_documented_attack_is_registered_and_unknown_fails():
     assert set(attacks._ATTACKS) == {
         "outage", "spoof_ramp", "spoof_jump", "time_spoof", "meaconing", "jamming_zone",
         "tower_clock_step", "gps_no_fix", "gps_low_sats", "baro_drift", "reference_moved",
-        "reference_clock_step",
+        "reference_clock_step", "tower_holdover", "imu_degradation",
     }  # fmt: skip
     spec = load("spoof-jump")
     spec["faults"] = [{"type": "teleport", "start_s": 1}]
