@@ -8,7 +8,9 @@ where T is the tower's clock. Their single difference, at the same epoch,
 has no tower clock: a wandering, drifting or stepping tower clock cancels, and only the relative
 receiver clock remains. The filter keeps `ekf`'s states (position, velocity, payload clock) and
 adds four: the base's survey error (3, constant, prior from the session's `sigma_m`) and the
-base's clock offset (a random walk). Both are learned while GPS is trusted.
+base's clock offset (a random walk). Both are learned while GPS is trusted. Each differenced
+tower also gets a bias state (Gauss-Markov): what is left in the difference that does not cancel,
+mostly multipath at either end and the tower's position error seen from two places.
 
 Three things can go wrong, and each has its own answer:
 - **The base misses a tower** (dropout, link loss): the payload's reading is differenced against
@@ -84,6 +86,12 @@ class BaseRoverEKF(EKF):
         q_monitor: float = 1.5,
         check_window_s: float = 10.0,  # TBC: base check averaging window
         check_min_samples: int = 5,  # TBC: a tower needs this many readings in the window
+        # Per-tower bias left in the difference (both receivers' multipath, and tower position
+        # error seen from two places), as a Gauss-Markov state; 0 turns it off. TBC: sized like
+        # the payload's multipath in the realistic set, its largest correlated error. Insensitive
+        # between 30 and 50 m on 15 seeds (issue #81 log)
+        sd_bias_sigma_m: float = 50.0,
+        sd_bias_tau_s: float = 30.0,
         **config,
     ):
         config.setdefault("pseudorange_receiver_clock", True)
@@ -107,6 +115,8 @@ class BaseRoverEKF(EKF):
         self.snapshots: deque = deque()  # (t_ns, monitor copy), for rolling back on a base fault
         self.base_fault_t: int | None = None
         self.tower_fault_t: dict[str, int] = {}
+        self.sd_bias_sigma_m, self.sd_bias_tau_s = sd_bias_sigma_m, sd_bias_tau_s
+        self.sd_bias_idx: dict[str, int] = {}
 
     # --- state ---------------------------------------------------------------------------
     @property
@@ -135,6 +145,26 @@ class BaseRoverEKF(EKF):
         super().predict(t_ns)
         if dt > 0 and self.bclk is not None:
             self.P[self.bclk, self.bclk] += self.q_base_clock**2 * dt
+        if dt > 0 and self.sd_bias_idx:
+            i = list(self.sd_bias_idx.values())
+            phi = np.exp(-dt / self.sd_bias_tau_s)
+            self.x[i] *= phi
+            self.P[i, :] *= phi
+            self.P[:, i] *= phi
+            self.P[i, i] += self.sd_bias_sigma_m**2 * (1 - phi**2)
+
+    def _sd_bias(self, emitter: str) -> int | None:
+        if not self.sd_bias_sigma_m:
+            return None
+        if emitter not in self.sd_bias_idx:
+            n = len(self.x)
+            self.x = np.append(self.x, 0.0)
+            P = np.zeros((n + 1, n + 1))
+            P[:n, :n] = self.P
+            P[n, n] = self.sd_bias_sigma_m**2
+            self.P = P
+            self.sd_bias_idx[emitter] = n
+        return self.sd_bias_idx[emitter]
 
     # --- measurements ----------------------------------------------------------------------
     def settle(self, t_ns: int) -> None:
@@ -181,6 +211,7 @@ class BaseRoverEKF(EKF):
     def _difference(self, d: Measurement, rho_b: float, r_b: float) -> None:
         """Payload minus base for one tower: no tower clock, the relative receiver clock left."""
         e = self._emitter(d)
+        k = self._sd_bias(d.emitter)
         dp = self.x[POS] - e
         b = self.base_told + self.x[self.bpos]
         db = b - e
@@ -192,6 +223,9 @@ class BaseRoverEKF(EKF):
         H[0, self.bclk] = -1.0
         rx = self.x[CLK] if self.pr_rx_clock else 0.0
         y = (d.value[0] - rho_b) - (rp - rb + rx - self.x[self.bclk])
+        if k is not None:
+            H[0, k] = 1.0
+            y -= self.x[k]
         self._update(d.source, d.t_ns, y, H, np.array([[d.sigma[0] ** 2 + r_b]]))
 
     # --- the base as its own fault hypothesis ---------------------------------------------
