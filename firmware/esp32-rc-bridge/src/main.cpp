@@ -124,4 +124,5 @@ void loop() {
         static_cast<unsigned long>(c.bad_format), static_cast<unsigned long>(c.bad_tag),
         static_cast<unsigned long>(c.bad_nonce), static_cast<unsigned long>(c.replay));
   }
+  delay(1);  // let the Wi-Fi and idle tasks run; 1 ms of jitter on a 20 ms frame period
 }
