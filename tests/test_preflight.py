@@ -1,5 +1,7 @@
 """Pre-flight integrity prediction (#92): RAIM prediction for signals of opportunity."""
 
+import copy
+
 import numpy as np
 import pytest
 import yaml
@@ -37,6 +39,25 @@ def test_plan_keeps_planned_denial_and_drops_attacks():
     assert availability == {"lte": 0.5}
     assert planned["sources"]["lte"]["dropout"]["availability"] == 1.0
     assert spec["sources"]["lte"]["dropout"]["availability"] == 0.5  # the input is untouched
+
+
+def test_reference_station_dropout_is_its_own():
+    spec = copy.deepcopy(SPEC)
+    spec["sources"]["lte"]["dropout"] = {"availability": 0.25, "block_s": 5}
+    spec["reference"] = {
+        "position_llh": [45.38625, -75.693446, 80.0],
+        "sources": {"lte": {"sigma_m": 16.0, "dropout": {"availability": 0.64, "block_s": 5}}},
+    }
+    planned, availability, _, _ = preflight.plan(spec)
+    assert availability == {"lte": 0.25, "reference:lte": 0.64}
+    assert planned["reference"]["sources"]["lte"]["dropout"]["availability"] == 1.0
+    run = generate(planned, seed=0)
+    n_towers, n_epochs = 5, 40  # 1 Hz for 40 s: every record is scheduled, no draw removes any
+    from_station = [m for m in run.measurements if m.receiver == "reference"]
+    assert len(from_station) == n_towers * n_epochs
+    meas, _ = preflight.noise_free(run, availability)
+    sigmas = {(m.receiver, round(m.sigma[0], 6)) for m in meas if m.kind == "pseudorange"}
+    assert sigmas == {("payload", 40.0), ("reference", 20.0)}  # 20 / 0.5, 16 / 0.8
 
 
 def test_noise_free_values_are_the_truth():
