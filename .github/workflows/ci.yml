@@ -30,7 +30,9 @@ jobs:
         run: |
           uv run mavgen.py --lang=C --wire-protocol=2.0 --output=firmware/esp32-hub/lib/pnt_mavlink systems/icd/pnt.xml
           uv run mavgen.py --lang=Python3 --wire-protocol=2.0 --output=src/pnt/io/pnt_mavlink.py systems/icd/pnt.xml
-          git diff --exit-code -- firmware/esp32-hub/lib/pnt_mavlink src/pnt/io/pnt_mavlink.py
+          # mavgen stamps the build date into version.h, so ignore that line or the job fails on
+          # every day after the code was generated
+          git diff --exit-code -I '^#define MAVLINK_BUILD_DATE' -- firmware/esp32-hub/lib/pnt_mavlink src/pnt/io/pnt_mavlink.py
 
   firmware:
     runs-on: ubuntu-latest
