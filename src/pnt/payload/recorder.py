@@ -170,6 +170,8 @@ class Recorder:
         self._abandon = threading.Event()  # set when a device would not stop: finish without it
         self.clock_note = ""
         self.write_errors = 0
+        self._log_error: OSError | None = None  # the write that ended the MCAP (disk full)
+        self._failures: dict[str, str] = {}  # what could not be done: why
 
     # --- metadata --------------------------------------------------------------------------
     def meta(self) -> dict:
@@ -186,6 +188,9 @@ class Recorder:
             lines.append(f"records dropped (queue full): {self.ctx.dropped}")
         if self.write_errors:
             lines.append(f"records that could not be written: {self.write_errors}")
+        if self._log_error is not None:
+            lines.append(f"session.mcap stopped at a write error: {self._log_error!r}")
+        lines += [f"could not {what}: {why}" for what, why in self._failures.items()]
         origin = self.ctx.origin_llh
         return {
             "name": self.folder.name,
@@ -258,33 +263,67 @@ class Recorder:
                 except Exception as exc:  # one bad record must not end the recording
                     self.write_errors += 1
                     if self.write_errors % 1000 == 1:
-                        print(f"record: cannot write {item[:2]!r}: {exc!r}")
+                        self._say(f"record: cannot write {item[:2]!r}: {exc!r}")
             now = time.monotonic()
             if self.ctx.origin_changed.is_set():
                 self.ctx.origin_changed.clear()
-                self._write_meta()
+                self._guarded("write meta.yaml", self._write_meta)
             if now - last_flush >= FLUSH_PERIOD_S:
                 last_flush = now
-                self._writer.flush()
+                self._log(self._writer.flush)
             if self.streamer and now - last_meta >= META_PERIOD_S:
                 last_meta = now
-                self.streamer.send_meta(self.meta(), self.ctx.receiver)
+                self._guarded("stream the session meta", self._send_meta)
             if now - last_status >= STATUS_PERIOD_S:
                 last_status = now
-                self._status_event()
+                self._guarded("log device status", self._status_event)
             if item is None and self._finished():
                 break
+
+    def _say(self, text: str) -> None:
+        try:
+            print(text)
+        except OSError:  # the terminal has gone (a dropped ssh): the recording goes on
+            pass
+
+    def _guarded(self, what: str, fn, *args) -> None:
+        """Housekeeping that must not take the recording down; the failure goes in the notes."""
+        try:
+            fn(*args)
+        except Exception as exc:
+            if what not in self._failures:
+                self._say(f"record: could not {what}: {exc!r}")
+            self._failures[what] = repr(exc)
+
+    def _log(self, fn, *args) -> bool:
+        """One MCAP write. The first OSError (disk full) ends writing: the mcap writer would
+        retry the failed chunk on every later record, holding it all in memory. Devices and the
+        stream go on; True if the record was written."""
+        if self._log_error is not None:
+            self.write_errors += 1
+            return False
+        try:
+            fn(*args)
+        except OSError as exc:
+            self._log_error = exc
+            self.write_errors += 1
+            self._say(f"record: session.mcap can no longer be written: {exc!r}")
+            return False
+        return True
+
+    def _send_meta(self) -> None:
+        self.streamer.send_meta(self.meta(), self.ctx.receiver)
 
     def _handle(self, item) -> None:
         if item[0] == "meas":
             m = item[1]
-            self._writer.write(f"/meas/{m.source}", m)
-            self.counts[m.source] = self.counts.get(m.source, 0) + 1
+            if self._log(self._writer.write, f"/meas/{m.source}", m):
+                self.counts[m.source] = self.counts.get(m.source, 0) + 1
             if self.streamer:
                 self.streamer.send(m)
         else:
             _, topic, t_ns, data, schema = item
-            self._writer.write_json(topic, t_ns, data, schema)
+            self._log(self._writer.write_json, topic, t_ns, data, schema)
 
     def _finished(self) -> bool:
         return self.ctx.stop.is_set() and (
@@ -302,7 +341,8 @@ class Recorder:
                 except Exception as exc:
                     entry["status_error"] = repr(exc)
             devices[s.device.name] = entry
-        self._writer.write_json(
+        self._log(
+            self._writer.write_json,
             "/events",
             now_gps_ns(),
             {"text": "status", "devices": devices, "records": dict(self.counts),
@@ -321,12 +361,12 @@ class Recorder:
         self._abandon.set()
         if self._writer_thread:
             self._writer_thread.join()
-        self._status_event()
-        self._writer.close()
+        self._guarded("log device status", self._status_event)
+        self._guarded("close session.mcap", self._writer.close)
         if self.streamer:
-            self.streamer.send_meta(self.meta(), self.ctx.receiver)
+            self._guarded("stream the session meta", self._send_meta)
         meta = self.meta()
-        session.write_meta(self.folder, meta)
+        self._guarded("write meta.yaml", session.write_meta, self.folder, meta)
         return meta
 
     def run(self, duration_s: float | None = None, stop: threading.Event | None = None) -> dict:

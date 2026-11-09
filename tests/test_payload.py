@@ -3,12 +3,14 @@
 The fakes stand in for the lowest layer only (the I2C bus, the rtl_sdr byte stream, the gpsd
 socket), so the recorder code that runs on the Pi is the code under test."""
 
+import errno
 import json
 import socket
 import struct
 import threading
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -27,7 +29,7 @@ from pnt.io.mcap_log import (
     read_metadata,
     read_session,
 )
-from pnt.payload import day1
+from pnt.payload import day1, recorder
 from pnt.payload.devices import TRACKING_FIELDS, FlightController, Health, parse_chrony_csv
 from pnt.payload.gpsd import Gpsd, tpv_measurements
 from pnt.payload.i2c import Bmp280, Mpu6050, bmp280_compensate
@@ -754,3 +756,93 @@ def test_killed_recorder_leaves_a_session_that_replays(tmp_path):
     assert not is_complete(out / "session.mcap")
     with pytest.warns(TruncatedSessionWarning, match="cut off"):
         main(["replay", str(out)])
+
+
+# --- disk full --------------------------------------------------------------------------------
+
+
+class Chatty:
+    """Emits a record every few ms until told to stop."""
+
+    name, hardware = "imu", "chatty"
+
+    def probe(self):
+        return None
+
+    def status(self):
+        return {}
+
+    def run(self, ctx):
+        k = 0
+        while not ctx.stop.wait(0.002):
+            k += 1
+            ctx.emit(Measurement(t_ns=k, source="baro", kind="altitude", value=(0.0,),
+                                 sigma=(1.0,)))  # fmt: skip
+
+
+class FakeStream:
+    def __init__(self):
+        self.sent = 0
+
+    def send(self, m):
+        self.sent += 1
+
+    def send_meta(self, meta, receiver):
+        pass
+
+
+def test_disk_full_keeps_the_drain_alive_and_stop_still_finishes(tmp_path, monkeypatch):
+    enospc = OSError(errno.ENOSPC, "No space left on device")
+
+    class FullDisk(SessionWriter):
+        """Every write fails after the first few, as on a card that has just filled."""
+
+        calls = 0
+        close_attempts = 0
+
+        def write(self, *a):
+            FullDisk.calls += 1
+            if FullDisk.calls > 20:
+                raise enospc
+            super().write(*a)
+
+        def write_json(self, *a):
+            if FullDisk.calls > 20:
+                raise enospc
+            super().write_json(*a)
+
+        def close(self):
+            FullDisk.close_attempts += 1
+            self._file.close()
+            raise enospc
+
+    died = []
+    monkeypatch.setattr(threading, "excepthook", lambda a: died.append(a.exc_value))
+    monkeypatch.setattr(recorder, "SessionWriter", FullDisk)
+    monkeypatch.setattr(recorder, "STATUS_PERIOD_S", 0.05)
+    stream = FakeStream()
+    folder = tmp_path / "s"
+    meta = Recorder(folder, [Chatty()], streamer=stream).run(duration_s=0.5)
+    assert died == []
+    assert FullDisk.close_attempts == 1
+    assert stream.sent > 20  # the live stream outlasts the log
+    on_disk = session.read_meta(folder)
+    assert on_disk["notes"] == meta["notes"]  # the final meta.yaml was written
+    assert "could not close session.mcap" in meta["notes"]
+    assert "records that could not be written" in meta["notes"]
+    assert "No space left" in meta["notes"]
+
+
+def test_a_failed_meta_write_leaves_the_last_good_meta(tmp_path, monkeypatch):
+    session.write_meta(tmp_path, {"name": "good"})
+
+    def full(self, text):
+        open(self, "w").close()  # opened for writing and truncated, then no space
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(Path, "write_text", full)
+    with pytest.raises(OSError):
+        session.write_meta(tmp_path, {"name": "new"})
+    monkeypatch.undo()
+    assert session.read_meta(tmp_path)["name"] == "good"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["meta.yaml"]
