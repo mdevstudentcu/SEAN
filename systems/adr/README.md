@@ -30,3 +30,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0024](0024-gnss-dependency-tags.md) | Every source carries a GNSS-dependency tag | Proposed |
 | [0025](0025-hostile-emitter-beacon.md) | A located jammer may be a low-trust beacon, in sim only | Proposed |
 | [0026](0026-ground-link-security.md) | Ground links are signed and authenticated; logs are hash-chained | Proposed |
+| [0029](0029-tethered-hover-wifi-control.md) | Tethered indoor hover may be flown from a gamepad through an ESP32 Wi-Fi bridge | Accepted |
