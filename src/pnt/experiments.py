@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import copy
 import itertools
+import multiprocessing
+import os
+from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 
@@ -27,6 +30,29 @@ def _run(spec: dict, estimator: str, seed: int, drop: str | None = None):
     return run, score(list(estimates), run.truth, spec, T0_NS)
 
 
+def _run_metrics(spec: dict, estimator: str, seed: int, drop: str | None = None):
+    """Only the metrics, so a worker process doesn't send the whole run back."""
+    return _run(spec, estimator, seed, drop)[1]
+
+
+def _run_error(spec: dict, estimator: str, seed: int, drop: str | None = None) -> float:
+    return _error(_run_metrics(spec, estimator, seed, drop))
+
+
+def _map(fn, tasks: list[tuple], jobs: int | None) -> list:
+    """`fn(*task)` for every task, in order; across `jobs` processes when `jobs` > 1 (None: every
+    core). Each task is one independent seed, so the results match a serial run. Workers start
+    from a forkserver, so a script calling this with `jobs` > 1 needs an `if __name__ ==
+    "__main__":` guard."""
+    jobs = (os.cpu_count() or 1) if jobs is None else jobs
+    if jobs <= 1 or len(tasks) <= 1:
+        return [fn(*t) for t in tasks]
+    # forkserver: forking a process that already runs threads (pytest-xdist, BLAS) can deadlock
+    ctx = multiprocessing.get_context("forkserver")
+    with ProcessPoolExecutor(min(jobs, len(tasks)), mp_context=ctx) as pool:
+        return list(pool.map(fn, *zip(*tasks, strict=True)))
+
+
 def _error(metrics) -> float:
     """The fault-window error if the scenario has a fault, otherwise the whole run's."""
     return (
@@ -36,7 +62,9 @@ def _error(metrics) -> float:
     )
 
 
-def towers(scenario: str, runs: int = 10, estimator: str = "baseline") -> list[dict]:
+def towers(
+    scenario: str, runs: int = 10, estimator: str = "baseline", jobs: int | None = 1
+) -> list[dict]:
     """One row per tower, most damaging to lose first, plus the 'all towers' reference.
 
     Needs real tower positions: synthetic towers are drawn per seed, so a name like `lte:sim2`
@@ -46,10 +74,11 @@ def towers(scenario: str, runs: int = 10, estimator: str = "baseline") -> list[d
     if "towers_from" not in lte and "emitters_llh" not in lte:
         raise ValueError(f"{scenario} has synthetic towers; tower ranking needs real ones")
     names = list(generate(spec, seed=0).emitters)
-    reference = np.array([_error(_run(spec, estimator, s)[1]) for s in range(runs)])
+    tasks = [(spec, estimator, s, drop) for drop in [None, *names] for s in range(runs)]
+    errs = np.array(_map(_run_error, tasks, jobs)).reshape(len(names) + 1, runs)
+    reference = errs[0]
     rows = [{"removed": "none", "p95_m": float(reference.mean()), "added_m": 0.0}]
-    for name in names:
-        errors = np.array([_error(_run(spec, estimator, s, drop=name)[1]) for s in range(runs)])
+    for name, errors in zip(names, errs[1:], strict=True):
         rows.append(
             {
                 "removed": name,
@@ -75,6 +104,7 @@ def grid(
     tower_counts=(3, 4, 6),
     speeds=(4.0, 8.0, 13.0),
     oscillators=tuple(OSCILLATORS),
+    jobs: int | None = 1,
 ) -> list[dict]:
     """One row per combination. The receiver clock follows the scenario.
 
@@ -82,13 +112,19 @@ def grid(
     means something once the estimator models a clock shared by all towers (#12). Forcing it on
     here made every row a GPS-only filter."""
     base = load(scenario)
-    rows = []
-    for count, speed, grade in itertools.product(tower_counts, speeds, oscillators):
+    combos = list(itertools.product(tower_counts, speeds, oscillators))
+    specs = []
+    for count, speed, grade in combos:
         spec = copy.deepcopy(base)
         _with_towers(spec, count)
         spec["trajectory"]["speed_mps"] = speed
         spec["clock"] = {**spec.get("clock", {"rw_ns": 2.0}), "drift_ppb": OSCILLATORS[grade]}
-        results = [_run(spec, estimator, s)[1] for s in range(runs)]
+        specs.append(spec)
+    tasks = [(spec, estimator, s) for spec in specs for s in range(runs)]
+    metrics = _map(_run_metrics, tasks, jobs)
+    rows = []
+    for i, (count, speed, grade) in enumerate(combos):
+        results = metrics[i * runs : (i + 1) * runs]
         rows.append(
             {
                 "towers": count,
