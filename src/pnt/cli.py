@@ -504,7 +504,10 @@ def cmd_survey(args) -> None:
     """Average a reference-station session's GPS fixes into its surveyed position (#85)."""
     from pnt.payload.survey import survey_session, write_survey
 
-    result = survey_session(args.session, batch_s=args.batch_s)
+    try:
+        result = survey_session(args.session, batch_s=args.batch_s)
+    except ValueError as e:  # no fixes, or no origin to place them: say so, no traceback
+        raise SystemExit(f"survey: {e}") from None
     out = Path(args.out) if args.out else Path(args.session).with_suffix(".survey.yaml")
     write_survey(result, out)
     print(json.dumps(result, indent=2))
