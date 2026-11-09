@@ -5,6 +5,7 @@ This module is the only place that converts between GPS time and anything else.
 
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime, timedelta
 
 NS = 1_000_000_000
@@ -41,6 +42,19 @@ def gps_ns_to_unix_ns(t_ns: int) -> int:
     times after 2017-01-01."""
     epoch_offset_s = (GPS_EPOCH - UNIX_EPOCH) // timedelta(seconds=1)
     return t_ns + (epoch_offset_s - LEAP_SECONDS) * NS
+
+
+def unix_ns_to_gps_ns(t_ns: int) -> int:
+    """GPS time in ns for Unix time `t_ns` (inverse of `gps_ns_to_unix_ns`, same leap-second
+    caveat)."""
+    epoch_offset_s = (GPS_EPOCH - UNIX_EPOCH) // timedelta(seconds=1)
+    return t_ns - (epoch_offset_s - LEAP_SECONDS) * NS
+
+
+def now_gps_ns() -> int:
+    """The host clock as GPS ns. On the payload the clock is disciplined to GPS PPS by chrony
+    (ASM-04), so this is the timestamp every captured record carries."""
+    return unix_ns_to_gps_ns(time.time_ns())
 
 
 def week_tow_to_gps_ns(week: int, tow_s: float) -> int:
