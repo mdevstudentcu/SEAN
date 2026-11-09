@@ -255,3 +255,35 @@ def test_rollback_carries_the_dongle_clock_forward_instead_of_rewinding_it():
     f.rollback(f.t_ns)
     assert f.rollbacks  # it did roll back
     assert f.x[i] == pytest.approx(before, abs=100.0)  # regression guard: a rewind moves it by km
+
+
+def test_rollback_keeps_a_later_dongle_clock_with_imu_states():
+    # The IMU motion adds states before the clock blocks, so the rollback has to count from
+    # `n_core`, not N_CORE: a second dongle first heard before the snapshot must keep its
+    # learned covariance, not snap back to its first-sight prior (which would be overconfident)
+    records, _ = stream(duration_s=25.0, outage_s=30.0, drift=0.0)
+    late = []
+    for m in records:
+        if m.source == "lte" and m.emitter.endswith(":21"):
+            if m.t_ns < T0 + 5_000_000_000:
+                continue  # dongle "b" is first heard at 5 s, so its block comes after the towers'
+            m = Measurement(
+                t_ns=m.t_ns,
+                source=m.source,
+                kind=m.kind,
+                emitter=m.emitter,
+                value=m.value,
+                sigma=m.sigma,
+                meta={**m.meta, "rx_clock": "b"},
+            )
+        late.append(m)
+    f = ekf.EKF(origin_llh=ORIGIN, clock_model="calibrated", motion="imu")
+    for m in cells.attach(late, ORIGIN, table()):
+        f.process(m)
+    i = f.rx_idx["b"]
+    assert f.n_core > ekf.N_CORE  # the IMU states are there
+    assert i < f.n_core + len(f._snaps[0][1])  # the block existed before the snapshot
+    sigma = np.sqrt(np.diag(f.P)[i : i + 2])
+    f.rollback(f.t_ns)
+    after = np.sqrt(np.diag(f.P)[i : i + 2])
+    assert after[0] >= sigma[0] and after[1] < 0.5 * f.rx_prior[1]  # carried forward, not reset

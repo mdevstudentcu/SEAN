@@ -600,7 +600,7 @@ class EKF:
             if i >= c + k:  # first seen after the snapshot: back to its first-sight prior
                 P[i : i + 2, i : i + 2] = np.diag(np.square(self._clock_prior[key]))
         for i in self.rx_idx.values():
-            if i >= N_CORE + k:
+            if i >= c + k:
                 P[i : i + 2, i : i + 2] = np.diag(np.square(self.rx_prior))
         for i, s in self.multipath_sigma.items():  # the same for the tower error states
             if i >= c + k:
