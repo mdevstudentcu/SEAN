@@ -29,6 +29,8 @@ SAME_SITE_M = 10.0
 # are read as height above ground. TBC: values from 45 to 80 m are ambiguous. Must match
 # GROUND_ELEVATION_CUTOFF_M in analysis/sionna_campus.py, which built the committed ray table.
 GROUND_MISSING_BELOW_M = 80.0
+# Seeds the reference station's own random stream, kept apart from the payload's (REQ-10)
+REFERENCE_STREAM = 0x0BA5E
 # Fixed scenario start so runs are reproducible (REQ-10): judging day, 18:00 UTC.
 T0_NS = utc_to_gps_ns(datetime(2026, 11, 12, 18, 0, tzinfo=UTC))
 # Who built each carrier's radios in Ottawa (ADR-0022, Proposed): Bell and TELUS share one RAN
@@ -58,6 +60,8 @@ class SimRun:
     emitters: dict[str, list[float]] = field(default_factory=dict)
     # Truth for debugging: each tower's clock (m) at the truth times, when `tower_clocks:` is on
     tower_clocks: dict[str, np.ndarray] = field(default_factory=dict)
+    # The reference station as the session records it (ICD-session `reference`), or None
+    reference: dict | None = None
 
 
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
@@ -91,12 +95,47 @@ def set_names() -> list[str]:
 
 
 def attack_names() -> list[str]:
+    """The attack menu every environment shares."""
     return list(_read(ATTACK_MENU))
+
+
+def _own_attacks(environment: str) -> dict:
+    """Attacks only this environment has (its `attacks:`), e.g. faults of a reference station."""
+    return _environment(environment).get("attacks") or {}
+
+
+def _menu(environment: str) -> dict:
+    return {**_read(ATTACK_MENU), **_own_attacks(environment)}
+
+
+def _merge(parent: dict, child: dict) -> dict:
+    """`child` over `parent`; nested mappings merge key by key, anything else is replaced."""
+    out = dict(parent)
+    for k, v in child.items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+def _extended(spec: dict, folder: Path) -> dict:
+    """Resolve `extends: <name>`: the named scenario in the same folder, with `spec` over it.
+    A variant (e.g. one with a reference station) states only what it adds."""
+    parent = spec.pop("extends", None)
+    if parent is None:
+        return spec
+    if not isinstance(parent, str) or not _NAME.fullmatch(parent):
+        raise ValueError(f"extends must name a scenario, not {parent!r}")
+    return _merge(_extended(_read(folder / f"{parent}.yaml"), folder), spec)
+
+
+def _environment(environment: str) -> dict:
+    return _extended(_read(SET_DIR / f"{environment}.yaml"), SET_DIR)
 
 
 def expand(name: str) -> list[str]:
     """Every scenario a name stands for: a whole environment, or just itself."""
-    return [f"{name}-{a}" for a in attack_names()] if name in set_names() else [name]
+    if name not in set_names():
+        return [name]
+    return [f"{name}-{a}" for a in [*attack_names(), *_own_attacks(name)]]
 
 
 def scenario_names() -> list[str]:
@@ -107,14 +146,17 @@ def scenario_names() -> list[str]:
 
 def _compose(name: str) -> dict | None:
     """Build `<environment>-<attack>`, or None if the name isn't one. Unknown attacks raise."""
-    environment = next((s for s in set_names() if name.startswith(f"{s}-")), None)
+    # The longest environment name that prefixes `name`: `realistic-with-base-outage` is the
+    # `realistic-with-base` environment, not `realistic` with an attack called `with-base-outage`
+    environment = max((s for s in set_names() if name.startswith(f"{s}-")), key=len, default=None)
     if environment is None:
         return None
-    menu = _read(ATTACK_MENU)
+    menu = _menu(environment)
     attack_name = name[len(environment) + 1 :]
     if attack_name not in menu:
         raise FileNotFoundError(f"no attack named {attack_name!r} for environment {environment!r}")
-    spec = _read(SET_DIR / f"{environment}.yaml")
+    spec = _environment(environment)
+    spec.pop("attacks", None)
     spec.update(name=name, faults=menu[attack_name] or [])
     return spec
 
@@ -126,10 +168,9 @@ def load(name_or_path: str) -> dict:
         if composed is not None:
             return composed
         p = SCENARIO_DIR / f"{name_or_path}.yaml"
-    with open(p) as f:
-        spec = yaml.safe_load(f)
-    spec.setdefault("name", p.stem)
-    return spec
+    own = _read(p)
+    name = own.get("name", p.stem)
+    return {**_extended(own, p.parent), "name": name}
 
 
 def _times(duration_s: float, rate_hz: float) -> np.ndarray:
@@ -156,6 +197,7 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
 
     meas: list[Measurement] = []
     emitters: dict[str, list[float]] = {}
+    ref = _Reference(spec, seed, t_truth) if spec.get("reference") else None
     for source, cfg in spec.get("sources", {}).items():
         cfg = dict(cfg)
         ts = _times(dur, cfg.pop("rate_hz"))
@@ -194,6 +236,7 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
                 cfg["tower_clock_m"] = np.array(
                     [np.interp(ts, t_truth, tower_clk[f"{source}:sim{i}"]) for i in range(len(em))]
                 )
+            clocks: list[np.ndarray] = []
             meas += models.pseudoranges(
                 ts_ns,
                 pos,
@@ -202,8 +245,11 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
                 emitters=em,
                 emitters_llh=em_llh,
                 told_emitters=told_em,
+                tower_clocks_out=clocks,
                 **cfg,
             )
+            if ref is not None and source in ref.sources:
+                meas += ref.pseudoranges(source, ts, ts_ns, em, em_llh, told_em, clocks)
         elif model == "leo_doppler":
             from pnt.sim import leo  # needs sgp4 (ground extra)
 
@@ -227,10 +273,13 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
         origin_llh=spec.get("origin_llh"),
         truth_pos=lambda t: trajectory.make(traj, np.atleast_1d(t))[0],
         rng=rng,
+        emitters=emitters,
+        reference_enu=None if ref is None else ref.true_enu,
     )
     meas, events = attacks.apply(meas, spec.get("faults", []), ctx)
-    meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter))
-    return SimRun(spec["name"], spec, seed, truth, meas, events, emitters, tower_clk)
+    meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter, m.receiver))
+    meta = None if ref is None else ref.meta()
+    return SimRun(spec["name"], spec, seed, truth, meas, events, emitters, tower_clk, meta)
 
 
 def tower_groups(spec: dict, seed: int = 0) -> tuple[dict[str, str], dict[str, str]]:
@@ -305,6 +354,56 @@ def _tower_clocks(cfg: dict, groups, t: np.ndarray, rng) -> dict[str, np.ndarray
     by_builder = {b: draw("builder") for b in dict.fromkeys(builders.values())}
     by_site = {s: by_builder[b] + draw("site") for s, b in builders.items()}
     return {e: by_site[s] + draw("sector") for e, s in sites.items()}
+
+
+class _Reference:
+    """The ground reference station (ADR-0020): a static second receiver at a surveyed point.
+
+    It hears the same towers, so it shares their clocks, but has its own receiver clock, noise,
+    multipath and dropouts (scenario `reference:` block; every value TBC). It draws from its own
+    random stream, so adding it leaves every payload record of a scenario exactly as it was.
+    The session is told the surveyed position: the true one plus a survey error of
+    `survey_sigma_m` per axis.
+    """
+
+    def __init__(self, spec: dict, seed: int, t_truth: np.ndarray):
+        cfg = spec["reference"]
+        self.rng = np.random.default_rng([seed, REFERENCE_STREAM])
+        self.origin = spec["origin_llh"]
+        self.true_enu = np.asarray(llh_to_enu(cfg["position_llh"], self.origin), float)
+        self.survey_sigma_m = float(cfg.get("survey_sigma_m", 0.0))
+        self.told_enu = self.true_enu + self.rng.normal(0.0, self.survey_sigma_m, 3)
+        self.sources = dict(cfg.get("sources", {}))
+        self.t_truth = t_truth
+        self.clock = _clock(cfg.get("clock"), t_truth, self.rng)
+
+    def pseudoranges(self, source, ts, ts_ns, em, em_llh, told_em, clocks) -> list[Measurement]:
+        cfg = self.sources[source]
+        pos = np.tile(self.true_enu, (len(ts), 1))
+        return models.pseudoranges(
+            ts_ns,
+            pos,
+            self.rng,
+            source=source,
+            emitters=em,
+            emitters_llh=em_llh,
+            told_emitters=told_em,
+            sigma_m=cfg["sigma_m"],
+            clock_s=np.interp(ts, self.t_truth, self.clock),
+            multipath=cfg.get("multipath"),
+            dropout=cfg.get("dropout"),
+            receiver="reference",
+            tower_clock_m=clocks,
+        )
+
+    def meta(self) -> dict:
+        """The ICD-session `reference` block: what the session is told."""
+        llh = enu_to_llh(self.told_enu, self.origin)
+        return {
+            "position_llh": [float(x) for x in llh],
+            "surveyed": False,
+            "sigma_m": self.survey_sigma_m,
+        }
 
 
 def tower_height_m(filed_m: float, ground_m: float) -> float:

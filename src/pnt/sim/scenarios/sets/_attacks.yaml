@@ -25,3 +25,5 @@ tower-loss:   # all towers lost while GPS keeps working
   - {type: outage, source: lte, start_s: 120, end_s: 240}
 tower-clock-step:   # one tower's clock jumps
   - {type: tower_clock_step, source: lte, emitter: "lte:sim1", start_s: 150, offset_m: 300.0}
+long-outage:   # GPS lost for the last 300 s of the run (T1 asks for >= 300 s, systems/plan.md)
+  - {type: outage, source: gnss, start_s: 60}

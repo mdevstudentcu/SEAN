@@ -99,6 +99,8 @@ def pseudoranges(
     ray_table: dict | None = None,
     max_excess_m: float = 300.0,
     tower_clock_m: np.ndarray | None = None,
+    receiver: str = "payload",
+    tower_clocks_out: list | None = None,
     **_,
 ) -> list[Measurement]:
     """Range to each emitter + clock terms + lingering error + white noise.
@@ -118,6 +120,11 @@ def pseudoranges(
     - ray_table: {tower index: (times, excess delay m, NaN if no path)}, from a ray tracer. Adds
       the excess delay of the nearest sample in time, and loses the tower with no path or beyond
       max_excess_m (TBC).
+
+    A second receiver hearing the same towers (the reference station, ADR-0020) shares their
+    clocks: pass a list as `tower_clocks_out` and each tower's clock (m, one row per tower, own
+    or given) is appended to it; give those rows back as `tower_clock_m` for the other receiver.
+    `receiver` labels the records.
     """
     own_clock = (clock_rw_m, init_bias_m, drift_sigma_mps or None)
     if tower_clock_m is None and None in own_clock[:2]:
@@ -138,8 +145,12 @@ def pseudoranges(
         rho = np.linalg.norm(pos - e, axis=1) + bias + rng.normal(0.0, sigma_m, len(pos))
         if clock_s is not None:
             rho = rho + C_MPS * clock_s
-        if drift_sigma_mps:
-            rho = rho + rng.normal(0.0, drift_sigma_mps) * t_s
+        if drift_sigma_mps and tower_clock_m is None:
+            drift = rng.normal(0.0, drift_sigma_mps) * t_s
+            rho = rho + drift
+            bias = bias + drift
+        if tower_clocks_out is not None:
+            tower_clocks_out.append(bias)
         if multipath:
             rho = rho + _gauss_markov(rng, dt, multipath["sigma_m"], multipath["tau_s"])
         keep = _available(rng, t_s, dropout) if dropout else np.ones(len(ts_ns), bool)
@@ -159,6 +170,7 @@ def pseudoranges(
                 source=source,
                 kind="pseudorange",
                 emitter=f"{source}:sim{i}",
+                receiver=receiver,
                 value=(float(r),),
                 sigma=(reported_sigma,),
                 meta=meta,
