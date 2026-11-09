@@ -64,7 +64,6 @@ import math
 from dataclasses import dataclass, field
 
 import msgspec
-import numpy as np
 
 from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.dependency import GNSS_DERIVED, tag_of
@@ -129,12 +128,15 @@ class Report:
     excluded: str | None = None
 
 
-def _h(f) -> tuple[np.ndarray, np.ndarray]:
-    return f.x[:2], f.P[:2, :2]
+def _h(f) -> tuple[float, float, float, float, float]:
+    """Horizontal (e, n, Pee, Pen, Pnn) of a filter, as plain floats: the per-epoch math is all
+    2x2, where numpy's per-call overhead costs more than the arithmetic."""
+    x, P = f.x, f.P
+    return float(x[0]), float(x[1]), float(P[0, 0]), float(P[0, 1]), float(P[1, 1])
 
 
-def _max_eig(P: np.ndarray) -> float:
-    a, b, d = float(P[0, 0]), float(P[0, 1]), float(P[1, 1])
+def _max_eig(a: float, b: float, d: float) -> float:
+    """Largest eigenvalue of [[a, b], [b, d]], at least 0."""
     return max((a + d) / 2 + math.sqrt(((a - d) / 2) ** 2 + b * b), 0.0)
 
 
@@ -152,15 +154,19 @@ class _Row:
     s: float  # sqrt of the largest eigenvalue of its horizontal covariance
     sep: float  # |x_k - x_0|
     sd: float  # sqrt of the largest eigenvalue of the separation covariance
+    e: float  # horizontal position of the sub-filter
+    n: float
 
 
-def _test(f, x0: np.ndarray, P0: np.ndarray, c_fa: float) -> tuple[float, float, float]:
-    """(normalised test, |separation|, separation sigma) of one sub-filter against x0."""
-    xk, Pk = _h(f)
-    d = xk - x0
-    S = Pk - P0 + np.eye(2) * SEP_FLOOR_M**2
-    q = math.sqrt(max(float(d @ np.linalg.solve(S, d)), 0.0)) / c_fa
-    return q, float(math.hypot(d[0], d[1])), math.sqrt(_max_eig(S))
+def _test(hk, h0, c_fa: float) -> tuple[float, float, float]:
+    """(normalised test, |separation|, separation sigma) of a sub-filter against the main one,
+    both given by `_h`. The separation covariance is Pk - P0 plus SEP_FLOOR_M^2."""
+    de, dn = hk[0] - h0[0], hk[1] - h0[1]
+    f2 = SEP_FLOOR_M**2
+    a, b, d = hk[2] - h0[2] + f2, hk[3] - h0[3], hk[4] - h0[4] + f2
+    det = a * d - b * b
+    m2 = (d * de * de - 2 * b * de * dn + a * dn * dn) / det if det > 0 else math.inf
+    return math.sqrt(max(m2, 0.0)) / c_fa, math.hypot(de, dn), math.sqrt(_max_eig(a, b, d))
 
 
 def _pl(s_ff: float, terms: list[tuple[float, float, float]], phmi: float, allocation: str):
@@ -195,10 +201,14 @@ class MHSS:
     after the main filter has predicted to it.
     """
 
-    def __init__(self, main, site_of=None, builder_of=None, params: Params | None = None):
+    def __init__(self, main, sites=None, builders=None, params: Params | None = None):
+        """`sites` maps an emitter to its site and `builders` a site to its network builder,
+        the shape `pnt.sim.scenario.tower_groups` returns. Both optional: an emitter missing
+        from `sites` is its own site, and a site missing from `builders` has no builder
+        hypothesis."""
         self.main = main
-        self.site_of = dict(site_of or {})
-        self.builder_of = dict(builder_of or {})
+        self.sites = dict(sites or {})
+        self.builders = dict(builders or {})
         self.p = params or Params()
         self.hyps: dict[str, Hypothesis] = {}
         self.window_ns = int(self.p.gnss_window_s * 1e9)
@@ -212,9 +222,10 @@ class MHSS:
             return {GNSS_CM: self.p.p_gnss_cm}
         out = {f"layer:{m.source}": self.p.p_layer}
         if m.emitter:
-            out[f"site:{self.site_of.get(m.emitter, m.emitter)}"] = self.p.p_site
-            if m.emitter in self.builder_of:
-                out[f"builder:{self.builder_of[m.emitter]}"] = self.p.p_builder
+            site = self.sites.get(m.emitter, m.emitter)
+            out[f"site:{site}"] = self.p.p_site
+            if site in self.builders:
+                out[f"builder:{self.builders[site]}"] = self.p.p_builder
         return out
 
     def _clone(self):
@@ -250,20 +261,23 @@ class MHSS:
     def estimate(self, est: Estimate) -> Estimate:
         t = est.t_ns
         p = self.p
-        x0, P0 = _h(self.main)
+        h0 = _h(self.main)
         n = max(len(self.hyps), 1)
         c_fa = _k(p.p_fa / n)
 
         rows: list[_Row] = []
         for h in self.hyps.values():
+            hs, tests = [], []
             for f in h.filters:
                 f.predict(t)
-            h.test = [_test(f, x0, P0, c_fa)[0] for f in h.filters]
+                hs.append(_h(f))
+                tests.append(_test(hs[-1], h0, c_fa))
+            h.test = [q for q, _, _ in tests]
             # the older copy (longer without GNSS) is the one whose next re-seed comes first
             i = 0 if len(h.filters) == 1 else int(h.next_seed_ns[0] > h.next_seed_ns[1])
-            q, sep, sd = _test(h.filters[i], x0, P0, c_fa)
-            f = h.filters[i]
-            rows.append(_Row(h.name, h.prior, q, f, math.sqrt(_max_eig(f.P[:2, :2])), sep, sd))
+            q, sep, sd = tests[i]
+            s_k = math.sqrt(_max_eig(*hs[i][2:]))
+            rows.append(_Row(h.name, h.prior, q, h.filters[i], s_k, sep, sd, *hs[i][:2]))
 
         alarm = bool(p.alarm_flags & set(est.flags))
         if not alarm:
@@ -282,16 +296,15 @@ class MHSS:
 
         if excluded is None:
             out_f = self.main
-            ff = math.sqrt(_max_eig(P0))
+            ff = math.sqrt(_max_eig(*h0[2:]))
             terms = [
                 (r.prior, r.sep if p.pl_separation == "actual" else c_fa * r.sd, r.s) for r in rows
             ]
         else:
             row = next(r for r in rows if r.name == excluded)
             out_f, ff = row.f, row.s
-            xk = out_f.x[:2]
             terms = [
-                (r.prior, float(np.linalg.norm(xk - r.f.x[:2])), r.s)
+                (r.prior, math.hypot(row.e - r.e, row.n - r.n), r.s)
                 for r in rows
                 if r.name != excluded
             ]
