@@ -85,7 +85,7 @@ Code: [`src/pnt/integrity/`](../src/pnt/integrity/) and the checks inside [`ekf.
 | Network builder | One builder's timing source in holdover or captured: every site of that builder moves together | MHSS builder subset (from `tower_groups`) |
 | Source layer | A whole sensor type (LTE, barometer) wrong | MHSS layer subset |
 | GNSS common mode | GNSS plus every GNSS-derived or unclassified source | MHSS GNSS-free subset; spoof detector; time gate |
-| Reference station | Base moved, base clock step, base link lost or forged | Base check in `ekf-base` (`base_excluded`); as an MHSS hypothesis, #107 |
+| Reference station | Base moved, base clock step, base link lost or forged | Base check inside `ekf-base` (`base_excluded`, #107). Not an MHSS hypothesis: `ekf-mhss` does not use the base |
 | Hostile emitter | A located jammer used as a beacon | Its own hypothesis behind a promotion gate, sim only ([ADR-0025](adr/0025-hostile-emitter-beacon.md), #93) |
 
 **Detectors and outputs:**
@@ -113,7 +113,7 @@ Code: [`src/pnt/integrity/`](../src/pnt/integrity/) and the checks inside [`ekf.
 | Operator panel | **Not built** (#25, #90) | — |
 | Ground reference station | Simulated; hardware on the BOM, assembly is #84 | Simulated |
 | Real sessions | **None recorded yet** | — |
-| Tower positions | Real (ISED registry, `data/reference/cells-ottawa.csv`) | Registry, two years old |
+| Tower positions | Real (ISED registry). The sim uses the 2024 extract (`data/reference/cells-ottawa.csv`); the 2026 extract with PCI per sector is #110 | Registry; staleness and PCI collisions stay association fault modes (ADR-0023) |
 | Tower noise, clocks, multipath, dropouts | Literature or `TBC` | `placeholder` in *Sim validity* |
 | LEO (Iridium) | Simulated from real orbits ([ADR-0013](adr/0013-no-iridium-hardware.md)), confirmed acceptable by the mentors | Sim |
 | Jamming and spoofing | Software injection only ([ADR-0001](adr/0001-receive-only-payload.md), ASM-03) | Sim; injection into real sessions once they exist |

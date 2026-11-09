@@ -29,7 +29,7 @@ Everything here is defensive. Attacks exist only as software fault injection in 
 | --- | --- | --- | --- | --- |
 | 1 | Local GNSS jamming from a vehicle on a nearby road (personal privacy device) | H | M | The Newark pattern: frequent, short, near roads [Grabowski 2012]. Loud (GNSS drops out), so the risk is losing the corridor, not being misled |
 | 2 | Slow position spoof that drags the drone off course (carry-off) | L | H | Silent; aimed at drones in UC-01's own threat list. Needs a deliberate, illegal transmitter. A filter-aware drift beats per-epoch gates [Shen 2020] |
-| 3 | Tower clock jump or a stale or wrong tower record | M | M | LTE clocks jump [Lapin 2024]; the ISED file is two years old (ADR-0023). Biases position during an outage |
+| 3 | Tower clock jump or a stale or wrong tower record | M | M | LTE clocks jump [Lapin 2024]. The 2024 ISED file behind the sim's `cells-ottawa.csv` is two years old; the 2026 extract (#110) is current, but registry staleness and PCI collisions (152 of 3,904 (EARFCN, PCI) pairs near Carleton are shared by more than one eNB, #110) remain association fault modes (ADR-0023). Biases position during an outage |
 | 4 | Ground reference station fault (moved, clock step, link lost) | M | M | A new single point of failure that every differenced reading inherits (ADR-0020). Likelihood M while it is a hobby-grade box on a mast |
 | 5 | Crude position takeover (jump) | L | M | Same transmitter as rank 2 but obvious; a GNSS gate catches it |
 | 6 | Forged records on a ground link | L | H | Skips every radio check (ADR-0026). Needs access to the local network |
@@ -66,7 +66,7 @@ Detections are flags on the `Estimate`; responses are what the estimator does. "
 | Time spoof | `time-spoof`, `*-time-spoof` | Time gate: GNSS time tested against our clock model (`time_spoof_suspected`); GNSS time is then not used. Tower time may refute, never confirm (ADR-0024). Time protection level for what is left | On main |
 | Meaconing | `meaconing`, `*-meaconing` | Time gate (the delay appears as a clock step); spoof detector when the delay moves position against the towers | On main |
 | Tower clock jump | `*-tower-clock-step`, `realistic-with-base-long-outage-tower-clock-step` | MHSS site hypothesis (#82, #108); with the base, it cancels in the difference and the base flags `tower_fault` | On main |
-| Base station fault | `realistic-with-base-long-outage-base-moved`, `-base-clock-step`, `-base-lost` | Base fault hypothesis (#107): the base disagrees with its survey across towers, `base_excluded`, and the filter falls back to the tower clocks the base measured before | On main (`ekf-base`); as an MHSS hypothesis, #107 |
+| Base station fault | `realistic-with-base-long-outage-base-moved`, `-base-clock-step`, `-base-lost` | Base fault hypothesis inside `ekf-base` (#107): the base disagrees with its survey across towers, `base_excluded`, and the filter falls back to the tower clocks the base measured before | On main (`ekf-base`); not an MHSS hypothesis (`ekf-mhss` does not use the base) |
 | Sensor degradation, nuisance | `*-baro-drift`, `*-gps-low-sats`, `*-tower-loss`, `nominal` | False-alarm checks: no alarm is expected on `gps-low-sats` and `nominal` (taxonomy `expect_alert`) | On main |
 
 The numbers for these rows (time-to-alert, detection rate, false alarms, hazardous epochs, resilience level) come from `just results` on the final commit, into the results block of [`verification.md`](verification.md). They are not quoted here because the estimators are still changing.
@@ -82,6 +82,7 @@ Top attacks with no scenario, or no detection we can show. These are open work, 
 | Network builder's timing fault (holdover, captured grandmaster) | UC-01 (3), UC-03 (4) | **No fault type.** The realistic sets model a shared builder clock, but no attack steps or ramps it. MHSS has the builder hypothesis; nothing exercises it |
 | Towers drifting in holdover during wide-area jamming | UC-02 (5) | **No scenario.** Tower clocks behave the same with GNSS on or off |
 | Slower or filter-aware position drift | UC-01 (2) | Only one ramp rate (2 m/s, T4). No sweep of slower ramps, where the spoof detector and MHSS are weakest |
+| Reference station fault inside MHSS | UC-01 (4) | **No base hypothesis in MHSS.** `ekf-mhss` (#108) does not take the base, so a base fault is caught only by `ekf-base`'s own check (#107), with no protection level that accounts for it |
 | Forged ground-link records | UC-01 (6) | **No scenario and no detection yet.** CurveZMQ and MAVLink signing are #89 (ADR-0026) |
 | Rogue or overshadowed cell, cellular meaconing | UC-01 (7) | **No scenario.** `tower_clock_step` is the nearest (a step on one tower); there is no phantom cell, ramp on one tower, or relay of several towers |
 | ADS-B content wrong under spoofing | UC-02 (4) | **No ADS-B source in the sim.** ADS-B is tagged GNSS-derived (ADR-0024), so it cannot confirm GNSS once it exists |
