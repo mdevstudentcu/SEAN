@@ -20,7 +20,12 @@ from collections.abc import Callable, Iterable, Iterator
 from pnt.core.measurement import Estimate, Measurement
 from pnt.nav import base_rover, baseline, ekf
 
-ESTIMATORS = {"baseline": baseline.run, "ekf": ekf.run, "ekf-base": base_rover.run}
+ESTIMATORS = {
+    "baseline": baseline.run,
+    "ekf": ekf.run,
+    "ekf-calibrated": ekf.run_calibrated,  # opt-in: ADR-0022 clocks and the tower error model
+    "ekf-base": base_rover.run,
+}
 DEFAULT_RECEIVERS = frozenset({"payload"})
 
 log = logging.getLogger(__name__)
