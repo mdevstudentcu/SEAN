@@ -1,6 +1,6 @@
 # Antenna build guide
 
-- **Status:** Draft, 2026-11-08
+- **Status:** Fallback only (2026-11-09). The antennas are bought ([`bom.md`](bom.md) section 3) because nobody is free to build them this week. Use this guide only if a bought antenna fails or misses delivery.
 - **For:** whoever is in the EDC mechatronics workshop on Monday. Parts and sources are in [`bom.md`](bom.md).
 - **Receive-only.** These antennas only feed our SDRs (ADR-0001, REQ-07). Nothing here is ever connected to a transmitter.
 

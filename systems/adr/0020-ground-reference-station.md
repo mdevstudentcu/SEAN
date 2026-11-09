@@ -29,7 +29,7 @@ A static ground reference station measures the same LTE towers as the payload, a
 
 ## Consequences
 
-- **Hardware:** NooElec NESDR SMArt v5 bundle, NEO-6M GPS with PPS, and the spare Pi 3B+ (ADR-0018), streaming to the laptop over Ethernet. Parts list, prices and delivery are in `hardware/bom.md`. It is receive-only like the payload (ADR-0001).
+- **Hardware:** NooElec NESDR SMArt v5, an LTE antenna identical to the payload's, a NEO-6M GPS with PPS, and the spare Pi 3B+ (ADR-0018), streaming to the laptop over Ethernet. Parts list, prices and delivery are in `hardware/bom.md`. It is receive-only like the payload (ADR-0001).
 - **Time:** base and payload share GPS time through their own PPS-disciplined clocks. A wired link is needed because NTP gives only milliseconds, and 1 µs is 300 m.
 - **Survey:** the base's position is its GPS fix averaged over at least 1 h (`TBC`).
 - **Calibration:** a zero-baseline test before each session. The base and payload run side by side for 5–10 min, and the difference is their receiver bias.
