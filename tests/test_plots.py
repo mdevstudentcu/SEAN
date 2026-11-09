@@ -109,3 +109,12 @@ def test_commit_label_marks_uncommitted_changes():
 
     label = _commit()
     assert label and " " not in label  # e.g. f42d50f or f42d50f-dirty
+
+
+def test_plot_adds_the_timing_stanford_plot_when_the_clock_is_estimated(tmp_path):
+    pytest.importorskip("matplotlib")
+    session = tmp_path / "s.mcap"
+    main(["sim", "time-spoof", "--out", str(session), "--estimator", "ekf"])
+    main(["plot", str(session), "--out", str(tmp_path / "fig")])
+    names = sorted(p.name for p in (tmp_path / "fig").iterdir())
+    assert names == ["error.png", "stanford.png", "time.png", "time_stanford.png", "trust.png"]
