@@ -136,3 +136,35 @@ def test_meta_records_the_reference_station(tmp_path):
     with SessionWriter(tmp_path / "s.mcap", metadata={"reference": ref}):
         pass
     assert session.read_meta(tmp_path / "s.mcap")["reference"] == ref
+
+
+@pytest.mark.parametrize("sigma", [0.5, 2, "TBD", None])
+def test_reference_survey_sigma_round_trips(tmp_path, sigma):
+    ref = {"position_llh": [45.0, -75.0, 70.0], "surveyed": True}
+    if sigma is not None:  # None: key absent, accuracy unknown
+        ref["sigma_m"] = sigma
+    session.write_meta(tmp_path, {"name": "x", "reference": ref})
+    assert session.read_meta(tmp_path)["reference"] == ref
+    with SessionWriter(tmp_path / "s.mcap", metadata={"reference": ref}):
+        pass
+    assert session.read_meta(tmp_path / "s.mcap")["reference"] == ref
+
+
+@pytest.mark.parametrize(
+    "ref",
+    [
+        {"position_llh": [45.0, -75.0, 70.0], "sigma_m": -1.0},
+        {"position_llh": [45.0, -75.0, 70.0], "sigma_m": "about 2"},
+        {"position_llh": [45.0, -75.0, 70.0], "sigma_m": True},
+        {"position_llh": [45.0, -75.0, 70.0], "surveyed": "yes"},
+        {"position_llh": [45.0, -75.0, 70.0], "accuracy": 2.0},
+        {"position_llh": [45.0, -75.0], "sigma_m": 2.0},
+        {"surveyed": True, "sigma_m": 2.0},
+    ],
+)
+def test_malformed_reference_is_rejected_on_write_and_read(tmp_path, ref):
+    with pytest.raises(ValueError, match="reference"):
+        session.write_meta(tmp_path, {"name": "x", "reference": ref})
+    (tmp_path / session.META_NAME).write_text(yaml.safe_dump({"name": "x", "reference": ref}))
+    with pytest.raises(ValueError, match="reference"):
+        session.read_meta(tmp_path)
