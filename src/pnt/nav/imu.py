@@ -90,11 +90,12 @@ class ImuSpec:
     # Unmodelled errors, as extra white noise on top of the sensor's own: scale factor,
     # misalignment, vibration, sampling, and the linearisation error of a poorly known heading.
     # TBC: tuning, not measured. Picked for consistency (horizontal NEES near 2, no misleading
-    # epochs) on seeds 100-115, held out from the seeds 0-49 the results use. With the gyro
-    # term at 0 or 0.02 deg/s/sqrt(Hz), uc01-drone-circuit's NEES was 15 or 7, and 10/16 or
-    # 7/16 runs had misleading epochs.
+    # epochs) on seeds 100-139, held out from the seeds 0-49 the results use. uc01-drone-circuit
+    # with the gyro term at 0, 0.02 or 0.1 deg/s/sqrt(Hz): NEES 15, 7 or 2.4, and misleading
+    # epochs in 10/16, 7/16 or 2/40 runs; at 0.2 and 0.4, none in 40. The accelerometer term
+    # trades the other way: 0.05 or 0.1 m/s^2/sqrt(Hz) gave back most of the gain in long outages.
     accel_extra: float = 0.02  # m/s^2/sqrt(Hz)
-    gyro_extra: float = 0.1 * DEG  # rad/s/sqrt(Hz)
+    gyro_extra: float = 0.2 * DEG  # rad/s/sqrt(Hz)
 
     def scaled(self, k: float) -> ImuSpec:
         """A grade `k` times worse: every noise and bias term times k."""
