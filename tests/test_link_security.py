@@ -17,7 +17,7 @@ import pytest
 from pnt.cli import main
 from pnt.core.measurement import Measurement
 from pnt.io import linkauth, session
-from pnt.io.linkauth import ClientAuth, LinkSecurityError, ServerAuth
+from pnt.io.linkauth import LinkSecurityError, ServerAuth
 from pnt.payload.streamer import Streamer
 from pnt.sources.live import LiveSource
 
@@ -181,28 +181,50 @@ def _flood(attacker: Streamer, stop: threading.Event):
         time.sleep(0.01)
 
 
-def test_an_impersonating_server_gets_nothing_into_the_laptop(hosts, tmp_path):
+def raw_subscriber(endpoint: str, server_key: bytes | None = None, own=None):
+    """A bare ZeroMQ SUB, independent of LiveSource: what a client without pinning would see."""
+    sock = zmq.Context.instance().socket(zmq.SUB)
+    sock.setsockopt(zmq.LINGER, 0)
+    sock.setsockopt(zmq.SUBSCRIBE, b"meas")
+    if server_key is not None:
+        sock.curve_publickey, sock.curve_secretkey = own
+        sock.curve_serverkey = server_key
+    sock.connect(endpoint)
+    return sock
+
+
+def drain(sock) -> list[Measurement]:
+    dec = msgspec.msgpack.Decoder(Measurement)
+    out = []
+    while sock.poll(200):
+        _, payload = sock.recv_multipart()
+        out.append(dec.decode(payload))
+    sock.close()
+    return out
+
+
+def test_an_impersonating_server_gets_nothing_into_the_laptop(hosts):
     """Two impostors on the payload's address: a plaintext publisher, and a CurveZMQ server
     with its own key that even admits the real laptop key (which is public). The laptop pins the
     real payload key, so neither handshake completes. Controls: a client that does not pin the
     real key (plaintext, or pinned to the impostor's key) takes the forged records."""
-    laptop_pub, laptop_sec = linkauth.load_own("laptop", hosts["laptop"])
+    laptop_keys = linkauth.load_own("laptop", hosts["laptop"])
     evil_pub, evil_sec = zmq.curve_keypair()
     plain = Streamer("tcp://127.0.0.1:*")
     curve = Streamer(
-        "tcp://127.0.0.1:*", auth=ServerAuth("payload", evil_pub, evil_sec, {"laptop": laptop_pub})
+        "tcp://127.0.0.1:*",
+        auth=ServerAuth("payload", evil_pub, evil_sec, {"laptop": laptop_keys[0]}),
     )
     protected = [laptop_client(hosts, plain.endpoint, idle_timeout_s=2.5),
                  laptop_client(hosts, curve.endpoint, idle_timeout_s=2.5)]  # fmt: skip
-    trusts_impostor = ClientAuth(laptop_pub, laptop_sec, {curve.endpoint: ("payload", evil_pub)})
-    controls = [
-        LiveSource(plain.endpoint, idle_timeout_s=1.0),
-        LiveSource(curve.endpoint, idle_timeout_s=1.0, auth=trusts_impostor),
-    ]
-    for src in protected + controls:
+    for src in protected:
         src.connect()
+    controls = [
+        raw_subscriber(plain.endpoint),
+        raw_subscriber(curve.endpoint, evil_pub, laptop_keys),
+    ]
     assert plain.wait_for_subscriber(5.0) and curve.wait_for_subscriber(5.0)  # the controls
-    runs = [consume(src) for src in protected + controls]
+    runs = [consume(src) for src in protected]
     stop = threading.Event()
     floods = [threading.Thread(target=_flood, args=(a, stop)) for a in (plain, curve)]
     for f in floods:
@@ -211,14 +233,16 @@ def test_an_impersonating_server_gets_nothing_into_the_laptop(hosts, tmp_path):
     stop.set()
     for f in floods:
         f.join()
+    ctl_plain, ctl_curve = (drain(c) for c in controls)
     for _, t in runs:
         t.join(timeout=10)
     plain.close()
     curve.close()
-    (got_plain, _), (got_curve, _), (ctl_plain, _), (ctl_curve, _) = runs
+    (got_plain, _), (got_curve, _) = runs
     assert ctl_plain and ctl_curve, "control: an unpinned client takes the forged records"
     assert {m.emitter for m in ctl_plain + ctl_curve} == {"FORGED"}
-    assert got_plain == [] and got_curve == []
+    assert got_plain == [], "the laptop took records from a plaintext impostor"
+    assert got_curve == [], "the laptop took records from an impostor with another key"
     for src in protected:
         assert src.meta == {} and src.stats["received"] == 0
 
