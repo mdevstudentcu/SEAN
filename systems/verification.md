@@ -11,7 +11,7 @@ How each requirement is shown to be met. The **Result** column between the marke
 | REQ-05 | D, T | Dashboard demo; latency measured from log timestamps | Live / replay |
 | REQ-06 | A | Ablation table | Monte Carlo with sources removed |
 | REQ-07 | I | Hardware list + code search for transmit paths | `safety.md` |
-| REQ-08 | I | Code inspection + session audit | `firmware/esp32-hub` hashing |
+| REQ-08 | I | Code inspection + session audit | Hub BSSID hashing (ADR-0018; code `TBD`) |
 | REQ-09 | D | Same pipeline on drone, handheld and vehicle sessions | Session metadata |
 | REQ-10 | I | Every figure names its scenario or session + commit | `analysis/` |
 
@@ -27,7 +27,7 @@ How each simulated model aligns to reality. Status: `placeholder` (datasheet/lit
 | LTE pseudorange | σ, receiver clock, tower clock drift, lingering error, dropouts, told-vs-true tower position and noise | literature + TBC | LTE timing spike (fixed spot, 1 h) | placeholder |
 | VOR bearing | bias, σ | literature | RF survey at known points | placeholder |
 | ADS-B | message rate, NIC/NACp behaviour | literature | RF survey | placeholder |
-| Wi-Fi FTM / RSSI | σ, NLOS bias | literature | Indoor session with surveyed responders | placeholder |
+| Wi-Fi RSSI | σ, NLOS bias | literature | Indoor session at surveyed points | placeholder |
 | CHU time | delay, σ | literature | Static session vs PPS | placeholder |
 | Iridium (LEO) | Doppler σ, visibility; the filter is told the exact satellite position and velocity (no ephemeris error, TBC) | literature + real orbits | Not measurable this week: bound stated | placeholder |
 | Attacks (spoof, jam) | injected in software | — | Same attacks injected into real sessions | placeholder |

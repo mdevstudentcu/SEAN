@@ -9,7 +9,7 @@ A removable, receive-only payload listens to the signals already around us (cell
 ## How it fits together
 
 ```
- payload (Pi 4B + ESP32-S3)                         ground laptop
+ payload (Pi 3B+ + Pi Zero 2 W hub)                 ground laptop
  ┌───────────────────────────┐   Wi-Fi (ZeroMQ)   ┌──────────────────────────────────────────┐
  │ GPS+PPS  IMU  baro  Wi-Fi │ ─────────────────► │ front-ends → estimator → integrity → UI  │
  │ SDR A (ADS-B)  SDR B (LTE,│     or MCAP log    │                ▲                         │
@@ -41,7 +41,7 @@ Open any `.mcap` in [Foxglove](https://foxglove.dev) to inspect truth, measureme
 | --- | --- |
 | [`systems/`](systems/README.md) | Requirements, assumptions, decisions, interfaces, risks, safety, verification: the engineering record |
 | [`src/pnt/`](src/pnt) | The Python package: core types, sources, sim, front-ends, nav, integrity, payload, dashboard |
-| [`firmware/`](firmware) | ESP32-S3 sensor hub and Wi-Fi ranging responder |
+| [`firmware/`](firmware) | Superseded ESP32-S3 hub firmware (ADR-0018) |
 | [`flight/`](flight) | ArduPilot parameters, scripted missions, SITL |
 | [`deploy/pi/`](deploy/pi) | Raspberry Pi setup |
 | [`analysis/`](analysis) | Monte Carlo and figures |
