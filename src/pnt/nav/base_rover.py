@@ -17,13 +17,15 @@ Three things can go wrong, and each has its own answer:
 - **One tower's clock jumps** (a tower fault): it cancels in the difference. The monitor sees it
   as one tower jumping alone, restarts that tower's clock and flags `tower_fault`.
 - **The base itself is wrong** (moved, a wrong survey, a clock step: ADR-0020's base fault
-  hypothesis): its readings disagree with its surveyed position across several towers at once.
-  The filter flags `base_excluded`, stops differencing for the rest of the run, and coasts on the
-  tower clocks the base measured before the fault.
+  hypothesis): its readings disagree with its surveyed position across several towers at once,
+  or two towers seem to jump within a few seconds of each other. The filter flags
+  `base_excluded`, stops differencing for the rest of the run, and coasts on the tower clocks
+  the base measured before the fault.
 
 The tower clock monitor is one small filter per tower, outside the main state: the base's
 reading minus its surveyed range, `z = rho_b - |b_told - e|` (the tower clock plus the base's
-clock), as a random walk. Its innovations, averaged over a short window, are the base check.
+clock), as a random walk. The base check compares each tower's readings over a short window with
+what its monitor expected before the window began.
 
 The base check needs the base's surveyed position, which the session gives in its `reference`
 block (ICD-session). Without one, or with no reference records, this is `ekf` with the payload's
@@ -77,7 +79,9 @@ class BaseRoverEKF(EKF):
         unknown_survey_sigma_m: float = 30.0,  # TBC: used when the session's sigma_m is TBD
         base_clock_sigma_s: float = 1e-6,  # TBC: prior on the base's clock before calibration
         q_base_clock: float = 0.3,  # m/sqrt(s), TBC: a PPS-disciplined clock's wander
-        q_monitor: float = 0.5,  # m/sqrt(s), TBC: tower clock wander as the base sees it
+        # m/sqrt(s), TBC: how fast the base's view of a tower moves: tower clock wander plus the
+        # base's own slowly changing multipath (about 1.2 m/sqrt(s) for sigma 15 m, tau 300 s)
+        q_monitor: float = 1.5,
         check_window_s: float = 10.0,  # TBC: base check averaging window
         check_min_samples: int = 5,  # TBC: a tower needs this many readings in the window
         **config,
@@ -197,25 +201,32 @@ class BaseRoverEKF(EKF):
         if mon is None:
             self.monitor[emitter] = _Monitor(t, z, r)
             return
-        nu, s = mon.update(t, z, r, self.q_monitor)
-        self.history.setdefault(emitter, deque()).append((t, nu, s))
+        # Kept with the monitor's state before this reading, so the check can compare a window
+        # of readings with what the monitor expected before the window began
+        self.history.setdefault(emitter, deque()).append((t, z, r, mon.t_ns, mon.x, mon.p))
+        mon.update(t, z, r, self.q_monitor)
         if not self.snapshots or t - self.snapshots[-1][0] >= 1_000_000_000:
             self.snapshots.append((t, {k: v.copy() for k, v in self.monitor.items()}))
         while self.snapshots and t - self.snapshots[0][0] > 3 * self.check_window_ns:
             self.snapshots.popleft()
 
     def _check_base(self, t: int, base: dict[str, Measurement]) -> None:
-        """Windowed mean of each tower's monitor innovation, against its spread. One tower out:
+        """Each tower's base readings over the last window, against what its monitor expected
+        before the window began (so a jump inside the window is not yet absorbed). One tower out:
         that tower's clock jumped (it cancels in the difference), so restart its monitor.
         Several out together: the base is inconsistent with its survey, so exclude it."""
         stats: dict[str, float] = {}
         for emitter, h in self.history.items():
             while h and t - h[0][0] > self.check_window_ns:
                 h.popleft()
-            if len(h) >= self.check_min_samples:
-                nu = np.array([x[1] for x in h])
-                s = np.array([x[2] for x in h])
-                stats[emitter] = float(nu.mean() ** 2 / (s.mean() / len(h)))
+            if len(h) < self.check_min_samples:
+                continue
+            _, _, _, t_ref, x_ref, p_ref = h[0]
+            z = np.array([x[1] for x in h])
+            r = np.array([x[2] for x in h])
+            age = np.array([(x[0] - t_ref) / 1e9 for x in h])
+            var = p_ref + self.q_monitor**2 * age.mean() + r.mean() / len(h)
+            stats[emitter] = float((z.mean() - x_ref) ** 2 / var)
         if not stats:
             return
         total = sum(stats.values())
@@ -223,12 +234,18 @@ class BaseRoverEKF(EKF):
             return
         worst = max(stats, key=stats.get)
         rest = total - stats[worst]
-        if len(stats) == 1 or rest <= CHI2_999[min(len(stats) - 1, 8)]:
+        one_tower = len(stats) == 1 or rest <= CHI2_999[min(len(stats) - 1, 8)]
+        # Tower faults are independent, so two different towers jumping within a couple of
+        # windows of each other point at the one thing they share: the base. TBC
+        recent = [
+            e
+            for e, ts in self.tower_fault_t.items()
+            if e != worst and t - ts <= 2 * self.check_window_ns
+        ]
+        if one_tower and not recent:
             self.tower_fault_t[worst] = t
             self.monitor.pop(worst, None)
             self.history.pop(worst, None)
-            for _, snap in self.snapshots:
-                snap.pop(worst, None)
             return
         self.base_fault_t = t
         before = [snap for ts, snap in self.snapshots if ts <= t - 2 * self.check_window_ns]
