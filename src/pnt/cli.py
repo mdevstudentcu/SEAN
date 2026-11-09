@@ -12,9 +12,17 @@ from pathlib import Path
 from pnt import experiments
 from pnt.core.measurement import Measurement
 from pnt.core.time import s_to_ns
+from pnt.integrity import taxonomy
 from pnt.io import session
 from pnt.io.mcap_log import SessionWriter, read_session
-from pnt.metrics import score, summarize
+from pnt.metrics import (
+    ALERT_LIMIT_M,
+    NO_DEGRADATION_RATIO,
+    RECOVERY_SETTLE_S,
+    TIME_ALERT_LIMIT_S,
+    score,
+    summarize,
+)
 from pnt.nav import ESTIMATORS
 from pnt.sim.scenario import T0_NS, expand, generate, load, load_named, scenario_names
 from pnt.viz import default_output, write_viz
@@ -178,8 +186,54 @@ def cmd_viz(args) -> None:
     print("open it alone in Foxglove, then import analysis/foxglove-layout.json")
 
 
+def _nan(x: float) -> bool:
+    return x != x
+
+
+def _report_card_row(name: str, s: dict) -> str:
+    """One row of the report card (I5, I6): integrity and resilience for one scenario."""
+    faults = load(name).get("faults", [])
+    classes = sorted({taxonomy.classify(f).cls for f in faults}) or ["none"]
+    tpl_txt = (
+        "—" if _nan(s["min_time_pl_bound_frac"]) else f"{100 * s['min_time_pl_bound_frac']:.1f} %"
+    )
+    t_mis = (
+        "—"
+        if _nan(s["time_pl_bound_frac"])
+        else f"{s['time_misleading_epochs']:.0f} / {s['time_hazardous_epochs']:.0f}"
+    )
+    if _nan(s["alerted"]):
+        tta = "—"
+    elif _nan(s["tta_median_s"]):
+        tta = "never (0 % of runs)"
+    else:
+        tta = (
+            f"{s['tta_median_s']:.1f} / {s['tta_worst_s']:.1f} "
+            f"({100 * s['alerted']:.0f} % of runs)"
+        )
+    if _nan(s["resilience_level_worst"]):
+        level_txt = "—"
+    else:
+        part = [
+            "—" if _nan(s[k]) else f"{s[k]:.0f}" for k in ("pos_level_worst", "time_level_worst")
+        ]
+        level_txt = f"{s['resilience_level_worst']:.0f} ({part[0]} / {part[1]})"
+        if s["recovery_tested"] != 1:
+            level_txt += ", recovery untested"
+    return (
+        f"| `{name}` | {', '.join(classes)} | {s['hazardous_epochs']:.0f} | {tpl_txt} | {t_mis} "
+        f"| {tta} | {level_txt} |"
+    )
+
+
 def cmd_results(args) -> None:
     """Re-run every scenario's Monte Carlo and rewrite the results block in verification.md."""
+    card = [
+        "| Scenario | Fault class | Hazardous epochs (mean) | Time PL bounds error "
+        "(worst run) | Time misleading / hazardous (mean) | Time-to-alert median / worst (s) "
+        "| Resilience level, worst run (position / time) |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
     rows = [
         "| Scenario | Runs | H RMSE (m) | Fault H p95 (m) | Fault H max (m) | "
         "HPL bounds error | Misleading epochs | Spoof detect (s) | False alarms (/h) |",
@@ -197,9 +251,26 @@ def cmd_results(args) -> None:
             f"(worst run) | {s['misleading_epochs']:.0f} (mean) | {detect_txt} "
             f"| {s['false_alarms_per_h']:.1f} |"
         )
+        card.append(_report_card_row(name, s))
+    notes = (
+        f"Report card. Alert limits (TBC): position {ALERT_LIMIT_M:g} m, time "
+        f"{TIME_ALERT_LIMIT_S * 1e6:g} µs. Hazardous: error over the alert limit while the "
+        "protection level is within it. Time PL is our definition (`pnt.integrity.protection.tpl`)"
+        ". Time-to-alert: first alert after the fault starts, over the runs that alerted. "
+        "Resilience level: our TBC mapping onto the DHS/CISA levels 1-4 (`pnt.metrics."
+        "resilience_level`), judged for each part the fault corrupts, overall the worse; 0 means "
+        "not even level 1 (or no clock under a time fault). Recovery is judged "
+        f"{RECOVERY_SETTLE_S:g} s after the fault ends; no degradation means fault-window p95 "
+        f"within {NO_DEGRADATION_RATIO:g}x the pre-fault p95."
+    )
     block = (
         f"Estimator: `{args.estimator}`. Commit `{_commit()}`, "
-        f"{datetime.now():%Y-%m-%d %H:%M}. Regenerate with `just results`.\n\n" + "\n".join(rows)
+        f"{datetime.now():%Y-%m-%d %H:%M}. Regenerate with `just results`.\n\n"
+        + "\n".join(rows)
+        + f"\n\n{notes}\n\n"
+        + "\n".join(card)
+        + "\n\nFault taxonomy:\n\n"
+        + taxonomy.markdown()
     )
     text = VERIFICATION.read_text()
     text = re.sub(
@@ -218,7 +289,11 @@ def cmd_plot(args) -> None:
     name = session.session_name(args.path)
     out = Path(args.out) if args.out else REPO / "analysis" / "results" / name
     written = plots.save_all(
-        args.path, out, estimator=args.estimator, alert_limit_m=args.alert_limit
+        args.path,
+        out,
+        estimator=args.estimator,
+        alert_limit_m=args.alert_limit,
+        time_alert_limit_s=args.time_alert_limit * 1e-6,
     )
     for w in written:
         print(f"wrote {w.relative_to(REPO) if w.is_relative_to(REPO) else w}")
@@ -286,7 +361,13 @@ def main(argv=None) -> None:
     s.add_argument("path")
     s.add_argument("--estimator", help="which /nav/<name> topic to plot (default: the first)")
     s.add_argument("--out", help="output folder (default: analysis/results/<session>)")
-    s.add_argument("--alert-limit", type=float, default=50.0, help="m, TBC (REQ-01/02)")
+    s.add_argument("--alert-limit", type=float, default=ALERT_LIMIT_M, help="m, TBC (REQ-01/02)")
+    s.add_argument(
+        "--time-alert-limit",
+        type=float,
+        default=TIME_ALERT_LIMIT_S * 1e6,
+        help="µs, TBC (REQ-03)",
+    )
     s.set_defaults(fn=cmd_plot)
 
     s = sub.add_parser("experiment", help="tower-removal or sensitivity-grid experiment")
