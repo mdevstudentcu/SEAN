@@ -59,9 +59,10 @@ void setup() {
 
   WiFi.mode(WIFI_AP);
   WiFi.setSleep(false);
-  // One client only: the laptop. softAP with a password uses WPA2-PSK.
+  // One client only: the laptop. WPA2-PSK with AES (CCMP), set explicitly.
   if (!WiFi.softAP(RCB_AP_SSID, RCB_AP_PASSWORD, kApChannel, /*ssid_hidden=*/0,
-                   /*max_connection=*/1)) {
+                   /*max_connection=*/1, /*ftm_responder=*/false, WIFI_AUTH_WPA2_PSK,
+                   WIFI_CIPHER_TYPE_CCMP)) {
     halt("rc-bridge: softAP failed");
   }
   udp.begin(kUdpPort);
