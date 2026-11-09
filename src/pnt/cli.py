@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -119,20 +121,33 @@ def _unique(path: Path) -> Path:
     return candidate
 
 
-def _eval(scenario: str, runs: int, estimator: str) -> dict:
+def _eval_runs(scenario: str, seeds: list[int], estimator: str) -> list:
     spec = load(scenario)
     results = []
-    for seed in range(runs):
+    for seed in seeds:
         run = generate(spec, seed=seed)
         estimates = ESTIMATORS[estimator](run.measurements, origin_llh=spec.get("origin_llh"))
         results.append(score(list(estimates), run.truth, spec, T0_NS))
-    return summarize(results)
+    return results
+
+
+def _eval(scenario: str, runs: int, estimator: str, jobs: int = 1) -> dict:
+    """Monte Carlo over seeds 0..runs-1. With `jobs` > 1 the seeds run in that many processes.
+    Each seed is independent and the results keep seed order, so the summary is identical to a
+    serial run."""
+    seeds = list(range(runs))
+    jobs = max(1, min(jobs, runs))
+    if jobs == 1:
+        return summarize(_eval_runs(scenario, seeds, estimator))
+    with ProcessPoolExecutor(jobs) as pool:
+        parts = pool.map(_eval_runs, [scenario] * runs, [[s] for s in seeds], [estimator] * runs)
+        return summarize([r for part in parts for r in part])
 
 
 def cmd_eval(args) -> None:
     summaries = {}
     for name in expand(args.scenario):
-        summaries[name] = _eval(name, args.runs, args.estimator)
+        summaries[name] = _eval(name, args.runs, args.estimator, args.jobs)
         print(f"scenario {name}, estimator {args.estimator}, {args.runs} runs")
         print(_fmt(summaries[name]))
     if args.json:
@@ -240,7 +255,7 @@ def cmd_results(args) -> None:
         "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for name in scenario_names():
-        s = _eval(name, args.runs, args.estimator)
+        s = _eval(name, args.runs, args.estimator, args.jobs)
         detect = s["detect_delay_s"]
         rate = s["spoof_detected"]
         # nan -> no spoof in the scenario, or never detected
@@ -337,6 +352,7 @@ def main(argv=None) -> None:
     s = sub.add_parser("eval", help="Monte Carlo over a scenario")
     s.add_argument("scenario")
     s.add_argument("--runs", type=int, default=50)
+    s.add_argument("--jobs", type=int, default=os.cpu_count() or 1, help="worker processes")
     s.add_argument("--json")
     add_estimator(s)
     s.set_defaults(fn=cmd_eval)
@@ -355,6 +371,7 @@ def main(argv=None) -> None:
 
     s = sub.add_parser("results", help="regenerate the results table in systems/verification.md")
     s.add_argument("--runs", type=int, default=50)
+    s.add_argument("--jobs", type=int, default=os.cpu_count() or 1, help="worker processes")
     add_estimator(s)
     s.set_defaults(fn=cmd_results)
 
