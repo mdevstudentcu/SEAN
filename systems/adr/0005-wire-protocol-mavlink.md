@@ -1,6 +1,6 @@
 # ADR-0005: ESP32↔Pi wire protocol is a custom MAVLink dialect
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0018
 - **Date:** 2026-11-08
 - **Deciders:** team
 - **Traces to:** REQ-05, REQ-09
