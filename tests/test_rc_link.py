@@ -4,7 +4,9 @@ import argparse
 import hashlib
 import hmac
 import io
+import socket
 import struct
+import time
 
 import pytest
 
@@ -260,3 +262,33 @@ def test_live_run_refuses_without_key_or_gamepad(tmp_path):
     key_file = tmp_path / "secrets.h"
     key_file.write_text(KEY.hex())
     assert rc.run(args(key_file=key_file, device="none"), out) == 2
+
+
+def test_missing_gamepad_is_a_clean_error(tmp_path):
+    out = io.StringIO()
+    code = rc.run(args(dry_run=True, device=str(tmp_path / "js9"), key_file=tmp_path / "x"), out)
+    assert code == 2 and "no gamepad" in out.getvalue()
+
+
+def test_link_over_loopback_learns_nonce_and_ignores_forged_status():
+    bridge = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    bridge.bind(("127.0.0.1", 0))
+    bridge.settimeout(2.0)
+    link = rc.Link(KEY, bridge.getsockname())
+    try:
+        link.send(rc.build_control(KEY, 0, 1, neutral(), 0))
+        data, laptop = bridge.recvfrom(256)
+        assert rc.parse_control(KEY, data) is not None
+
+        body = rc.STATUS_BODY.pack(b"RC", 1, rc.TYPE_STATUS, NONCE, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0)
+        good = body + hmac.new(KEY, body, hashlib.sha256).digest()[:16]
+        bridge.sendto(bytes(32) + good[32:], laptop)  # forged
+        bridge.sendto(good, laptop)
+        deadline = time.monotonic() + 2.0
+        while link.received == 0 and time.monotonic() < deadline:
+            link.receive(10.0)
+        assert link.nonce == NONCE and link.forged_status == 1
+        assert link.ok(10.0) and not link.ok(10.0 + rc.STATUS_FRESH_S + 0.01)
+    finally:
+        bridge.close()
+        link.sock.close()

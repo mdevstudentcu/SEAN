@@ -4,6 +4,7 @@ Runs the C++ unit tests, then checks that the C++ bridge and the Python laptop s
 (pnt.flight.rc_link) agree byte for byte. Skips cleanly if g++ is missing.
 """
 
+import io
 import shutil
 import subprocess
 from pathlib import Path
@@ -114,3 +115,75 @@ def test_watchdog_replay_and_forgery(driver):
         False,
     )
     assert (status.accepted, status.replay, status.bad_tag, status.bad_nonce) == (2, 2, 2, 1)
+
+
+class DriverLink:
+    """rc_link.Link's interface, with the C++ bridge behind it instead of UDP.
+
+    Mimics main.cpp: each datagram goes to the bridge, and a status reply follows at
+    most every 100 ms. Time comes from a fake clock that sleep() advances.
+    """
+
+    def __init__(self, driver: Path, key: bytes = KEY) -> None:
+        self.proc = subprocess.Popen(
+            [str(driver)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True
+        )
+        self.key, self.t = key, 0.0
+        self.nonce, self.status, self.received = 0, None, 0
+        self._replies: list[bytes] = []
+        self._last_status_ms = -(10**9)
+        self._cmd(f"bridge {KEY.hex()} {NONCE} {TIMEOUT_MS}", reply=False)
+
+    def _cmd(self, line: str, reply: bool = True) -> str:
+        self.proc.stdin.write(line + "\n")
+        self.proc.stdin.flush()
+        return self.proc.stdout.readline().strip() if reply else ""
+
+    def clock(self) -> float:
+        return self.t
+
+    def sleep(self, s: float) -> None:
+        self.t += s
+
+    def send(self, packet: bytes) -> None:
+        ms = int(self.t * 1000)
+        self._cmd(f"pkt {ms} {packet.hex()}")
+        if ms - self._last_status_ms >= 100:
+            self._last_status_ms = ms
+            self._replies.append(bytes.fromhex(self._cmd(f"status {ms}").split()[1]))
+
+    def receive(self, now_s: float) -> bool:
+        changed = False
+        for data in self._replies:
+            s = rc.parse_status(self.key, data)
+            if s is not None:
+                changed |= s.nonce != self.nonce
+                self.nonce, self.status = s.nonce, s
+                self.received += 1
+        self._replies.clear()
+        return changed
+
+    def close(self) -> None:
+        self.proc.stdin.close()
+        self.proc.wait(timeout=10)
+
+
+def test_link_test_passes_against_the_cpp_bridge(driver):
+    link = DriverLink(driver)
+    out = io.StringIO()
+    try:
+        assert rc.link_test(KEY, link, out, clock=link.clock, sleep=link.sleep) == 0
+    finally:
+        link.close()
+    assert link.nonce == NONCE
+    assert out.getvalue().startswith("PASS")
+
+
+def test_link_test_fails_with_the_wrong_key(driver):
+    link = DriverLink(driver, key=bytes(32))  # laptop has a different key from the bridge
+    out = io.StringIO()
+    try:
+        assert rc.link_test(bytes(32), link, out, clock=link.clock, sleep=link.sleep) == 1
+    finally:
+        link.close()
+    assert "no signed reply" in out.getvalue()
