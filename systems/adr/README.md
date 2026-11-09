@@ -22,3 +22,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0016](0016-sionna-campus-trial.md) | Ray-traced campus blockage is an optional, unvalidated model input | Proposed |
 | [0017](0017-quality-standard.md) | Work is ready when evidence matches the claim | Proposed |
 | [0018](0018-payload-boards.md) | The payload is a Pi 3B+ recorder with a Pi Zero 2 W sensor hub | Proposed |
+| [0019](0019-no-chu.md) | Drop CHU broadcast time | Proposed |
