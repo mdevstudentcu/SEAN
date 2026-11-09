@@ -111,6 +111,8 @@ class BaselineEKF:
         return self._emitter_cache[m.emitter]
 
     def process(self, m: Measurement) -> None:
+        if m.kind == "accel_gyro":
+            return  # the IMU: not modelled here, and a predict per sample would cost 100 Hz
         if self.x is None:
             if m.kind == "position_enu":
                 self._init(m)
