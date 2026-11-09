@@ -62,4 +62,4 @@ Each LTE site (sectors on one EARFCN grouped by `PCI // 3`) gets clock offset an
    - **Spoof scenarios** (a `spoof_ramp`, `spoof_jump`, `meaconing` or `time_spoof` fault) are judged on integrity: misleading and hazardous epochs no worse than per-tower clocks, T4 detection time no worse, and at most 1 false alarm per hour.
    - **Non-attack scenarios** keep the p95 bar, no worse than per-tower clocks: nominal, the realistic set without attacks, outages, and tower faults such as `tower-clock-step`.
    - Both are paired 50-run evals (seeds 0–49) against `main`.
-
+3. **First run of this bar (2026-11-09, `ekf-calibrated` at da67ae5 against `ekf` at fb0a51b, sim):** not met, so the calibrated model stays opt-in. It passes every realistic-set row. It fails four base-set rows, whose sims leave out our clock and multipath while the filter models both: `nominal` p95 +0.2 m, `gps-outage` p95 +4.4 m, `spoof-ramp` hazardous epochs +159 ± 78 per run, `meaconing` misleading epochs +54 ± 9 per run. Numbers and the reasons are in the PR (branch `shrikar/feat/honest-error-model`).
