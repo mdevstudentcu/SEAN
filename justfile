@@ -19,8 +19,7 @@ eval scenario="gps-outage" runs="50":
 results runs="50":
     {{py}} pnt results --runs {{runs}}
 
-# The four results figures (error after GPS loss, Stanford, ablation, holdover) and their numbers
-# -> analysis/results/figures-<estimator>/
+# Results figures (error after GPS loss, Stanford, ablation, holdover) -> analysis/results/figures-<estimator>/
 figures estimator="ekf" runs="50":
     {{py}} python analysis/figures.py --estimator {{estimator}} --runs {{runs}}
 
