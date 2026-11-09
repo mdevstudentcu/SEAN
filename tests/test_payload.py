@@ -449,3 +449,41 @@ def test_ppstest_and_chrony_output_parse():
         TRACKING_FIELDS,
     )[0]
     assert row["ref_name"] == "PPS" and row["rms_offset_s"] == pytest.approx(2.1e-7)
+
+
+def test_pnt_record_cli_notes_every_absent_device(tmp_path, capsys):
+    """On a machine with none of the hardware, `pnt record` still writes a valid session."""
+    out = tmp_path / "s"
+    with socket.socket() as s:  # a port with no gpsd behind it
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    args = ["record", "--out", str(out), "--duration", "1.5", "--no-stream", "--gpsd-port"]
+    args += [str(port), "--fc", "/dev/does-not-exist", "--sdr", "a:875e6:dev=7"]
+    main(args)
+    meta = session.read_meta(out)
+    assert meta["hardware"] == ["host"]
+    for name in ("gnss", "fc", "imu", "baro", "camera"):
+        assert f"absent: {name} " in meta["notes"]
+    assert "sdr_a " in meta["notes"]  # absent (no rtl_sdr) or failed (no dongle at index 7)
+    assert "recording" in capsys.readouterr().out
+
+
+def test_payload_code_needs_only_the_payload_extra():
+    """quality.md: Pi code needs only the `payload` extra. Import it with the ground-only
+    packages blocked."""
+    import subprocess
+    import sys
+
+    code = (
+        "import sys, importlib.abc\n"
+        "class B(importlib.abc.MetaPathFinder):\n"
+        "    def find_spec(self, name, path, target=None):\n"
+        "        if name.split('.')[0] in {'scipy','matplotlib','fastapi','uvicorn','pyModeS',"
+        "'sgp4','numba'}:\n"
+        "            raise ImportError(name)\n"
+        "sys.meta_path.insert(0, B())\n"
+        "import pnt.cli, pnt.payload.config, pnt.payload.day1, pnt.payload.survey\n"
+        "import pnt.payload.streamer, pnt.sources.live\n"
+    )
+    res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert res.returncode == 0, res.stderr

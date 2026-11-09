@@ -709,6 +709,7 @@ def main(argv=None) -> None:
     s.add_argument("--sdr", action="append", help="NAME:FREQ[:rate=..][:gain=..][:dev=..]")
     s.add_argument("--no-gnss", action="store_true")
     s.add_argument("--gpsd-port", type=int, default=2947)
+    s.add_argument("--gnss-hw", default="adafruit-gps-hat", help="meta.yaml name (base: neo-6m)")
     s.add_argument("--no-imu", action="store_true")
     s.add_argument("--imu-rate", type=float, default=100.0, help="Hz")
     s.add_argument("--no-baro", action="store_true")
