@@ -16,13 +16,21 @@ Attacks (`type` in a scenario's `faults:` list):
 - gps_low_sats: few satellites reported while the position stays good (false-alarm check)
 - baro_drift: the barometer drifts at rate_mps (sensor degradation)
 - tower_clock_step: one tower's clock offset changes by offset_m (not an attack on GNSS: a
-  tower fault that a filter must not confuse with a receiver clock change)
+  tower fault that a filter must not confuse with a receiver clock change). Both receivers hear
+  the same tower, so it reaches the reference station's records too.
+- reference_moved: the reference station's antenna moves by offset_enu_m while the session keeps
+  its old surveyed position (a knocked mast, a wrong survey). Not an attack on GNSS: the base as
+  its own fault hypothesis (ADR-0020)
+- reference_clock_step: the reference station's clock steps by offset_m
+
+Any fault may name a `receiver` (`payload` or `reference`) to touch only that receiver's records;
+without one it touches both.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import msgspec
 import numpy as np
@@ -42,6 +50,8 @@ class Context:
     origin_llh: list[float] | None
     truth_pos: Callable[[np.ndarray], np.ndarray]  # seconds since t0 -> (N, 3) ENU
     rng: np.random.Generator
+    emitters: dict[str, list[float]] = field(default_factory=dict)  # true ENU, by emitter ID
+    reference_enu: np.ndarray | None = None  # the reference station's true position
 
 
 Event = tuple[int, str]
@@ -72,7 +82,10 @@ def apply(meas: list[Measurement], faults: list[dict], ctx: Context):
 
 def _active(m: Measurement, f: dict, start: int, end: int | None) -> bool:
     return (
-        m.source == f.get("source", "gnss") and m.t_ns >= start and (end is None or m.t_ns < end)
+        m.source == f.get("source", "gnss")
+        and m.t_ns >= start
+        and (end is None or m.t_ns < end)
+        and f.get("receiver", m.receiver) == m.receiver
     )
 
 
@@ -204,6 +217,41 @@ def tower_clock_step(meas, f, ctx, start, end):
         for m in meas
     ]
     return out, [(start, f"{f['emitter']} clock steps by {f['offset_m']} m{_window(f, end)}")]
+
+
+@attack("reference_moved")
+def reference_moved(meas, f, ctx, start, end):
+    """The base's antenna is offset_enu_m from where the session says it is: each of its ranges
+    changes by the true geometry, while the told survey stays put."""
+    if ctx.reference_enu is None:
+        raise ValueError("reference_moved needs a scenario with a `reference:` station")
+    base = np.asarray(ctx.reference_enu, float)
+    moved = base + np.asarray(f["offset_enu_m"], float)
+    f = {**f, "receiver": "reference"}
+    shift = {
+        e: float(np.linalg.norm(moved - pos) - np.linalg.norm(base - pos))
+        for e, pos in ctx.emitters.items()
+    }
+    out = [
+        _replace(m, value=(m.value[0] + shift[m.emitter],))
+        if _active(m, f, start, end) and m.kind == "pseudorange"
+        else m
+        for m in meas
+    ]
+    off = np.linalg.norm(f["offset_enu_m"])
+    return out, [(start, f"reference station moved {off:.0f} m from its survey{_window(f, end)}")]
+
+
+@attack("reference_clock_step")
+def reference_clock_step(meas, f, ctx, start, end):
+    f = {**f, "receiver": "reference"}
+    out = [
+        _replace(m, value=(m.value[0] + f["offset_m"],))
+        if _active(m, f, start, end) and m.kind == "pseudorange"
+        else m
+        for m in meas
+    ]
+    return out, [(start, f"reference clock steps by {f['offset_m']} m{_window(f, end)}")]
 
 
 @attack("jamming_zone")

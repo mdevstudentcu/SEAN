@@ -1,0 +1,34 @@
+# Realistic, plus a ground reference station (ADR-0020): a static second receiver on a mast at a
+# surveyed point, hearing the same towers. Everything else is the `realistic` environment, and
+# the payload's records are identical to it seed for seed (the station draws from its own random
+# stream), so `realistic-<attack>` is this environment without the base.
+# Every value of the station is TBC until the zero-baseline test and the base's own sessions.
+extends: realistic
+description: Realistic environment with a ground reference station 250 m from the circuit centre.
+reference:
+  position_llh: [45.38625, -75.693446, 80.0]   # ENU (200, -150, 10) m: a 10 m mast on campus
+  survey_sigma_m: 1.0   # TBC: GPS fix averaged over >= 1 h (ADR-0020)
+  # PPS-disciplined to GPS (ADR-0020): a fixed receiver bias the zero-baseline test measures,
+  # plus a small wander. TBC
+  clock: {offset_s: 1.0e-7, drift_ppb: 0.0, rw_ns: 0.5}
+  sources:
+    lte:
+      sigma_m: 20.0   # TBC: static, so it can integrate longer than the drone
+      multipath: {sigma_m: 15.0, tau_s: 300.0}   # TBC: a static antenna's reflections barely change
+      dropout: {availability: 0.95, block_s: 30.0}   # TBC
+provenance:
+  reference: TBC
+# Attacks only an environment with a base can have, on top of the shared menu
+attacks:
+  long-outage-tower-clock-step:   # a tower clock jumps while GPS is out: differencing cancels it
+    - {type: outage, source: gnss, start_s: 60}
+    - {type: tower_clock_step, source: lte, emitter: "lte:sim1", start_s: 150, offset_m: 300.0}
+  long-outage-base-moved:   # the base's antenna moves 50 m while GPS is out: a base fault
+    - {type: outage, source: gnss, start_s: 60}
+    - {type: reference_moved, source: lte, start_s: 150, offset_enu_m: [40.0, 30.0, 0.0]}
+  long-outage-base-clock-step:   # the base's clock jumps 300 m (1 us) while GPS is out
+    - {type: outage, source: gnss, start_s: 60}
+    - {type: reference_clock_step, source: lte, start_s: 150, offset_m: 300.0}
+  long-outage-base-lost:   # the base's link drops for a minute while GPS is out
+    - {type: outage, source: gnss, start_s: 60}
+    - {type: outage, source: lte, receiver: reference, start_s: 150, end_s: 210}
