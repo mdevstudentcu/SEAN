@@ -8,6 +8,7 @@ import json
 import signal
 import socket
 import struct
+import subprocess
 import sys
 import threading
 import time
@@ -31,7 +32,7 @@ from pnt.io.mcap_log import (
     read_metadata,
     read_session,
 )
-from pnt.payload import day1, recorder
+from pnt.payload import day1, recorder, wifi
 from pnt.payload.devices import TRACKING_FIELDS, FlightController, Health, parse_chrony_csv
 from pnt.payload.gpsd import Gpsd, tpv_measurements
 from pnt.payload.i2c import Bmp280, Mpu6050, bmp280_compensate
@@ -39,7 +40,7 @@ from pnt.payload.recorder import Recorder
 from pnt.payload.sdr import RtlSdr, estimate_t0, find_gaps
 from pnt.payload.streamer import Streamer
 from pnt.payload.survey import average, load_reference, survey_session, write_survey
-from pnt.payload.wifi import hash_bssid, parse_scan
+from pnt.payload.wifi import WifiScan, hash_bssid, parse_scan
 from pnt.sources.live import LiveSource
 
 zmq = pytest.importorskip("zmq")
@@ -508,7 +509,6 @@ def test_pnt_record_cli_notes_every_absent_device(tmp_path, capsys):
 def test_payload_code_needs_only_the_payload_extra():
     """quality.md: Pi code needs only the `payload` extra. Import it with the ground-only
     packages blocked."""
-    import subprocess
 
     code = (
         "import sys, importlib.abc\n"
@@ -654,7 +654,6 @@ os._exit(0)  # no close: what a kill or a crash leaves
 @pytest.fixture(scope="module")
 def cut_off(tmp_path_factory):
     """A session whose writer process ended without closing it."""
-    import subprocess
 
     path = tmp_path_factory.mktemp("cut") / "session.mcap"
     n = 30_000
@@ -732,7 +731,6 @@ def test_closed_session_is_still_complete_valid_mcap(tmp_path):
 def test_killed_recorder_leaves_a_session_that_replays(tmp_path):
     """`kill -9` of a running `pnt record`, no devices: the file has its header, and
     `pnt replay` reports the cut instead of crashing."""
-    import subprocess
 
     out = tmp_path / "s"
     code = "import sys; from pnt.cli import main; main(sys.argv[1:])"
@@ -891,7 +889,6 @@ MARKING_CAMERA = (
 
 def _start_recording(folder):
     """`pnt record` in its own process, returned once the camera is writing."""
-    import subprocess
 
     cmd = [sys.executable, "-u", "-c", RECORD_HARNESS, MARKING_CAMERA, "record", "--out",
            str(folder), "--no-stream"]  # fmt: skip
@@ -944,3 +941,42 @@ def test_camera_does_not_outlive_a_killed_recorder(tmp_path):
     while time.monotonic() < deadline and not (folder / "camera.mp4.sigint").exists():
         time.sleep(0.05)
     assert (folder / "camera.mp4.sigint").exists()
+
+
+# --- Wi-Fi scans ------------------------------------------------------------------------------
+
+IW_OUTPUT = "BSS 00:11:22:33:44:55(on wlan0)\n\tfreq: 2412\n\tsignal: -48.00 dBm\n"
+
+
+class ScanCtx:
+    """One scan's worth of recorder context: stops as soon as the scan has run."""
+
+    def __init__(self):
+        self.stop = threading.Event()
+        self.records = []
+
+    def emit(self, m):
+        self.records.append(m)
+
+    def event(self, t_ns, text, **data):
+        pass
+
+
+def _run_one_scan(monkeypatch, on_scan=lambda cmd: None):
+    ctx = ScanCtx()
+
+    def fake_run(cmd, **kw):
+        on_scan(cmd)
+        ctx.stop.set()
+        return subprocess.CompletedProcess(cmd, 0, stdout=IW_OUTPUT, stderr="")
+
+    monkeypatch.setattr(wifi.subprocess, "run", fake_run)
+    WifiScan(salt=b"s" * 32).run(ctx)
+    return ctx
+
+
+def test_wifi_records_are_stamped_after_the_scan(monkeypatch):
+    clock = {"now": 1_000}
+    monkeypatch.setattr(wifi, "now_gps_ns", lambda: clock["now"])
+    ctx = _run_one_scan(monkeypatch, lambda cmd: clock.update(now=9_000_000_000))
+    assert [m.t_ns for m in ctx.records] == [9_000_000_000]

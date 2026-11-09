@@ -93,8 +93,10 @@ class WifiScan:
         salt = self._salt if self._salt is not None else load_salt()
         ctx.event(now_gps_ns(), "wifi salt", salt_id=salt_id(salt))
         while True:
-            t = now_gps_ns()
             res = subprocess.run(self.command(), capture_output=True, text=True, timeout=30)
+            # Stamped after the scan, which takes seconds: stamped before it, every record would
+            # be older than the live stream's reorder window and be dropped there as late.
+            t = now_gps_ns()
             if res.returncode == 0:
                 self.scans += 1
                 for ap in parse_scan(res.stdout, salt):
