@@ -108,6 +108,19 @@ def test_without_two_calibrated_sites_the_drift_prior_is_wide():
     assert f.site_drift_prior() == (0.0, f.init_tower_drift_sigma)
 
 
+def test_drift_seeding_is_off_unless_asked_for():
+    # clock_model="calibrated" alone keeps the fixed prior; only CALIBRATED seeds
+    f = _started(seed_site_drift=False)
+    for i in range(3):
+        f.process(_pr(0, f"lte:{i}", 5000.0))
+    for i, d in zip(f.clock_idx.values(), [5.8, 6.0, 6.2], strict=True):
+        f.x[i + 1] = d
+        f.P[i + 1, i + 1] = 0.05**2
+    f.process(_pr(0, "lte:new", 5000.0))
+    i = f.clock_idx["site:lte:new"]
+    assert f.x[i + 1] == 0.0 and np.sqrt(f.P[i + 1, i + 1]) == f.init_tower_drift_sigma
+
+
 def test_gnss_free_covariance_is_honest_on_the_realistic_set_req02():
     # Regression guard, not a requirement: mean horizontal NEES over the GNSS-free part of the
     # realistic long outage, 2 for an honest filter. The model before this change gave ~5,000
