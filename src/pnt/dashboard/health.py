@@ -65,13 +65,16 @@ FLAGS: dict[str, tuple[str, str]] = {
 STATUS: dict[str, tuple[str, str]] = {
     "degraded": (
         CAUTION,
-        "A source is lost or excluded; the protection level is still within the limit.",
+        "A source is lost or excluded; the horizontal protection level is still within the limit.",
     ),
     "unsafe": (
         ALARM,
         "Protection level over the alert limit: do not navigate on this position.",
     ),
 }
+# The panel's own alert (not an estimator flag): the time PL (pnt.integrity.protection.tpl) over
+# the time alert limit. The estimators' `status` judges the horizontal PL only.
+TIME_OVER = "time_pl_over_limit"
 # Below this trust a source is listed apart as low-trust. TBC: no requirement sets it; the
 # estimators on main report trust as 0 or 1.
 LOW_TRUST = 0.5
@@ -190,7 +193,13 @@ class HealthMonitor:
 
     def update(self, est: Estimate) -> dict:
         t = self.t_s(est.t_ns)
+        hpl, tpl_s = est.hpl_m, tpl(est.clock_sigma_s)
         current = {f: describe(f) for f in est.flags}
+        if tpl_s is not None and tpl_s > self.tal:  # the estimators' status judges position only
+            current[TIME_OVER] = (
+                ALARM,
+                "Time protection level over the time alert limit: do not rely on our time output.",
+            )
         if est.status in STATUS and est.status != "degraded":
             current[f"status:{est.status}"] = STATUS[est.status]
         self.settled = self.settled or est.status == "nominal" or t >= STARTUP_MAX_S
@@ -210,14 +219,16 @@ class HealthMonitor:
                 self.alerts[aid].active = False
                 if self.alerts[aid].acked:
                     self._forget(key)
-        hpl, tpl_s = est.hpl_m, tpl(est.clock_sigma_s)
         tta_h = self._trend(self._hpl, t, hpl, self.al)
         tta_t = self._trend(self._tpl, t, tpl_s, self.tal)
         trust = dict(sorted(est.trust.items()))
         if est.status in STATUS:
             headline = STATUS[est.status]
         else:
-            headline = ("ok", "All sources in use; the protection level is within the limit.")
+            headline = (
+                "ok",
+                "All sources in use; the horizontal protection level is within the limit.",
+            )
         return {
             "t_s": t,
             "status": est.status,
