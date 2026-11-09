@@ -14,6 +14,7 @@ given the session's `reference` block (ICD-session: the station's surveyed posit
 
 from __future__ import annotations
 
+import functools
 import logging
 from collections.abc import Callable, Iterable, Iterator
 from functools import partial
@@ -22,15 +23,27 @@ from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.mhss import MHSS
 from pnt.nav import base_rover, baseline, ekf
 
-# ekf-mhss: the same EKF, with solution-separation protection levels and exclusion (#82)
+DEFAULT_RECEIVERS = frozenset({"payload"})
+
+
+def configured(fn: Callable, **config) -> Callable:
+    """`fn` with `config` passed to it, modelling the same receivers."""
+    out = functools.partial(fn, **config)
+    out.receivers = getattr(fn, "receivers", DEFAULT_RECEIVERS)
+    return out
+
+
 ESTIMATORS = {
     "baseline": baseline.run,
     "ekf": ekf.run,
     "ekf-calibrated": ekf.run_calibrated,  # opt-in: ADR-0022 clocks and the tower error model
     "ekf-base": base_rover.run,
+    # ekf-mhss: the same EKF, with solution-separation protection levels and exclusion (#82)
     "ekf-mhss": partial(ekf.run, monitor=MHSS),
+    # Stage 2 (#12): the same filters with IMU-driven prediction (nav/imu.py)
+    "ekf-imu": configured(ekf.run, motion="imu"),
+    "ekf-base-imu": configured(base_rover.run, motion="imu"),
 }
-DEFAULT_RECEIVERS = frozenset({"payload"})
 
 log = logging.getLogger(__name__)
 
