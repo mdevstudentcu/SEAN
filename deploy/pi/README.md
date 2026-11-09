@@ -1,5 +1,7 @@
 # Raspberry Pi 4B setup
 
+Step-by-step with the Pi in hand (day-1 test, captures, base station): [`RUNBOOK.md`](RUNBOOK.md). The day-1 test is scripted in `day1.sh`.
+
 Raspberry Pi OS Bookworm (64-bit, Lite). Hostname `pnt`, user `pi`, reachable as `pi@pnt.local`.
 
 What `setup.sh` does (idempotent; `just pi-deploy` runs it after copying the repo):
