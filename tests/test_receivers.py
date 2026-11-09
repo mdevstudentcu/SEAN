@@ -9,7 +9,7 @@ from pnt.cli import main
 from pnt.core.measurement import RECEIVERS
 from pnt.io import session
 from pnt.io.mcap_log import SessionWriter
-from pnt.nav import ESTIMATORS, baseline, estimate
+from pnt.nav import ESTIMATORS, baseline, estimate, receivers
 from pnt.sim.scenario import generate, load
 from pnt.sources.replay import ReplaySource
 
@@ -34,7 +34,11 @@ def _write(path, run, extra=()):
     return path
 
 
-@pytest.mark.parametrize("name", sorted(ESTIMATORS))
+# Every estimator that models the payload only (ekf-base models both, tests/test_base_rover.py)
+PAYLOAD_ONLY = sorted(n for n, fn in ESTIMATORS.items() if receivers(fn) == {"payload"})
+
+
+@pytest.mark.parametrize("name", PAYLOAD_ONLY)
 def test_reference_records_do_not_change_any_estimate(tmp_path, caplog, name):
     spec = load("gps-outage")
     run = generate(spec, seed=0)

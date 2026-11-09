@@ -190,7 +190,8 @@ def write_viz(
     recomputed because the session had none on `/nav/<estimator>`."""
     check_output(session, out, force)
     path = session_io.mcap_path(session)
-    origin = session_io.read_meta(session).get("origin_llh")
+    meta = session_io.read_meta(session)
+    origin = meta.get("origin_llh")
     if origin is None:
         raise ValueError(
             f"{session} has no origin_llh in its metadata, so it can't be put on a map"
@@ -219,7 +220,9 @@ def write_viz(
                 f"{path} has no estimates on {nav_topic}, and {estimator!r} is not an estimator "
                 f"to re-run (choose from {sorted(ESTIMATORS)})"
             )
-        estimates = list(estimate(estimator, meas, origin_llh=origin))
+        estimates = list(
+            estimate(estimator, meas, origin_llh=origin, reference=meta.get("reference"))
+        )
         if not estimates:
             raise ValueError(
                 f"{path} has no estimates on {nav_topic}, and re-running {estimator} over its "

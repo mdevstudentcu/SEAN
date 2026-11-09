@@ -59,7 +59,14 @@ def _fmt(metrics: dict) -> str:
 def cmd_sim(args) -> None:
     spec = load(args.scenario)
     run = generate(spec, seed=args.seed)
-    estimates = list(estimate(args.estimator, run.measurements, origin_llh=spec.get("origin_llh")))
+    estimates = list(
+        estimate(
+            args.estimator,
+            run.measurements,
+            origin_llh=spec.get("origin_llh"),
+            reference=run.reference,
+        )
+    )
     m = score(estimates, run.truth, spec, T0_NS)
 
     SESSIONS.mkdir(parents=True, exist_ok=True)
@@ -77,7 +84,8 @@ def cmd_sim(args) -> None:
         session.write_meta(out, {
             "name": out.name, "platform": "sim", "origin_llh": spec.get("origin_llh"),
             "simulated": True, "scenario": spec["name"], "seed": args.seed,
-            "commit": _commit(), "hardware": [], "notes": spec.get("description", ""),
+            "commit": _commit(), "hardware": [], "reference": run.reference,
+            "notes": spec.get("description", ""),
         })  # fmt: skip
         mcap = out / session.MCAP_NAME
     else:
@@ -90,6 +98,8 @@ def cmd_sim(args) -> None:
         "commit": _commit(),
         "origin_llh": spec.get("origin_llh"),
     }
+    if run.reference is not None:  # MCAP metadata are strings: leave it out rather than "None"
+        meta["reference"] = run.reference
     with SessionWriter(mcap, metadata=meta) as w:
         for t in run.truth:
             w.write("/truth", t)
@@ -125,7 +135,9 @@ def _eval_runs(scenario: str, seeds: list[int], estimator: str) -> list:
     results = []
     for seed in seeds:
         run = generate(spec, seed=seed)
-        estimates = estimate(estimator, run.measurements, origin_llh=spec.get("origin_llh"))
+        estimates = estimate(
+            estimator, run.measurements, origin_llh=spec.get("origin_llh"), reference=run.reference
+        )
         results.append(score(list(estimates), run.truth, spec, T0_NS))
     return results
 
@@ -169,8 +181,9 @@ def _replay_spec(path: str) -> dict:
 def cmd_replay(args) -> None:
     mcap = session.mcap_path(args.path)
     meas = (r for _, r in read_session(mcap, topics=["/meas/"]) if isinstance(r, Measurement))
-    origin = session.read_meta(args.path).get("origin_llh")
-    estimates = list(estimate(args.estimator, meas, origin_llh=origin))
+    meta = session.read_meta(args.path)
+    origin, reference = meta.get("origin_llh"), meta.get("reference")
+    estimates = list(estimate(args.estimator, meas, origin_llh=origin, reference=reference))
     truth = [r for _, r in read_session(mcap, topics=["/truth"])]
     print(f"replayed {args.path}: {len(estimates)} estimates")
     if truth:
