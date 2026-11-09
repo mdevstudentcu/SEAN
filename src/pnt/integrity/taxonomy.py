@@ -38,6 +38,10 @@ TAXONOMY: dict[str, FaultClass] = {
     "gps_low_sats": FaultClass("nuisance (false-alarm check)", (), "none", expect_alert=False),
     "baro_drift": FaultClass("sensor degradation", (POSITION,), "none"),
     "tower_clock_step": FaultClass("SoOP fault", (POSITION,), "none"),
+    # The ground reference station's own faults (ADR-0020): every differenced reading inherits
+    # them, so they corrupt position and the relative clock
+    "reference_moved": FaultClass("reference station fault", (POSITION, TIME), "none"),
+    "reference_clock_step": FaultClass("reference station fault", (POSITION, TIME), "none"),
 }
 
 
