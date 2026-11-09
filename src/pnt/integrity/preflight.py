@@ -17,9 +17,10 @@ What the schedule takes from the sim:
   are kept, since a mission plan can know where GPS is denied. Every other fault (spoofing,
   meaconing, tower clock steps, sensor drift) is left out: a plan cannot foresee attacks, which
   is what the in-flight monitors are for.
-- Tower dropouts (`dropout: {availability, block_s}`) are random, so every tower is kept and its
-  reported sigma is inflated by 1/sqrt(availability): the expected information of a tower heard
-  that fraction of the time. Ray-traced blockage (`ray_table`) is geometry, so it is kept as is.
+- Tower dropouts (`dropout: {availability, block_s}`, the payload's and the reference station's
+  own) are random, so every tower is kept and its reported sigma is inflated by
+  1/sqrt(availability): the expected information of a tower heard that fraction of the time.
+  Ray-traced blockage (`ray_table`) is geometry, so it is kept as is.
 
 Noise-free values, per kind: `position_enu` and `velocity_enu` the truth; `altitude` the true
 height; `time` the true receiver clock; `pseudorange` and `range` the range from the true
@@ -121,17 +122,23 @@ def _windows(t: np.ndarray, mask: np.ndarray) -> list[tuple[float, float]]:
 def plan(spec: dict) -> tuple[dict, dict[str, float], list[str], list[str]]:
     """The scenario as a mission plan sees it: (spec, availability by source, kept faults,
     dropped faults). Dropouts are switched off with availability 1.0, which keeps the sim's
-    random draws in the same order, so tower geometry matches a real run of the same seed."""
+    random draws in the same order, so tower geometry matches a real run of the same seed. A
+    reference station's sources are keyed `reference:<source>`: it has its own dropouts."""
     spec = copy.deepcopy(spec)
     faults = spec.get("faults") or []
     kept = [f for f in faults if f["type"] in PLANNED]
     spec["faults"] = kept
     availability = {}
-    for source, cfg in spec.get("sources", {}).items():
-        d = cfg.get("dropout")
-        if d:
-            availability[source] = float(d["availability"])
-            cfg["dropout"] = {**d, "availability": 1.0}
+    groups = {
+        "": spec.get("sources", {}),
+        "reference:": (spec.get("reference") or {}).get("sources", {}),
+    }
+    for prefix, sources in groups.items():
+        for source, cfg in sources.items():
+            d = cfg.get("dropout")
+            if d:
+                availability[prefix + source] = float(d["availability"])
+                cfg["dropout"] = {**d, "availability": 1.0}
     dropped = [f["type"] for f in faults if f["type"] not in PLANNED]
     return spec, availability, [f["type"] for f in kept], dropped
 
@@ -180,7 +187,9 @@ def noise_free(
             if m.kind == "pseudorange" and m.receiver == "payload" and cfg.get("receiver_clock"):
                 value += C * float(clock[i])
             value = (value,)
-            a = availability.get(m.source)
+            a = availability.get(
+                m.source if m.receiver == "payload" else f"{m.receiver}:{m.source}"
+            )
             if a:
                 sigma = tuple(s / np.sqrt(a) for s in sigma)
         else:
