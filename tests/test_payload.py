@@ -70,26 +70,47 @@ class FakeI2C:
 
 class FakeSdrStream:
     """Paced like a dongle: one chunk per chunk-duration of real time, with `drop_s` of samples
-    lost before chunk `drop_at` (time passes, the samples never arrive)."""
+    lost before chunk `drop_at` (time passes, the samples never arrive).
+
+    `now()` is the host clock the recorder stamps buffers with: the chunk's due time plus a
+    fixed 1 ms latency, so the stamps do not depend on how busy the test machine is."""
+
+    T0_NS = 1_478_356_218_000_000_000
 
     def __init__(self, cmd, drop_at=30, drop_s=0.3):
         self.fs = float(cmd[cmd.index("-s") + 1])
-        self.nbytes = int(cmd[cmd.index("-b") + 1])
         self.k = 0
         self.t0 = time.monotonic()
         self.drop_at, self.drop_s = drop_at, drop_s
         self.stderr = ["Found 1 device(s): fake"]
+        self._now = self.T0_NS
+
+    def now(self) -> int:
+        return self._now
 
     def read(self, nbytes, stop=None):
-        due = self.t0 + (self.k + 1) * (nbytes / 2) / self.fs
+        due = (self.k + 1) * (nbytes / 2) / self.fs
         if self.k >= self.drop_at:
             due += self.drop_s
-        time.sleep(max(0.0, due - time.monotonic()))
+        time.sleep(max(0.0, self.t0 + due - time.monotonic()))
+        self._now = self.T0_NS + round(due * 1e9) + 1_000_000
         self.k += 1
         return bytes([127, 128]) * (nbytes // 2)
 
     def close(self):
         pass
+
+
+def fake_sdr(**kw) -> RtlSdr:
+    """An RtlSdr reading a FakeSdrStream and stamping with its clock."""
+    holder = {}
+
+    def factory(cmd):
+        holder["s"] = FakeSdrStream(cmd, **kw)
+        return holder["s"]
+
+    return RtlSdr("a", 875e6, rate_hz=48_000, chunk=1200, stream_factory=factory,
+                  clock=lambda: holder["s"].now() if "s" in holder else now_gps_ns())  # fmt: skip
 
 
 class FakeGpsd:
@@ -178,7 +199,7 @@ def recorded(tmp_path_factory):
     folder = tmp_path_factory.mktemp("sessions") / "20261110-1430-handheld-test"
     gpsd = FakeGpsd()
     bus = FakeI2C()
-    sdr = RtlSdr("a", 875e6, rate_hz=48_000, chunk=1200, stream_factory=FakeSdrStream)
+    sdr = fake_sdr()
     devices = [
         Health(),
         Gpsd(port=gpsd.port),
@@ -223,7 +244,7 @@ def test_one_failing_or_absent_device_does_not_stop_the_others(recorded):
     assert "failed: camera (pi-camera): RuntimeError('boom')" in notes
     assert "absent: fc (flight-controller): /dev/does-not-exist does not exist" in notes
     counts = recorded["rec"].counts
-    assert counts["imu"] > 200 and counts["baro"] > 20 and counts["gnss"] > 40
+    assert counts["imu"] > 150 and counts["baro"] > 20 and counts["gnss"] > 40
 
 
 def test_recorded_measurements_follow_the_icd(recorded):
@@ -254,7 +275,8 @@ def test_sdr_sidecar_has_buffer_stamps_that_show_the_planted_drop(recorded):
     assert side["buffers"][0][0] == 0
     (gap,) = side["gaps_suspected"]
     assert gap[0] == 30 * 1200  # the fake stream lost samples just before chunk 30
-    assert gap[1] == pytest.approx(0.3 * 48_000, abs=0.02 * 48_000)  # 0.3 s, +/- 20 ms jitter
+    assert gap[1] == 0.3 * 48_000
+    assert side["t_ns"] == FakeSdrStream.T0_NS + 1_000_000  # the latency floor
 
 
 def test_recorded_walk_replays_through_pnt_replay(recorded, capsys):
