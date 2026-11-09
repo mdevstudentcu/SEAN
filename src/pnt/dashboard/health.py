@@ -62,10 +62,13 @@ FLAGS: dict[str, tuple[str, str]] = {
     ),
 }
 STATUS: dict[str, tuple[str, str]] = {
-    "degraded": (CAUTION, "Degraded: a source is lost or excluded; the bound still holds."),
+    "degraded": (
+        CAUTION,
+        "A source is lost or excluded; the protection level is still within the limit.",
+    ),
     "unsafe": (
         ALARM,
-        "UNSAFE: the protection level exceeds the alert limit. Do not navigate on this position.",
+        "Protection level over the alert limit: do not navigate on this position.",
     ),
 }
 # Below this trust a source is listed apart as low-trust. TBC: no requirement sets it; the
@@ -74,6 +77,12 @@ LOW_TRUST = 0.5
 # Window of the protection-level trend behind the time-to-alert prediction. TBC: long enough to
 # smooth one tower's dropout (1 Hz towers), short enough to follow a GPS loss.
 TREND_S = 10.0
+# A trend that reaches the limit later than this is reported as no alert ahead: a 10 s line says
+# nothing about the next hour. TBC.
+TTA_HORIZON_S = 600.0
+# A condition that clears for no longer than this and returns is the same occurrence. TBC: HPL
+# saw-tooths across the limit between 1 Hz tower updates, which would otherwise count each second.
+CLEAR_HOLD_S = 2.0
 # 95 % radius of a circular 2-D Gaussian in sigmas (sqrt of chi-square 2 dof at 0.95). Applied
 # to the major-axis sigma it is a conservative ANP for an elliptical error.
 K_ANP95 = 2.4477
@@ -126,8 +135,8 @@ def anp95_m(pos_cov) -> float:
 
 def time_to_limit_s(t_s: np.ndarray, pl: np.ndarray, limit: float) -> float | None:
     """Seconds until a protection level reaches `limit` on its least-squares trend over the
-    samples given: 0 if it is already there, None if the trend is flat or falling (or there are
-    too few samples to fit)."""
+    samples given: 0 if it is already there, None if the trend is flat or falling, would take
+    longer than TTA_HORIZON_S, or there are too few samples to fit."""
     if len(pl) and pl[-1] >= limit:
         return 0.0
     if len(pl) < 3 or t_s[-1] - t_s[0] <= 0:
@@ -135,7 +144,8 @@ def time_to_limit_s(t_s: np.ndarray, pl: np.ndarray, limit: float) -> float | No
     slope = float(np.polyfit(t_s - t_s[-1], pl, 1)[0])
     if slope <= 0:
         return None
-    return float((limit - pl[-1]) / slope)
+    tta = float((limit - pl[-1]) / slope)
+    return tta if tta <= TTA_HORIZON_S else None
 
 
 @dataclass
@@ -144,8 +154,10 @@ class Alert:
     key: str  # the flag, or "status:unsafe"
     severity: str
     text: str
-    since_s: float
-    last_s: float
+    since_s: float  # first onset
+    last_s: float  # last epoch it was active
+    onset_s: float  # latest onset (it can clear and come back before it is acknowledged)
+    count: int = 1  # onsets so far
     active: bool = True
     acked: bool = False
 
@@ -179,9 +191,11 @@ class HealthMonitor:
             if aid is None:
                 aid = self._next_id
                 self._next_id += 1
-                self.alerts[aid] = Alert(aid, key, sev, text, t, t)
+                self.alerts[aid] = Alert(aid, key, sev, text, t, t, t)
                 self._open[key] = aid
             a = self.alerts[aid]
+            if not a.active and t - a.last_s > CLEAR_HOLD_S:
+                a.onset_s, a.count = t, a.count + 1
             a.active, a.last_s = True, t
         for key, aid in list(self._open.items()):
             if key not in current:
@@ -195,7 +209,7 @@ class HealthMonitor:
         if est.status in STATUS:
             headline = STATUS[est.status]
         else:
-            headline = ("ok", "Nominal: all sources in use and the bound is within the limit.")
+            headline = ("ok", "All sources in use; the protection level is within the limit.")
         return {
             "t_s": t,
             "status": est.status,
