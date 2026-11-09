@@ -269,8 +269,12 @@ def test_recorded_measurements_follow_the_icd(recorded):
 
 def test_sdr_sidecar_has_buffer_stamps_that_show_the_planted_drop(recorded):
     side = json.loads((recorded["folder"] / "sdr_a.json").read_text())
-    for key in ("sample_rate_hz", "center_freq_hz", "t_ns", "buffers", "dongle"):
-        assert key in side
+    # the LTE front end's sidecar keys and types (frontends/lte/capture.py, #23)
+    assert isinstance(side["sample_rate_hz"], float) and isinstance(side["center_freq_hz"], float)
+    assert isinstance(side["t_ns"], int) and side["dongle"] == "sdr_a"
+    assert side["gain_db"] is None and side["gain_mode"] == "auto"  # AGC
+    assert side["hops"] == [] and side["gaps"] == []  # no drop is known to the sample
+    assert all(isinstance(v, int) for b in side["buffers"] for v in b)
     assert side["samples"] * 2 == (recorded["folder"] / "sdr_a.cu8").stat().st_size
     assert side["buffers"][0][0] == 0
     (gap,) = side["gaps_suspected"]
@@ -574,3 +578,27 @@ def test_pnt_live_runs_the_estimator_on_the_stream_and_records_it(tmp_path, caps
     assert meta["origin_llh"] == pytest.approx(ORIGIN, abs=1e-5)
     topics = {t for t, _ in read_session(out / "session.mcap")}
     assert {"/meas/gnss", "/meas/imu", "/nav/baseline"} <= topics
+
+
+def test_reference_station_records_are_tagged_reference(tmp_path):
+    """The base runs the same recorder with `--receiver reference` (ADR-0020, ICD-measurement):
+    every record and its stream metadata carry that receiver."""
+    gpsd = FakeGpsd()
+    streamer = Streamer("tcp://127.0.0.1:*")
+    live = LiveSource(streamer.endpoint, idle_timeout_s=1.5)
+    live.connect()
+    assert streamer.wait_for_subscriber(5.0)
+    got = []
+    consumer = threading.Thread(target=lambda: got.extend(live))
+    consumer.start()
+    ref = {"position_llh": list(ORIGIN), "surveyed": True, "sigma_m": 0.4}
+    Recorder(tmp_path / "base", [Gpsd(port=gpsd.port, hardware="neo-6m")], receiver="reference",
+             origin_llh=ORIGIN, reference=ref, streamer=streamer).run(duration_s=2.0)  # fmt: skip
+    streamer.close()
+    gpsd.close()
+    consumer.join(timeout=10)
+    recorded = [r for _, r in read_session(tmp_path / "base" / "session.mcap")]
+    assert recorded and {r.receiver for r in recorded} == {"reference"}
+    assert got and {r.receiver for r in got} == {"reference"}
+    assert live.meta["reference"]["reference"] == ref
+    assert session.read_meta(tmp_path / "base")["hardware"] == ["neo-6m"]

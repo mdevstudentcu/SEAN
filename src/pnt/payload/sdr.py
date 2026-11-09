@@ -10,12 +10,17 @@ than the sample, so `stamp - index / fs` is the sample-to-host latency plus a co
 
 - `t_ns` (time of sample 0) is the lower envelope of that latency, fitted over the capture.
 - A dropped run of samples shows as a lasting step up in it, by the dropped duration
-  (`find_gaps`). The step is only as precise as the latency jitter, so suspected gaps are listed
-  in `gaps_suspected`, not in `gaps` (which a reader may take as exact).
+  (`find_gaps`). The step is only as precise as the latency jitter (ms, i.e. hundreds of km of
+  range), so suspected gaps are listed in `gaps_suspected`. `gaps` is for drops known to the
+  sample, which a reader applies as exact; `rtl_sdr` reports none, so it is always empty. The
+  LTE front end sizes a drop it finds in the signal from `buffers` instead.
 
-Sidecar keys follow the LTE front end's reader (`frontends/lte/capture.py`, #23):
-`sample_rate_hz`, `center_freq_hz`, `t_ns`, `gain_db`, `dongle`, `buffers`, plus recorder
-extras (`device`, `t_ns_method`, `rate_ppm_vs_host`, `gaps_suspected`, `stderr`).
+Sidecar keys are the LTE front end's (`frontends/lte/capture.py`, #23), exactly:
+`sample_rate_hz`, `center_freq_hz`, `t_ns` (int), `gain_db` (float, null for AGC), `dongle`,
+`earfcn` (int, only if given), `hops` (empty: one carrier per capture), `gaps` (empty, above),
+`buffers` (`[[int, int], ...]`). Recorder extras: `device`, `gain_mode`, `ppm_correction`,
+`command`, `samples`, `t_ns_method`, `buffers_stamp`, `rate_ppm_vs_host`, `gaps_suspected`,
+`stderr`.
 """
 
 from __future__ import annotations
@@ -173,6 +178,7 @@ class RtlSdr:
         gain_db: float | None = None,
         device: str = "0",
         ppm: int = 0,
+        earfcn: int | None = None,
         chunk: int = DEFAULT_CHUNK,
         hardware: str = "rtl-sdr",
         stream_factory=None,
@@ -184,6 +190,7 @@ class RtlSdr:
         self.gain_db = gain_db
         self.device = str(device)
         self.ppm = int(ppm)
+        self.earfcn = earfcn
         self.chunk = int(chunk)
         self.hardware = hardware
         self._factory = stream_factory or RtlSdrStream
@@ -218,7 +225,8 @@ class RtlSdr:
             "device": self.device,
             "center_freq_hz": self.freq_hz,
             "sample_rate_hz": self.rate_hz,
-            "gain_db": self.gain_db if self.gain_db is not None else "auto",
+            "gain_db": self.gain_db,
+            "gain_mode": "manual" if self.gain_db is not None else "auto",
             "ppm_correction": self.ppm,
             "command": " ".join(self.command()),
             "t_ns": None,
@@ -229,9 +237,12 @@ class RtlSdr:
             "buffers_stamp": "host GPS ns at arrival minus the buffer's duration",
             "samples": self.samples,
             "buffers": self.buffers,
+            "gaps": [],
             "gaps_suspected": [],
             "hops": [],
         }
+        if self.earfcn is not None:
+            out["earfcn"] = int(self.earfcn)
         if self.buffers:
             out["t_ns"], out["rate_ppm_vs_host"] = estimate_t0(self.buffers, self.rate_hz)
             out["gaps_suspected"] = [list(g) for g in find_gaps(self.buffers, self.rate_hz)]
