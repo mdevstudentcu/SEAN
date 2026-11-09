@@ -57,6 +57,22 @@ def _run(cmd: list[str], timeout: float = 5.0) -> str | None:
         return None
 
 
+def clock_status() -> str:
+    """One line on the host clock for meta.yaml: is chrony locked to PPS? Every timestamp in
+    the session depends on it (ASM-04). The Pi has no RTC, so before lock it can be far off."""
+    txt = _run(["chronyc", "-c", "tracking"])
+    rows = parse_chrony_csv(txt, TRACKING_FIELDS) if txt else []
+    if not rows:
+        return "clock at start: chronyc not available, sync unknown"
+    t = rows[0]
+    ok = t.get("ref_name") == "PPS" and t.get("leap_status") == "Normal"
+    return (
+        f"clock at start: {'locked to PPS' if ok else 'NOT locked to PPS'} "
+        f"(ref {t.get('ref_name')}, offset {t.get('system_time_s')} s, "
+        f"leap {t.get('leap_status')})"
+    )
+
+
 def cpu_times() -> tuple[int, int] | None:
     """(busy, total) jiffies from /proc/stat."""
     try:

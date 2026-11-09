@@ -455,6 +455,7 @@ def cmd_record(args) -> None:
     import threading
 
     from pnt.payload import config
+    from pnt.payload.devices import clock_status
     from pnt.payload.recorder import Recorder, session_name
     from pnt.payload.survey import load_reference
 
@@ -478,6 +479,9 @@ def cmd_record(args) -> None:
     stop = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     print(f"recording {folder} (Ctrl-C to stop)")
+    clock = clock_status()
+    if "NOT locked" in clock:
+        print(f"WARNING: {clock}: timestamps are not GPS time yet (wait for chrony, RUNBOOK A4)")
     if streamer:
         print(f"streaming on {streamer.endpoint}")
     meta = rec.run(args.duration, stop)
