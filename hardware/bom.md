@@ -12,21 +12,22 @@
 | Tier | Items | Cost |
 | --- | --- | --- |
 | Must buy | SDR A, SDR B, SMA pigtails | **$133.09** |
-| Buy only if not owned | Pi Zero 2 W | $69.28 |
+| Buy only if day-1 tests need the hub (ADR-0018) | Pi Zero 2 W | $69.28 |
 | Optional | Ground-reference SDR | $63.95 |
 
 ## 1. Payload: compute, timing and sensors
 
 | Item | Qty | Role | Source | Price | Status / notes |
 | --- | --- | --- | --- | --- | --- |
-| Raspberry Pi 3B+ (payload) | 1 | Records SDR IQ, GPS, sensors; streams to laptop | Team `TBC` | — | ADR-0018. USB 2 only, shared with Ethernet; 1.2 A USB budget (`TBC`) |
-| microSD card, ≥ 64 GB, A2 | 1 | OS + session logs. Raw IQ from one SDR at 2.4 MS/s is ~17 GB/h | Team `TBC` | — | Confirm size and speed |
-| Raspberry Pi Zero 2 W | 1 | Sensor hub: IMU, baro, PPS edge, Wi-Fi scans (ADR-0018) | Team `TBC`, else Buy: Amazon.ca | $69.28, overnight, **1 left** | PiShop.ca: out of stock (both variants). Plugs into the 3B+ by USB (data port) |
+| Raspberry Pi 4B (payload) | 1 | Records SDR IQ, GPS, sensors; streams to laptop | Team (owned) | — | ADR-0018. SDRs on the USB 2 ports (USB 3 noise, RSK-06); 5 V 3 A supply, heatsink or fan; USB current `TBC` |
+| Raspberry Pi 3B+ | 1 | Spare; candidate ground-reference receiver if base/rover is adopted (`TBC`) | Team (owned) | — | ADR-0018 |
+| microSD card, ≥ 64 GB, A2 (or a USB SSD) | 1 | OS + session logs. Raw IQ from one SDR at 2.4 MS/s is ~17 GB/h; both SDRs ~35 GB/h | Team `TBC` | — | Confirm size and speed |
+| Raspberry Pi Zero 2 W | 0–1 | Fallback sensor hub if day-1 tests fail on the 4B: IMU, baro, PPS edge, Wi-Fi scans (ADR-0018) | Team `TBC`, else Buy: Amazon.ca | $69.28, overnight, **1 left** | PiShop.ca: out of stock (both variants). Plugs into a 4B USB 2 port (data port) |
 | Adafruit Ultimate GPS HAT | 1 | GPS fix, PPS on GPIO4, truth outdoors | HON | — | ADR-0014 |
 | GPS active antenna, 28 dB, 5 m, SMA | 1 | Puts the GPS antenna on a mast away from SDR/USB noise (RSK-06) | HON | — | |
 | SMA to u.FL adapter cable | 1 | Antenna → HAT | HON | — | |
 | CR1220 coin cell | 1 | Keeps the HAT's RTC alive (faster fix) | Buy (any pharmacy) | `TBD` | Optional |
-| MPU6050 IMU, BMP280 barometer, jumpers | 1 kit | IMU + baro on the Zero's I2C | HON (Sensor Kit v4.0) | — | ADR-0014 |
+| MPU6050 IMU, BMP280 barometer, jumpers | 1 kit | IMU + baro on the Pi 4B's I2C (the Zero's, if the hub is used) | HON (Sensor Kit v4.0) | — | ADR-0014 |
 | Pi camera | 1 | Optional video log | Team | — | |
 | Heatsink + 5 V fan | 1 | Pi cooling under SDR load | HON | — | |
 
@@ -95,8 +96,8 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 
 | Item | Why |
 | --- | --- |
-| ESP32-S3 | None available; hub is a Pi Zero 2 W (ADR-0018). Wi-Fi FTM and FTM responders are dropped |
-| Raspberry Pi Pico 2W (HON) | Considered as the hub; the Zero runs the same Python and generated MAVLink as the recorder (ADR-0018) |
+| ESP32-S3 | None available; sensors go on the Pi 4B, Pi Zero 2 W hub as fallback (ADR-0018). Wi-Fi FTM and FTM responders are dropped |
+| Raspberry Pi Pico 2W (HON) | Considered as the hub; the Pi 4B (or the Zero fallback) runs the same Python and generated MAVLink as the recorder (ADR-0018) |
 | RTL-SDR Blog V3/V4, dipole kit, FM filter | Amazon.ca delivery Dec 21–25 |
 | Airspy Mini | Budget |
 | Flamingo FM band-stop filter ($46) | Skipped; VOR is 16.8 km away. Revisit only if the RF survey shows FM overload |
@@ -106,5 +107,6 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 
 ## Open decisions
 
-- Hub link over USB: serial or network gadget (ADR-0018, `TBC`).
-- USB current: two SDRs plus the Zero against the 3B+'s USB budget; measure with the DPS-150 (ADR-0018, `TBC`).
+- Hub needed at all: day-1 test of IMU jitter, CPU load, dropped samples and PPS offset on the 4B (ADR-0018, `TBD`). If yes, its USB link is serial or network gadget (`TBC`).
+- USB current: two SDRs (plus the Zero, if used) against the 4B's USB budget; measure with the DPS-150 (ADR-0018, `TBC`).
+- Where Wi-Fi scans run in flight without disturbing the ZeroMQ link (ADR-0018, `TBC`).
