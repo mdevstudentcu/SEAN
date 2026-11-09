@@ -91,7 +91,11 @@ ADR-0021 says "first" is never claimed and the wording stays "we found no publis
 - Countermeasure: a RAIM-style consistency score over subset positions, thresholded on an ROC curve. No protection level.
 - Rogue cellular base stations are in the adversary model but not implemented or evaluated. No tower clocks, timing attacks or cost-of-attack metric.
 
-**Tedeschi, Oligeri & Di Pietro, IEEE Access 2020 (JAM-ME).** **Full text not retrieved**: IEEE Access is open access, but every automated fetch was blocked. From the abstract and the authors' page only: a drone estimates a jammer's position from the jamming signal and uses it as a radio beacon to reach a target, in simulation, with about 70 % mission overhead under conservative assumptions. Whether it has any uncertainty bound or deceptive-jammer model is unknown until a person reads the PDF.
+**Tedeschi, Oligeri & Di Pietro, IEEE Access 2020 (JAM-ME).** Read in full (open access, CC BY), 2026-11-09, by the owner's browser session.
+- A drone with no other sensors (no IMU, explicitly) navigates on the received signal strength (RSS) of one jammer, using a free-space path-loss model with no multipath.
+- **It calibrates the jammer while GPS still works:** a PID controller flies the drone along the jamming boundary at constant RSS, and a circle fit of its GPS positions locates the jammer (25 m error after about 190 m of boundary flight). Inside the jammed area it flies on RSS alone and stops when RSS reaches the value expected at the target.
+- It assumes a constant-power, isotropic, stationary jammer. It names power-modulated and distance-adaptive jamming as the countermeasures that would defeat it, and doesn't defend against them.
+- There is no filter, no uncertainty bound or protection level, no fault detection, and no fusion with other sources. Evidence is MATLAB simulation only; a real-drone testbed is mentioned as future work.
 
 ### Second reading (P3, P5 lead claims), 2026-11-09
 
@@ -113,7 +117,7 @@ Read after the owner moved the pitch to P3 and P5. **It changes both verdicts: P
 - **Khalife, Maaref & Kassas, IEEE AES Magazine 2023** [Khalife 2023b] (*Opportunistic Autonomous Integrity Monitoring for Enhanced UAV Safety*). Read in full. Snapshot opportunistic ARAIM with a fault tree of up to three simultaneous faults; P_SOP 10⁻⁴ per tower and **P_const,SOP set to 0**, because no tower-group fault had been seen in their tests (they note this may be optimistic). Its experiment uses a base receiver for differential corrections and **assumes the base has a known position and clock and adds no common error**.
 - **Maaref, Khalife & Kassas, ACM/IEEE ICCPS 2019** (work-in-progress abstract, the conference precursor of Maaref 2020). Read in full (2 pages). A base with a known state estimates tower clocks and shares them; EKF with NIS outlier detection. The base is not a fault.
 - **Maaref & Kassas, IEEE T-IV 2020.** **Not retrievable**: no open copy found (author pages, NSF PAR, eScholarship hold only the 2019 precursor).
-- **JAM-ME (Tedeschi, Oligeri & Di Pietro 2020).** **Not retrievable** within our access rules: IEEE Access is open access, but the publisher blocks automated fetches, the HBKU and Manara repositories link only the DOI or refuse access, and there is no arXiv version. A person can open https://doi.org/10.1109/ACCESS.2019.2963105 in a browser.
+- **JAM-ME (Tedeschi, Oligeri & Di Pietro 2020).** Read in full on 2026-11-09 (see above).
 
 ### What they pre-empt in ADR-0021
 
@@ -126,7 +130,7 @@ Read after the owner moved the pitch to P3 and P5. **It changes both verdicts: P
 | P4 | Base/rover with collaborative integrity | **Partly**: a base estimating tower clocks inside an integrity framework is published (Maaref 2019, and Maaref 2020 as described by Maaref 2022); differencing itself is published [Khalife 2023] | The base as its own fault hypothesis (moved, clock step, lost, spoofed): both papers read assume the base is known and fault-free. An authenticated base link (ADR-0026). Maaref 2020 itself is still unread |
 | P5 | Time protection level | **Partly**: time protection levels for GNSS timing receivers are published (Kirkko-Jaakkola 2017; Lin 2024), including one bounded by oscillator holdover under spoofing (Baweja 2026) | A time protection level for time **held by signals of opportunity** through a GNSS outage, whose bound accounts for the towers being GNSS-timed; and the timing Stanford plot and report card against it. No paper found does this |
 | P6, P7, P9–P13 | Add-ons | Not addressed by these papers | Not checked here |
-| P8 | Hostile emitter as a low-trust beacon | JAM-ME, abstract only; full text not retrievable | A fused, gated, fault-hypothesised hostile beacon. Unchanged until a person reads JAM-ME |
+| P8 | Hostile emitter as a low-trust beacon | **Partly**: JAM-ME already uses a jammer as a navigation beacon and calibrates its position from GPS before entering the jammed area | A hostile emitter fused as one low-trust source among others in a filter, with gating, its own fault hypotheses (power modulation, moving, adaptive power: the very countermeasures JAM-ME names but doesn't handle) and a protection level. Nothing found does this |
 
 Two further corrections to our earlier wording:
 - **"Integrity groups assume benign towers" holds** for the three Kassas-group papers read: their faults are ranging errors, multipath and blocked line of sight. **"Security groups compute no protection levels" holds** for both KTH papers.
@@ -136,7 +140,7 @@ Two further corrections to our earlier wording:
 
 Each could still change a verdict.
 - Maaref & Kassas, IEEE T-IV 2020 (P4): not retrievable as open text.
-- JAM-ME (P8): not retrievable by an agent; needs a person with a browser.
+- JAM-ME (P8): read in full on 2026-11-09.
 - Full texts of Kirkko-Jaakkola 2017, Lin 2024 (P5), Crosara 2025 and Bai 2024 (P3): abstracts only.
 - An IEEE Xplore and ION full-text search for "signals of opportunity" with timing integrity or time spoofing. The web and arXiv searches done (2026-11-09) found the papers above and nothing that computes a time protection level for SoOP-held time or detects time-only spoofs from calibrated tower clocks.
 
