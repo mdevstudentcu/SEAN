@@ -112,3 +112,18 @@ def test_a_spoof_alarm_attribute_on_the_filter_takes_gnss_out():
     est = list(ekf.run(run.measurements, origin_llh=spec["origin_llh"], monitor=monitor))
     flagged = {f"mhss_excluded:{GNSS_CM}", f"mhss_alarm:{GNSS_CM}"}
     assert all(flagged & set(e.flags) for e in est[20:])
+
+
+def test_imu_samples_open_no_hypothesis():
+    # IMU records drive prediction only: MHSS output with and without them in the stream is the
+    # same for the constant-velocity filter, and no `layer:imu` hypothesis appears
+    from pnt.nav import ESTIMATORS, estimate
+    from pnt.sim.scenario import generate, load
+
+    spec = load("gps-outage")
+    run = generate(spec, seed=1)
+    without = [m for m in run.measurements if m.kind != "accel_gyro"]
+    assert len(without) < len(run.measurements)
+    a = list(estimate(ESTIMATORS["ekf-mhss"], run.measurements, spec["origin_llh"]))
+    b = list(estimate(ESTIMATORS["ekf-mhss"], without, spec["origin_llh"]))
+    assert [(e.pos_enu, e.hpl_m, e.flags) for e in a] == [(e.pos_enu, e.hpl_m, e.flags) for e in b]
