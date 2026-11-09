@@ -1,6 +1,6 @@
 # ADR-0012: RC stays the safety layer; scripted flights first
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0028
 - **Date:** 2026-11-08
 - **Deciders:** team
 - **Traces to:** REQ-09, RSK-01, RSK-09

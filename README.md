@@ -42,7 +42,7 @@ Open any `.mcap` in [Foxglove](https://foxglove.dev) to inspect truth, measureme
 | [`systems/`](systems/README.md) | Requirements, assumptions, decisions, interfaces, risks, safety, verification: the engineering record |
 | [`src/pnt/`](src/pnt) | The Python package: core types, sources, sim, front-ends, nav, integrity, payload, dashboard |
 | [`firmware/`](firmware) | Superseded ESP32-S3 hub firmware (ADR-0018) |
-| [`flight/`](flight) | ArduPilot parameters, scripted missions, SITL |
+| [`flight/`](flight) | INAV pre-flight notes (ADR-0028); ArduPilot parameters, scripted missions and SITL for the sim only |
 | [`deploy/pi/`](deploy/pi) | Raspberry Pi setup |
 | [`analysis/`](analysis) | Monte Carlo and figures |
 | [`hardware/`](hardware) | CAD, wiring, link to the payload spec |

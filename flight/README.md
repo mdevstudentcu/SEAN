@@ -1,6 +1,6 @@
 # Flight
 
-ArduPilot does the flying; we configure it and script it (ADR-0012).
+The real drone flies INAV on the iFlight BLITZ ATF435, pilot-flown with an RC kill switch (ADR-0028). The ArduPilot files below are for SITL only: they make trajectories for the sim and try "our nav in the loop" with no crash risk.
 
 | Folder | |
 | --- | --- |
@@ -8,4 +8,4 @@ ArduPilot does the flying; we configure it and script it (ADR-0012).
 | `missions/fly.py` | Scripted patterns over MAVLink. The pilot arms, takes off and selects GUIDED; the script stops the moment the mode changes. Only `--sitl` arms by itself |
 | `sitl/` | ArduPilot software-in-the-loop: test scripts, generate realistic trajectories, and try "our nav in the loop" (level 2) with no crash risk |
 
-Pre-flight (indoor): netted area · prop guards · RC kill switch tested · geofence on · battery failsafe → LAND · payload secured · `VIBE` checked after first hover.
+Pre-flight (indoor, INAV): netted area · prop guards · RC kill switch tested · INAV failsafe (RC loss → land) set and tested · geofence if the INAV version supports it (`TBC`) · optical-flow position hold checked in a low hover · payload secured · INAV MAVLink telemetry reaching the recorder (`/mavlink/fc`).
