@@ -193,7 +193,7 @@ class HealthMonitor:
         self.tal = time_alert_limit_s
         self.t0_ns = t0_ns
         self.alerts: dict[int, Alert] = {}
-        self._open: dict[str, int] = {}  # key -> id of its unacknowledged or still-active alert
+        self._open: dict[str, int] = {}  # key -> id of its alert, until acknowledged and cleared
         self._next_id = 1
         self._hpl: deque[tuple[float, float]] = deque()
         self._tpl: deque[tuple[float, float]] = deque()
@@ -217,8 +217,12 @@ class HealthMonitor:
         if status in STATUS and status != "degraded":
             current[f"status:{status}"] = STATUS[status]
         self.settled = self.settled or status == "nominal" or t >= STARTUP_MAX_S
+        for key, aid in list(self._open.items()):
+            a = self.alerts[aid]
+            if a.acked and not a.active and t - a.last_s > CLEAR_HOLD_S:
+                self._forget(key)  # a return from here on is a new occurrence
         for key, (sev, text) in current.items() if self.settled else ():
-            aid = self._open.get(key)  # a cleared, acknowledged alert is already forgotten
+            aid = self._open.get(key)
             if aid is None:
                 aid = self._next_id
                 self._next_id += 1
@@ -231,8 +235,6 @@ class HealthMonitor:
         for key, aid in list(self._open.items()):
             if key not in current:
                 self.alerts[aid].active = False
-                if self.alerts[aid].acked:
-                    self._forget(key)
         tta_h = self._trend(self._hpl, t, hpl, self.al)
         tta_t = self._trend(self._tpl, t, tpl_s, self.tal)
         trust = dict(sorted(est.trust.items()))
@@ -285,12 +287,11 @@ class HealthMonitor:
 
     def acknowledge(self, alert_id: int | None = None) -> None:
         """Acknowledge one alert, or all with None. A cleared alert then leaves the panel; an
-        active one stays (marked acknowledged) until it clears."""
-        for a in list(self.alerts.values()):
+        active one stays (marked acknowledged) until it clears. Either is remembered for
+        CLEAR_HOLD_S after it clears, so a brief clear does not bring it back unacknowledged."""
+        for a in self.alerts.values():
             if alert_id is None or a.id == alert_id:
                 a.acked = True
-                if not a.active:
-                    self._forget(a.key)
 
     def _forget(self, key: str) -> None:
         aid = self._open.pop(key, None)
