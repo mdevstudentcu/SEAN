@@ -77,6 +77,17 @@ def test_mhss_hypotheses_in_words():
     assert "network builder rogers" in describe("mhss_alarm:builder:rogers")[1]
 
 
+def test_no_latching_during_start_up():
+    mon = HealthMonitor(50.0, 1.5e-6)
+    s = mon.update(_est(0.0, flags=["gnss_unavailable"], status="unsafe", hpl=90.0))
+    assert s["alerts"] == [] and s["causes"] and not s["settled"]
+    assert mon.update(_est(0.1))["settled"]
+    stuck = HealthMonitor(50.0, 1.5e-6, t0_ns=0)  # never nominal: latches after STARTUP_MAX_S
+    assert stuck.update(_est(0.0, flags=["gnss_unavailable"], status="degraded"))["alerts"] == []
+    s = stuck.update(_est(health.STARTUP_MAX_S, flags=["gnss_unavailable"], status="degraded"))
+    assert [a["key"] for a in s["alerts"]] == ["gnss_unavailable"]
+
+
 def test_alert_latches_until_acknowledged():
     mon = HealthMonitor(50.0, 1.5e-6)
     mon.update(_est(0.0))
@@ -90,6 +101,7 @@ def test_alert_latches_until_acknowledged():
 
 def test_acknowledged_active_alert_stays_until_it_clears():
     mon = HealthMonitor(50.0, 1.5e-6)
+    mon.update(_est(-1.0))  # settled
     mon.update(_est(0.0, status="unsafe", hpl=80.0))
     mon.acknowledge()
     s = mon.update(_est(0.1, status="unsafe", hpl=80.0))
@@ -101,7 +113,8 @@ def test_acknowledged_active_alert_stays_until_it_clears():
 
 
 def test_brief_clear_is_the_same_occurrence():
-    mon = HealthMonitor(50.0, 1.5e-6)
+    mon = HealthMonitor(50.0, 1.5e-6, t0_ns=0)
+    mon.update(_est(-1.0))  # settled
     for t, on in [(0.0, True), (0.5, False), (1.0, True), (10.0, False), (20.0, True)]:
         s = mon.update(_est(t, status="unsafe" if on else "nominal", hpl=60.0 if on else 40.0))
     (a,) = s["alerts"]
