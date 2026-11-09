@@ -31,6 +31,9 @@ REPO = Path(__file__).resolve().parents[3]
 COMMIT_FILE = REPO / ".pnt-commit"  # written by `just pi-deploy`: the Pi copy has no .git
 STATUS_PERIOD_S = 10.0  # device counters to /events this often
 META_PERIOD_S = 1.0  # session meta on the stream this often
+# End the MCAP chunk in progress this often, so a cut-off session loses at most this long of
+# records even when they come too slowly to fill a chunk. Regression guard, not a requirement.
+FLUSH_PERIOD_S = 5.0
 
 
 class Device(Protocol):
@@ -243,7 +246,7 @@ class Recorder:
 
     def _drain(self) -> None:
         """The one thread that writes the MCAP and the stream."""
-        last_status = last_meta = time.monotonic()
+        last_status = last_meta = last_flush = time.monotonic()
         while True:
             try:
                 item = self.ctx.queue.get(timeout=0.2)
@@ -260,6 +263,9 @@ class Recorder:
             if self.ctx.origin_changed.is_set():
                 self.ctx.origin_changed.clear()
                 self._write_meta()
+            if now - last_flush >= FLUSH_PERIOD_S:
+                last_flush = now
+                self._writer.flush()
             if self.streamer and now - last_meta >= META_PERIOD_S:
                 last_meta = now
                 self.streamer.send_meta(self.meta(), self.ctx.receiver)
