@@ -68,7 +68,9 @@ def process_capture(cap: Capture, cfg: Config | None = None, receiver: str = "pa
     cells: list[CellTrack] = []
     found_log: list[tuple[int, Found]] = []
     for seg in cap.segments:
-        cells += _segment(cap, seg, gaps, cfg, carry, found_log)
+        for cell in _segment(cap, seg, gaps, cfg, carry, found_log):
+            if all(cell is not c for c in cells):  # a cell carried across hops is listed once
+                cells.append(cell)
     meas = emit(cells, cap, gaps, cfg, receiver)
     return Result(
         measurements=meas,
@@ -234,3 +236,72 @@ def _doppler(group, fs: float, fc: float) -> tuple[float, float] | None:
     f = f_hat + slope * fs / (2 * np.pi)
     sigma_f = math.sqrt(1 / sxx) * fs / (2 * np.pi)
     return float(-C * f / fc), float(C * sigma_f / fc)
+
+
+def write_session(
+    result: Result,
+    cap: Capture,
+    out: Path,
+    commit: str,
+    copy_from: Path | None = None,
+) -> Path:
+    """Write the measurements as a session (ICD-session) that `pnt replay` reads.
+
+    `out` is a new folder (meta.yaml + session.mcap) or a bare `.mcap`. With `copy_from` (the
+    capture's own session folder), its meta and every record except this dongle's earlier
+    `/meas/lte` output are copied too, so the new session replays with IMU, baro and GNSS."""
+    from pnt.io import session
+    from pnt.io.mcap_log import SessionWriter, read_session
+
+    src_meta: dict = {}
+    records: list = []
+    if copy_from is not None and (copy_from / session.MCAP_NAME).exists():
+        src_meta = session.read_meta(copy_from)
+        for topic, rec in read_session(copy_from / session.MCAP_NAME):
+            drop = topic == "/meas/lte" and getattr(rec, "meta", {}).get("rx_clock") == cap.dongle
+            if not drop:
+                records.append((topic, rec))
+    note = f"LTE front end on {cap.path.name} at {commit}"
+    meta = {k: src_meta.get(k) for k in session.META_KEYS}
+    meta.update(
+        name=out.stem if out.suffix == ".mcap" else out.name,
+        commit=commit,
+        simulated=bool(src_meta.get("simulated", False)),
+        hardware=src_meta.get("hardware") or [],
+        notes=(f"{src_meta['notes']}; {note}" if src_meta.get("notes") else note),
+    )
+    if out.suffix == ".mcap":
+        mcap = out
+    else:
+        out.mkdir(parents=True, exist_ok=True)
+        session.write_meta(out, meta)
+        mcap = out / session.MCAP_NAME
+    mcap_meta = {k: v for k, v in meta.items() if v is not None and k != "name"}
+    with SessionWriter(mcap, metadata=mcap_meta) as w:
+        for topic, rec in records:
+            w.write(topic, rec)
+        for m in result.measurements:
+            w.write("/meas/lte", m)
+    return out
+
+
+def summary(result: Result, cap: Capture) -> str:
+    lines = [
+        f"{cap.path.name}: {result.capture_s:.1f} s at {cap.fs / 1e6:g} MS/s, "
+        f"{len(cap.segments)} segment(s), dongle {cap.dongle}",
+        f"processed in {result.elapsed_s:.1f} s ({result.realtime_factor:.1f}x real time)",
+    ]
+    for c in result.cells:
+        pr = [e for e in c.epochs]
+        cfo = -np.mean([e.nu for e in pr]) * c.fc if pr else float("nan")
+        lines.append(
+            f"  lte:{c.earfcn}:{c.pci}  SNR {c.snr_db:6.1f} dB  CFO {cfo:8.1f} Hz "
+            f"({cfo / c.fc * 1e6:+.3f} ppm)  {len(pr) * 5 / 1000:6.1f} s tracked  arcs {c.arc + 1}"
+        )
+    for g in result.gaps:
+        kind = "ambiguous (no buffer stamps)" if g.ambiguous else "sized"
+        lines.append(f"  gap at sample {g.at}: {g.n} samples dropped, {kind}")
+    n_pr = sum(m.kind == "pseudorange" for m in result.measurements)
+    n_dop = sum(m.kind == "doppler" for m in result.measurements)
+    lines.append(f"{n_pr} pseudoranges, {n_dop} dopplers")
+    return "\n".join(lines)
