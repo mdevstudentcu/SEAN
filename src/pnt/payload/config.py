@@ -46,7 +46,7 @@ def build(args) -> list:
     """The device list for `pnt record` (absent hardware is found by each device's probe)."""
     devices: list = [Health()]
     if not args.no_gnss:
-        devices.append(Gpsd(port=args.gpsd_port))
+        devices.append(Gpsd(port=args.gpsd_port, hardware=args.gnss_hw))
     if not args.no_imu:
         devices.append(Mpu6050(rate_hz=args.imu_rate))
     if not args.no_baro:

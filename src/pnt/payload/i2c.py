@@ -16,6 +16,7 @@ import os
 import struct
 import threading
 import time
+from pathlib import Path
 
 from pnt.core.measurement import Measurement
 from pnt.core.time import now_gps_ns
@@ -55,6 +56,20 @@ class LinuxI2C:
         if self._fd is not None:
             os.close(self._fd)
             self._fd = None
+
+    def not_here(self) -> str | None:
+        """Why this bus must not be probed: only a Raspberry Pi's bus has our sensors. On a
+        laptop, i2c-N is a SMBus with other parts at the same addresses, and configuring one
+        would write to them."""
+        try:
+            model = Path("/proc/device-tree/model").read_text()
+        except OSError:
+            model = ""
+        if "Raspberry Pi" not in model:
+            return "not a Raspberry Pi: I2C sensors are only probed on the Pi"
+        if not Path(self.path).exists():
+            return f"{self.path} missing (I2C off? raspi-config nonint do_i2c 0)"
+        return None
 
 
 def _white_sigma(density: float, fs: float) -> float:
@@ -104,6 +119,8 @@ class Mpu6050:
         self.sigma = (sa, sa, sa, sg, sg, sg)
 
     def probe(self) -> str | None:
+        if isinstance(self.bus, LinuxI2C) and (why := self.bus.not_here()):
+            return why
         try:
             who = self.bus.read(self.addr, self.WHO_AM_I, 1)[0]
         except OSError as exc:
@@ -216,6 +233,8 @@ class Bmp280:
         self.cal: tuple | None = None
 
     def probe(self) -> str | None:
+        if isinstance(self.bus, LinuxI2C) and (why := self.bus.not_here()):
+            return why
         for addr in (self.addr,) if self.addr else (0x76, 0x77):
             try:
                 chip = self.bus.read(addr, self.CHIP_ID, 1)[0]
