@@ -11,17 +11,21 @@ Pipeline, per carrier segment of a capture (`capture.Segment`):
    half-frame starts the frame. The carrier offset is refined from the SSS-to-PSS phase.
 3. **Tracking** (`_Track`): every 5 ms the received SSS and PSS symbols are FFT'd and divided by
    the known sequences. The 124 products give the correlation as a function of delay,
-   evaluated on a 1/8-sample grid by a zero-padded inverse FFT: the exact band-limited
-   interpolation of the correlation, so the sub-sample peak has no shape bias, unlike a parabola
-   through the 2-samples-per-chip raw correlation. A 2-state Kalman loop (boundary offset and
-   its rate) predicts each epoch; its rate is aided by the carrier phase from epoch to epoch,
-   because the dongle's LO and sample clock share one TCXO: the carrier offset and the code
-   rate are the same clock (`rx_clock` in the measurement meta).
+   evaluated on a 1/8-sample grid by a zero-padded inverse FFT (the exact band-limited
+   interpolation), then a parabola through the grid peak. Measured on synthetic +20 dB captures
+   (analysis/lte_frontend_sigma.py), a parabola through the raw samples (`interp=1`) is as good
+   (RMS 1.02 m against 1.12 m, no visible S-curve), so the grid is kept for the first-path
+   search, which needs the profile between samples, not for the peak. A phase-slope fit across
+   the 62 subcarriers is the same estimator in another form. A 2-state Kalman loop (boundary
+   offset and its rate) predicts each epoch; its rate is aided by the carrier phase from epoch
+   to epoch, because the dongle's LO and sample clock share one TCXO: the carrier offset and
+   the code rate are the same clock (`rx_clock` in the measurement meta).
 4. **First path**: an averaged delay profile is checked for an earlier path that is clearly not a
    sidelobe of the tracked one; if found, the loop moves to it.
-5. **Gaps**: dropped USB samples step the receiver clock. A loss of lock or a step in the code
-   innovations triggers a re-search near the prediction; the step (modulo a frame, or whole
-   with the sidecar's buffer stamps) is the number of samples dropped.
+5. **Gaps**: dropped USB samples step the receiver clock. A loss of lock (a step beyond the
+   code gate fails the gate) triggers a re-search near the prediction; the step (modulo a
+   frame, or whole with the sidecar's buffer stamps) is the number of samples dropped. Steps
+   smaller than the gate at low SNR can be absorbed by the loop instead (not tested).
 
 Every threshold below that is not from the standard is a regression guard (`TBC`), picked on
 synthetic captures; the real values come from the day-1 static capture.
