@@ -1039,3 +1039,18 @@ def test_pnt_live_with_origin_says_unknown_if_the_payload_never_spoke(tmp_path):
     meta = session.read_meta(out)
     assert meta["platform"] == "unknown" and meta["hardware"] == ["unknown"]
     assert "payload commit unknown" in meta["notes"] and "None" not in meta["notes"]
+
+
+def test_survey_without_fixes_exits_cleanly(tmp_path):
+    # A session recorded with no GPS (e.g. on a laptop) has no origin: one clear line, no traceback
+    from pnt.cli import main
+    from pnt.io.mcap_log import SessionWriter
+    from pnt.io.session import write_meta
+
+    folder = tmp_path / "s"
+    folder.mkdir()
+    SessionWriter(folder / "session.mcap").close()
+    write_meta(folder, {"platform": "static"})
+    with pytest.raises(SystemExit) as e:
+        main(["survey", str(folder)])
+    assert str(e.value).startswith("survey: ")
