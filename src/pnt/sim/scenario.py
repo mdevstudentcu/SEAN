@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import csv
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -17,7 +17,7 @@ import yaml
 from pnt.core.frames import enu_to_llh, llh_to_enu
 from pnt.core.measurement import Measurement, Truth
 from pnt.core.time import s_to_ns, utc_to_gps_ns
-from pnt.sim import attacks, models, trajectory
+from pnt.sim import attacks, models, sensors, trajectory
 
 SCENARIO_DIR = Path(__file__).parent / "scenarios"
 SET_DIR = SCENARIO_DIR / "sets"
@@ -47,6 +47,9 @@ BUILDERS = ("telus-built", "rogers", "videotron")
 # Random streams of their own, so tower grouping and tower clocks can be rebuilt from the seed
 # alone and leave every other draw in `generate` as it was.
 _GROUP_STREAM, _TOWER_CLOCK_STREAM = 220, 221
+# The IMU's own random stream, for the same reason: adding an IMU to a scenario changes no other
+# source's draws, so estimators that ignore the IMU see the same run with or without it.
+_IMU_STREAM = 222
 
 
 @dataclass
@@ -209,6 +212,8 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
             meas += models.gnss(ts_ns, pos, rng, clock_s=clock_s, **cfg)
         elif model == "baro":
             meas += models.baro(ts_ns, pos, rng, **cfg)
+        elif model == "imu":
+            meas += _imu(traj, ts, ts_ns, np.random.default_rng([seed, _IMU_STREAM]), cfg)
         elif model == "pseudorange":
             em_llh = cfg.pop("emitters_llh", None)
             if "towers_from" in cfg:
@@ -280,6 +285,16 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter, m.receiver))
     meta = None if ref is None else ref.meta()
     return SimRun(spec["name"], spec, seed, truth, meas, events, emitters, tower_clk, meta)
+
+
+def _imu(traj: dict, ts: np.ndarray, ts_ns: np.ndarray, rng, cfg: dict) -> list[Measurement]:
+    """`accel_gyro` records from the payload's IMU (`sensors.MPU6050`; any of its `ImuParams`
+    fields can be overridden in the scenario, e.g. for a worse grade). Needs a trajectory with
+    finite acceleration (`trajectory.kinematics`), so not `square`."""
+    params = replace(sensors.MPU6050, **cfg) if cfg else sensors.MPU6050
+    k = trajectory.kinematics(traj, ts)
+    accel, gyro = sensors.imu(ts, k.specific_force_b, k.omega_b, rng, params)
+    return sensors.imu_measurements(ts_ns, accel, gyro, params)
 
 
 def tower_groups(spec: dict, seed: int = 0) -> tuple[dict[str, str], dict[str, str]]:

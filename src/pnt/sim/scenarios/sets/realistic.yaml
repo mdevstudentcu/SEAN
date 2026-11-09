@@ -12,6 +12,7 @@ clock: {drift_ppb: 20, rw_ns: 2.0}
 sources:
   gnss: {rate_hz: 5, sigma_m: 2.5, time_sigma_ns: 20, health: true}
   baro: {rate_hz: 10, sigma_m: 0.5}
+  imu: {rate_hz: 100}   # MPU6050 (ADR-0014, sim/sensors.py); rate TBC until the Pi 4B day-1 test (ADR-0018)
   lte:
     model: pseudorange
     rate_hz: 1
@@ -39,6 +40,7 @@ provenance:
   clock: TBC
   gnss: TBC
   baro: TBC
+  imu: TBC   # MPU6050: noise datasheet, the rest literature (sim/sensors.py)
   lte_noise: TBC
   lte_geometry: literature   # ISED site registry (data/reference/README.md)
   tower_clocks: TBC   # form: Shamaei et al. 2018; grouping: ADR-0022; sizes unsourced
