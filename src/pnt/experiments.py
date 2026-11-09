@@ -13,7 +13,7 @@ import itertools
 import numpy as np
 
 from pnt.metrics import score
-from pnt.nav import ESTIMATORS
+from pnt.nav import estimate
 from pnt.sim.scenario import T0_NS, generate, load
 
 # Oscillator grades for the grid, as a clock drift in ppb. TBC until our radio's is measured.
@@ -23,7 +23,7 @@ OSCILLATORS = {"tcxo": 100.0, "ocxo": 5.0}
 def _run(spec: dict, estimator: str, seed: int, drop: str | None = None):
     run = generate(spec, seed=seed)
     meas = [m for m in run.measurements if drop is None or m.emitter != drop]
-    estimates = ESTIMATORS[estimator](meas, origin_llh=spec.get("origin_llh"))
+    estimates = estimate(estimator, meas, origin_llh=spec.get("origin_llh"))
     return run, score(list(estimates), run.truth, spec, T0_NS)
 
 

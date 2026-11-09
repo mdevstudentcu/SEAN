@@ -15,7 +15,7 @@ from pnt.core.time import s_to_ns
 from pnt.io import session
 from pnt.io.mcap_log import SessionWriter, read_session
 from pnt.metrics import score, summarize
-from pnt.nav import ESTIMATORS
+from pnt.nav import ESTIMATORS, estimate
 from pnt.sim.scenario import T0_NS, expand, generate, load, load_named, scenario_names
 from pnt.viz import default_output, write_viz
 
@@ -49,8 +49,7 @@ def _fmt(metrics: dict) -> str:
 def cmd_sim(args) -> None:
     spec = load(args.scenario)
     run = generate(spec, seed=args.seed)
-    estimator = ESTIMATORS[args.estimator]
-    estimates = list(estimator(run.measurements, origin_llh=spec.get("origin_llh")))
+    estimates = list(estimate(args.estimator, run.measurements, origin_llh=spec.get("origin_llh")))
     m = score(estimates, run.truth, spec, T0_NS)
 
     SESSIONS.mkdir(parents=True, exist_ok=True)
@@ -116,7 +115,7 @@ def _eval(scenario: str, runs: int, estimator: str) -> dict:
     results = []
     for seed in range(runs):
         run = generate(spec, seed=seed)
-        estimates = ESTIMATORS[estimator](run.measurements, origin_llh=spec.get("origin_llh"))
+        estimates = estimate(estimator, run.measurements, origin_llh=spec.get("origin_llh"))
         results.append(score(list(estimates), run.truth, spec, T0_NS))
     return summarize(results)
 
@@ -148,7 +147,7 @@ def cmd_replay(args) -> None:
     mcap = session.mcap_path(args.path)
     meas = (r for _, r in read_session(mcap, topics=["/meas/"]) if isinstance(r, Measurement))
     origin = session.read_meta(args.path).get("origin_llh")
-    estimates = list(ESTIMATORS[args.estimator](meas, origin_llh=origin))
+    estimates = list(estimate(args.estimator, meas, origin_llh=origin))
     truth = [r for _, r in read_session(mcap, topics=["/truth"])]
     print(f"replayed {args.path}: {len(estimates)} estimates")
     if truth:

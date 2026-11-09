@@ -31,7 +31,7 @@ from pnt.core.measurement import Estimate, Measurement, Truth
 from pnt.core.time import gps_ns_to_unix_ns, s_to_ns
 from pnt.io import session as session_io
 from pnt.io.mcap_log import read_session
-from pnt.nav import ESTIMATORS
+from pnt.nav import ESTIMATORS, estimate
 
 ALARM_FLAGS = {"gnss_excluded", "spoof_suspected", "time_spoof_suspected"}
 STATUS_CODE = {"nominal": 0, "degraded": 1, "unsafe": 2}
@@ -219,7 +219,7 @@ def write_viz(
                 f"{path} has no estimates on {nav_topic}, and {estimator!r} is not an estimator "
                 f"to re-run (choose from {sorted(ESTIMATORS)})"
             )
-        estimates = list(ESTIMATORS[estimator](meas, origin_llh=origin))
+        estimates = list(estimate(estimator, meas, origin_llh=origin))
         if not estimates:
             raise ValueError(
                 f"{path} has no estimates on {nav_topic}, and re-running {estimator} over its "
