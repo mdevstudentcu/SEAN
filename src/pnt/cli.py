@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import multiprocessing
 import os
 import re
 import subprocess
@@ -134,12 +135,15 @@ def _eval_runs(scenario: str, seeds: list[int], estimator: str) -> list:
 def _eval(scenario: str, runs: int, estimator: str, jobs: int = 1) -> dict:
     """Monte Carlo over seeds 0..runs-1. With `jobs` > 1 the seeds run in that many processes.
     Each seed is independent and the results keep seed order, so the summary is identical to a
-    serial run."""
+    serial run. Workers start from a forkserver, so a script that calls this with `jobs` > 1
+    needs an `if __name__ == "__main__":` guard."""
     seeds = list(range(runs))
     jobs = max(1, min(jobs, runs))
     if jobs == 1:
         return summarize(_eval_runs(scenario, seeds, estimator))
-    with ProcessPoolExecutor(jobs) as pool:
+    # forkserver: forking a process that already runs threads (pytest-xdist, BLAS) can deadlock
+    ctx = multiprocessing.get_context("forkserver")
+    with ProcessPoolExecutor(jobs, mp_context=ctx) as pool:
         parts = pool.map(_eval_runs, [scenario] * runs, [[s] for s in seeds], [estimator] * runs)
         return summarize([r for part in parts for r in part])
 
