@@ -23,6 +23,12 @@ share is one more unknown: without GNSS time it is observable only as one common
 towers, which costs one tower's worth of geometry, as a GNSS receiver needs a fourth satellite
 for its clock. While GNSS time is trusted it anchors the split between our clock and the towers'.
 
+A real record names its radio's clock in `meta.rx_clock` (#121). An RTL-SDR is its own oscillator,
+not the GNSS-disciplined clock above, so each name gets its own (offset, drift) block, used in
+place of `c*dt` for that record. Its offset starts at zero with a tight prior, because only
+differences between dongle and site clocks are observable. `meta.site`, if present, adds the
+emitter to `sites`.
+
 Tower clocks (ADR-0022, Proposed) have two models, picked with `clock_model`:
 - "independent" (default, the model before ADR-0022): one clock offset per clock, a random walk
   (`q_emitter`). Such a clock is free to absorb its own tower's error, so it adds no
@@ -201,6 +207,8 @@ class EKF:
         clock_model: str = "independent",  # or "calibrated" (ADR-0022, Proposed)
         sites: Mapping[str, str] | None = None,  # emitter -> site; default one site per emitter
         builders: Mapping[str, str] | None = None,  # site -> network builder; default none
+        rx_clock_drift_sigma: float = 150.0,  # m/s (0.5 ppm): a dongle's first-sight drift (TBC)
+        rx_clock_wander: float = 0.5,  # m/s per sqrt(s): dongle frequency wander (TBC, day-1)
         tower_h0: float = 2.6e-22,  # s: tower oscillator, coasting (Shamaei 2018, TBC)
         tower_h_2: float = 4e-26,  # 1/s: tower oscillator, coasting (Shamaei 2018, TBC)
         calib_q_offset: float = 0.2,  # m/sqrt(s): extra offset noise while calibrating (TBC)
@@ -248,6 +256,9 @@ class EKF:
         self.width = 2 if self.calibrated else 1  # states per clock block: offset (, drift)
         self.sites = dict(sites or {})
         self.builders = dict(builders or {})
+        self.rx_idx: dict[str, int] = {}  # meta.rx_clock -> index of its (offset, drift) block
+        self.rx_prior = (1.0, rx_clock_drift_sigma)  # m, m/s
+        self.s_rx = (0.1, rx_clock_wander**2)  # m^2/s (TBC), m^2/s^3
         self.s_tower = (C**2 * tower_h0 / 2.0, C**2 * 2.0 * np.pi**2 * tower_h_2)  # m^2/s, m^2/s^3
         self.s_calib = (calib_q_offset**2, calib_q_drift**2)
         self.init_tower_drift_sigma = init_tower_drift_sigma
@@ -390,6 +401,12 @@ class EKF:
                 pos = self.position_idx[site] = (i, np.array(los[:2], float))
         return mp, pos
 
+    def rx_clock_block(self, name: str) -> int:
+        """Index of the (offset, drift) block of the radio clock `name`, added on first sight."""
+        if name not in self.rx_idx:
+            self.rx_idx[name] = self._append_states([0.0, 0.0], self.rx_prior)
+        return self.rx_idx[name]
+
     def clock_offsets(self, emitter: str, residual: float) -> tuple[list[int], bool]:
         """State indices of the clock offsets in this emitter's pseudorange, adding blocks on
         first sight. `residual` (pseudorange minus range and receiver clock) seeds a new block.
@@ -526,6 +543,9 @@ class EKF:
             for i, s in self.multipath_sigma.items():
                 F[i - base, i - base] = phi
                 Q[i - base, i - base] = s**2 * (1.0 - phi**2)
+        for i in self.rx_idx.values():
+            F[i - base, i - base + 1] = dt
+            Q[i - base : i - base + 2, i - base : i - base + 2] = _two_state_q(*self.s_rx, dt)
 
     # --- rollback (calibrated model) -----------------------------------------------------------
     def _snapshot(self) -> None:
@@ -579,6 +599,9 @@ class EKF:
         for key, i in self.clock_idx.items():
             if i >= c + k:  # first seen after the snapshot: back to its first-sight prior
                 P[i : i + 2, i : i + 2] = np.diag(np.square(self._clock_prior[key]))
+        for i in self.rx_idx.values():
+            if i >= N_CORE + k:
+                P[i : i + 2, i : i + 2] = np.diag(np.square(self.rx_prior))
         for i, s in self.multipath_sigma.items():  # the same for the tower error states
             if i >= c + k:
                 P[i, i] = s**2
@@ -903,8 +926,13 @@ def _pseudorange(ekf: EKF, m: Measurement):
     d = ekf.x[POS] - e
     r = float(np.linalg.norm(d))
     u = d / r  # line of sight, tower to receiver
+    if "site" in m.meta:
+        ekf.sites.setdefault(m.emitter, m.meta["site"])
     mp, pos = ekf.tower_states(m.emitter, m.sigma[0], u)
-    rx = ekf.x[CLK] if ekf.pr_rx_clock else 0.0
+    name = m.meta.get("rx_clock")
+    rx_i = CLK if name is None else ekf.rx_clock_block(name)
+    use_rx = name is not None or ekf.pr_rx_clock
+    rx = ekf.x[rx_i] if use_rx else 0.0
     h = u  # d(range)/d(position)
     if mp is not None:
         rx += ekf.x[mp]  # the residual and the prediction carry the tower error states too
@@ -917,8 +945,8 @@ def _pseudorange(ekf: EKF, m: Measurement):
     idx, new = ekf.clock_offsets(m.emitter, m.value[0] - r - rx)
     H = _row(ekf)
     H[0, POS] = h
-    if ekf.pr_rx_clock:
-        H[0, CLK] = 1.0
+    if use_rx:
+        H[0, rx_i] = 1.0
     if mp is not None:
         H[0, mp] = 1.0
     if pos is not None:
