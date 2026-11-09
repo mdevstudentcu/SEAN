@@ -31,6 +31,14 @@ replay path:
 plot path *args="":
     {{py}} pnt plot {{path}} {{args}}
 
+# Replay a session on the operator panel at http://127.0.0.1:8050 (e.g. --speed 4)
+dash path *args="":
+    {{py}} pnt dash {{path}} {{args}}
+
+# Predict protection levels along a scenario's route; --compare 50 checks it against real runs
+preflight scenario *args="":
+    {{py}} pnt preflight {{scenario}} {{args}}
+
 # Write a Foxglove companion file for a session (see analysis/README.md)
 viz path:
     {{py}} pnt viz {{path}}

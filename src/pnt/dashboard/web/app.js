@@ -151,6 +151,7 @@ function drawMap() {
   }
   // scale bar + north
   const bar = niceStep(w / v.scale, 5);
+  ctx.fillStyle = C.surface; ctx.fillRect(10, h - 38, bar * v.scale + 12, 30);
   ctx.strokeStyle = C.ink2; ctx.fillStyle = C.ink2; ctx.lineWidth = 2; ctx.font = "11px system-ui";
   ctx.beginPath(); ctx.moveTo(16, h - 18); ctx.lineTo(16 + bar * v.scale, h - 18); ctx.stroke();
   ctx.fillText(fmtDist(bar), 16, h - 24);
@@ -219,7 +220,10 @@ function drawChart(canvas, { series, limit, unit, scale = 1, shade = [], tmax, e
   // alert limit
   ctx.strokeStyle = C.critical; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
   ctx.beginPath(); ctx.moveTo(L, Y(limit)); ctx.lineTo(w - R, Y(limit)); ctx.stroke(); ctx.setLineDash([]);
-  ctx.fillStyle = C.ink2; ctx.fillText(`alert limit ${+(limit * scale).toPrecision(3)}${unit}`, L + 6, Y(limit) - 5);
+  const alText = `alert limit ${+(limit * scale).toPrecision(3)}${unit}`;
+  ctx.textAlign = "right"; ctx.fillStyle = C.surface;
+  ctx.fillRect(w - R - ctx.measureText(alText).width - 8, Y(limit) - 17, ctx.measureText(alText).width + 6, 14);
+  ctx.fillStyle = C.ink2; ctx.fillText(alText, w - R - 5, Y(limit) - 6); ctx.textAlign = "left";
   for (const s of series) {
     ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.setLineDash(s.dash || []); ctx.beginPath();
     let pen = false;
@@ -287,9 +291,13 @@ function chips(obj, low) {
   if (!keys.length) return '<span class="muted">none</span>';
   return keys.map((k) => `<span class="chip${low ? " low" : ""}">${esc(k)} ${obj[k].toFixed(2)}</span>`).join("");
 }
-function renderAlerts(alerts) {
+function renderAlerts(alerts, settled = true) {
   const ul = $("alerts");
-  if (!alerts.length) { ul.innerHTML = '<li class="muted">No alerts.</li>'; return; }
+  if (!alerts.length) {
+    ul.innerHTML = settled ? '<li class="muted">No alerts.</li>'
+      : '<li class="muted">Start-up: alerts latch once the filter first reports nominal (or after 30 s).</li>';
+    return;
+  }
   ul.innerHTML = alerts.map((a) => {
     const state = a.active ? (a.acked ? "active, acknowledged" : "active") : `cleared at T+${a.last_s.toFixed(1)} s`;
     const times = a.count > 1 ? ` (${a.count} times; first T+${a.since_s.toFixed(1)} s)` : "";
@@ -334,7 +342,7 @@ function renderSide() {
   $("causes").innerHTML = h.causes.length
     ? h.causes.map((c) => `<li class="${c.severity}"><span class="sev">${c.severity}</span>${esc(c.text)}</li>`).join("")
     : '<li class="muted">Nothing flagged.</li>';
-  renderAlerts(h.alerts);
+  renderAlerts(h.alerts, h.settled);
   $("trusted").innerHTML = chips(h.trusted, false);
   $("lowtrust").innerHTML = chips(h.low_trust, true);
   const towers = [...S.emitters.keys()];

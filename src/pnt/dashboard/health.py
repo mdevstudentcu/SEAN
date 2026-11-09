@@ -6,7 +6,8 @@ Reads only `Estimate` (ICD-measurement), so it works the same on sim, replay and
   in `FLAGS` (or, for the parameterised MHSS flags, `describe`). An unknown flag is shown raw, so
   a new flag is never hidden.
 - Latched alerts: an alert starts when a flag appears or the status turns `unsafe`, and stays on
-  the panel after it clears until the operator acknowledges it.
+  the panel after it clears until the operator acknowledges it. Not during start-up
+  (`STARTUP_MAX_S`), when every filter's first estimates are flagged.
 - RNP/ANP: the alert limit plays the RNP value (as T2 does: 556 m for RNP 0.3), ANP is the 95 %
   horizontal radius from the estimate's own covariance, and HPL is the integrity bound.
 - Predicted time-to-alert: the protection level's trend over the last `TREND_S`, a least-squares
@@ -80,6 +81,10 @@ TREND_S = 10.0
 # A trend that reaches the limit later than this is reported as no alert ahead: a 10 s line says
 # nothing about the next hour. TBC.
 TTA_HORIZON_S = 600.0
+# Start-up: the first estimates come from the first fix's wide covariance (HPL over the limit, GNSS
+# not used yet), so alerts latch only once the filter first reports nominal, or after this long
+# if it never does. Causes and status are shown live throughout. TBC.
+STARTUP_MAX_S = 30.0
 # A condition that clears for no longer than this and returns is the same occurrence. TBC: HPL
 # saw-tooths across the limit between 1 Hz tower updates, which would otherwise count each second.
 CLEAR_HOLD_S = 2.0
@@ -176,6 +181,7 @@ class HealthMonitor:
         self._next_id = 1
         self._hpl: deque[tuple[float, float]] = deque()
         self._tpl: deque[tuple[float, float]] = deque()
+        self.settled = False  # past start-up: alerts latch from here on
 
     def t_s(self, t_ns: int) -> float:
         if self.t0_ns is None:
@@ -187,7 +193,8 @@ class HealthMonitor:
         current = {f: describe(f) for f in est.flags}
         if est.status in STATUS and est.status != "degraded":
             current[f"status:{est.status}"] = STATUS[est.status]
-        for key, (sev, text) in current.items():
+        self.settled = self.settled or est.status == "nominal" or t >= STARTUP_MAX_S
+        for key, (sev, text) in current.items() if self.settled else ():
             aid = self._open.get(key)  # a cleared, acknowledged alert is already forgotten
             if aid is None:
                 aid = self._next_id
@@ -221,6 +228,7 @@ class HealthMonitor:
                 if not f.startswith("status:")
             ],
             "alerts": [dict(vars(a)) for a in self.shown()],  # asdict deep-copies: slow
+            "settled": self.settled,
             "hpl_m": hpl,
             "anp95_m": anp95_m(est.pos_cov),
             "rnp_m": self.al,
