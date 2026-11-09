@@ -14,10 +14,14 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
 ## Viewing a run in Foxglove
 
 1. `pnt sim gps-outage --out data/sessions/demo`
-2. `pnt viz data/sessions/demo` writes `data/sessions/demo/viz.mcap`
-3. Open that `viz.mcap` in [Foxglove](https://foxglove.dev) (`Cmd/Ctrl+O`, or drag it in). To see raw measurements too, select it together with the session file.
+2. `pnt viz data/sessions/demo` writes `data/sessions/demo.viz.mcap`, beside the session folder. It refuses to overwrite an existing file unless you pass `--force`, and never writes into the session folder.
+3. Open `demo.viz.mcap` on its own in [Foxglove](https://foxglove.dev) (`Cmd/Ctrl+O`, or drag it in).
 4. In the Layouts menu choose **Import from file...** and pick `analysis/foxglove-layout.json`.
 
-The layout shows true (green) and estimated (orange) position on a map with the towers, error against HPL, towers heard, fault and alarm state, and status, flags and lost towers over time. The clock in the viewer reads about ten years early, because logs use GPS time and the viewer treats it as Unix time. Plots fill in as the file loads. Foxglove is our internal viewer; the operator display is the dashboard (ADR-0010).
+The layout shows true (green) and estimated (orange) position on a map with the towers, error against HPL, towers heard, fault and alarm state, and status, flags and lost towers over time. Plots fill in as the file loads. Foxglove is our internal viewer; the operator display is the dashboard (ADR-0010).
+
+The viz file is stamped in Unix time, so the viewer's clock shows the real date and time. The session file stays in GPS time (ADR-0008), which Foxglove would place about 10 years earlier, so don't open the two together: they would not overlap on the timeline.
+
+Takes a session folder or a bare `.mcap`, which needs an `origin_llh`. If the session has no estimates on `/nav/<estimator>` (a real recording, or a sim run with another `--estimator`), `pnt viz` re-runs that estimator over the measurements, as `pnt replay` does. Truth, error and fault state appear only when the session has them.
 
 Rules: every figure's caption names its scenario (or session) and commit (REQ-10). Figures go in `results/`; bulky run data in `results/runs/` (ignored). Images that only back a PR description go in `pr-evidence/<n>/` (`systems/quality.md`).

@@ -153,16 +153,25 @@ def cmd_replay(args) -> None:
 
 def cmd_viz(args) -> None:
     out = Path(args.out) if args.out else default_output(args.session)
-    windows = [
-        (
-            T0_NS + s_to_ns(f.get("start_s", 0.0)),
-            T0_NS + s_to_ns(f["end_s"]) if "end_s" in f else None,
+    try:
+        windows = [
+            (
+                T0_NS + s_to_ns(f.get("start_s", 0.0)),
+                T0_NS + s_to_ns(f["end_s"]) if "end_s" in f else None,
+            )
+            for f in _replay_spec(args.session).get("faults", [])
+        ]
+        counts = write_viz(
+            args.session, out, estimator=args.estimator, fault_windows=windows, force=args.force
         )
-        for f in _replay_spec(args.session).get("faults", [])
-    ]
-    counts = write_viz(args.session, out, estimator=args.estimator, fault_windows=windows)
-    print(f"wrote {out}: {counts['estimates']} estimates, {counts['towers']} towers")
-    print("open it in Foxglove, then import analysis/foxglove-layout.json")
+    except (ValueError, FileExistsError, FileNotFoundError) as exc:
+        raise SystemExit(f"viz: {exc}") from exc
+    source = "re-run over the measurements" if counts["recomputed"] else "as logged"
+    print(
+        f"wrote {out}: {counts['estimates']} {args.estimator} estimates ({source}), "
+        f"{counts['towers']} towers"
+    )
+    print("open it alone in Foxglove, then import analysis/foxglove-layout.json")
 
 
 def cmd_results(args) -> None:
@@ -244,7 +253,8 @@ def main(argv=None) -> None:
 
     s = sub.add_parser("viz", help="write a companion file that Foxglove can draw on a map")
     s.add_argument("session", help="session folder or .mcap file")
-    s.add_argument("--out", help="default: viz.mcap in the folder, or <file>.viz.mcap")
+    s.add_argument("--out", help="default: <folder>.viz.mcap or <file>.viz.mcap beside it")
+    s.add_argument("--force", action="store_true", help="overwrite an existing --out")
     add_estimator(s)
     s.set_defaults(fn=cmd_viz)
 
