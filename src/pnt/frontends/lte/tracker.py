@@ -109,7 +109,6 @@ class CellTrack:
     n0: float  # corrected sample index of the arc's reference subframe-0 boundary
     arc: int = 0
     epochs: list[Epoch] = field(default_factory=list)
-    span: tuple[int, int] = (0, 0)  # file samples it covered
     snr_db: float = float("nan")
 
 
@@ -163,9 +162,6 @@ class GapMap:
         jj = np.searchsorted(self._at, f, side="right") - 1  # gap at or before f
         near = (jj >= 0) & (f < self._until[np.maximum(jj, 0)])
         return f, ~(inside | near)
-
-    def ambiguous_before(self, f: int) -> int:
-        return sum(1 for g in self.gaps if g.ambiguous and g.at <= f)
 
 
 # --- spectra ------------------------------------------------------------------------------
@@ -463,7 +459,6 @@ class _Track:
         next_reloc = st.k
         pending: Gap | None = None
         k = st.k
-        f_first = self.file_index(last_seen)
         while True:
             n_blk = int(np.clip(0.3 / (3 * math.sqrt(max(st.p11, 0.0)) * L + 1e-15), 2, 200))
             ks = np.arange(k, k + n_blk)
@@ -586,8 +581,6 @@ class _Track:
                 k, last, miss = good.k + 1, None, 0
         cell.snr_db = (10 * math.log10(max(snr_ema, 1e-3) / (2 * sig.N_SYNC))
                        if snr_ema is not None else float("nan"))  # fmt: skip
-        cell.span = (min(cell.span[0], f_first) if cell.epochs else f_first,
-                     self.file_index(last_seen))  # fmt: skip
         return st
 
     def _earlier_path(self, prof: np.ndarray, win: np.ndarray, noise: float) -> float:
