@@ -168,6 +168,8 @@ def test_gnss_free_covariance_is_honest_on_the_realistic_set_req02():
     for seed in range(2):
         run = generate(spec, seed=seed)
         est = list(ekf.run_calibrated(run.measurements, origin_llh=spec["origin_llh"]))
+        # Regression guard for these two seeds, not a requirement (T5 asks for >= 99.9 %, and
+        # not every seed of the 50-run eval reaches it)
         assert score(est, run.truth, spec, T0_NS).hpl_bound_frac == 1.0
         truth = {t.t_ns: t for t in run.truth}
         for e in est:
