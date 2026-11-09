@@ -258,7 +258,7 @@ class MHSS:
             return {GNSS_CM: self.p.p_gnss_cm}
         out = {f"layer:{m.source}": self.p.p_layer}
         if m.emitter:
-            site = self.sites.get(m.emitter, m.emitter)
+            site = m.meta.get("site") or self.sites.get(m.emitter, m.emitter)
             out[f"site:{site}"] = self.p.p_site
             if site in self.builders:
                 out[f"builder:{self.builders[site]}"] = self.p.p_builder

@@ -21,7 +21,7 @@ from functools import partial
 
 from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.mhss import MHSS
-from pnt.nav import base_rover, baseline, ekf
+from pnt.nav import base_rover, baseline, cells, ekf
 
 DEFAULT_RECEIVERS = frozenset({"payload"})
 
@@ -69,7 +69,7 @@ def estimate(
     dropped: dict[str, int] = {}
 
     def fed() -> Iterator[Measurement]:
-        for m in measurements:
+        for m in cells.attach(measurements, origin_llh):
             if m.receiver in keep:
                 yield m
             else:
