@@ -56,7 +56,7 @@ Build steps, dimensions and tests: [`antennas.md`](antennas.md).
 | Antenna | Dimensions |
 | --- | --- |
 | ADS-B 1090 MHz ground plane | Radiator 65 mm; 4 radials × 69 mm at 45° down |
-| LTE ground plane (build for the band the RF survey finds) | 700 MHz: radiator 96 mm, radials 101 mm · 600 MHz: 112 / 118 mm · 850 MHz: 81 / 85 mm |
+| LTE ground plane (build for the band the RF survey finds) | 850 MHz (default): radiator 81 mm, radials 85 mm · 700 MHz: 96 / 101 mm · 600 MHz: 112 / 118 mm |
 | VOR 114.6 MHz horizontal dipole | 2 arms × 622 mm, ~1 cm centre gap; broadside to YOW VOR (arms 21°–201° true from Carleton) |
 
 ## 4. Power
@@ -99,7 +99,7 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 | ESP32-S3 | None available; hub moves to Pi Zero 2 W or Pico 2W. Wi-Fi FTM and FTM responders are dropped |
 | RTL-SDR Blog V3/V4, dipole kit, FM filter | Amazon.ca delivery Dec 21–25 |
 | Airspy Mini | Budget |
-| Flamingo FM band-stop filter ($46) | Skipped; VOR is ~17 km away. Revisit only if the RF survey shows FM overload |
+| Flamingo FM band-stop filter ($46) | Skipped; VOR is 16.8 km away. Revisit only if the RF survey shows FM overload |
 | LoRa HAT 915 MHz (HON) | A 22 dBm transmitter ~20 MHz above the 850 MHz LTE downlink would desensitize the unfiltered SDRs; Canadian certification unconfirmed |
 | VL53L1X ToF (HON) | Optional indoor height truth only; drone already has the MTF-01 rangefinder |
 | L-band patch antenna (Iridium) | LEO layer is simulated (ADR-0013, mentor Q5) |

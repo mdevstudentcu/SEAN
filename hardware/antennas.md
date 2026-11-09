@@ -88,11 +88,11 @@ Formulas (thin wire, the usual ground-plane rule): radiator R = 71,300 / f(MHz) 
 | Antenna | Band (downlink) | Centre f | Radiator R | Radials G (×4) |
 | --- | --- | --- | --- | --- |
 | **A: ADS-B** | 1090 MHz | 1090 MHz | **65 mm** | **69 mm** |
-| **B: LTE, 700 MHz** (bands 12/13/17) | 729–756 MHz | 742 MHz | **96 mm** | **101 mm** |
+| **B: LTE, 850 MHz** (band 5) | 869–894 MHz | 882 MHz | **81 mm** | **85 mm** |
+| B: LTE, 700 MHz (bands 12/13/17) | 729–756 MHz | 742 MHz | 96 mm | 101 mm |
 | B: LTE, 600 MHz (band 71) | 617–652 MHz | 635 MHz | 112 mm | 118 mm |
-| B: LTE, 850 MHz (band 5) | 869–894 MHz | 882 MHz | 81 mm | 85 mm |
 
-**Which B to build:** the RF survey (`CellSearch` over 617–894 MHz) decides. If you have to build before the survey, build the **700 MHz** version: it still receives usefully across 617–894 MHz, just a few dB down at the edges.
+**Which B to build:** the RF survey (`CellSearch` over 617–894 MHz) decides. If you have to build before the survey, build the **850 MHz** version. `data/reference/cells-ottawa.csv` has more sites with an LTE-width 850 MHz carrier within 10 km of Carleton (200) than 700 MHz (171 on bands 12/17, 104 on band 13) or 600 MHz (147), and the Sionna campus trace (ADR-0016) is at 886 MHz. Sites counted once, positions rounded to 0.001°, carriers ≥ 1.4 MHz wide, from the ISED extract dated 2024-10-30. Expect it to be a few dB down at 700 MHz and more at 600 MHz.
 
 ## 3. VOR dipole (C)
 
@@ -127,7 +127,7 @@ Half-wave dipole total length = 142,600 / f(MHz) mm → at 114.6 MHz, **1,245 mm
 
 A dipole hears best **broadside** (side-on) and almost nothing off its ends.
 
-- From Carleton, the YOW VOR (N45°26′30″ W75°53′49″) is about **291° true, ~17 km** (west-northwest).
+- From Carleton, the YOW VOR (N45°26′30″ W75°53′49″) is **291° true, 16.8 km** (west-northwest).
 - So run the **arms along 21° ↔ 201° true** (NNE–SSW), with the broad side facing WNW. On a magnetic compass that is roughly 33° ↔ 213° (Ottawa declination about 12° W, `TBC` for 2026).
 - From somewhere else: compute the bearing to the VOR and put the arms at 90° to it.
 - **For walking or driving sessions**, bend the arms into a horizontal **V** (90–120° between them). That fills in the end nulls at the cost of a little peak signal.
