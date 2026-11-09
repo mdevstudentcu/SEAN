@@ -105,13 +105,14 @@ class Params:
     reseed_test_max: float = 0.5  # TBC
     reseed_quiet_s: float = 10.0  # TBC: how long the test must have stayed quiet
     alarm_hold_s: float = 1.0  # TBC, same hold as pnt.metrics.ALARM_HOLD_S
+    detect_hold_s: float = 1.0  # TBC: how long a separation test must fail before it counts
     # A sub-filter that used no horizontal measurement for this long is dead reckoning, and is
     # not tested (TBC: a few LTE dropouts long)
     aided_s: float = 10.0
     alert_limit_m: float = 50.0  # TBC: REQ-02
     mode: str = "bank"  # "bank" or "snapshot"
-    allocation: str = "even"  # "even" (closed form) or "exact" (bisection)
-    pl_separation: str = "threshold"  # "threshold" (T_k) or "actual" (|x_k - x_0|)
+    allocation: str = "exact"  # "exact" (bisection) or "even" (closed form)
+    pl_separation: str = "actual"  # "actual" (|x_k - x_0|) or "threshold" (T_k)
     alarm_flags: frozenset = field(default=GNSS_ALARM_FLAGS)
 
 
@@ -237,6 +238,7 @@ class MHSS:
         self.hyps: dict[str, Hypothesis] = {}
         self.window_ns = int(self.p.gnss_window_s * 1e9)
         self.alarm_since: int | None = None
+        self.fail_since: dict[str, int] = {}
         self.report = Report()
 
     # --- grouping -----------------------------------------------------------------------
@@ -320,14 +322,20 @@ class MHSS:
             self.alarm_since = t
         held = alarm and t - self.alarm_since >= int(p.alarm_hold_s * 1e9)
 
-        # A candidate for exclusion: GNSS on a held alarm, else the worst failed test
+        # A candidate for exclusion: GNSS on a held alarm, else the worst test that has failed
+        # for detect_hold_s (one noisy epoch is not a detection; the PL does not wait for it)
+        for r in rows:
+            if r.q <= 1.0:
+                self.fail_since.pop(r.name, None)
+            else:
+                self.fail_since.setdefault(r.name, t)
+        hold_ns = int(p.detect_hold_s * 1e9)
+        failed = [r for r in rows if r.q > 1.0 and t - self.fail_since[r.name] >= hold_ns]
         candidate = None
         if held and GNSS_CM in self.hyps:
             candidate = GNSS_CM
-        elif rows:
-            worst = max(rows, key=lambda r: r.q)
-            if worst.q > 1.0:
-                candidate = worst.name
+        elif failed:
+            candidate = max(failed, key=lambda r: r.q).name
         # Exclude only if the subset left could serve on its own: its fault-free bound is within
         # the alert limit (as ARAIM requires an available solution after exclusion). Otherwise
         # alarm without excluding: switching to a subset whose own error is unbounded at the
