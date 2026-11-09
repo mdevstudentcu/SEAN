@@ -31,7 +31,9 @@ FACTORS = (0.25, 0.5, 2.0, 4.0)
 # `times` multiplies the committed value; `values` are absolute where a multiple makes no sense.
 # Entries the scenario does not have are skipped.
 DEFAULT_SWEEP: tuple[dict, ...] = (
-    {"path": "sources.lte.sigma_m", "times": FACTORS},  # range noise
+    {"path": "sources.lte.sigma_m", "times": FACTORS},  # range noise: the truth only
+    # the range noise the filter is told; below the truth it is told less than there is
+    {"path": "sources.lte.told_sigma_m", "times": FACTORS},
     {"path": "sources.lte.multipath.sigma_m", "times": FACTORS},  # multipath size
     {"path": "sources.lte.multipath.tau_s", "times": FACTORS},  # multipath time constant
     # share of time each tower is heard: a fraction, so absolute values up to 1
@@ -169,9 +171,24 @@ def _tower_count(spec: dict) -> int:
     raise KeyError(TOWERS)
 
 
+def _pseudorange_source(spec: dict, path: str, leaf: str) -> dict | None:
+    """The source's config if `path` is `sources.<name>.<leaf>` of a pseudorange source, the only
+    model with a told sigma; otherwise None."""
+    parts = path.split(".")
+    if len(parts) != 3 or parts[0] != "sources" or parts[2] != leaf:
+        return None
+    cfg = spec.get("sources", {}).get(parts[1])
+    return cfg if isinstance(cfg, dict) and cfg.get("model", parts[1]) == "pseudorange" else None
+
+
 def get_param(spec: dict, path: str) -> float:
-    """The number at a dotted path in a loaded spec (`towers`: the tower count). A path that is
-    not there, or that does not end on a number, is a ValueError naming it."""
+    """The number at a dotted path in a loaded spec (`towers`: the tower count). A pseudorange
+    source's `told_sigma_m`, if the spec has none, is its `sigma_m`, which is what its records
+    report then. A path that is not there, or that does not end on a number, is a ValueError
+    naming it."""
+    told = _pseudorange_source(spec, path, "told_sigma_m")
+    if told is not None and "told_sigma_m" not in told and "sigma_m" in told:
+        return told["sigma_m"]
     try:
         if path == TOWERS:
             return _tower_count(spec)
@@ -192,6 +209,12 @@ def set_param(spec: dict, path: str, value: float) -> dict:
     if path == TOWERS:
         _with_towers(spec, int(value))
         return spec
+    # Without a `told_sigma_m` the sim reports `sigma_m` in every record, and the filter sizes
+    # its noise and multipath models from that. Pin it to the committed value, or a row meant to
+    # change the true noise would also change what the filter is told.
+    source = _pseudorange_source(spec, path, "sigma_m")
+    if source is not None:
+        source.setdefault("told_sigma_m", source["sigma_m"])
     *parents, leaf = path.split(".")
     node = spec
     for key in parents:
@@ -231,7 +254,7 @@ def sweep(
 
     `scenario` is a name or an already loaded spec. `params` maps a dotted path into the loaded
     spec (or `towers`) to its values; None uses DEFAULT_SWEEP. The estimator is not told about
-    the change: it keeps its own model."""
+    the change and keeps its own model, except that `told_sigma_m` is exactly what it is told."""
     base = load(scenario) if isinstance(scenario, str) else scenario
     params = default_params(base) if params is None else params
     cases: list[tuple[str, float | None, dict]] = [("baseline", None, base)]

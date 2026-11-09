@@ -7,7 +7,7 @@ import pytest
 
 from pnt.cli import main
 from pnt.experiments import TOWERS, default_params, get_param, set_param, sweep
-from pnt.sim.scenario import load
+from pnt.sim.scenario import generate, load
 
 METRICS = ("fault_p95_m", "outage_p95_300s_m", "hpl_bound_worst", "hazardous_epochs")
 
@@ -54,9 +54,41 @@ def test_sweep_rows_are_paired_and_change_one_value(short):
     assert rows[2]["fault_p95_m"] != rows[0]["fault_p95_m"]
 
 
+def lte_records(spec):
+    return [m for m in generate(spec, seed=0).measurements if m.kind == "pseudorange"]
+
+
+def test_sweeping_sigma_changes_the_true_noise_but_not_what_the_filter_is_told(short):
+    before, after = lte_records(short), lte_records(set_param(short, "sources.lte.sigma_m", 12.5))
+    assert {m.sigma for m in after} == {(50.0,)}  # the committed sigma
+    assert len(after) == len(before) and all(
+        a.value != b.value for a, b in zip(after, before, strict=True)
+    )
+
+
+def test_sweeping_told_sigma_changes_what_the_filter_is_told_but_not_the_truth(short):
+    assert get_param(short, "sources.lte.told_sigma_m") == 50.0  # falls back to sigma_m
+    before = lte_records(short)
+    after = lte_records(set_param(short, "sources.lte.told_sigma_m", 12.5))
+    assert {m.sigma for m in after} == {(12.5,)}
+    assert [m.value for m in after] == [m.value for m in before]
+
+
+def test_a_told_sigma_already_in_the_spec_is_kept(short):
+    spec = set_param(short, "sources.lte.told_sigma_m", 30.0)
+    swept = set_param(spec, "sources.lte.sigma_m", 200.0)
+    assert swept["sources"]["lte"]["told_sigma_m"] == 30.0
+
+
+def test_a_source_with_no_told_sigma_rejects_the_path(short):
+    with pytest.raises(ValueError, match=r"sources\.gnss\.told_sigma_m"):
+        get_param(short, "sources.gnss.told_sigma_m")
+
+
 def test_default_sweep_brackets_what_the_scenario_has():
     realistic = default_params(load("realistic-long-outage"))
     assert realistic["sources.lte.sigma_m"] == [12.5, 25.0, 100.0, 200.0]  # committed 50 m
+    assert realistic["sources.lte.told_sigma_m"] == [12.5, 25.0, 100.0, 200.0]  # same
     assert TOWERS in realistic and "tower_clocks.site.drift_rw_mps" in realistic
     synthetic = default_params(load("gps-outage"))  # no multipath, dropout or tower clocks
     assert "sources.lte.multipath.sigma_m" not in synthetic
