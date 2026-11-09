@@ -399,15 +399,8 @@ def cmd_preflight(args) -> None:
     out = {"prediction": p.as_dict()}
     if args.compare:
         seeds = list(range(args.compare))
-        jobs = max(1, min(args.jobs, len(seeds)))
-        call = (preflight.compare_one, [args.scenario] * len(seeds), seeds,
-                [args.estimator] * len(seeds), [args.alert_limit] * len(seeds),
-                [args.settle] * len(seeds))  # fmt: skip
-        if jobs == 1:
-            rows = list(map(*call))
-        else:
-            with ProcessPoolExecutor(jobs) as pool:
-                rows = list(pool.map(*call))
+        tasks = [(args.scenario, s, args.estimator, args.alert_limit, args.settle) for s in seeds]
+        rows = experiments._map(preflight.compare_one, tasks, args.jobs)  # forkserver pool
         summary = preflight.summarize(rows, args.alert_limit)
         print(f"  against real runs, seeds 0-{len(seeds) - 1} (real / predicted HPL):")
         print(_fmt(summary))
