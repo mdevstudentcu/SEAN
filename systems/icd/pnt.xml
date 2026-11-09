@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- ESP32 hub -> Pi wire protocol (ADR-0005). Regenerate with `just gen`. IDs 61000-61099 are ours. -->
+<!-- Sensor hub -> Pi wire protocol (ADR-0005, hub board per ADR-0018). Regenerate with `just gen`. IDs 61000-61099 are ours. -->
 <mavlink>
   <version>1</version>
   <dialect>0</dialect>

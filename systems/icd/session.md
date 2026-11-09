@@ -34,6 +34,6 @@ simulated: false
 scenario: null            # scenario file for sim sessions
 seed: null                # sim random seed, so the run can be regenerated (REQ-10)
 commit: <git sha>
-hardware: [pi4b, esp32-s3, nesdr-smart-v5 x2, adafruit-gps-hat, mpu6050, bmp280, pi-camera]
+hardware: [pi3bplus, pi-zero-2w, airnav-flightstick, nesdr-smart-v5, adafruit-gps-hat, mpu6050, bmp280, pi-camera]
 notes: ""
 ```
