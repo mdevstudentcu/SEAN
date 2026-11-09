@@ -8,7 +8,7 @@ gamepad ─USB─ laptop (`pnt rc`) ─UDP over the ESP32's own 2.4 GHz WPA2 AP�
 
 - **The laptop** reads the gamepad and sends a control packet 50 times a second (`TBC`). Each packet carries a truncated HMAC-SHA256 tag, a strictly increasing sequence number and the bridge's boot nonce.
 - **The bridge** drops anything that fails those checks and counts it. Valid packets become CRSF `RC_CHANNELS_PACKED` frames at 50 Hz (`TBC`), 420000 baud (`TBC`).
-- **Silence means failsafe.** With no valid packet for 200 ms (`HB_TIMEOUT`, `TBC`), the bridge sends nothing. INAV sees RX loss and runs its failsafe (LAND). The bridge never sends substitute values.
+- **Silence means failsafe.** With no valid packet for 200 ms (`kHbTimeoutMs`, `TBC`), the bridge sends nothing. INAV sees RX loss and runs its failsafe (LAND). The bridge never sends substitute values.
 - **KILL** forces the arm channel and the throttle low, so INAV disarms and the motors stop at once.
 - **Boot is disarmed.** After the bridge boots, and after any link loss, it holds ARM low until it has seen a disarmed packet.
 

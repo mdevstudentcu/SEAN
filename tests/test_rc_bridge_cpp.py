@@ -19,7 +19,7 @@ pytestmark = pytest.mark.skipif(GXX is None, reason="g++ not installed")
 
 KEY = bytes(range(1, 33))
 NONCE = 0xA5A5F00D
-TIMEOUT_MS = 200  # the firmware's HB_TIMEOUT (TBC); the driver takes it as an argument
+TIMEOUT_MS = 200  # kHbTimeoutMs in main.cpp (TBC); the driver takes it as an argument
 
 
 def compile_cpp(src: str, out: Path) -> Path:
