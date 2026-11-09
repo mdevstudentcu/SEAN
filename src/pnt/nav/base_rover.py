@@ -87,10 +87,10 @@ class BaseRoverEKF(EKF):
         check_window_s: float = 10.0,  # TBC: base check averaging window
         check_min_samples: int = 5,  # TBC: a tower needs this many readings in the window
         # Per-tower bias left in the difference (both receivers' multipath, and tower position
-        # error seen from two places), as a Gauss-Markov state; 0 turns it off. TBC: sized like
-        # the payload's multipath in the realistic set, its largest correlated error. Insensitive
-        # between 30 and 50 m on 15 seeds (issue #81 log)
-        sd_bias_sigma_m: float = 50.0,
+        # error seen from two places), as a Gauss-Markov state; 0 turns it off. None: as large
+        # as the payload's own reported sigma for that tower, i.e. a correlated error as big as
+        # the white one. TBC
+        sd_bias_sigma_m: float | None = None,
         sd_bias_tau_s: float = 30.0,
         **config,
     ):
@@ -117,6 +117,7 @@ class BaseRoverEKF(EKF):
         self.tower_fault_t: dict[str, int] = {}
         self.sd_bias_sigma_m, self.sd_bias_tau_s = sd_bias_sigma_m, sd_bias_tau_s
         self.sd_bias_idx: dict[str, int] = {}
+        self.sd_bias_sigma: dict[int, float] = {}  # state index -> its steady-state sigma
 
     # --- state ---------------------------------------------------------------------------
     @property
@@ -151,19 +152,23 @@ class BaseRoverEKF(EKF):
             self.x[i] *= phi
             self.P[i, :] *= phi
             self.P[:, i] *= phi
-            self.P[i, i] += self.sd_bias_sigma_m**2 * (1 - phi**2)
+            sigma2 = np.square([self.sd_bias_sigma[k] for k in i])
+            self.P[i, i] += sigma2 * (1 - phi**2)
 
-    def _sd_bias(self, emitter: str) -> int | None:
-        if not self.sd_bias_sigma_m:
+    def _sd_bias(self, d: Measurement) -> int | None:
+        if self.sd_bias_sigma_m == 0:
             return None
+        emitter = d.emitter
         if emitter not in self.sd_bias_idx:
+            sigma = d.sigma[0] if self.sd_bias_sigma_m is None else self.sd_bias_sigma_m
             n = len(self.x)
             self.x = np.append(self.x, 0.0)
             P = np.zeros((n + 1, n + 1))
             P[:n, :n] = self.P
-            P[n, n] = self.sd_bias_sigma_m**2
+            P[n, n] = sigma**2
             self.P = P
             self.sd_bias_idx[emitter] = n
+            self.sd_bias_sigma[n] = sigma
         return self.sd_bias_idx[emitter]
 
     # --- measurements ----------------------------------------------------------------------
@@ -211,7 +216,7 @@ class BaseRoverEKF(EKF):
     def _difference(self, d: Measurement, rho_b: float, r_b: float) -> None:
         """Payload minus base for one tower: no tower clock, the relative receiver clock left."""
         e = self._emitter(d)
-        k = self._sd_bias(d.emitter)
+        k = self._sd_bias(d)
         dp = self.x[POS] - e
         b = self.base_told + self.x[self.bpos]
         db = b - e
