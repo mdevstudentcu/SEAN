@@ -46,9 +46,9 @@ flowchart LR
     DASH["Operator panel<br/>(ADR-0010)"]
     SRC --> FE --> NAV --> INT --> OUT --> DASH
   end
-  REC -- "Wi-Fi: ZeroMQ, CurveZMQ planned (ADR-0009, ADR-0026)" --> SRC
+  REC -- "Wi-Fi: ZeroMQ over CurveZMQ (ADR-0009, ADR-0026)" --> SRC
   REC -- "session folder (ICD-session)" --> SRC
-  BSDR -- "Ethernet, authentication planned (ADR-0026)" --> SRC
+  BSDR -- "Ethernet: ZeroMQ over CurveZMQ (ADR-0026)" --> SRC
   SIM["Simulator<br/>scenarios + attack library"] --> SRC
 ```
 
@@ -126,6 +126,6 @@ On `main`: the tower site, network builder, source layer, GNSS common mode and r
 
 - **Receive-only** payload and base; no transmit path in hardware or code (REQ-07, ADR-0001). Jamming and spoofing exist only in software.
 - **Privacy:** only broadcast sync and system information is decoded; Wi-Fi BSSIDs are hashed at capture (REQ-08, [ADR-0011](adr/0011-privacy-at-capture.md)).
-- **Ground links** are not authenticated on `main` yet. MAVLink 2 signing and CurveZMQ are planned, so that forged records are dropped, not fused ([ADR-0026](adr/0026-ground-link-security.md), #89, open).
+- **Ground links:** the payload and base streams are authenticated and encrypted with CurveZMQ, so forged records are dropped, not fused. Each Pi admits only trusted laptop keys, and the laptop pins each Pi's key. Plaintext needs `--insecure` ([ADR-0026](adr/0026-ground-link-security.md), #89). MAVLink signing is `TBC` (INAV, ADR-0028), and hash-chained logs come after judging.
 - **Flight:** indoor or handheld only near YOW, RC kill switch always fitted ([ADR-0012](adr/0012-flight-control-levels.md), ASM-06).
 - Full list: [`safety.md`](safety.md).

@@ -10,6 +10,8 @@ What `setup.sh` does (idempotent; `just pi-deploy` runs it after copying the rep
 3. Installs `chrony.conf` (GPS NMEA + PPS refclocks).
 4. Creates `~/pnt/.venv` with the `payload` extra.
 
+`setup.sh` makes no keys. Each host makes its own CurveZMQ key pair for the stream, and the hosts exchange public keys ([`RUNBOOK.md`](RUNBOOK.md#keys-once-per-host), ADR-0026).
+
 Checks after a reboot: `sudo ppstest /dev/pps0` (one line per second), `gpsmon` (fix + per-satellite SNR), `chronyc sources -v` (PPS selected, offset in µs), `rtl_test -t` (both dongles), `i2cdetect -y 1` (MPU6050 at 0x68, BMP280 at 0x76 or 0x77).
 
 The MPU6050 and BMP280 go on the Pi's I2C bus (GPIO2/GPIO3, through the HAT's prototyping area). Only if the day-1 test brings back the Pi Zero 2 W hub (ADR-0018): wire the HAT's PPS pin (GPIO4) to the Zero's PPS GPIO (`TBC`) with a common ground, and plug the Zero's data port into a Pi USB 2 port.
