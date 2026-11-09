@@ -5,7 +5,8 @@
 Writes to `--out` (default `analysis/results/figures-<estimator>/`):
 - error_after_gps_loss.png: horizontal error (median, 95th percentile) and HPL (median) across
   seeds against time since GPS loss (REQ-01, T1)
-- stanford.png: HPL against true error, pooled over every seed of the fault scenarios (REQ-02)
+- stanford.png: HPL against true error, pooled over every seed of the `--stanford` scenarios
+  (REQ-02); the default `realistic` set includes its fault-free `realistic-nominal` entry
 - ablation.png: fault-window p95 error with each source removed, paired seeds (REQ-06)
 - holdover.png: |clock error| (median, 95th percentile) and time protection level (median)
   against time since GPS loss (REQ-03, T3). Skipped if the estimator has no clock state
@@ -323,7 +324,7 @@ def main(argv=None) -> None:
     t1_pooled = float(np.nanpercentile(err[:, window], 95))
     t1_runs = int(np.sum(np.nanpercentile(err[:, window], 95, axis=1) <= T1_M))
 
-    # 2. Stanford plot, pooled over the fault scenarios
+    # 2. Stanford plot, pooled over every scenario in --stanford (fault-free entries included)
     err_all = np.concatenate([r["err"] for n in stanford for r in by_key[(n, ())]])
     hpl_all = np.concatenate([r["hpl"] for n in stanford for r in by_key[(n, ())]])
     pooled = f"{len(stanford)} scenarios ({', '.join(args.stanford)})"
@@ -459,7 +460,7 @@ def markdown(s: dict, written: list[Path], out: Path) -> str:
     else:
         lines += [
             f"- clock error p95 in the fault window: {h['fault_time_err_p95_us']:.3f} µs "
-            "(T3: 1.5 µs after 10 min, TBC; this scenario's outage may be shorter)",
+            "(T3: 1.5 µs after 10 min, TBC; the default realistic-long-outage lasts only 300 s)",
             f"- 1-sigma bounds the clock error in {100 * h['time_1sigma_bound_frac']:.1f} % of "
             "epochs (mean over runs; T3 asks for ≥ 68 %)",
             f"- time PL bounds the clock error in {100 * h['min_time_pl_bound_frac']:.1f} % of "
