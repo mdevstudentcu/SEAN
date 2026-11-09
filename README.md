@@ -2,7 +2,7 @@
 
 **Hack the Horizons 2026 (Honeywell Aerospace × Carleton FED), Challenge 2: Resilient Navigation in GPS-Denied Environments.**
 
-A removable, receive-only payload listens to the signals already around us (cell towers, aircraft ADS-B, VOR navaids, Wi-Fi, the NRC CHU time station), together with an IMU, barometer and GPS. A ground laptop fuses them into position **and time**, and reports **how far to trust each estimate**: protection levels, timing uncertainty, per-source health. When GPS is jammed, spoofed or gone, navigation continues and the operator can see how reliable it is.
+A removable, receive-only payload listens to the signals already around us (cell towers, aircraft ADS-B, VOR navaids, Wi-Fi), together with an IMU, barometer and GPS. A ground laptop fuses them into position **and time**, and reports **how far to trust each estimate**: protection levels, timing uncertainty, per-source health. When GPS is jammed, spoofed or gone, navigation continues and the operator can see how reliable it is.
 
 > Status: scaffold (2026-11-08). The idea layer on top of the foundation is still being chosen; see `systems/adr/`.
 
@@ -13,7 +13,7 @@ A removable, receive-only payload listens to the signals already around us (cell
  ┌───────────────────────────┐   Wi-Fi (ZeroMQ)   ┌──────────────────────────────────────────┐
  │ GPS+PPS  IMU  baro  Wi-Fi │ ─────────────────► │ front-ends → estimator → integrity → UI  │
  │ SDR A (ADS-B)  SDR B (LTE,│     or MCAP log    │                ▲                         │
- │ VOR, FM, CHU)  camera     │ ─────────────────► │ sim (scenarios, fault injection)         │
+ │ VOR, FM)       camera     │ ─────────────────► │ sim (scenarios, fault injection)         │
  └───────────────────────────┘                    └──────────────────────────────────────────┘
 ```
 

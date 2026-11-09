@@ -132,7 +132,7 @@ def test_time_model_and_other_time_sources_are_skipped():
     y, H, R, _ = ekf.MODELS["time"](f, M(0, "gnss", "time", (1e-6,), (1e-8,)))
     assert y == pytest.approx(C * 1e-6 - 100.0) and H[0, ekf.CLK] == 1.0 and H.sum() == 1.0
     assert R[0, 0] == pytest.approx((C * 1e-8) ** 2)
-    assert ekf.MODELS["time"](f, M(0, "chu", "time", (18.0,), (1e-3,))) is None
+    assert ekf.MODELS["time"](f, M(0, "fm", "time", (18.0,), (1e-3,))) is None
 
 
 def test_pseudorange_model_jacobian_matches_finite_differences():
