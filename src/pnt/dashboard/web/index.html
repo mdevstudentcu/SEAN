@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PNT Navigation Panel</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand">PNT <span>navigation panel</span></div>
+  <div class="meta">
+    <span id="kind" class="chip">—</span>
+    <span id="name">connecting…</span>
+    <span class="sep">·</span>
+    <span id="estimator" class="muted"></span>
+  </div>
+  <div class="clock"><span id="clock">T+—</span><span id="speed" class="muted"></span><span id="conn" class="dot" title="stream"></span></div>
+</header>
+
+<main>
+  <section class="map card">
+    <div class="card-head">
+      <h2>Position (ENU, metres about the session origin)</h2>
+      <div class="buttons">
+        <button id="view-follow" class="on">Follow</button>
+        <button id="view-area">Area</button>
+      </div>
+    </div>
+    <canvas id="map"></canvas>
+    <div class="legend" id="map-legend">
+      <span><i class="sw est"></i>Estimate</span>
+      <span id="lg-truth"><i class="sw truth"></i>Truth</span>
+      <span><i class="sw ell"></i>95 % error ellipse</span>
+      <span><i class="sw hplc"></i>HPL circle</span>
+      <span><i class="tri"></i>Tower (heard / not heard)</span>
+      <span id="lg-ref"><i class="sq"></i>Reference station</span>
+    </div>
+  </section>
+
+  <aside class="side">
+    <section id="status" class="card status nominal">
+      <div class="status-word" id="status-word">—</div>
+      <div class="status-text" id="headline">Waiting for the first estimate.</div>
+    </section>
+
+    <section class="card">
+      <h2>Horizontal integrity</h2>
+      <div class="nums">
+        <div><label>RNP (alert limit)</label><b id="rnp">—</b></div>
+        <div><label>ANP (95 %)</label><b id="anp">—</b></div>
+        <div><label>HPL</label><b id="hpl">—</b></div>
+      </div>
+      <div class="gauge"><div id="hpl-bar"></div><div class="gauge-al" title="alert limit"></div></div>
+      <div class="row"><label>Predicted time to alert</label><span id="tta-h">—</span></div>
+      <div class="row" id="err-row"><label>Error against truth</label><span id="err">—</span></div>
+    </section>
+
+    <section class="card">
+      <h2>Timing</h2>
+      <div class="nums">
+        <div><label>Clock 1σ</label><b id="clk">—</b></div>
+        <div><label>Time PL</label><b id="tpl">—</b></div>
+        <div><label>Time alert limit</label><b id="tal">—</b></div>
+      </div>
+      <div class="gauge"><div id="tpl-bar"></div><div class="gauge-al"></div></div>
+      <div class="row"><label>Predicted time to alert</label><span id="tta-t">—</span></div>
+    </section>
+
+    <section class="card">
+      <h2>What is wrong now</h2>
+      <ul id="causes" class="causes"><li class="muted">Nothing flagged.</li></ul>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Alerts (latched until acknowledged)</h2><button id="ack-all">Acknowledge all</button></div>
+      <ul id="alerts" class="alerts"><li class="muted">No alerts.</li></ul>
+    </section>
+
+    <section class="card">
+      <h2>Sources</h2>
+      <div class="row"><label>Trusted</label><span id="trusted" class="chips">—</span></div>
+      <div class="row"><label>Low trust</label><span id="lowtrust" class="chips">—</span></div>
+      <div class="row"><label>Towers heard</label><span id="heard">—</span></div>
+    </section>
+  </aside>
+
+  <section class="charts">
+    <div class="card">
+      <div class="card-head">
+        <h2>Horizontal protection level against the alert limit</h2>
+        <div class="legend">
+          <span><i class="ln est"></i>HPL</span>
+          <span id="lg-pred"><i class="ln pred"></i>Pre-flight prediction</span>
+          <span id="lg-err"><i class="ln err"></i>Error against truth</span>
+          <span><i class="ln al"></i>Alert limit</span>
+        </div>
+      </div>
+      <canvas id="chart-hpl"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Time protection level against the time alert limit</h2>
+        <div class="legend">
+          <span><i class="ln est"></i>Time PL</span>
+          <span id="lg-terr"><i class="ln err"></i>Clock error against truth</span>
+          <span><i class="ln al"></i>Time alert limit</span>
+        </div>
+      </div>
+      <canvas id="chart-tpl"></canvas>
+    </div>
+  </section>
+</main>
+<footer id="notes" class="muted"></footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

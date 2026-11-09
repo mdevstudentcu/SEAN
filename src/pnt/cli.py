@@ -11,6 +11,8 @@ from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
+
 from pnt import experiments
 from pnt.core.measurement import Measurement
 from pnt.core.time import s_to_ns
@@ -57,6 +59,8 @@ def _fmt(metrics: dict) -> str:
 
 
 def cmd_sim(args) -> None:
+    if args.dash:
+        return _dash_sim(args)
     spec = load(args.scenario)
     run = generate(spec, seed=args.seed)
     estimates = list(
@@ -342,6 +346,79 @@ def cmd_experiment(args) -> None:
         Path(args.json).write_text(json.dumps(out, indent=2))
 
 
+def _serve_dash(feed, args) -> None:
+    from pnt.dashboard.server import create_app, serve  # needs fastapi (ground extra)
+
+    app = create_app(
+        feed,
+        speed=args.speed,
+        alert_limit_m=args.alert_limit,
+        time_alert_limit_s=args.time_alert_limit * 1e-6,
+    )
+    serve(app, host=args.host, port=args.port)
+
+
+def _dash_sim(args) -> None:
+    """`pnt sim <scenario> --dash`: the scenario straight onto the panel, nothing recorded."""
+    from pnt.dashboard.feed import sim_feed
+
+    feed = sim_feed(args.scenario, args.seed, args.estimator, preflight=not args.no_preflight)
+    _serve_dash(feed, args)
+
+
+def cmd_dash(args) -> None:
+    from pnt.dashboard.feed import replay_feed
+
+    feed = replay_feed(args.session, args.estimator, preflight=not args.no_preflight)
+    _serve_dash(feed, args)
+
+
+def cmd_preflight(args) -> None:
+    from pnt.integrity import preflight
+
+    p = preflight.predict(args.scenario, args.seed, args.estimator, args.alert_limit)
+    hpl = p.hpl_m[p.t_s >= args.settle]
+    print(
+        f"pre-flight {p.scenario} (seed {args.seed}), estimator {p.estimator}, {_commit()}: "
+        f"{len(p.t_s)} epochs"
+    )
+    print(f"  planned faults kept     {', '.join(p.kept_faults) or 'none'}")
+    print(f"  unplanned faults left   {', '.join(p.dropped_faults) or 'none'}")
+    if p.availability:
+        print(f"  tower availability      {p.availability} (sigma / sqrt(availability))")
+    if p.passthrough:
+        print(f"  kinds fed as recorded   {p.passthrough}")
+    print(
+        f"  HPL after {args.settle:g} s: median {np.nanmedian(hpl):.1f} m, "
+        f"max {np.nanmax(hpl):.1f} m"
+    )
+    windows = [w for w in p.unavailable() if w[1] > args.settle]
+    print(f"  HPL over the {p.alert_limit_m:g} m alert limit (TBC): {'' if windows else 'never'}")
+    for a, b in windows:
+        print(f"    {a:.1f} s to {b:.1f} s")
+    out = {"prediction": p.as_dict()}
+    if args.compare:
+        seeds = list(range(args.compare))
+        jobs = max(1, min(args.jobs, len(seeds)))
+        call = (preflight.compare_one, [args.scenario] * len(seeds), seeds,
+                [args.estimator] * len(seeds), [args.alert_limit] * len(seeds),
+                [args.settle] * len(seeds))  # fmt: skip
+        if jobs == 1:
+            rows = list(map(*call))
+        else:
+            with ProcessPoolExecutor(jobs) as pool:
+                rows = list(pool.map(*call))
+        summary = preflight.summarize(rows, args.alert_limit)
+        print(f"  against real runs, seeds 0-{len(seeds) - 1} (real / predicted HPL):")
+        print(_fmt(summary))
+        out["comparison"] = summary
+        if args.plot:
+            preflight.plot(p, rows, summary, args.plot)
+            print(f"wrote {args.plot}")
+    if args.json:
+        Path(args.json).write_text(json.dumps(out, indent=2))
+
+
 def cmd_live(args) -> None:
     raise SystemExit("live: not built yet (ADR-0009). Use `pnt replay` on a recorded session.")
 
@@ -353,12 +430,32 @@ def main(argv=None) -> None:
     def add_estimator(parser) -> None:
         parser.add_argument("--estimator", choices=sorted(ESTIMATORS), default="baseline")
 
+    def add_dash(parser) -> None:
+        """Options of the operator panel (pnt.dashboard)."""
+        parser.add_argument("--speed", type=float, default=1.0, help="x real time (inf: no hold)")
+        parser.add_argument("--host", default="127.0.0.1")
+        parser.add_argument("--port", type=int, default=8050)
+        parser.add_argument(
+            "--alert-limit", type=float, default=ALERT_LIMIT_M, help="m, TBC (REQ-01/02)"
+        )
+        parser.add_argument(
+            "--time-alert-limit",
+            type=float,
+            default=TIME_ALERT_LIMIT_S * 1e6,
+            help="µs, TBC (REQ-03)",
+        )
+        parser.add_argument(
+            "--no-preflight", action="store_true", help="skip the predicted HPL strip"
+        )
+
     s = sub.add_parser("sim", help="run one simulated scenario, write an MCAP, print metrics")
     s.add_argument("scenario")
     s.add_argument("--seed", type=int, default=0)
     s.add_argument("--out", help="session folder (default: data/sessions/sim-<scenario>-<time>)")
     s.add_argument("--force", action="store_true", help="overwrite an existing --out")
     add_estimator(s)
+    add_dash(s)
+    s.add_argument("--dash", action="store_true", help="show it on the panel; record nothing")
     s.set_defaults(fn=cmd_sim)
 
     s = sub.add_parser("eval", help="Monte Carlo over a scenario")
@@ -408,6 +505,24 @@ def main(argv=None) -> None:
     s.add_argument("--json")
     add_estimator(s)
     s.set_defaults(fn=cmd_experiment)
+
+    s = sub.add_parser("dash", help="replay a session on the operator panel (browser)")
+    s.add_argument("session", help="session folder or .mcap file")
+    s.add_argument("--estimator", choices=sorted(ESTIMATORS), default="ekf")
+    add_dash(s)
+    s.set_defaults(fn=cmd_dash)
+
+    s = sub.add_parser("preflight", help="predict protection levels along a scenario's route")
+    s.add_argument("scenario")
+    s.add_argument("--seed", type=int, default=0, help="names the world (synthetic towers)")
+    s.add_argument("--estimator", choices=sorted(ESTIMATORS), default="ekf")
+    s.add_argument("--alert-limit", type=float, default=ALERT_LIMIT_M, help="m, TBC (REQ-02)")
+    s.add_argument("--settle", type=float, default=10.0, help="s of start-up left out of stats")
+    s.add_argument("--compare", type=int, default=0, help="also run seeds 0..N-1 for real")
+    s.add_argument("--jobs", type=int, default=os.cpu_count() or 1, help="worker processes")
+    s.add_argument("--plot", help="PNG of prediction against real runs (needs --compare)")
+    s.add_argument("--json")
+    s.set_defaults(fn=cmd_preflight)
 
     s = sub.add_parser("live", help="run on the payload's live stream (not built yet)")
     s.set_defaults(fn=cmd_live)
