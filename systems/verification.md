@@ -54,6 +54,12 @@ How estimator `ekf-mhss` computes its HPL (REQ-02) and excludes faults (REQ-04).
 - **Not covered:** two faults at once in different groups (for example GNSS and one site); faults that stay below about half the threshold; the vertical (VPL is the filter's).
 - **Evidence:** paired 50-run evals of `ekf-mhss` against `ekf` on the base attack scenarios and every `realistic-*` scenario, and Stanford plots, in the description of the PR that closes #82.
 
+## Figures (#27)
+
+`just figures <estimator> 50` (`analysis/figures.py`) draws the four results figures from committed scenarios at seeds 0–49, with the numbers behind them in `summary.md`: error after GPS loss (REQ-01), a Stanford plot pooled over the `realistic` set (REQ-02), the ablation (REQ-06) and timing holdover (REQ-03). It is re-run on the final commit with the estimator we present; until then this file quotes none of its numbers.
+
+**Real sessions: placeholder.** No real session has been recorded yet. Replayed results of named sessions (REQ-10) go beside the sim figures once the first captures exist (#30).
+
 ## Results
 
 <!-- results:start -->
