@@ -20,7 +20,7 @@ Three record types flow through the pipeline. All are msgspec structs, encoded a
 
 ### `source` registry
 
-`gnss`, `imu`, `baro`, `lte`, `nr`, `adsb`, `vor`, `wifi`, `ble`, `chu`, `fm`, `leo` (simulated), `cam`. Simulated data keeps the same names; the session metadata says it is simulated.
+`gnss`, `imu`, `baro`, `lte`, `nr`, `adsb`, `vor`, `wifi`, `ble`, `fm`, `leo` (simulated), `cam`. Simulated data keeps the same names; the session metadata says it is simulated.
 
 ### `kind` registry
 
