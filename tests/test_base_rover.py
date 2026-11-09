@@ -100,3 +100,24 @@ def test_replay_of_a_two_receiver_session_matches_the_sim(tmp_path):
     )  # fmt: skip
     direct = list(estimate("ekf-base", run.measurements, spec["origin_llh"], run.reference))
     assert [e.pos_enu for e in replayed] == [e.pos_enu for e in direct]
+
+
+def test_an_unknown_survey_accuracy_is_not_assumed():
+    # ICD-session: sigma_m TBD or absent means the accuracy is unknown, so the survey error's
+    # prior carries no information; a number is used as given
+    spec = load("realistic-with-base-nominal")
+    run = generate(spec, seed=0)
+    priors = {}
+    for label, sigma in (("given", 1.0), ("tbd", "TBD"), ("absent", None)):
+        ref = {k: v for k, v in run.reference.items() if k != "sigma_m"}
+        if sigma is not None:
+            ref["sigma_m"] = sigma
+        f = base_rover.BaseRoverEKF(origin_llh=spec["origin_llh"], reference=ref)
+        for m in run.measurements:
+            f.process(m)
+            if f.bpos is not None:
+                break
+        priors[label] = np.sqrt(np.diag(f.P[f.bpos, f.bpos]))
+    assert np.allclose(priors["given"], 1.0)
+    assert np.all(priors["tbd"] >= 1e3)
+    assert np.allclose(priors["tbd"], priors["absent"])

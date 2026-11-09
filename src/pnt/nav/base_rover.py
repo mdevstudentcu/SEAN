@@ -7,7 +7,8 @@ where T is the tower's clock. Their single difference, at the same epoch,
     rho_d - rho_b = |p - e| - |b - e| + (c dt_d - c dt_b) + noise_d - noise_b
 has no tower clock: a wandering, drifting or stepping tower clock cancels, and only the relative
 receiver clock remains. The filter keeps `ekf`'s states (position, velocity, payload clock) and
-adds four: the base's survey error (3, constant, prior from the session's `sigma_m`) and the
+adds four: the base's survey error (3, constant, prior from the session's `sigma_m`, or no
+information when it is `TBD` or absent) and the
 base's clock offset (a random walk). Both are learned while GPS is trusted. Each differenced
 tower also gets a bias state (Gauss-Markov): what is left in the difference that does not cancel,
 mostly multipath at either end and the tower's position error seen from two places.
@@ -78,7 +79,11 @@ class BaseRoverEKF(EKF):
         self,
         origin_llh=None,
         reference: dict | None = None,
-        unknown_survey_sigma_m: float = 30.0,  # TBC: used when the session's sigma_m is TBD
+        # When the session's sigma_m is TBD or absent the survey's accuracy is unknown, and
+        # ICD-session says not to assume one: this is a no-information prior, wider than any
+        # GPS fix is wrong by, not an accuracy claim. GPS calibrates the survey error while it
+        # is trusted; give sigma_m in the session to do better
+        unknown_survey_sigma_m: float = 1e3,
         base_clock_sigma_s: float = 1e-6,  # TBC: prior on the base's clock before calibration
         q_base_clock: float = 0.3,  # m/sqrt(s), TBC: a PPS-disciplined clock's wander
         # m/sqrt(s), TBC: how fast the base's view of a tower moves: tower clock wander plus the
