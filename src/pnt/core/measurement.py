@@ -28,6 +28,9 @@ KINDS = frozenset(
         "adsb_report",
     }
 )
+# Which receiver produced a measurement (ADR-0020). Records written before this field existed
+# decode as "payload", so every older session still loads unchanged.
+RECEIVERS = frozenset({"payload", "reference"})
 
 
 class Measurement(msgspec.Struct, frozen=True, kw_only=True):
@@ -39,6 +42,7 @@ class Measurement(msgspec.Struct, frozen=True, kw_only=True):
     value: tuple[float, ...]
     sigma: tuple[float, ...]
     emitter: str = ""
+    receiver: str = "payload"  # one of RECEIVERS
     meta: dict = {}
 
 
@@ -97,6 +101,8 @@ def validate(m: Measurement) -> None:
         raise ValueError(f"unknown source {m.source!r} (add it to the ICD first)")
     if m.kind not in KINDS:
         raise ValueError(f"unknown kind {m.kind!r} (add it to the ICD first)")
+    if m.receiver not in RECEIVERS:
+        raise ValueError(f"unknown receiver {m.receiver!r} (add it to the ICD first)")
     if len(m.value) != len(m.sigma):
         raise ValueError("value and sigma must have the same length")
     if any(s < 0 for s in m.sigma):

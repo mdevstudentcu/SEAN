@@ -1,9 +1,12 @@
+import json
+
 import pytest
 import yaml
 
 from pnt.cli import main
+from pnt.core.measurement import Measurement
 from pnt.io import session
-from pnt.io.mcap_log import read_session
+from pnt.io.mcap_log import SessionWriter, read_session
 
 
 def test_sim_writes_a_session_folder_per_the_icd(tmp_path, capsys):
@@ -88,3 +91,48 @@ def test_default_session_names_never_collide(tmp_path, monkeypatch):
     main(["sim", "gps-outage"])  # same second, most likely
     folders = sorted(p.name for p in tmp_path.iterdir())
     assert len(folders) == 2 and all((tmp_path / f / "session.mcap").exists() for f in folders)
+
+
+def _meas(t_ns: int, receiver: str) -> Measurement:
+    return Measurement(
+        t_ns=t_ns, source="lte", kind="pseudorange", value=(float(t_ns),), sigma=(1.0,),
+        emitter="lte:sim0", receiver=receiver,
+    )  # fmt: skip
+
+
+def test_two_receivers_share_a_session_and_round_trip(tmp_path):
+    path = tmp_path / "s.mcap"
+    written = [_meas(1, "payload"), _meas(1, "reference"), _meas(2, "reference")]
+    with SessionWriter(path) as w:
+        for m in written:
+            w.write(f"/meas/{m.source}", m)
+    read = [(topic, rec) for topic, rec in read_session(path, topics=["/meas/"])]
+    assert {topic for topic, _ in read} == {"/meas/lte"}
+    assert sorted((r.t_ns, r.receiver) for _, r in read) == sorted(
+        (m.t_ns, m.receiver) for m in written
+    )
+
+
+def test_session_written_before_the_receiver_field_still_loads(tmp_path):
+    from mcap.writer import Writer
+
+    path = tmp_path / "old.mcap"
+    old = {"t_ns": 5, "source": "lte", "kind": "pseudorange", "value": [1.0], "sigma": [1.0]}
+    with open(path, "wb") as f:
+        w = Writer(f)
+        w.start(profile="", library="pnt")
+        schema = w.register_schema(name="pnt.Measurement", encoding="jsonschema", data=b"{}")
+        ch = w.register_channel(topic="/meas/lte", message_encoding="json", schema_id=schema)
+        w.add_message(channel_id=ch, log_time=5, publish_time=5, data=json.dumps(old).encode())
+        w.finish()
+    [(_, rec)] = list(read_session(path))
+    assert rec.receiver == "payload"
+
+
+def test_meta_records_the_reference_station(tmp_path):
+    ref = {"position_llh": [45.0, -75.0, 70.0], "surveyed": False}
+    session.write_meta(tmp_path, {"name": "x", "reference": ref})
+    assert session.read_meta(tmp_path)["reference"] == ref
+    with SessionWriter(tmp_path / "s.mcap", metadata={"reference": ref}):
+        pass
+    assert session.read_meta(tmp_path / "s.mcap")["reference"] == ref

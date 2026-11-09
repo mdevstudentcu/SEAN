@@ -66,3 +66,27 @@ def test_enu_roundtrip_and_origin_is_zero():
 def test_one_degree_of_latitude_is_about_111_km():
     north = frames.llh_to_enu((ORIGIN[0] + 1, ORIGIN[1], ORIGIN[2]), ORIGIN)
     assert 111_000 < north[1] < 111_300
+
+
+def test_receiver_defaults_to_payload():
+    m = Measurement(t_ns=0, source="lte", kind="pseudorange", value=(1.0,), sigma=(1.0,))
+    assert m.receiver == "payload"
+    validate(m)
+
+
+def test_record_without_receiver_field_decodes_as_payload():
+    # JSON as written before the field existed
+    old = b'{"t_ns":1,"source":"lte","kind":"pseudorange","value":[1.5],"sigma":[2.0],"meta":{}}'
+    assert from_json(old, Measurement).receiver == "payload"
+
+
+def test_validate_accepts_reference_and_rejects_unknown_receiver():
+    m = Measurement(
+        t_ns=0, source="lte", kind="pseudorange", value=(1,), sigma=(1,), receiver="reference"
+    )
+    validate(m)
+    assert from_json(to_json(m), Measurement).receiver == "reference"
+    with pytest.raises(ValueError, match="receiver"):
+        validate(
+            Measurement(t_ns=0, source="lte", kind="range", value=(1,), sigma=(1,), receiver="x")
+        )

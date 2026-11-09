@@ -18,7 +18,7 @@ data/sessions/20261110-1430-handheld-carleton/
 
 | Topic | Record |
 | --- | --- |
-| `/meas/<source>` | `Measurement` (one topic per source) |
+| `/meas/<source>` | `Measurement` (one topic per source, shared by both receivers; each record's `receiver` field says which made it, ICD-measurement) |
 | `/nav/<estimator>` | `Estimate` (e.g. `/nav/baseline`) |
 | `/truth` | `Truth` |
 | `/mavlink/fc` | Flight-controller MAVLink, decoded to JSON |
@@ -35,5 +35,10 @@ scenario: null            # scenario file for sim sessions
 seed: null                # sim random seed, so the run can be regenerated (REQ-10)
 commit: <git sha>
 hardware: [pi3bplus, pi-zero-2w, airnav-flightstick, nesdr-smart-v5, adafruit-gps-hat, mpu6050, bmp280, pi-camera]
+reference: null           # or the reference station, when the session has `reference` records:
+#   position_llh: [<lat>, <lon>, <h>]  # its antenna: WGS84 deg, deg, m
+#   surveyed: true        # true: averaged GPS fix (ADR-0020); false: set by a sim scenario
 notes: ""
 ```
+
+`reference` is `null` when the session holds only payload records. A session with `reference` records must give its `position_llh`.
