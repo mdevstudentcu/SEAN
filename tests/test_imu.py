@@ -1,5 +1,7 @@
 """The IMU motion model (issue #12, stage 2): `EKF(motion="imu")`, nav/imu.py."""
 
+import math
+
 import numpy as np
 import pytest
 
@@ -10,25 +12,30 @@ from pnt.sim import sensors, trajectory
 from pnt.sim.scenario import T0_NS, generate, load
 
 LOOP = {"type": "loop", "radius_m": 150, "speed_mps": 8, "altitude_m": 30}
+TURN = {"type": "loop", "radius_m": 40, "speed_mps": 10, "altitude_m": 30}  # about 14 deg of tilt
 CIRCUIT = load("uc01-drone-circuit")["trajectory"]
 MPU6050_SIM = sensors.MPU6050  # the sim's truth model, not the filter's ImuSpec
 
 
-def session(traj, duration_s, gnss_until_s, seed=0, imu_gap=None, params=None):
-    """GNSS fixes (5 Hz, 1 m) until `gnss_until_s`, and IMU samples (100 Hz) throughout, with
-    none inside `imu_gap` (start_s, end_s). Returns (measurements, truth kinematics at 10 Hz)."""
+def session(
+    traj, duration_s, gnss_until_s, seed=0, imu_gap=None, params=None, start_s=0.0, gnss_sigma=1.0
+):
+    """GNSS fixes (5 Hz, 1 m unless `gnss_sigma`) until `gnss_until_s`, and IMU samples (100 Hz)
+    throughout, with none inside `imu_gap` (start_s, end_s). The session starts `start_s` into
+    the trajectory. Returns (measurements, truth kinematics at 10 Hz)."""
     rng = np.random.default_rng(seed)
     t = np.arange(0.0, duration_s, 0.01)
-    k = trajectory.kinematics(traj, t)
+    k = trajectory.kinematics(traj, t + start_s)
     accel, gyro = sensors.imu(t, k.specific_force_b, k.omega_b, rng, params or MPU6050_SIM)
     keep = np.ones(len(t), bool) if imu_gap is None else (t < imu_gap[0]) | (t >= imu_gap[1])
     ts_ns = T0_NS + np.round(t * 1e9).astype(np.int64)
     meas = sensors.imu_measurements(ts_ns[keep], accel[keep], gyro[keep])
     for i in range(0, len(t), 20):
         if t[i] < gnss_until_s:
-            p = k.pos[i] + rng.normal(0.0, 1.0, 3)
+            p = k.pos[i] + rng.normal(0.0, gnss_sigma, 3)
             meas.append(Measurement(t_ns=int(ts_ns[i]), source="gnss", kind="position_enu",
-                                    value=tuple(p), sigma=(1.0, 1.0, 1.5)))  # fmt: skip
+                                    value=tuple(p),
+                                    sigma=(gnss_sigma, gnss_sigma, 1.5 * gnss_sigma)))  # fmt: skip
     meas.sort(key=lambda m: (m.t_ns, m.source))
     return meas, k
 
@@ -118,6 +125,103 @@ def test_imu_states_sit_before_the_clocks_so_rollback_keeps_them():
                           sigma=(1.0, 1.0, 1.0)))  # fmt: skip
     assert f.n_core == ekf.N_CORE + 9 == len(f.x)
     assert f.imu.bg.stop == f.n_core
+
+
+ATTITUDE = rotation([0.2, -0.3, 1.1])
+PREDICT_NS = 350_000_000  # three covariance chunks of `max_step_s`
+
+
+def motion_samples(gap):
+    """100 Hz samples with strongly varying force and rate, none inside `gap` (start_s, end_s)."""
+    out = []
+    for i in range(36):
+        t = i * 0.01
+        if gap is None or not gap[0] <= t < gap[1]:
+            f = (1.5 + 2.0 * math.sin(3.0 * t), -1.0 + math.cos(2.0 * t), 9.5 + 0.8 * t)
+            w = (0.4 + 0.5 * t, -0.3 + math.sin(5.0 * t), 0.6)
+            out.append(Measurement(t_ns=i * 10_000_000, source="imu", kind="accel_gyro",
+                                   value=(*f, *w), sigma=(1.0,) * 6))  # fmt: skip
+    return out
+
+
+def aligned_filter(samples, dx=None):
+    """A filter at t=0, already aligned to ATTITUDE, with `samples` buffered; `dx` is added to
+    its (position, velocity, attitude error, accel bias, gyro bias)."""
+    f = ekf.EKF(motion="imu")
+    f.process(Measurement(t_ns=0, source="gnss", kind="position_enu", value=(0.0, 0.0, 0.0),
+                          sigma=(1.0, 1.0, 1.0)))  # fmt: skip
+    f.imu.R = ATTITUDE.copy()
+    nominal = [10.0, -5.0, 30.0, 3.0, -2.0, 0.5, 0.0, 0.0, 0.0]
+    f.x[f.imu.nav] = [*nominal, 0.05, -0.03, 0.02, 0.002, -0.001, 0.003]
+    if dx is not None:
+        f.x[f.imu.nav] += dx
+    for s in samples:
+        f.process(s)
+    return f
+
+
+def propagated(samples, attitude_ref, dx):
+    """The real prediction (`EKF.predict`) from a perturbed start, as the state vector with the
+    attitude error written as the small rotation from `attitude_ref`."""
+    f = aligned_filter(samples, dx)
+    f.predict(PREDICT_NS)
+    out = f.x[f.imu.nav].copy()
+    d = f.imu.R @ attitude_ref.T
+    out[6:9] = np.array([d[2, 1] - d[1, 2], d[0, 2] - d[2, 0], d[1, 0] - d[0, 1]]) / 2.0
+    return out
+
+
+@pytest.mark.parametrize("gap, bg_tol", [(None, 0.05), ((0.1, 0.3), 0.4)])
+def test_transition_matches_numerical_differentiation_of_the_prediction(gap, bg_tol):
+    """The transition `ImuMotion.propagate` gives `EKF.predict`, against central differences of
+    the prediction itself, over several chunks and across an IMU gap.
+
+    Regression guard, not a requirement: the transition is first order in the chunk length, and
+    the rates here are far above a drone's. Measured worst error per block: 0.4 % (gyro-bias
+    columns 4.3 %). With the gap, one chunk takes a whole held sample and reaches 0.19 s, so the
+    gyro-bias columns are off by up to 35 %. A sign or factor error is 100 % or more."""
+    samples = motion_samples(gap)
+    nominal = aligned_filter(samples)
+    nominal.predict(PREDICT_NS)
+    reference = nominal.imu.R.copy()
+
+    f = aligned_filter(samples)
+    F, Q = np.eye(len(f.x)), np.zeros((len(f.x), len(f.x)))
+    f.imu.propagate(f, PREDICT_NS, F, Q)
+    analytic = F[np.ix_(f.imu.nav, f.imu.nav)]
+
+    h = 1e-6
+    numeric = np.zeros((15, 15))
+    for i in range(15):
+        dx = h * np.eye(15)[i]
+        numeric[:, i] = propagated(samples, reference, dx) - propagated(samples, reference, -dx)
+        numeric[:, i] /= 2 * h
+
+    for row in range(0, 15, 3):
+        for col in range(0, 15, 3):
+            a, n = analytic[row : row + 3, col : col + 3], numeric[row : row + 3, col : col + 3]
+            tol = bg_tol if col == 12 else 0.01
+            assert np.linalg.norm(a - n) <= tol * np.linalg.norm(n) + 1e-6, (row, col)
+
+
+@pytest.mark.parametrize("start_s", [0.0, 8.0, 16.0])  # true heading about -112, 2 and 117 deg
+def test_alignment_recovers_a_known_heading_on_a_turn(start_s):
+    """In-flight alignment on a hard turn. GNSS is near-perfect here so the filter's velocity
+    tracks the truth and only the alignment itself is under test.
+
+    Regression guard, not a requirement: measured under 1 deg of heading and 0.3 deg of tilt.
+    With 1 m GNSS the constant-velocity filter's velocity lags the turn and heading is off by 9
+    to 18 deg, with a reported sigma of 3 deg (the floor): a known limit, not asserted here."""
+    meas, k = session(TURN, 30.0, gnss_until_s=30.0, start_s=start_s, gnss_sigma=0.01)
+    f = ekf.EKF(motion="imu")
+    for m in meas:
+        f.process(m)
+        if f.imu.R is not None:
+            break
+    assert f.imu.aligned_at is not None
+    d = f.imu.R @ k.rot[round((f.imu.aligned_at - T0_NS) / 1e7)].T
+    assert abs(math.degrees(math.atan2(d[1, 0], d[0, 0]))) < 5.0
+    assert math.degrees(math.acos(min(d[2, 2], 1.0))) < 1.0
 
 
 def test_worse_grade_spec_scales_every_term():
