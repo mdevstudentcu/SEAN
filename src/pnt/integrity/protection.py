@@ -34,9 +34,10 @@ def tpl(clock_sigma_s: float | None, k: float = K_T) -> float | None:
 
     There is no standard definition of a time protection level (CISA, DHS and IEEE P1952 publish
     none that we found). Research definitions exist for GNSS timing receivers (Kirkko-Jaakkola et
-    al., ION GNSS 2017; Baweja, arXiv 2606.24210, 2026; see systems/research.md); ours is for time
-    held by signals of opportunity: TPL = K_T * clock_sigma_s, the HPL recipe applied to the
-    one-dimensional clock state, with the same Gaussian, honest-covariance assumption. Computed
+    al., ION GNSS 2017; Baweja, arXiv 2606.24210, 2026; see systems/research.md); ours is the
+    receiver-clock 1-sigma, in `ekf` oscillator holdover: TPL = K_T * clock_sigma_s, the HPL
+    recipe applied to the one-dimensional clock state, with the same Gaussian,
+    honest-covariance assumption. Computed
     outside the estimator from `Estimate.clock_sigma_s`; None when the clock is not estimated.
     """
     if clock_sigma_s is None:

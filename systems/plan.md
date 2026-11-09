@@ -51,7 +51,7 @@ Existing issues that still apply:
 
 - **Live, indoors:**
   - real GPS loss when the payload moves indoors
-  - time held by the towers, with its protection level
+  - time held through the GPS loss, with its protection level
   - a software-injected spoof setting off the alarm
   - the health panel
 - **Replay of outdoor captures (real signals):**
