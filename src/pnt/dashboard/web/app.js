@@ -291,19 +291,27 @@ function chips(obj, low) {
   if (!keys.length) return '<span class="muted">none</span>';
   return keys.map((k) => `<span class="chip${low ? " low" : ""}">${esc(k)} ${obj[k].toFixed(2)}</span>`).join("");
 }
-function renderAlerts(alerts, settled = true) {
-  const ul = $("alerts");
+function alertsHtml(alerts, settled) {
   if (!alerts.length) {
-    ul.innerHTML = settled ? '<li class="muted">No alerts.</li>'
+    return settled ? '<li class="muted">No alerts.</li>'
       : '<li class="muted">Start-up: alerts latch once the filter first reports nominal (or after 30 s).</li>';
-    return;
   }
-  ul.innerHTML = alerts.map((a) => {
+  return alerts.map((a) => {
     const state = a.active ? (a.acked ? "active, acknowledged" : "active") : `cleared at T+${a.last_s.toFixed(1)} s`;
     const times = a.count > 1 ? ` (${a.count} times; first T+${a.since_s.toFixed(1)} s)` : "";
     const btn = a.acked ? "" : `<button data-id="${a.id}">Ack</button>`;
     return `<li class="${a.severity}${a.active ? "" : " cleared"}"><div class="txt"><span class="sev">${a.severity}</span>${esc(a.text)}<span class="when">since T+${a.onset_s.toFixed(1)} s${times} · ${state}</span></div>${btn}</li>`;
   }).join("");
+}
+// Rebuilt only when what it shows has changed: a button replaced between press and release, as a
+// rebuild on every frame would do, never gets its click.
+let shownAlerts = null;
+function renderAlerts(alerts, settled = true) {
+  const html = alertsHtml(alerts, settled);
+  if (html === shownAlerts) return;
+  shownAlerts = html;
+  const ul = $("alerts");
+  ul.innerHTML = html;
   ul.querySelectorAll("button").forEach((b) => (b.onclick = () => ack({ id: +b.dataset.id })));
 }
 function ack(body) {
