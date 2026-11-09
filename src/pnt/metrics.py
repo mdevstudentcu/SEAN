@@ -38,6 +38,16 @@ TIME_ALERT_LIMIT_S = 1.5e-6
 RECOVERY_SETTLE_S = 30.0  # TBC: time allowed after the fault ends before recovery is judged
 NO_DEGRADATION_RATIO = 1.5  # TBC: fault-window p95 within this factor of the pre-fault p95
 
+# Outage slices (issue #128). T1 and T3 (systems/plan.md, TBC) are stated from GPS loss, so the
+# report card scores fixed lengths of time after it and outages of different lengths compare.
+# GPS loss: the start of the first fault that removes GNSS position from the estimator, an
+# `outage` of source gnss or a `gps_no_fix` (both drop the position readings, sim/attacks.py).
+# A `jamming_zone` also does, but by place, with no start time, so it has no slices.
+OUTAGE_SLICES_S = (60, 120, 300)  # s after GPS loss (TBC); 300 is T1's
+T1_AFTER_S = 300.0  # s: T1's "for >= 300 s after GPS loss" (TBC), also the HPL bound slice
+T3_AFTER_S = 600.0  # s: T3's "after 10 min without GPS" (TBC)
+T3_WINDOW_S = 10.0  # TBC: the time error at 600 s is the p95 over the 10 s ending there
+
 
 @dataclass
 class RunMetrics:
@@ -69,6 +79,14 @@ class RunMetrics:
         float  # judged if a fault corrupts time; 0 if the clock is not estimated
     )
     recovery_tested: float  # 1 if the run has time after the fault ends, 0 if not, nan no fault
+    # Outage slices (T1, T3), from GPS loss (see OUTAGE_SLICES_S). Each is nan if the scenario
+    # has no GPS loss, or if the outage or the run ends before the slice does.
+    outage_h_p95_60s_m: float  # p95 horizontal error over the first 60 s after GPS loss
+    outage_h_p95_120s_m: float  # same, first 120 s
+    outage_h_p95_300s_m: float  # same, first 300 s (T1)
+    outage_hpl_bound_300s: float  # fraction of the first 300 s where HPL >= horizontal error
+    outage_time_err_600s_us: float  # |clock error| at 600 s (T3), also nan if no clock
+    outage_time_sigma_bound_600s: float  # fraction of the first 600 s: clock sigma >= error
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -139,6 +157,61 @@ def _part_level(x, limit, hazardous, exists, in_fault, before, settled) -> float
             undegraded=bool(pre.any() and _p95(x[fw]) <= NO_DEGRADATION_RATIO * _p95(x[pre])),
         )
     )
+
+
+def gps_loss(spec: dict, t0_ns: int) -> tuple[int, int | None] | None:
+    """(start, end) of the first fault that removes GNSS position, end None if it never ends;
+    None if the scenario has no such fault."""
+    losses = [
+        f
+        for f in spec.get("faults", [])
+        if f["type"] == "gps_no_fix"
+        or (f["type"] == "outage" and f.get("source", "gnss") == "gnss")
+    ]
+    if not losses:
+        return None
+    f = min(losses, key=lambda f: f.get("start_s", 0.0))
+    return (
+        t0_ns + s_to_ns(f.get("start_s", 0.0)),
+        t0_ns + s_to_ns(f["end_s"]) if "end_s" in f else None,
+    )
+
+
+def _outage_slices(t, err, hpl, clock_err, clock_sigma, has_clock, spec, t0_ns) -> dict:
+    """The outage-slice fields of RunMetrics (see OUTAGE_SLICES_S)."""
+    slices = {f"outage_h_p95_{s}s_m": s for s in OUTAGE_SLICES_S}
+    bounds = ["outage_hpl_bound_300s", "outage_time_err_600s_us", "outage_time_sigma_bound_600s"]
+    out = dict.fromkeys([*slices, *bounds], float("nan"))
+    loss = gps_loss(spec, t0_ns)
+    if loss is None:
+        return out
+    start, end = loss
+    # The run lasts until one epoch after its last one: epochs every 0.1 s from 0 to 359.9 s
+    # cover a 360 s run, so a 300 s outage from 60 s gets a 300 s slice.
+    run_end = int(t[-1] + (np.median(np.diff(t)) if len(t) > 1 else 0))
+    end = run_end if end is None else min(end, run_end)
+
+    def window(a_s: float, b_s: float) -> np.ndarray | None:
+        """Epochs in [loss + a, loss + b), or None if the outage or the run ends before b."""
+        if start + s_to_ns(b_s) > end:
+            return None
+        return (t >= start + s_to_ns(a_s)) & (t < start + s_to_ns(b_s))
+
+    for name, length in slices.items():
+        w = window(0.0, length)
+        if w is not None:
+            out[name] = _p95(err[w])
+    w = window(0.0, T1_AFTER_S)
+    if w is not None and w.any():
+        out["outage_hpl_bound_300s"] = float(np.mean(hpl[w] >= err[w]))
+    w = window(T3_AFTER_S - T3_WINDOW_S, T3_AFTER_S)
+    if w is not None:
+        out["outage_time_err_600s_us"] = _p95(clock_err[w & has_clock]) * 1e6
+    w = window(0.0, T3_AFTER_S)
+    if w is not None and (w & has_clock).any():
+        c = w & has_clock
+        out["outage_time_sigma_bound_600s"] = float(np.mean(clock_sigma[c] >= clock_err[c]))
+    return out
 
 
 def score(estimates: list[Estimate], truth: list[Truth], spec: dict, t0_ns: int) -> RunMetrics:
@@ -250,6 +323,7 @@ def score(estimates: list[Estimate], truth: list[Truth], spec: dict, t0_ns: int)
         pos_resilience_level=levels[POSITION],
         time_resilience_level=levels[TIME],
         recovery_tested=recovery_tested,
+        **_outage_slices(t, err, hpl, clock_err, clock_sigma, has_clock, spec, t0_ns),
     )
 
 
