@@ -383,10 +383,15 @@ class Link:
         self.nonce = 0  # learnt from the bridge; 0 is never valid
         self.status: Status | None = None
         self.status_at = float("-inf")
+        self.received = 0  # authentic status replies
         self.forged_status = 0
+        self.send_errors = 0
 
     def send(self, packet: bytes) -> None:
-        self.sock.sendto(packet, self.addr)
+        try:
+            self.sock.sendto(packet, self.addr)
+        except OSError:  # Wi-Fi down: nothing reaches the bridge, which then goes silent
+            self.send_errors += 1
 
     def receive(self, now_s: float) -> bool:
         """Read pending status replies. Returns True if the bridge's nonce changed."""
@@ -398,6 +403,8 @@ class Link:
                 return changed
             except ConnectionRefusedError:  # ICMP from a bridge that is not listening
                 continue
+            except OSError:  # e.g. Wi-Fi down
+                return changed
             status = parse_status(self.key, data)
             if status is None:
                 self.forged_status += 1
@@ -407,6 +414,7 @@ class Link:
                 changed = True
             self.status = status
             self.status_at = now_s
+            self.received += 1
 
     def ok(self, now_s: float) -> bool:
         s = self.status
@@ -420,7 +428,7 @@ class Link:
     def describe(self, now_s: float) -> str:
         s = self.status
         if s is None:
-            return "LINK waiting for the bridge"
+            return f"LINK waiting for the bridge (send errors {self.send_errors})"
         age = now_s - self.status_at
         state = LINK_NAMES.get(s.link, "?") if age <= STATUS_FRESH_S else "NO STATUS"
         return (
@@ -439,6 +447,66 @@ def describe_command(cmd: Command) -> str:
     )
 
 
+# --- Bench check of the bridge's packet checks ----------------------------------------
+
+
+def link_test(key: bytes, link, out=sys.stdout, clock=time.monotonic, sleep=time.sleep) -> int:
+    """Send a replayed, a forged and an old-boot packet and check the bridge drops each.
+
+    Every packet is disarmed with the throttle low. Returns 0 if the bridge's counters
+    moved exactly as expected.
+    """
+    channels = [US_MID] * CHANNELS
+    channels[CH_THROTTLE] = channels[CH_ARM] = US_LOW
+    seq = SequenceCounter()
+
+    def packet(nonce: int) -> bytes:
+        return build_control(key, nonce, seq.next(), channels, 0)
+
+    def probe() -> Status | None:
+        # The bridge replies at most every 100 ms, to the latest datagram.
+        sleep(0.15)
+        seen = link.received
+        link.send(packet(link.nonce))
+        deadline = clock() + 1.0
+        while clock() < deadline:
+            link.receive(clock())
+            if link.received != seen:
+                return link.status
+            sleep(0.01)
+        return None
+
+    if probe() is None:  # nonce still 0: rejected, but the reply carries the nonce
+        print("FAIL: no signed reply from the bridge (key, address or Wi-Fi?)", file=out)
+        return 1
+    before = probe()
+    if before is None or before.link != LINK_LIVE:
+        print("FAIL: the bridge did not accept a valid packet", file=out)
+        return 1
+    valid = packet(link.nonce)
+    forged = bytearray(packet(link.nonce))
+    forged[16 + 2 * CH_THROTTLE] ^= 0x80  # throttle changed, tag not
+    link.send(valid)
+    link.send(valid)  # replay
+    link.send(bytes(forged))
+    link.send(packet(link.nonce ^ 1))  # signed, but for another boot of the bridge
+    after = probe()
+    if after is None:
+        print("FAIL: no reply after the test packets", file=out)
+        return 1
+    got = {
+        "accepted": after.accepted - before.accepted,
+        "replay": after.replay - before.replay,
+        "bad_tag": after.bad_tag - before.bad_tag,
+        "bad_nonce": after.bad_nonce - before.bad_nonce,
+        "bad_format": after.bad_format - before.bad_format,
+    }
+    want = {"accepted": 2, "replay": 1, "bad_tag": 1, "bad_nonce": 1, "bad_format": 0}
+    ok = got == want
+    print(f"{'PASS' if ok else 'FAIL'}: counter changes {got}, expected {want}", file=out)
+    return 0 if ok else 1
+
+
 # --- CLI ------------------------------------------------------------------------------
 
 
@@ -449,6 +517,11 @@ def add_arguments(p: argparse.ArgumentParser) -> None:
     p.add_argument("--key-file", type=Path, default=DEFAULT_KEY_FILE, help="secrets.h or hex")
     p.add_argument("--rate", type=float, default=RATE_HZ, help="packets per second (TBC)")
     p.add_argument("--count", type=int, help="stop after this many packets")
+    p.add_argument(
+        "--link-test",
+        action="store_true",
+        help="bench check: the bridge rejects replayed, forged and old-boot packets",
+    )
 
 
 def cmd_rc(args: argparse.Namespace) -> None:
@@ -468,11 +541,18 @@ def run(args: argparse.Namespace, out=sys.stdout) -> int:
             file=out,
         )
         return 2
+    if args.link_test:
+        host, _, port = args.bridge.rpartition(":")
+        return link_test(key, Link(key, (host, int(port))), out)
     if args.device == "none" and not args.dry_run:
         print("--device none is for dry runs only", file=out)
         return 2
 
-    pad = NeutralPad() if args.device == "none" else Gamepad(args.device)
+    try:
+        pad = NeutralPad() if args.device == "none" else Gamepad(args.device)
+    except OSError as e:
+        print(f"no gamepad: {e}", file=out)
+        return 2
     host, _, port = args.bridge.rpartition(":")
     link = None if args.dry_run else Link(key, (host, int(port)))
     ctl = Controller()
