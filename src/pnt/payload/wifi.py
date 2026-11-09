@@ -2,7 +2,7 @@
 
 `iw dev <iface> scan passive` listens for beacons only: no probe requests are sent, and no
 client traffic is captured. `parse_scan` hashes each BSSID the moment it reads it, with the
-deployment's salt, as the first 8 bytes of SHA-256(salt || BSSID) (the same rule as
+session's salt, as the first 8 bytes of SHA-256(salt || BSSID) (the same rule as
 `PNT_WIFI_AP` in `pnt.xml`). The raw BSSID never leaves that function, and SSIDs are not kept.
 
 Off by default: scanning on the Pi's only radio interrupts the live stream (ADR-0018, `TBC`
@@ -22,7 +22,6 @@ from pathlib import Path
 from pnt.core.measurement import Measurement
 from pnt.core.time import now_gps_ns
 
-SALT_FILE = Path.home() / ".config" / "pnt" / "wifi-salt"
 # RSSI 1-sigma, dB. Placeholder until a static session measures it: TBC.
 RSSI_SIGMA_DB = 6.0
 _BSS = re.compile(r"^BSS ([0-9a-fA-F:]{17})")
@@ -30,14 +29,11 @@ _SIGNAL = re.compile(r"^\s+signal: (-?[0-9.]+) dBm")
 _FREQ = re.compile(r"^\s+freq: ([0-9.]+)")
 
 
-def load_salt(path: Path = SALT_FILE) -> bytes:
-    """The deployment's salt, created (0600) on first use. Kept out of sessions and git."""
-    if not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "wb") as f:
-            f.write(secrets.token_bytes(32))
-    return path.read_bytes()
+def new_salt() -> bytes:
+    """A fresh salt for one session (ADR-0011). It lives only in the recorder's memory and is
+    never written anywhere, so a session's hashes can't be reversed or linked to another
+    session's, even by us."""
+    return secrets.token_bytes(32)
 
 
 def salt_id(salt: bytes) -> str:
@@ -90,7 +86,7 @@ class WifiScan:
         return {"scans": self.scans, "aps": self.aps}
 
     def run(self, ctx) -> None:
-        salt = self._salt if self._salt is not None else load_salt()
+        salt = self._salt if self._salt is not None else new_salt()  # per session (ADR-0011)
         ctx.event(now_gps_ns(), "wifi salt", salt_id=salt_id(salt))
         while True:
             res = subprocess.run(self.command(), capture_output=True, text=True, timeout=30)

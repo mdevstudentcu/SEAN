@@ -1054,3 +1054,12 @@ def test_survey_without_fixes_exits_cleanly(tmp_path):
     with pytest.raises(SystemExit) as e:
         main(["survey", str(folder)])
     assert str(e.value).startswith("survey: ")
+
+
+def test_each_session_gets_its_own_wifi_salt():
+    # ADR-0011: a session's BSSID hashes can't be linked to another session's
+    from pnt.payload.wifi import new_salt
+
+    a, b = new_salt(), new_salt()
+    assert a != b and len(a) == 32
+    assert hash_bssid("00:11:22:33:44:55", a) != hash_bssid("00:11:22:33:44:55", b)
