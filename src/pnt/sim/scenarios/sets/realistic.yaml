@@ -31,6 +31,6 @@ provenance:
   lte_noise: TBC
   lte_geometry: literature   # ISED site registry (data/reference/README.md)
   tower_drift: TBC
-  multipath: literature   # bounded by MedComNet blocked 10 MHz link-bias std (analysis/error_bounds.py)
+  multipath: TBC   # compared with MedComNet blocked 10 MHz link-bias std, a ray-traced Milan dataset (analysis/error_bounds.py), not a source
   dropout: TBC
   tower_position_error: TBC

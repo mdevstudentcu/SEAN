@@ -37,8 +37,14 @@ def _error(metrics) -> float:
 
 
 def towers(scenario: str, runs: int = 10, estimator: str = "baseline") -> list[dict]:
-    """One row per tower, most damaging to lose first, plus the 'all towers' reference."""
+    """One row per tower, most damaging to lose first, plus the 'all towers' reference.
+
+    Needs real tower positions: synthetic towers are drawn per seed, so a name like `lte:sim2`
+    is a different tower in every run and averaging its removal means nothing."""
     spec = load(scenario)
+    lte = spec.get("sources", {}).get("lte", {})
+    if "towers_from" not in lte and "emitters_llh" not in lte:
+        raise ValueError(f"{scenario} has synthetic towers; tower ranking needs real ones")
     names = list(generate(spec, seed=0).emitters)
     reference = np.array([_error(_run(spec, estimator, s)[1]) for s in range(runs)])
     rows = [{"removed": "none", "p95_m": float(reference.mean()), "added_m": 0.0}]
@@ -70,7 +76,11 @@ def grid(
     speeds=(4.0, 8.0, 13.0),
     oscillators=tuple(OSCILLATORS),
 ) -> list[dict]:
-    """One row per combination. The receiver clock is applied to the tower readings."""
+    """One row per combination. The receiver clock follows the scenario.
+
+    The oscillator only reaches the towers when the scenario sets `receiver_clock`, and that only
+    means something once the estimator models a clock shared by all towers (#12). Forcing it on
+    here made every row a GPS-only filter."""
     base = load(scenario)
     rows = []
     for count, speed, grade in itertools.product(tower_counts, speeds, oscillators):
@@ -78,7 +88,6 @@ def grid(
         _with_towers(spec, count)
         spec["trajectory"]["speed_mps"] = speed
         spec["clock"] = {**spec.get("clock", {"rw_ns": 2.0}), "drift_ppb": OSCILLATORS[grade]}
-        spec["sources"]["lte"]["receiver_clock"] = True
         results = [_run(spec, estimator, s)[1] for s in range(runs)]
         rows.append(
             {
