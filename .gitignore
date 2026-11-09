@@ -42,3 +42,6 @@ osm.json
 
 # Firmware secrets (PSKs, Wi-Fi passwords): created by hand, never committed (ADR-0029)
 firmware/**/secrets.h
+
+# CurveZMQ secret keys never go in git (ADR-0026, #89); they live in ~/.config/pnt/keys
+*.key_secret

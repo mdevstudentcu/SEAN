@@ -178,6 +178,9 @@ class Recorder:
         captured = [s.device.hardware for s in self.devices if s.state in ("running", "stopped")]
         lines = [self.notes] if self.notes else []
         lines.append(f"receiver: {self.ctx.receiver}")
+        describe = getattr(self.streamer, "describe", None)
+        if describe:
+            lines.append(describe())  # whether the stream is authenticated (ADR-0026)
         lines.append(self.clock_note)
         lines += [
             f"{s.state}: {s.device.name} ({s.device.hardware}): {s.reason}"
