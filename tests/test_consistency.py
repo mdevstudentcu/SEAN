@@ -19,6 +19,7 @@ from pnt.nav import baseline
 from pnt.sim.scenario import T0_NS, generate, load
 
 SEEDS = range(5)
+# Regression guards, not requirements: between honest filters and noise misstated by 2x
 NIS_PER_DIM_LIMITS = (0.6, 1.6)
 NEES_MAX = 5.0
 FUSED_KINDS = {"position_enu", "altitude", "pseudorange"}
@@ -66,3 +67,10 @@ def test_baseline_filter_is_consistent(scenario):
 @pytest.mark.parametrize("sigma_scale", [0.5, 2.0], ids=["over-confident", "under-confident"])
 def test_check_catches_a_filter_with_misstated_noise(scenario, sigma_scale):
     assert _problems(scenario, sigma_scale) != []
+    # ...and for the right reason: understated noise pushes NIS up, overstated pushes it down
+    _, nis = _stats(scenario, sigma_scale)
+    low, high = NIS_PER_DIM_LIMITS
+    if sigma_scale < 1:
+        assert any(v > high for v in nis.values())
+    else:
+        assert any(v < low for v in nis.values())

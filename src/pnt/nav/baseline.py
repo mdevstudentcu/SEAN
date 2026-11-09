@@ -90,6 +90,8 @@ class BaselineEKF:
         S = H @ self.P @ H.T + R
         nis = float(y @ np.linalg.solve(S, y))
         if gate:
+            # Logged before the gate decision on purpose: rejected updates still show
+            # over-confidence, which is exactly when the gate starts rejecting
             self.nis_log.append((m.source, gate_dim, nis))
         if gate and nis > CHI2_999[gate_dim]:
             self.last_rejected[m.source] = m.t_ns
