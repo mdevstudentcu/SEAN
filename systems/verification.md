@@ -29,7 +29,7 @@ How each simulated model aligns to reality. Status: `placeholder` (datasheet/lit
 | ADS-B | message rate, NIC/NACp behaviour | literature | RF survey | placeholder |
 | Wi-Fi FTM / RSSI | σ, NLOS bias | literature | Indoor session with surveyed responders | placeholder |
 | CHU time | delay, σ | literature | Static session vs PPS | placeholder |
-| Iridium (LEO) | Doppler σ, visibility | literature + real orbits | Not measurable this week: bound stated | placeholder |
+| Iridium (LEO) | Doppler σ, visibility; the filter is told the exact satellite position and velocity (no ephemeris error, TBC) | literature + real orbits | Not measurable this week: bound stated | placeholder |
 | Attacks (spoof, jam) | injected in software | — | Same attacks injected into real sessions | placeholder |
 
 ## Results
