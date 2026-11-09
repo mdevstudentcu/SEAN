@@ -5,8 +5,10 @@ socket), so the recorder code that runs on the Pi is the code under test."""
 
 import errno
 import json
+import signal
 import socket
 import struct
+import sys
 import threading
 import time
 from datetime import UTC, datetime
@@ -507,7 +509,6 @@ def test_payload_code_needs_only_the_payload_extra():
     """quality.md: Pi code needs only the `payload` extra. Import it with the ground-only
     packages blocked."""
     import subprocess
-    import sys
 
     code = (
         "import sys, importlib.abc\n"
@@ -545,8 +546,6 @@ FAKE_CAMERA = (
 def test_real_readers_stop_cleanly_even_when_a_dongle_is_stuck(tmp_path):
     """The pipe reader and the camera process, through their real code paths (a Python
     stand-in replaces the binary). A dongle that stops sending must not hang the recorder."""
-    import sys
-
     from pnt.payload.devices import Camera
     from pnt.payload.sdr import RtlSdrStream
 
@@ -656,7 +655,6 @@ os._exit(0)  # no close: what a kill or a crash leaves
 def cut_off(tmp_path_factory):
     """A session whose writer process ended without closing it."""
     import subprocess
-    import sys
 
     path = tmp_path_factory.mktemp("cut") / "session.mcap"
     n = 30_000
@@ -735,7 +733,6 @@ def test_killed_recorder_leaves_a_session_that_replays(tmp_path):
     """`kill -9` of a running `pnt record`, no devices: the file has its header, and
     `pnt replay` reports the cut instead of crashing."""
     import subprocess
-    import sys
 
     out = tmp_path / "s"
     code = "import sys; from pnt.cli import main; main(sys.argv[1:])"
@@ -846,3 +843,104 @@ def test_a_failed_meta_write_leaves_the_last_good_meta(tmp_path, monkeypatch):
     monkeypatch.undo()
     assert session.read_meta(tmp_path)["name"] == "good"
     assert sorted(p.name for p in tmp_path.iterdir()) == ["meta.yaml"]
+
+
+# --- signals ----------------------------------------------------------------------------------
+
+# `pnt record` with a device that takes a second to stop and a stand-in camera.
+RECORD_HARNESS = """
+import sys, time
+from pnt.payload import config
+from pnt.payload.devices import Camera, Health
+
+CAMERA = sys.argv.pop(1)
+
+
+class SlowToStop:
+    name, hardware = "slow", "slow"
+
+    def probe(self):
+        return None
+
+    def status(self):
+        return {}
+
+    def run(self, ctx):
+        ctx.stop.wait()
+        print("stopping", flush=True)
+        time.sleep(1.0)
+
+
+config.build = lambda args: [Health(), SlowToStop(), Camera(cmd=[sys.executable, "-c", CAMERA])]
+from pnt.cli import main
+
+main(sys.argv[1:])
+"""
+# A stand-in for rpicam-vid that leaves a mark when SIGINT reaches it.
+MARKING_CAMERA = (
+    "import signal, sys, time\n"
+    "out = sys.argv[1]\n"
+    "def done(*a):\n"
+    "    open(out + '.sigint', 'w').close(); sys.exit(0)\n"
+    "signal.signal(signal.SIGINT, done)\n"
+    "f = open(out, 'wb')\n"
+    "while True:\n"
+    "    f.write(b'frame'); f.flush(); time.sleep(0.05)\n"
+)
+
+
+def _start_recording(folder):
+    """`pnt record` in its own process, returned once the camera is writing."""
+    import subprocess
+
+    cmd = [sys.executable, "-u", "-c", RECORD_HARNESS, MARKING_CAMERA, "record", "--out",
+           str(folder), "--no-stream"]  # fmt: skip
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True)
+    deadline = time.monotonic() + 30
+    video = folder / "camera.mp4"
+    while time.monotonic() < deadline and not (video.exists() and video.stat().st_size > 0):
+        time.sleep(0.02)
+    assert video.exists(), "the stand-in camera never started"
+    return proc
+
+
+def _assert_finished_cleanly(proc, folder):
+    try:
+        assert proc.wait(timeout=30) == 0
+    finally:
+        proc.kill()
+        proc.stdout.close()
+    assert is_complete(folder / "session.mcap")
+    assert "pi-camera" in session.read_meta(folder)["hardware"]
+    assert (folder / "camera.mp4.sigint").exists()  # stopped, not left running
+
+
+def test_sighup_still_finishes_the_session(tmp_path):
+    """A dropped ssh session must not cut the recording off."""
+    folder = tmp_path / "s"
+    proc = _start_recording(folder)
+    proc.send_signal(signal.SIGHUP)
+    _assert_finished_cleanly(proc, folder)
+
+
+def test_a_second_ctrl_c_while_stopping_still_finishes_the_session(tmp_path):
+    folder = tmp_path / "s"
+    proc = _start_recording(folder)
+    proc.send_signal(signal.SIGINT)
+    while "stopping" not in proc.stdout.readline():
+        pass
+    proc.send_signal(signal.SIGINT)  # impatient: while the devices are still stopping
+    _assert_finished_cleanly(proc, folder)
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="PR_SET_PDEATHSIG is Linux only")
+def test_camera_does_not_outlive_a_killed_recorder(tmp_path):
+    folder = tmp_path / "s"
+    proc = _start_recording(folder)
+    proc.kill()
+    proc.wait()
+    proc.stdout.close()
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline and not (folder / "camera.mp4.sigint").exists():
+        time.sleep(0.05)
+    assert (folder / "camera.mp4.sigint").exists()
