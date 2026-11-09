@@ -1,7 +1,7 @@
 """Sionna RT trial (ADR-0016): per-tower blockage and excess delay along one campus route.
 
 A stretch experiment, kept out of CI and out of the normal install. In its own environment:
-    python -m venv .sionna && .sionna/bin/pip install sionna-rt
+    python -m venv .sionna && .sionna/bin/pip install sionna-rt==2.2.0
     curl --data-urlencode "data@query" https://overpass-api.de/api/interpreter -o osm.json
 with the query: [out:json];(way["building"](around:1800,45.3876,-75.6960););out tags geom;
     .sionna/bin/python analysis/sionna_campus.py osm.json <work folder>
@@ -9,7 +9,12 @@ with the query: [out:json];(way["building"](around:1800,45.3876,-75.6960););out 
 Buildings are OpenStreetMap footprints (ODbL) extruded to OSM's height, or to DEFAULT_LEVELS when
 it is missing. Walls only: a ray blocked by a building always crosses a wall. Trees are not
 modelled and materials are assumed, so the table shapes the statistical model and its numbers
-are not accuracy results unless checked against measurements (ADR-0015).
+are not accuracy results unless checked against measurements (ADR-0015). Walls are opaque
+(refraction off): at 886 MHz a wall usually weakens a signal rather than stopping it, so "no path"
+is pessimistic.
+
+Tower selection and heights must match `pnt.sim.scenario.select_towers` and `tower_height_m`;
+the table carries each tower's lat/lon so the sim refuses a mismatch.
 """
 
 import csv
@@ -24,12 +29,13 @@ ORIGIN = (45.3876, -75.6960, 70.0)
 ROOT = Path(__file__).parents[1]
 TOWERS = ROOT / "data" / "reference" / "cells-ottawa.csv"
 OUT = ROOT / "data" / "reference" / "sionna-campus-route.csv"
-CARRIER, TX_MHZ, MIN_KM, COUNT = "TELUS", 886.25, 0.8, 6  # the ottawa-towers scenario
+CARRIER, TX_MHZ, MIN_KM, COUNT = "TELUS", 886.25, 0.8, 5  # the ottawa-sionna scenario
 RADIUS_M, SPEED_MPS, ALTITUDE_M, DURATION_S, STEP_S = 150.0, 8.0, 30.0, 360.0, 5.0
 LEVEL_M, DEFAULT_LEVELS = 3.0, 3  # TBC: most OSM buildings here have no height
 EPS_CONCRETE, SIGMA_CONCRETE = 5.24, 0.042  # ITU-R P.2040 concrete, extended below 1 GHz: TBC
 EPS_GROUND, SIGMA_GROUND = 15.0, 0.035  # medium-dry ground: TBC
-GROUND_ELEVATION_CUTOFF_M = 80.0
+GROUND_ELEVATION_CUTOFF_M = 80.0  # = GROUND_MISSING_BELOW_M in pnt.sim.scenario
+SAME_SITE_M = 10.0  # = SAME_SITE_M in pnt.sim.scenario
 C = 299_792_458.0
 _M_PER_DEG_LAT = 111_132.0
 _M_PER_DEG_LON = 111_320.0 * math.cos(math.radians(ORIGIN[0]))
@@ -53,14 +59,12 @@ def towers():
         and float(r["tx_mhz"]) == TX_MHZ
         and float(r["dist_km"]) >= MIN_KM
     ]
-    sites = {}
+    sites = []
     for r in sorted(rows, key=lambda r: float(r["dist_km"])):
-        sites.setdefault((r["lat"], r["lon"]), r)
-    chosen = list(sites.values())[:COUNT]
-    return [
-        [*enu(float(r["lat"]), float(r["lon"])), antenna_height(float(r["height_m"]))]
-        for r in chosen
-    ]
+        e, n = enu(float(r["lat"]), float(r["lon"]))
+        if all(math.hypot(e - s[2][0], n - s[2][1]) >= SAME_SITE_M for s in sites):
+            sites.append((r["lat"], r["lon"], [e, n, antenna_height(float(r["height_m"]))]))
+    return sites[:COUNT]  # (lat, lon, [e, n, height above ground])
 
 
 def building_height(tags):
@@ -135,7 +139,8 @@ def main(osm_path, folder):
     scene.frequency = TX_MHZ * 1e6
     scene.tx_array = rt.PlanarArray(num_rows=1, num_cols=1, pattern="iso", polarization="V")
     scene.rx_array = scene.tx_array
-    emitters = towers()
+    sites = towers()
+    emitters = [p for _, _, p in sites]
     for i, e in enumerate(emitters):
         scene.add(rt.Transmitter(f"t{i}", position=e))
     times = np.arange(0.0, DURATION_S, STEP_S)
@@ -171,7 +176,7 @@ def main(osm_path, folder):
             ok = valid[k, i, :]
             geometric = float(np.linalg.norm(route[k] - np.array(e)))
             if not ok.any():
-                rows.append([t, i, 0, "", ""])
+                rows.append([t, i, *sites[i][:2], 0, "", ""])
                 continue
             delays = tau[k, i, :][ok]
             power = float(gains[k, i, :][ok].sum())
@@ -180,6 +185,7 @@ def main(osm_path, folder):
                 [
                     t,
                     i,
+                    *sites[i][:2],
                     int(depth0.any()),
                     f"{max(delays.min() * C - geometric, 0.0):.2f}",
                     f"{10 * np.log10(power):.1f}",
@@ -187,7 +193,7 @@ def main(osm_path, folder):
             )
     with open(OUT, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["t_s", "tower", "los", "excess_m", "gain_db"])
+        w.writerow(["t_s", "tower", "lat", "lon", "los", "excess_m", "gain_db"])
         w.writerows(rows)
     print("wrote", OUT, len(rows), flush=True)
 

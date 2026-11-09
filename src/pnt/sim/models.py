@@ -112,7 +112,8 @@ def pseudoranges(
     - told_emitters / told_sigma_m: what the filter is told, when that differs from the truth.
       `emitters` and `sigma_m` always describe the truth.
     - ray_table: {tower index: (times, excess delay m, NaN if no path)}, from a ray tracer. Adds
-      the excess delay, and loses the tower with no path or beyond max_excess_m (TBC).
+      the excess delay of the nearest sample in time, and loses the tower with no path or beyond
+      max_excess_m (TBC).
     """
     out: list[Measurement] = []
     t_s = (ts_ns - ts_ns[0]) / 1e9
@@ -132,7 +133,7 @@ def pseudoranges(
         keep = _available(rng, t_s, dropout) if dropout else np.ones(len(ts_ns), bool)
         if ray_table is not None:
             times, excess = ray_table[i]
-            at = excess[np.clip(np.searchsorted(times, t_s, side="right") - 1, 0, len(times) - 1)]
+            at = excess[np.searchsorted((times[1:] + times[:-1]) / 2, t_s)]
             keep &= ~np.isnan(at) & (np.nan_to_num(at) <= max_excess_m)
             rho = rho + np.nan_to_num(at)
         if emitters_llh is not None:  # real transmitter: carry lat/lon, as a front-end would

@@ -32,3 +32,7 @@ firmware/**/.pio/
 .claude/
 .env
 .env.*
+
+# Sionna RT trial (analysis/sionna_campus.py): its own environment and the raw OSM extract
+.sionna/
+osm.json
