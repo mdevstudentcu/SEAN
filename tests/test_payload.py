@@ -980,3 +980,11 @@ def test_wifi_records_are_stamped_after_the_scan(monkeypatch):
     monkeypatch.setattr(wifi, "now_gps_ns", lambda: clock["now"])
     ctx = _run_one_scan(monkeypatch, lambda cmd: clock.update(now=9_000_000_000))
     assert [m.t_ns for m in ctx.records] == [9_000_000_000]
+
+
+def test_wifi_scan_asks_for_a_passive_scan_req07(monkeypatch):
+    """Without `passive`, `iw` sends probe requests: a transmission REQ-07 does not allow."""
+    seen = []
+    _run_one_scan(monkeypatch, seen.append)
+    (cmd,) = seen
+    assert cmd[cmd.index("scan") :] == ["scan", "passive"]
