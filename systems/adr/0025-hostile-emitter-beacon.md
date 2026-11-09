@@ -35,7 +35,7 @@ In simulation only, a located jammer may be promoted to a low-trust coarse range
 2. **A promotion gate.** The jammer is promoted only after a stationarity test passes over a `TBD`-second window: consistent power and path-loss estimates, range rate consistent with IMU-predicted geometry, and a χ² fit. It is demoted at once on a power step or a run of large innovations.
 3. **Never the only aid in any direction, and a weight cap.** If removing it leaves a horizontal direction unobservable, it adds availability but may not shrink the PL. Its weight is capped so that a deceptive move within its own σ shifts the solution by at most a `TBD` share of the alert limit.
 4. **Power and clock as random walks.** Transmit power and any transmitter clock are random-walk states, never constants.
-5. **Shown separately.** The panel shows it as a distinct, low-trust contributor (I17).
+5. **Shown separately.** The panel shows it as a distinct, low-trust contributor (#90).
 
 ## Consequences
 
@@ -44,7 +44,7 @@ In simulation only, a located jammer may be promoted to a low-trust coarse range
 - **Receive-only and defensive.** Nothing here transmits, and no code or document describes how to build or operate a jammer or spoofer. Hostile emitters exist only as software fault injection in `sim/` and `sources/`.
 - **Real data:** using a real jammer's signal would need a new ADR, and there is no legal way for us to create one.
 - **GNSS dependency (ADR-0024):** the beacon is independent of GNSS but adversary-controlled. Guardrail 3 keeps it from ever vouching for a solution on its own.
-- **Evidence:** eval on the jamming scenarios with and without the beacon, reporting PL, misleading epochs and the worst run (I20). Accuracy is set by the power model; no accuracy figure is claimed until then.
+- **Evidence:** eval on the jamming scenarios with and without the beacon, reporting PL, misleading epochs and the worst run (#93). Accuracy is set by the power model; no accuracy figure is claimed until then.
 - **Reopen if:**
   - in sim, a honeypot jammer gets through the gate and moves the solution beyond the cap
   - the guardrails cost more availability than the beacon adds

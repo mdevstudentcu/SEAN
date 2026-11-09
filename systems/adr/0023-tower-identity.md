@@ -40,7 +40,7 @@ The pipeline:
 
 ## Consequences
 
-- **Data:** the site table goes in `data/reference/` with its source and date (I14). The emitter ID stays `lte:<earfcn>:<pci>`, so the ICD does not change; the site mapping is nav-side data.
+- **Data:** the site table goes in `data/reference/` with its source and date (#87). The emitter ID stays `lte:<earfcn>:<pci>`, so the ICD does not change; the site mapping is nav-side data.
 - **The mapper:** a mapped cell is not used for navigation until it converges (threshold `TBD`). Its position prior σ is `TBD`.
 - **OpenCelliD** is a clustering hint only (eNB ID = cell ID >> 8), never a position. Downloading it needs owner approval. The raw file stays in ignored `data/`, and any committed derived file carries the CC BY-SA attribution.
 - **Conflict with ASM-02:** ASM-02 names OpenCelliD as a source of transmitter locations. If this ADR is accepted, ASM-02 needs updating.

@@ -49,7 +49,7 @@ Each LTE site (sectors on one EARFCN grouped by `PCI // 3`) gets clock offset an
 - **The sim.** The base scenarios keep independent, drift-free tower clocks as the idealised control. The realistic and worst-case sets model shared builder clocks and site clocks, and the pitch numbers come from the realistic set.
 - **Each SDR is its own receiver clock.** A dongle that hears only one site of a builder adds a clock state and no redundancy, so the band plan should give each dongle at least two sites per builder (`TBC` by the scan).
 - **Base/rover (ADR-0020).** With the base running, differencing cancels site and builder clocks, and this model is the single-receiver fallback and the sim default. Neither protects absolute time against a wide-area spoof that captures the builders' timing: that stays with the GNSS common-mode hypothesis.
-- **Code:** `ekf.py` (I4) replaces `q_emitter` with site and builder states and a calibration phase. Site identity comes from ADR-0023. All new noise values are `TBD` until measured.
+- **Code:** `ekf.py` (#77) replaces `q_emitter` with site and builder states and a calibration phase. Site identity comes from ADR-0023. All new noise values are `TBD` until measured.
 - **Reopen if:**
   - the static capture shows no common term within a builder (fall back to per-site clocks with drift)
   - jumps are frequent enough that the prior is useless within the outage lengths we target
