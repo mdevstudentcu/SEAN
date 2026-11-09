@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 NS = 1_000_000_000
 GPS_EPOCH = datetime(1980, 1, 6, tzinfo=UTC)
+UNIX_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 # GPS - UTC since 2017-01-01. No leap second has been announced since; update if IERS does.
 LEAP_SECONDS = 18
 WEEK_NS = 7 * 86_400 * NS
@@ -31,6 +32,15 @@ def utc_to_gps_ns(dt: datetime) -> int:
 
 def gps_ns_to_utc(t_ns: int) -> datetime:
     return GPS_EPOCH + timedelta(microseconds=t_ns // 1_000) - timedelta(seconds=LEAP_SECONDS)
+
+
+def gps_ns_to_unix_ns(t_ns: int) -> int:
+    """Unix time in ns (UTC, leap seconds not counted) for GPS time `t_ns`, for tools that
+    read timestamps as Unix time, such as Foxglove. Integer arithmetic, so no rounding. Like
+    `gps_ns_to_utc`, it applies today's `LEAP_SECONDS` to every time, so it is only right for
+    times after 2017-01-01."""
+    epoch_offset_s = (GPS_EPOCH - UNIX_EPOCH) // timedelta(seconds=1)
+    return t_ns + (epoch_offset_s - LEAP_SECONDS) * NS
 
 
 def week_tow_to_gps_ns(week: int, tow_s: float) -> int:
