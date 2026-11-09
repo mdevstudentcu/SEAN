@@ -98,6 +98,9 @@ def pseudoranges(
     dropout: dict | None = None,
     ray_table: dict | None = None,
     max_excess_m: float = 300.0,
+    receiver: str = "payload",
+    tower_clock_m: np.ndarray | None = None,
+    tower_clocks_out: list | None = None,
     **_,
 ) -> list[Measurement]:
     """Range to each emitter + clock terms + lingering error + white noise.
@@ -114,20 +117,32 @@ def pseudoranges(
     - ray_table: {tower index: (times, excess delay m, NaN if no path)}, from a ray tracer. Adds
       the excess delay of the nearest sample in time, and loses the tower with no path or beyond
       max_excess_m (TBC).
+
+    A second receiver hearing the same towers (the reference station, ADR-0020) shares their
+    clocks: pass a list as `tower_clocks_out` and each tower's clock (offset, random walk and
+    drift, m, one row per tower) is appended to it; give those rows back as `tower_clock_m` for
+    the other receiver, which then draws no tower clock of its own. `receiver` labels the records.
     """
     out: list[Measurement] = []
     t_s = (ts_ns - ts_ns[0]) / 1e9
     dt = np.diff(ts_ns, prepend=ts_ns[0]) / 1e9
     reported_sigma = sigma_m if told_sigma_m is None else told_sigma_m
     for i, e in enumerate(emitters):
-        bias = rng.uniform(-init_bias_m, init_bias_m) + np.cumsum(
-            rng.normal(0.0, clock_rw_m * np.sqrt(np.maximum(dt, 1e-9)))
-        )
+        if tower_clock_m is None:
+            bias = rng.uniform(-init_bias_m, init_bias_m) + np.cumsum(
+                rng.normal(0.0, clock_rw_m * np.sqrt(np.maximum(dt, 1e-9)))
+            )
+        else:
+            bias = np.asarray(tower_clock_m[i], float)
         rho = np.linalg.norm(pos - e, axis=1) + bias + rng.normal(0.0, sigma_m, len(pos))
         if clock_s is not None:
             rho = rho + C_MPS * clock_s
-        if drift_sigma_mps:
-            rho = rho + rng.normal(0.0, drift_sigma_mps) * t_s
+        if drift_sigma_mps and tower_clock_m is None:
+            drift = rng.normal(0.0, drift_sigma_mps) * t_s
+            rho = rho + drift
+            bias = bias + drift
+        if tower_clocks_out is not None:
+            tower_clocks_out.append(bias)
         if multipath:
             rho = rho + _gauss_markov(rng, dt, multipath["sigma_m"], multipath["tau_s"])
         keep = _available(rng, t_s, dropout) if dropout else np.ones(len(ts_ns), bool)
@@ -147,6 +162,7 @@ def pseudoranges(
                 source=source,
                 kind="pseudorange",
                 emitter=f"{source}:sim{i}",
+                receiver=receiver,
                 value=(float(r),),
                 sigma=(reported_sigma,),
                 meta=meta,

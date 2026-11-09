@@ -19,8 +19,9 @@ def _seconds(m):
     return (m.t_ns - T0_NS) / 1e9
 
 
-def test_the_three_environments_exist():
-    assert set_names() == ["easy", "realistic", "worst"]
+def test_the_environments_exist():
+    # realistic-with-base: realistic plus a ground reference station (ADR-0020, issue #80)
+    assert set_names() == ["easy", "realistic", "realistic-with-base", "worst"]
 
 
 def test_a_set_name_expands_to_every_attack():

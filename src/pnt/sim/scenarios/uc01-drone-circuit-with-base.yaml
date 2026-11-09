@@ -1,0 +1,13 @@
+# UC-01 with a ground reference station (ADR-0020). The payload's records are identical to
+# uc01-drone-circuit seed for seed: the station draws from its own random stream. Every value of
+# the station is TBC. The payload here has no receiver clock in its tower readings, so neither
+# does the base.
+extends: uc01-drone-circuit
+description: UC-01 circuit with a ground reference station; GPS outage from t=120 s to t=240 s.
+reference:
+  position_llh: [45.38625, -75.693446, 80.0]   # ENU (200, -150, 10) m: a 10 m mast on campus
+  survey_sigma_m: 1.0   # TBC
+  sources:
+    lte:
+      sigma_m: 10.0   # TBC: half the drone's, static antenna on a mast
+      multipath: {sigma_m: 5.0, tau_s: 300.0}   # TBC
