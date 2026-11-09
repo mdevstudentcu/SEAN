@@ -16,6 +16,7 @@ To range on a tower we must know which physical site sent the signal. Our RTL-SD
 - **Crowd databases:**
   - [OpenCelliD](https://wiki.opencellid.org/wiki/Database_format) lists PCI per cell with an estimated position. That position is a centroid of phone fixes, not the mast. The data is CC BY-SA 4.0 and a download needs an API token ([downloads](https://opencellid.org/downloads.php)).
   - [CellMapper's terms](https://www.cellmapper.net/TOS) forbid redistribution and educational or academic use.
+- **Update 2026-11-09: the 2026 extract lists PCI.** ISED's renamed *Terrestrial Spectrum Licence Site Data Extract* (`Site_Data_Extract_FX.zip`, dated 2026-11-03) gives each LTE sector its PCI (`physical_id`), full cell ID (PLMN-TAC-ECI, so eNB ID = ECI >> 8) and antenna azimuth. [`lte-cells-ottawa.csv`](../../data/reference/lte-cells-ottawa.csv) holds the 4,059 tunable sectors within 10 km of Carleton. 152 of their 3,904 (EARFCN, PCI) pairs are used by more than one eNB, so a heard cell is usually one registered sector, and sometimes a short list. The bullet above describes the 2024 file.
 
 ## Options
 
