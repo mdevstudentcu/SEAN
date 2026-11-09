@@ -16,11 +16,19 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Iterable, Iterator
+from functools import partial
 
 from pnt.core.measurement import Estimate, Measurement
+from pnt.integrity.mhss import MHSS
 from pnt.nav import base_rover, baseline, ekf
 
-ESTIMATORS = {"baseline": baseline.run, "ekf": ekf.run, "ekf-base": base_rover.run}
+# ekf-mhss: the same EKF, with solution-separation protection levels and exclusion (#82)
+ESTIMATORS = {
+    "baseline": baseline.run,
+    "ekf": ekf.run,
+    "ekf-base": base_rover.run,
+    "ekf-mhss": partial(ekf.run, monitor=MHSS),
+}
 DEFAULT_RECEIVERS = frozenset({"payload"})
 
 log = logging.getLogger(__name__)
