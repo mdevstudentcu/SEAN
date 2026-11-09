@@ -1,7 +1,7 @@
-"""The panel's server (ADR-0010): FastAPI, one static page, frames pushed to the browser.
+"""The panel's server (ADR-0027, superseding ADR-0010): FastAPI, one static page, frames pushed to the browser.
 
 Transport: Server-Sent Events (`GET /api/stream`, the browser's EventSource) for frames, and
-`POST /api/ack` for acknowledging alerts. ADR-0010 names a websocket, but uvicorn serves a
+`POST /api/ack` for acknowledging alerts. ADR-0010 named a websocket, but uvicorn serves a
 websocket only with the `websockets` or `wsproto` package, and neither is in uv.lock; SSE needs
 nothing beyond fastapi and uvicorn. The frames are the same either way (`pnt.dashboard.feed`).
 
