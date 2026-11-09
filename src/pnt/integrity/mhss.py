@@ -69,6 +69,9 @@ from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.dependency import GNSS_DERIVED, tag_of
 
 GNSS_CM = "gnss-cm"
+# EKF health keys (`EKF.last_used`) whose measurements say nothing about horizontal position.
+# "gnss:time" is pnt.nav.ekf.GNSS_TIME (not imported: pnt.nav imports this module).
+NOT_HORIZONTAL = frozenset({"baro", "gnss:time"})
 # Floor on a separation's standard deviation, so a hypothesis whose sub-filter equals the main
 # filter (its group is silent) doesn't divide by zero. Regression guard, not a requirement.
 SEP_FLOOR_M = 0.1
@@ -100,7 +103,11 @@ class Params:
     # Exposure window of the GNSS-free sub-filters, and how quiet a test must be to re-seed one.
     gnss_window_s: float = 60.0  # TBC
     reseed_test_max: float = 0.5  # TBC
+    reseed_quiet_s: float = 10.0  # TBC: how long the test must have stayed quiet
     alarm_hold_s: float = 1.0  # TBC, same hold as pnt.metrics.ALARM_HOLD_S
+    # A sub-filter that used no horizontal measurement for this long is dead reckoning, and is
+    # not tested (TBC: a few LTE dropouts long)
+    aided_s: float = 10.0
     alert_limit_m: float = 50.0  # TBC: REQ-02
     mode: str = "bank"  # "bank" or "snapshot"
     allocation: str = "even"  # "even" (closed form) or "exact" (bisection)
@@ -115,6 +122,8 @@ class Hypothesis:
     windowed: bool
     filters: list
     next_seed_ns: list[int]
+    seed_ns: list[int]
+    loud_ns: list[int]  # last epoch the copy's test was not quiet
     test: list[float]
 
 
@@ -125,7 +134,8 @@ class Report:
     t_ns: int = 0
     hpl_m: float = float("nan")
     tests: dict[str, float] = field(default_factory=dict)  # q_k; > 1 fails
-    excluded: str | None = None
+    excluded: str | None = None  # the output is the subset without this hypothesis
+    alarmed: str | None = None  # this hypothesis failed, but the subset without it can't serve
 
 
 def _h(f) -> tuple[float, float, float, float, float]:
@@ -160,13 +170,27 @@ class _Row:
 
 def _test(hk, h0, c_fa: float) -> tuple[float, float, float]:
     """(normalised test, |separation|, separation sigma) of a sub-filter against the main one,
-    both given by `_h`. The separation covariance is Pk - P0 plus SEP_FLOOR_M^2."""
+    both given by `_h`.
+
+    The separation covariance is Pk - P0 (Brenner). It is only positive semi-definite while the
+    sub-filter has a subset of the main filter's information; the two gate measurements
+    separately, so a sub-filter can accept one the main filter rejected. Each eigenvalue is
+    therefore taken by magnitude and floored at SEP_FLOOR_M^2."""
     de, dn = hk[0] - h0[0], hk[1] - h0[1]
+    a, b, d = hk[2] - h0[2], hk[3] - h0[3], hk[4] - h0[4]
+    mid, rad = (a + d) / 2, math.sqrt(((a - d) / 2) ** 2 + b * b)
     f2 = SEP_FLOOR_M**2
-    a, b, d = hk[2] - h0[2] + f2, hk[3] - h0[3], hk[4] - h0[4] + f2
-    det = a * d - b * b
-    m2 = (d * de * de - 2 * b * de * dn + a * dn * dn) / det if det > 0 else math.inf
-    return math.sqrt(max(m2, 0.0)) / c_fa, math.hypot(de, dn), math.sqrt(_max_eig(a, b, d))
+    l1, l2 = max(abs(mid + rad), f2), max(abs(mid - rad), f2)
+    # eigenvector of the larger eigenvalue (mid + rad); the other is orthogonal
+    if b != 0.0:
+        ux, uy = b, mid + rad - a
+    else:
+        ux, uy = (1.0, 0.0) if a >= d else (0.0, 1.0)
+    norm = math.hypot(ux, uy)
+    ux, uy = ux / norm, uy / norm
+    p1, p2 = de * ux + dn * uy, -de * uy + dn * ux
+    m2 = p1 * p1 / l1 + p2 * p2 / l2
+    return math.sqrt(m2) / c_fa, math.hypot(de, dn), math.sqrt(max(l1, l2))
 
 
 def _pl(s_ff: float, terms: list[tuple[float, float, float]], phmi: float, allocation: str):
@@ -241,6 +265,8 @@ class MHSS:
             windowed=windowed,
             filters=[self._clone() for _ in range(n)],
             next_seed_ns=[t_ns + self.window_ns, t_ns + half][:n],
+            seed_ns=[t_ns] * n,
+            loud_ns=[t_ns] * n,
             test=[0.0] * n,
         )
 
@@ -264,6 +290,7 @@ class MHSS:
         h0 = _h(self.main)
         n = max(len(self.hyps), 1)
         c_fa = _k(p.p_fa / n)
+        aided_ns = int(p.aided_s * 1e9)
 
         rows: list[_Row] = []
         for h in self.hyps.values():
@@ -272,12 +299,19 @@ class MHSS:
                 f.predict(t)
                 hs.append(_h(f))
                 tests.append(_test(hs[-1], h0, c_fa))
-            h.test = [q for q, _, _ in tests]
+            # An unaided copy is dead reckoning: its covariance is only the motion model's guess,
+            # so its separation is not tested (its PL term still counts)
+            aided = [
+                self._aided(f, max(s0, t - aided_ns))
+                for f, s0 in zip(h.filters, h.seed_ns, strict=True)
+            ]
+            h.test = [q if a else 0.0 for (q, _, _), a in zip(tests, aided, strict=True)]
             # the older copy (longer without GNSS) is the one whose next re-seed comes first
             i = 0 if len(h.filters) == 1 else int(h.next_seed_ns[0] > h.next_seed_ns[1])
-            q, sep, sd = tests[i]
+            _, sep, sd = tests[i]
             s_k = math.sqrt(_max_eig(*hs[i][2:]))
-            rows.append(_Row(h.name, h.prior, q, h.filters[i], s_k, sep, sd, *hs[i][:2]))
+            f = h.filters[i]
+            rows.append(_Row(h.name, h.prior, h.test[i], f, s_k, sep, sd, *hs[i][:2]))
 
         alarm = bool(p.alarm_flags & set(est.flags))
         if not alarm:
@@ -286,20 +320,34 @@ class MHSS:
             self.alarm_since = t
         held = alarm and t - self.alarm_since >= int(p.alarm_hold_s * 1e9)
 
-        excluded = None
+        # A candidate for exclusion: GNSS on a held alarm, else the worst failed test
+        candidate = None
         if held and GNSS_CM in self.hyps:
-            excluded = GNSS_CM
+            candidate = GNSS_CM
         elif rows:
             worst = max(rows, key=lambda r: r.q)
             if worst.q > 1.0:
-                excluded = worst.name
+                candidate = worst.name
+        # Exclude only if the subset left could serve on its own: its fault-free bound is within
+        # the alert limit (as ARAIM requires an available solution after exclusion). Otherwise
+        # alarm without excluding: switching to a subset whose own error is unbounded at the
+        # alert limit can make the output worse, not safer.
+        k_ff = _k(p.phmi / 2)
+        excluded = alarmed = None
+        if candidate is not None:
+            row = next(r for r in rows if r.name == candidate)
+            if k_ff * row.s <= p.alert_limit_m:
+                excluded = candidate
+            else:
+                alarmed = candidate
 
         if excluded is None:
             out_f = self.main
             ff = math.sqrt(_max_eig(*h0[2:]))
-            terms = [
-                (r.prior, r.sep if p.pl_separation == "actual" else c_fa * r.sd, r.s) for r in rows
-            ]
+            # After a failed test the threshold no longer bounds the separation: use the
+            # separation itself (the error is within |x0 - xk| + |xk - truth|)
+            actual = alarmed is not None or p.pl_separation == "actual"
+            terms = [(r.prior, r.sep if actual else c_fa * r.sd, r.s) for r in rows]
         else:
             row = next(r for r in rows if r.name == excluded)
             out_f, ff = row.f, row.s
@@ -311,29 +359,46 @@ class MHSS:
         hpl = _pl(ff, terms, p.phmi, p.allocation)
 
         self.report = Report(
-            t_ns=t, hpl_m=hpl, tests={r.name: r.q for r in rows}, excluded=excluded
-        )
-        self._reseed(t, excluded)
-        return self._output(est, out_f, hpl, excluded)
+            t_ns=t, hpl_m=hpl, tests={r.name: r.q for r in rows}, excluded=excluded,
+            alarmed=alarmed,
+        )  # fmt: skip
+        self._reseed(t, excluded or alarmed)
+        return self._output(est, out_f, hpl, excluded, alarmed)
+
+    def _aided(self, f, since_ns: int) -> bool:
+        """Whether a sub-filter used a horizontal measurement since `since_ns`."""
+        if self.p.mode == "snapshot":
+            return True
+        return any(t >= since_ns for k, t in f.last_used.items() if k not in NOT_HORIZONTAL)
 
     def _reseed(self, t: int, excluded: str | None) -> None:
         if self.p.mode == "snapshot":
             for h in self.hyps.values():
                 h.filters = [self._clone()]
             return
-        if excluded is not None:
-            return
+        quiet_ns = int(self.p.reseed_quiet_s * 1e9)
         for h in self.hyps.values():
             if not h.windowed:
                 continue
+            for i, q in enumerate(h.test):
+                if q >= self.p.reseed_test_max or excluded is not None:
+                    h.loud_ns[i] = t
             for i in range(len(h.filters)):
-                if t >= h.next_seed_ns[i] and h.test[i] < self.p.reseed_test_max:
+                if t >= h.next_seed_ns[i] and t - h.loud_ns[i] >= quiet_ns:
                     h.filters[i] = self._clone()
                     h.next_seed_ns[i] = t + self.window_ns
+                    h.seed_ns[i] = t
+                    # keep the copies staggered: never re-seed both within half a window
+                    for j in range(len(h.filters)):
+                        if j != i:
+                            h.next_seed_ns[j] = max(h.next_seed_ns[j], t + self.window_ns // 2)
+                    break
 
-    def _output(self, est: Estimate, f, hpl: float, excluded: str | None) -> Estimate:
+    def _output(self, est: Estimate, f, hpl: float, excluded, alarmed) -> Estimate:
         flags = list(est.flags)
         trust = dict(est.trust)
+        if alarmed is not None:
+            flags.append(f"mhss_alarm:{alarmed}")
         if excluded is not None:
             flags.append(f"mhss_excluded:{excluded}")
             if excluded == GNSS_CM:
