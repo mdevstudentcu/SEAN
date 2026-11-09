@@ -17,7 +17,7 @@ Reads only `Estimate` (ICD-measurement), so it works the same on sim, replay and
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -141,7 +141,8 @@ def time_to_limit_s(t_s: np.ndarray, pl: np.ndarray, limit: float) -> float | No
         return 0.0
     if len(pl) < 3 or t_s[-1] - t_s[0] <= 0:
         return None
-    slope = float(np.polyfit(t_s - t_s[-1], pl, 1)[0])
+    dt = t_s - t_s.mean()
+    slope = float(dt @ (pl - pl.mean()) / (dt @ dt))  # least-squares line
     if slope <= 0:
         return None
     tta = float((limit - pl[-1]) / slope)
@@ -219,7 +220,7 @@ class HealthMonitor:
                 for f, (s, txt) in sorted(current.items(), key=lambda kv: -_RANK[kv[1][0]])
                 if not f.startswith("status:")
             ],
-            "alerts": [asdict(a) for a in self.shown()],
+            "alerts": [dict(vars(a)) for a in self.shown()],  # asdict deep-copies: slow
             "hpl_m": hpl,
             "anp95_m": anp95_m(est.pos_cov),
             "rnp_m": self.al,
