@@ -8,12 +8,33 @@ import numpy as np
 
 from pnt.core.measurement import Estimate, Truth
 from pnt.core.time import s_to_ns
+from pnt.integrity.protection import tpl
+from pnt.integrity.taxonomy import POSITION, TIME, classify
 
 SPOOF_ATTACKS = {"spoof_ramp", "spoof_jump", "meaconing", "time_spoof"}
 ALARM_FLAGS = {"gnss_excluded", "spoof_suspected", "time_spoof_suspected"}
 # TBC: how long an alarm must persist to count, so one noisy GNSS rejection is not a detection.
 # REQ-04's false-alarm target sets the real value.
 ALARM_HOLD_S = 1.0
+# Anything that tells the operator something is wrong, for time-to-alert: the alarms above, GNSS
+# reported unavailable, or the estimator declaring itself unsafe (protection level over its AL).
+ALERT_FLAGS = ALARM_FLAGS | {"gnss_unavailable"}
+
+# TBC: REQ-01/REQ-02 targets set the real position alert limit (same placeholder as the
+# estimators and the Stanford plot).
+ALERT_LIMIT_M = 50.0
+# TBC: REQ-03's target sets the real time alert limit. 1.5 us is the LTE-TDD base-station
+# synchronisation budget (a patent-text figure, not 3GPP text), the tightest common user of GPS
+# time we can serve.
+TIME_ALERT_LIMIT_S = 1.5e-6
+
+# Resilience level, our mapping onto the DHS S&T Resilient PNT Conformance Framework (Dec 2020,
+# v2.0 2022). Its levels are cumulative: 1 recovers once the threat is removed, 2 keeps giving a
+# solution during the threat (degradation may be unbounded), 3 keeps the degradation bounded,
+# 4 operates through the threat without degradation. The framework is outcome-based and gives no
+# numbers, so the thresholds below are ours. TBC: the coordinator refines the mapping.
+RECOVERY_SETTLE_S = 30.0  # TBC: time allowed after the fault ends before recovery is judged
+NO_DEGRADATION_RATIO = 1.5  # TBC: fault-window p95 within this factor of the pre-fault p95
 
 
 @dataclass
@@ -33,6 +54,19 @@ class RunMetrics:
     time_err_p95_us: float  # |clock error| against truth (nan if the clock is not estimated)
     fault_time_err_p95_us: float  # same, inside the fault window
     time_1sigma_bound_frac: float  # fraction of epochs where clock_sigma_s >= |clock error|
+    # Report card (I5, I6). Each "misleading" count includes the hazardous ones.
+    hazardous_epochs: int  # error > alert limit while HPL <= it: hazardously misleading
+    time_pl_bound_frac: float  # fraction of clock epochs where the time PL >= |clock error|
+    time_misleading_epochs: int  # |clock error| > time PL while time PL <= time alert limit
+    time_hazardous_epochs: int  # |clock error| > time alert limit while time PL <= it
+    time_to_alert_s: float  # first alert at or after a fault starts (nan if none or no fault)
+    alerted: float  # 1 alert raised, 0 missed, nan if no fault that should raise one
+    resilience_level: float  # 0-4, our mapping of the DHS/CISA levels: the worse of the two below
+    pos_resilience_level: float  # judged if a fault corrupts position (nan if none does)
+    time_resilience_level: (
+        float  # judged if a fault corrupts time; 0 if the clock is not estimated
+    )
+    recovery_tested: float  # 1 if the run has time after the fault ends, 0 if not, nan no fault
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -57,6 +91,52 @@ def _alarm_times(t: np.ndarray, alarm: np.ndarray, hold_ns: int) -> list[int]:
 
 def _p95(x: np.ndarray) -> float:
     return float(np.percentile(x, 95)) if x.size else float("nan")
+
+
+def first_alert_s(t: np.ndarray, alert: np.ndarray, start_ns: int, end_ns: int) -> float:
+    """Seconds from `start_ns` to the first epoch in [start, end) where an alert starts.
+
+    An alert already running before the fault started is not a response to it, so only epochs
+    where the alert switches on count. nan if none does."""
+    prev = np.r_[False, alert[:-1]]
+    hit = np.flatnonzero(alert & ~prev & (t >= start_ns) & (t < end_ns))
+    return (t[hit[0]] - start_ns) / 1e9 if hit.size else float("nan")
+
+
+def resilience_level(recovered: bool, no_hazard: bool, bounded: bool, undegraded: bool) -> int:
+    """Highest level whose criteria and every lower level's hold (the levels are cumulative).
+
+    Our mapping (TBC), per run, for each part of the solution (position, time) a fault corrupts:
+    1 recovered: after the fault ends and RECOVERY_SETTLE_S, p95 error is within the alert limit
+    2 respond: during the fault, no hazardously misleading epoch (error over the alert limit
+      while the protection level claims it is within)
+    3 bounded: during the fault, error never exceeds the alert limit
+    4 no degradation: fault-window p95 error within NO_DEGRADATION_RATIO of the pre-fault p95
+    0 if not even level 1 holds."""
+    level = 0
+    for ok in (recovered, no_hazard, bounded, undegraded):
+        if not ok:
+            break
+        level += 1
+    return level
+
+
+def _part_level(x, limit, hazardous, exists, in_fault, before, settled) -> float:
+    """Resilience level of one part of the solution (position or time): `x` its error,
+    `hazardous` its hazardously misleading epochs, `exists` where it is estimated at all."""
+    fw = in_fault & exists
+    if not fw.any():  # e.g. a time fault on an estimator with no clock: no solution to judge
+        return 0.0
+    pre = before & exists
+    return float(
+        resilience_level(
+            # Not exercised when the fault never ends: then recovery is not held against it
+            recovered=not settled.any() or _p95(x[settled & exists]) <= limit,
+            no_hazard=not hazardous[fw].any(),
+            bounded=bool(x[fw].max() <= limit),
+            undegraded=bool(pre.any() and _p95(x[fw]) <= NO_DEGRADATION_RATIO * _p95(x[pre])),
+        )
+    )
 
 
 def score(estimates: list[Estimate], truth: list[Truth], spec: dict, t0_ns: int) -> RunMetrics:
@@ -93,6 +173,46 @@ def score(estimates: list[Estimate], truth: list[Truth], spec: dict, t0_ns: int)
     clock_err = np.array([abs(e.clock_bias_s - g.clock_bias_s) for e, g in pairs])
     clock_sigma = np.array([e.clock_sigma_s or 0.0 for e, _ in pairs])
 
+    # Report card (I5, I6)
+    al, tal = ALERT_LIMIT_M, TIME_ALERT_LIMIT_S
+    hazardous = (err > al) & (hpl <= al)
+    time_pl = np.array([tpl(e.clock_sigma_s) or 0.0 for e, _ in pairs])
+    t_avail = has_clock & (time_pl <= tal)
+    t_misleading = t_avail & (clock_err > time_pl)
+    t_hazardous = t_avail & (clock_err > tal)
+
+    faults = spec.get("faults", [])
+    alert = alert_epochs(e for e, _ in pairs)
+    ttas, alertable = [], False
+    for f in faults:
+        fc = classify(f)
+        if not fc.expect_alert or fc.spatial:
+            continue
+        alertable = True
+        start = t0_ns + s_to_ns(f.get("start_s", 0.0))
+        end = t0_ns + s_to_ns(f["end_s"]) if "end_s" in f else t[-1] + 1
+        ttas.append(first_alert_s(t, alert, start, end))
+    tta = float(np.nanmin(ttas)) if ttas and not np.all(np.isnan(ttas)) else float("nan")
+
+    levels = {POSITION: float("nan"), TIME: float("nan")}
+    recovery_tested = float("nan")
+    if faults:
+        affects = {a for f in faults for a in classify(f).affects}
+        first = min(t0_ns + s_to_ns(f.get("start_s", 0.0)) for f in faults)
+        ends = [t0_ns + s_to_ns(f["end_s"]) for f in faults if "end_s" in f]
+        settled = (
+            t >= max(ends) + s_to_ns(RECOVERY_SETTLE_S)
+            if len(ends) == len(faults)
+            else np.zeros(len(t), bool)
+        )
+        recovery_tested = float(settled.any())
+        windows = (in_fault, t < first, settled)
+        if POSITION in affects:
+            levels[POSITION] = _part_level(err, al, hazardous, np.ones(len(t), bool), *windows)
+        if TIME in affects:
+            levels[TIME] = _part_level(clock_err, tal, t_hazardous, has_clock, *windows)
+    judged = [v for v in levels.values() if not np.isnan(v)]
+
     fe = err[in_fault]
     return RunMetrics(
         n=len(err),
@@ -114,7 +234,26 @@ def score(estimates: list[Estimate], truth: list[Truth], spec: dict, t0_ns: int)
             if has_clock.any()
             else float("nan")
         ),
+        hazardous_epochs=int(hazardous.sum()),
+        time_pl_bound_frac=(
+            float(np.mean(time_pl[has_clock] >= clock_err[has_clock]))
+            if has_clock.any()
+            else float("nan")
+        ),
+        time_misleading_epochs=int(t_misleading.sum()),
+        time_hazardous_epochs=int(t_hazardous.sum()),
+        time_to_alert_s=tta,
+        alerted=float(not np.isnan(tta)) if alertable else float("nan"),
+        resilience_level=min(judged) if judged else float("nan"),
+        pos_resilience_level=levels[POSITION],
+        time_resilience_level=levels[TIME],
+        recovery_tested=recovery_tested,
     )
+
+
+def alert_epochs(estimates) -> np.ndarray:
+    """Per epoch: does the estimate raise any alert (an ALERT_FLAGS flag or status unsafe)?"""
+    return np.array([bool(ALERT_FLAGS & set(e.flags)) or e.status == "unsafe" for e in estimates])
 
 
 def summarize(runs: list[RunMetrics]) -> dict:
@@ -129,5 +268,17 @@ def summarize(runs: list[RunMetrics]) -> dict:
         float(np.nanmax(fault_max)) if not np.all(np.isnan(fault_max)) else float("nan")
     )
     out["min_hpl_bound_frac"] = float(min(r.hpl_bound_frac for r in runs))
+    # Report card: median and worst time-to-alert over the runs that alerted (`alerted` is the
+    # fraction that did), worst run's time PL bound rate, and the worst run's resilience level.
+    for key, src, fn in (
+        ("tta_median_s", "time_to_alert_s", np.nanmedian),
+        ("tta_worst_s", "time_to_alert_s", np.nanmax),
+        ("min_time_pl_bound_frac", "time_pl_bound_frac", np.nanmin),
+        ("resilience_level_worst", "resilience_level", np.nanmin),
+        ("pos_level_worst", "pos_resilience_level", np.nanmin),
+        ("time_level_worst", "time_resilience_level", np.nanmin),
+    ):
+        v = np.array([getattr(r, src) for r in runs], float)
+        out[key] = float(fn(v)) if not np.all(np.isnan(v)) else float("nan")
     out["runs"] = len(runs)
     return out
