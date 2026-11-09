@@ -1,4 +1,4 @@
-"""The panel's server (ADR-0027, superseding ADR-0010): FastAPI, one static page, frames pushed to the browser.
+"""The panel's server (ADR-0027): FastAPI, one static page, frames pushed to the browser.
 
 Transport: Server-Sent Events (`GET /api/stream`, the browser's EventSource) for frames, and
 `POST /api/ack` for acknowledging alerts. ADR-0010 named a websocket, but uvicorn serves a
