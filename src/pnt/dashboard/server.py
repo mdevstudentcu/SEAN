@@ -19,8 +19,9 @@ import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -30,10 +31,31 @@ from pnt.dashboard.health import HealthMonitor
 WEB = Path(__file__).parent / "web"
 # Keep-alive comment on a quiet stream, so proxies and the browser keep it open (s)
 KEEPALIVE_S = 15.0
+# Host names that always mean this machine. `--host` adds its own; a wildcard bind allows any.
+LOOPBACK = frozenset({"localhost", "127.0.0.1", "::1"})
+WILDCARD = frozenset({"0.0.0.0", "::"})
 
 
 def _sse(event: str, data) -> bytes:
     return f"event: {event}\ndata: {json.dumps(data, allow_nan=False)}\n\n".encode()
+
+
+def same_site(origin: str | None, host: str | None, bind_host: str) -> bool:
+    """Whether a request that changes state may be from the panel's own page.
+
+    Any web page can POST to localhost without a CORS preflight, but its browser names the page
+    in `Origin`, which must then match `Host` (a client with no `Origin` is no browser, so no page
+    is abusing it). `Host` must also be a name of this server: with DNS rebinding a hostile name
+    resolves here, and `Origin` and `Host` agree. A wildcard bind cannot know its own names, so
+    only the `Origin` check applies there."""
+    try:
+        name = urlsplit(f"//{host}").hostname
+        origin_host = None if origin is None else urlsplit(origin).netloc
+    except ValueError:
+        return False
+    if not host or (bind_host not in WILDCARD and name not in LOOPBACK | {bind_host.lower()}):
+        return False
+    return origin is None or origin_host.lower() == host.lower()
 
 
 def _point(f: dict) -> list:
@@ -90,6 +112,7 @@ def create_app(
     alert_limit_m: float = 50.0,
     time_alert_limit_s: float = 1.5e-6,
     max_rate_hz: float = 10.0,
+    host: str = "127.0.0.1",
 ) -> FastAPI:
     shown_speed = speed if math.isfinite(speed) else None  # JSON has no infinity
     hub = Hub({**feed.info(alert_limit_m, time_alert_limit_s), "speed": shown_speed})
@@ -153,8 +176,10 @@ def create_app(
         return StreamingResponse(events(), media_type="text/event-stream", headers=headers)
 
     @app.post("/api/ack")
-    async def ack(body: dict | None = None) -> dict:
+    async def ack(request: Request, body: dict | None = None) -> dict:
         """Acknowledge one latched alert ({"id": n}) or all of them ({})."""
+        if not same_site(request.headers.get("origin"), request.headers.get("host"), host):
+            raise HTTPException(403, "cross-site request refused")
         alert_id = (body or {}).get("id")
         with lock:
             monitor.acknowledge(None if alert_id is None else int(alert_id))

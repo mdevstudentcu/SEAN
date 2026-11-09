@@ -354,6 +354,7 @@ def _serve_dash(feed, args) -> None:
         speed=args.speed,
         alert_limit_m=args.alert_limit,
         time_alert_limit_s=args.time_alert_limit * 1e-6,
+        host=args.host,
     )
     serve(app, host=args.host, port=args.port)
 
