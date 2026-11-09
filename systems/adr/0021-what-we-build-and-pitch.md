@@ -14,7 +14,7 @@ A multi-signal EKF with per-tower clocks is a known approach (the Kassas group h
 - **Tower time is often GNSS-disciplined,** so it can fail together with GPS.
 - **The niche is open.** Honeywell's own alternative-navigation suite covers vision, magnetic, LEO and celestial navigation, but not terrestrial communication signals.
 
-Novelty claims rest on web and arXiv searches, re-checked against the full papers on 2026-11-09 ([`research.md`, novelty check](../research.md#novelty-check-98), #98). That check found P1 largely and P2 and P4 partly pre-empted by the Kassas group. A second reading the same day found P3 and P5 partly pre-empted too: time protection levels for GNSS timing receivers (Kirkko-Jaakkola et al. 2017; Baweja 2026), and GNSS time checked against other clocks (Zhang, Spanghero & Papadimitratos 2020). Nothing published was found for P8, or for the narrower P3 and P5 below.
+Novelty claims rest on web and arXiv searches, re-checked against the full papers on 2026-11-09 ([`research.md`, novelty check](../research.md#novelty-check-98), #98). That check found P1 largely and P2 and P4 partly pre-empted by the Kassas group. A second reading the same day found P3 and P5 partly pre-empted too: time protection levels for GNSS timing receivers (Kirkko-Jaakkola et al. 2017; Baweja 2026), and GNSS time checked against other clocks (Zhang, Spanghero & Papadimitratos 2020). JAM-ME (Tedeschi et al. 2020, read in full) already uses a jammer as a navigation beacon, so P8 is partly pre-empted too. Nothing published was found for the narrower P3, P5 and P8 below.
 
 ## Options
 
@@ -38,7 +38,7 @@ We pitch integrity-first navigation that treats towers, network builders and GNS
 | P5 | A time protection level for time held by signals of opportunity, which accounts for the towers' GNSS-disciplined clocks | Core (lead claim) | #78 |
 | P6 | ADS-B interference early warning | Add-on | #91 |
 | P7 | Pre-flight integrity prediction | Add-on | #92 |
-| P8 | Hostile emitter as a low-trust beacon (sim) | Add-on | #93 |
+| P8 | Hostile emitter as one low-trust source in the filter, with its own fault hypotheses (power modulation, movement) and a protection level; extends JAM-ME (sim) | Add-on | #93 |
 | P9 | GNSS-independent aviation layer (VOR, ILS, DME) | Add-on | #94 |
 | P10 | Navigation-health panel | Add-on (what judges see) | #90 |
 | P11 | Residual map learned while GPS is trusted | Add-on | #95 |
