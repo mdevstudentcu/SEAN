@@ -1,4 +1,4 @@
-"""`pnt` command line: sim, eval, replay, viz, results, live."""
+"""`pnt` command line: sim, eval, replay, viz, results, record, live."""
 
 from __future__ import annotations
 
@@ -449,8 +449,139 @@ def cmd_frontend_lte(args) -> None:
     print(f"wrote {out}")
 
 
+def cmd_record(args) -> None:
+    """Capture a real session on the Pi (payload or reference station, #19)."""
+    import signal
+    import threading
+
+    from pnt.payload import config
+    from pnt.payload.recorder import Recorder, session_name
+    from pnt.payload.survey import load_reference
+
+    folder = Path(args.out) if args.out else SESSIONS / session_name(args.platform, args.place)
+    reference = load_reference(args.reference) if args.reference else None
+    streamer = None
+    if not args.no_stream:
+        from pnt.payload.streamer import Streamer
+
+        streamer = Streamer(args.stream)
+    rec = Recorder(
+        folder,
+        config.build(args),
+        platform=args.platform,
+        receiver=args.receiver,
+        origin_llh=config.parse_llh(args.origin),
+        reference=reference,
+        notes=args.notes,
+        streamer=streamer,
+    )
+    stop = threading.Event()
+    signal.signal(signal.SIGTERM, lambda *_: stop.set())
+    print(f"recording {folder} (Ctrl-C to stop)")
+    if streamer:
+        print(f"streaming on {streamer.endpoint}")
+    meta = rec.run(args.duration, stop)
+    if streamer:
+        streamer.close()
+    print(f"wrote {folder}")
+    for line in meta["notes"].splitlines():
+        print(f"  {line}")
+    print(f"  captured: {', '.join(meta['hardware']) or 'nothing'}; records: {rec.counts}")
+
+
+def cmd_survey(args) -> None:
+    """Average a reference-station session's GPS fixes into its surveyed position (#85)."""
+    from pnt.payload.survey import survey_session, write_survey
+
+    result = survey_session(args.session, batch_s=args.batch_s)
+    out = Path(args.out) if args.out else Path(args.session).with_suffix(".survey.yaml")
+    write_survey(result, out)
+    print(json.dumps(result, indent=2))
+    if result["duration_s"] < 3600:
+        print(f"note: {result['duration_s']:.0f} s of fixes; ADR-0020 asks for at least 1 h (TBC)")
+    print(f"wrote {out}")
+
+
+def cmd_day1(args) -> None:
+    """Day-1 numbers from a recorded session (#88)."""
+    from pnt.payload import day1
+
+    r = day1.report(args.session, usb_current_a=args.usb_current_a)
+    out = Path(args.out) if args.out else Path(args.session).with_suffix(".day1.md")
+    out.write_text(day1.to_markdown(r))
+    out.with_suffix(".json").write_text(json.dumps(r, indent=2, default=str))
+    print(day1.to_markdown(r))
+    print(f"wrote {out} and {out.with_suffix('.json')}")
+
+
+def cmd_pps_check(args) -> None:
+    """ppstest and chrony checks of the PPS time base (#17, RSK-05). Run on the Pi."""
+    from pnt.payload import day1
+
+    r = day1.pps_check(args.seconds, args.device)
+    text = json.dumps(r, indent=2, default=str)
+    print(text)
+    if args.out:
+        Path(args.out).write_text(text)
+        print(f"wrote {args.out}")
+
+
 def cmd_live(args) -> None:
-    raise SystemExit("live: not built yet (ADR-0009). Use `pnt replay` on a recorded session.")
+    """Run an estimator on the payload's (and base's) live stream (ADR-0009)."""
+    import threading
+
+    from pnt.payload.config import parse_llh
+    from pnt.payload.survey import load_reference
+    from pnt.sources.live import LiveSource
+
+    src = LiveSource(args.connect or ["tcp://pnt.local:5556"], reorder_s=args.reorder)
+    origin = parse_llh(args.origin)
+    if origin is None:
+        print("waiting for the payload's session origin (or give --origin) ...")
+        deadline = datetime.now().timestamp() + args.wait
+        while origin is None and datetime.now().timestamp() < deadline:
+            origin = (src.wait_for_meta("payload", timeout_s=1.0) or {}).get("origin_llh")
+            if origin is None:
+                src.meta.pop("payload", None)  # no fix yet on the Pi: wait for a newer one
+        if origin is None:
+            raise SystemExit("no origin from the payload stream; give --origin lat,lon,h")
+    reference = load_reference(args.reference) if args.reference else None
+    if args.duration:
+        threading.Timer(args.duration, src.stop).start()
+    writer = None
+    if args.out:
+        out = Path(args.out)
+        out.mkdir(parents=True)
+        meta = {"name": out.name, "platform": "live", "origin_llh": list(origin),
+                "simulated": False, "commit": _commit(), "reference": reference,
+                "notes": f"recorded on the laptop from {', '.join(src.endpoints)}"}  # fmt: skip
+        session.write_meta(out, meta)
+        writer = SessionWriter(out / session.MCAP_NAME)
+
+    def tee():
+        for m in src:
+            if writer:
+                writer.write(f"/meas/{m.source}", m)
+            yield m
+
+    last = 0
+    n = 0
+    try:
+        for e in estimate(args.estimator, tee(), origin_llh=origin, reference=reference):
+            n += 1
+            if writer:
+                writer.write(f"/nav/{args.estimator}", e)
+            if e.t_ns - last >= 1_000_000_000:
+                last = e.t_ns
+                hpl = "-" if e.hpl_m is None else f"{e.hpl_m:.1f}"
+                print(f"t={e.t_ns / 1e9:.1f} enu=({e.pos_enu[0]:.1f}, {e.pos_enu[1]:.1f}, "
+                      f"{e.pos_enu[2]:.1f}) hpl={hpl} {e.status} {','.join(e.flags)}")  # fmt: skip
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if writer:
+            writer.close()
+    print(f"live: {n} estimates; stream {src.stats}")
 
 
 def main(argv=None) -> None:
@@ -566,7 +697,61 @@ def main(argv=None) -> None:
     s.add_argument("--no-copy", action="store_true", help="don't copy the capture's session")
     s.set_defaults(fn=cmd_frontend_lte)
 
-    s = sub.add_parser("live", help="run on the payload's live stream (not built yet)")
+    s = sub.add_parser("record", help="capture a real session on the Pi (payload or base)")
+    s.add_argument("--out", help="default: data/sessions/<date>-<platform>-<place>")
+    s.add_argument("--platform", default="handheld", help="drone | handheld | vehicle | static")
+    s.add_argument("--place", default="carleton", help="where, for the folder name")
+    s.add_argument("--duration", type=float, help="seconds (default: until Ctrl-C)")
+    s.add_argument("--receiver", choices=["payload", "reference"], default="payload")
+    s.add_argument("--origin", help="session origin lat,lon,h (default: the first 3D fix)")
+    s.add_argument("--reference", help="survey file for meta.yaml `reference` (pnt survey)")
+    s.add_argument("--notes", default="")
+    s.add_argument("--sdr", action="append", help="NAME:FREQ[:rate=..][:gain=..][:dev=..]")
+    s.add_argument("--no-gnss", action="store_true")
+    s.add_argument("--gpsd-port", type=int, default=2947)
+    s.add_argument("--no-imu", action="store_true")
+    s.add_argument("--imu-rate", type=float, default=100.0, help="Hz")
+    s.add_argument("--no-baro", action="store_true")
+    s.add_argument("--baro-rate", type=float, default=10.0, help="Hz")
+    s.add_argument("--baro-start-up", type=float, help="m above origin at start, if no GPS fix")
+    s.add_argument("--no-camera", action="store_true")
+    s.add_argument("--fc", help="flight controller: serial device or udp:host:port (default auto)")
+    s.add_argument("--fc-baud", type=int, default=115200)
+    s.add_argument("--no-fc", action="store_true")
+    s.add_argument("--wifi", action="store_true", help="passive Wi-Fi scans (pauses the stream)")
+    s.add_argument("--wifi-iface", default="wlan0")
+    s.add_argument("--stream", default="tcp://*:5556", help="ZeroMQ endpoint to publish on")
+    s.add_argument("--no-stream", action="store_true")
+    s.set_defaults(fn=cmd_record)
+
+    s = sub.add_parser("survey", help="survey the reference station from a session's fixes")
+    s.add_argument("session")
+    s.add_argument("--batch-s", type=float, default=600.0, help="batch length for sigma_m")
+    s.add_argument("--out", help="default: <session>.survey.yaml beside the folder")
+    s.set_defaults(fn=cmd_survey)
+
+    s = sub.add_parser("day1", help="day-1 numbers (IMU jitter, CPU, drops, PPS) of a session")
+    s.add_argument("session")
+    s.add_argument("--usb-current-a", type=float, help="read off the DPS-150 by hand")
+    s.add_argument("--out", help="default: <session>.day1.md beside the folder")
+    s.set_defaults(fn=cmd_day1)
+
+    s = sub.add_parser("pps-check", help="ppstest + chrony checks of the PPS time base (Pi)")
+    s.add_argument("--seconds", type=float, default=30.0)
+    s.add_argument("--device", default="/dev/pps0")
+    s.add_argument("--out", help="JSON file for the result")
+    s.set_defaults(fn=cmd_pps_check)
+
+    s = sub.add_parser("live", help="run an estimator on the payload's live stream")
+    s.add_argument("--connect", action="append", help="endpoint, repeat for the base station "
+                   "(default: tcp://pnt.local:5556)")  # fmt: skip
+    s.add_argument("--origin", help="lat,lon,h (default: from the payload's stream)")
+    s.add_argument("--wait", type=float, default=60.0, help="s to wait for the origin")
+    s.add_argument("--reference", help="survey file of the reference station")
+    s.add_argument("--reorder", type=float, default=1.0, help="s held to put records in order")
+    s.add_argument("--duration", type=float, help="seconds (default: until Ctrl-C)")
+    s.add_argument("--out", help="also record the stream and estimates to this session folder")
+    add_estimator(s)
     s.set_defaults(fn=cmd_live)
 
     args = p.parse_args(argv)
