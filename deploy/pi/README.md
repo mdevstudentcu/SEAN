@@ -1,4 +1,4 @@
-# Raspberry Pi 4B setup
+# Raspberry Pi 3B+ setup
 
 Raspberry Pi OS Bookworm (64-bit, Lite). Hostname `pnt`, user `pi`, reachable as `pi@pnt.local`.
 
@@ -10,6 +10,6 @@ What `setup.sh` does (idempotent; `just pi-deploy` runs it after copying the rep
 
 Checks after a reboot: `sudo ppstest /dev/pps0` (one line per second), `gpsmon` (fix + per-satellite SNR), `chronyc sources -v` (PPS selected, offset in µs), `rtl_test -t` (both dongles).
 
-The ESP32 hub also needs the PPS edge: run a wire from the HAT's PPS pin (GPIO4) to the hub's PPS input (common ground).
+The Pi Zero 2 W hub also needs the PPS edge: run a wire from the HAT's PPS pin (GPIO4) to the Zero's PPS GPIO (`TBC`), with a common ground. The Zero plugs into a 3B+ USB port by its data port (ADR-0018).
 
-Plug SDRs into the **black USB 2 ports** (USB 3 interferes with GPS and 2.4 GHz: RSK-06).
+The 3B+ has only USB 2 ports, and they share one bus with its Ethernet: leave Ethernet unplugged while recording. Space the SDRs out with short extensions and ferrites (RSK-06).

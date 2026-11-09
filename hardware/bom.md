@@ -12,22 +12,21 @@
 | Tier | Items | Cost |
 | --- | --- | --- |
 | Must buy | SDR A, SDR B, SMA pigtails | **$133.09** |
-| Buy only if not owned | Pi Zero 2 W (or use the lab Pico 2W instead: $0) | $69.28 |
+| Buy only if not owned | Pi Zero 2 W | $69.28 |
 | Optional | Ground-reference SDR | $63.95 |
 
 ## 1. Payload: compute, timing and sensors
 
 | Item | Qty | Role | Source | Price | Status / notes |
 | --- | --- | --- | --- | --- | --- |
-| Raspberry Pi (payload) | 1 | Records SDR IQ, GPS, sensors; streams to laptop | Team | — | Model choice is open (sim plan D6) |
+| Raspberry Pi 3B+ (payload) | 1 | Records SDR IQ, GPS, sensors; streams to laptop | Team `TBC` | — | ADR-0018. USB 2 only, shared with Ethernet; 1.2 A USB budget (`TBC`) |
 | microSD card, ≥ 64 GB, A2 | 1 | OS + session logs. Raw IQ from one SDR at 2.4 MS/s is ~17 GB/h | Team `TBC` | — | Confirm size and speed |
-| Raspberry Pi Zero 2 W | 1 | Sensor hub (replaces the ESP32-S3) | Team `TBC`, else Buy: Amazon.ca | $69.28, overnight, **1 left** | PiShop.ca: out of stock (both variants). **Needs an ADR** (supersedes ADR-0005's ESP32 hub). Alternative: the lab Pico 2W below |
-| Raspberry Pi Pico 2W | 1 | Alternative hub: I2C sensors, PIO timestamps PPS edges in hardware, Wi-Fi RSSI scans. No FTM | HON | — | Closer to ADR-0005's microcontroller hub than the Zero |
+| Raspberry Pi Zero 2 W | 1 | Sensor hub: IMU, baro, PPS edge, Wi-Fi scans (ADR-0018) | Team `TBC`, else Buy: Amazon.ca | $69.28, overnight, **1 left** | PiShop.ca: out of stock (both variants). Plugs into the 3B+ by USB (data port) |
 | Adafruit Ultimate GPS HAT | 1 | GPS fix, PPS on GPIO4, truth outdoors | HON | — | ADR-0014 |
 | GPS active antenna, 28 dB, 5 m, SMA | 1 | Puts the GPS antenna on a mast away from SDR/USB noise (RSK-06) | HON | — | |
 | SMA to u.FL adapter cable | 1 | Antenna → HAT | HON | — | |
 | CR1220 coin cell | 1 | Keeps the HAT's RTC alive (faster fix) | Buy (any pharmacy) | `TBD` | Optional |
-| MPU6050 IMU, BMP280 barometer, jumpers | 1 kit | IMU + baro on the hub's I2C | HON (Sensor Kit v4.0) | — | ADR-0014 |
+| MPU6050 IMU, BMP280 barometer, jumpers | 1 kit | IMU + baro on the Zero's I2C | HON (Sensor Kit v4.0) | — | ADR-0014 |
 | Pi camera | 1 | Optional video log | Team | — | |
 | Heatsink + 5 V fan | 1 | Pi cooling under SDR load | HON | — | |
 
@@ -96,7 +95,8 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 
 | Item | Why |
 | --- | --- |
-| ESP32-S3 | None available; hub moves to Pi Zero 2 W or Pico 2W. Wi-Fi FTM and FTM responders are dropped |
+| ESP32-S3 | None available; hub is a Pi Zero 2 W (ADR-0018). Wi-Fi FTM and FTM responders are dropped |
+| Raspberry Pi Pico 2W (HON) | Considered as the hub; the Zero runs the same Python and generated MAVLink as the recorder (ADR-0018) |
 | RTL-SDR Blog V3/V4, dipole kit, FM filter | Amazon.ca delivery Dec 21–25 |
 | Airspy Mini | Budget |
 | Flamingo FM band-stop filter ($46) | Skipped; VOR is ~17 km away. Revisit only if the RF survey shows FM overload |
@@ -106,5 +106,5 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 
 ## Open decisions
 
-- Hub: Pi Zero 2 W vs the lab Pico 2W → ADR superseding ADR-0005 (and `firmware/esp32-hub/`).
-- `systems/icd/session.md`'s example `hardware:` list still names `esp32-s3` and `nesdr-smart-v5 x2`; update it in an `icd` PR once the hub is decided.
+- Hub link over USB: serial or network gadget (ADR-0018, `TBC`).
+- USB current: two SDRs plus the Zero against the 3B+'s USB budget; measure with the DPS-150 (ADR-0018, `TBC`).

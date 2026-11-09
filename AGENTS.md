@@ -15,9 +15,9 @@ Our entry for **Hack the Horizons (Honeywell Aerospace × Carleton), Challenge 2
 | `src/pnt/frontends/` | Raw signal → observables (LTE, ADS-B, VOR, Wi-Fi, CHU, GNSS, IMU) | laptop |
 | `src/pnt/nav/` | Estimators. `baseline.py` is the deliberately simple reference filter | laptop |
 | `src/pnt/integrity/` | Protection levels, fault detection, per-source trust | laptop |
-| `src/pnt/payload/` | Recorder and streamer | **Raspberry Pi 4B** |
+| `src/pnt/payload/` | Recorder and streamer | **Raspberry Pi 3B+** (ADR-0018) |
 | `src/pnt/dashboard/` | Operator panel (FastAPI + static page) | laptop |
-| `firmware/esp32-hub/` | ESP32-S3 sensor hub (PlatformIO): IMU, baro, PPS, Wi-Fi → MAVLink over USB | ESP32-S3 |
+| `firmware/esp32-hub/` | Superseded ESP32-S3 hub firmware, kept until CI stops building it. The hub is now a Pi Zero 2 W (ADR-0018) | — |
 | `flight/` | ArduPilot params, scripted missions (pymavlink), SITL | FC / laptop |
 | `deploy/pi/` | Pi setup, systemd units, chrony + PPS config | Pi |
 | `analysis/` | Monte Carlo and figure scripts; figures go in `analysis/results/` | laptop |

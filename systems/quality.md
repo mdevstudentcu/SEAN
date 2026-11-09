@@ -22,7 +22,7 @@ Use the issue's *Done when* as the acceptance note. It should say what will be t
 | The sim reflects reality (ADR-0015) | The *Sim validity* row in `verification.md` moved, with the session that moved it |
 | An interface is unchanged or correctly changed | The ICD and generated-code rules in `AGENTS.md` met, and the CI `generated-code` job green |
 | The dashboard or a viewer works | Opened and looked at in the real app, screenshot attached, viewer and version named |
-| Code works on the Pi, ESP32 or drone | Run on that board, session named. A compile or a simulation does not show this |
+| Code works on the Pi, the hub or the drone | Run on that board, session named. A compile or a simulation does not show this |
 | Still receive-only and private (REQ-07, REQ-08) | Changed code inspected against `safety.md`; a session audit when capture changes |
 | A result shown to the judges | `just results`, or `pnt eval` / `pnt plot`, from a clean commit that the figure names |
 | Documentation is correct | Links and commands in it checked. Docs work makes no runtime claim |

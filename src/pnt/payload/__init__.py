@@ -2,7 +2,7 @@
 
 Planned modules:
 - recorder: start/stop a session folder (systems/icd/session.md), rtl_sdr captures with
-  PPS-aligned start times, readsb, camera, ESP32 hub MAVLink -> /meas/* records
+  PPS-aligned start times, readsb, camera, sensor hub MAVLink -> /meas/* records
 - streamer: ZeroMQ PUB of Measurements (ADR-0009)
 - health: chrony/PPS offset, SDR overruns, disk space
 
