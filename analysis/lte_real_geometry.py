@@ -584,6 +584,7 @@ def run_geometry(args) -> None:
             print()
             print(counts_line(sub))
     print(f"\nruntime {wall:.0f} s wall, {len(jobs)} runs, {args.jobs} jobs")
+    print(f"mean s per run: {_runtimes(rows)}")
     if args.out:
         _plot_geometry(main_rows, base, args.out)
 
@@ -594,6 +595,28 @@ def _mhss_lines(rows: list[Row]) -> None:
         if est == "ekf-mhss" and good:
             n = sum(bool(r.alarms or r.excluded) for r in good)
             print(f"- ekf-mhss flagged a hypothesis in {n}/{len(good)} runs with a correct table")
+            print(f"  {_flag_summary(good)}")
+
+
+def _flag_summary(good: list[Row]) -> str:
+    """Epochs flagged, summed over runs, by whether the filter alarmed or excluded."""
+    alarms: Counter = Counter()
+    excluded: Counter = Counter()
+    for r in good:
+        alarms.update(r.alarms)
+        excluded.update(r.excluded)
+    top = ", ".join(f"{k} {n}" for k, n in excluded.most_common(5)) or "none"
+    return (
+        f"epochs excluded, all runs: {sum(excluded.values())} (top: {top}); "
+        f"epochs alarmed without excluding: {sum(alarms.values())}"
+    )
+
+
+def _runtimes(rows: list[Row]) -> str:
+    by = group(rows, lambda r: r.job.estimator)
+    return ", ".join(
+        f"{k[0]} {np.mean([r.runtime_s for r in v]):.1f}" for k, v in sorted(by.items())
+    )
 
 
 def _errors(rows: list[Row]) -> None:
@@ -719,6 +742,7 @@ def run_wrong_table(args) -> None:
     missing_matches(by, cases, args.estimators)
     _errors(rows)
     print(f"\nruntime {wall:.0f} s wall, {len(jobs)} runs, {args.jobs} jobs")
+    print(f"mean s per run: {_runtimes(rows)}")
     if args.out:
         _plot_wrong_table(by, cases, args.estimators, args.out, w)
 
