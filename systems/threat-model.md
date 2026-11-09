@@ -10,7 +10,7 @@ Everything here is defensive. Attacks exist only as software fault injection in 
 
 - **Likelihood (L):** how likely the attack or failure is for that use case around Ottawa, from incidents and published demonstrations. H, M or L.
 - **Impact (I):** what it does to that user if nothing catches it. H: silent, hazardously misleading position or time. M: loss of service that the user notices. L: degraded accuracy, still bounded.
-- **Rank** orders by L × I (H = 3, M = 2, L = 1), with ties broken by impact. Silent failures rank above loud ones because a confident wrong answer is the aviation hazard (the same reasoning as our level 2 in `pnt.metrics.resilience_level`).
+- **Rank** orders by L × I (H = 3, M = 2, L = 1), with ties broken by impact: on equal L × I, silent failures rank above loud ones, because a confident wrong answer is the aviation hazard (the same reasoning as our level 2 in `pnt.metrics.resilience_level`). Rows equal on both keep their listed order.
 
 ## What the evidence says about Ottawa
 
@@ -28,11 +28,11 @@ Everything here is defensive. Attacks exist only as software fault injection in 
 | Rank | Attack or failure | L | I | Why |
 | --- | --- | --- | --- | --- |
 | 1 | Local GNSS jamming from a vehicle on a nearby road (personal privacy device) | H | M | The Newark pattern: frequent, short, near roads [Grabowski 2012]. Loud (GNSS drops out), so the risk is losing the corridor, not being misled |
-| 2 | Slow position spoof that drags the drone off course (carry-off) | L | H | Silent; aimed at drones in UC-01's own threat list. Needs a deliberate, illegal transmitter. A filter-aware drift beats per-epoch gates [Shen 2020] |
-| 3 | Tower clock jump or a stale or wrong tower record | M | M | LTE clocks jump [Lapin 2024]. The 2024 ISED file behind the sim's `cells-ottawa.csv` is two years old; the 2026 extract (#110) is current, but registry staleness and PCI collisions (152 of 3,904 (EARFCN, PCI) pairs near Carleton are shared by more than one eNB, #110) remain association fault modes (ADR-0023). Biases position during an outage |
-| 4 | Ground reference station fault (moved, clock step, link lost) | M | M | A new single point of failure that every differenced reading inherits (ADR-0020). Likelihood M while it is a hobby-grade box on a mast |
-| 5 | Crude position takeover (jump) | L | M | Same transmitter as rank 2 but obvious; a GNSS gate catches it |
-| 6 | Forged records on a ground link | L | H | Skips every radio check (ADR-0026). Needs access to the local network |
+| 2 | Tower clock jump or a stale or wrong tower record | M | M | LTE clocks jump [Lapin 2024]. The 2024 ISED file behind the sim's `cells-ottawa.csv` is two years old; the 2026 extract (#110) is current, but registry staleness and PCI collisions (152 of 3,904 (EARFCN, PCI) pairs near Carleton are shared by more than one eNB, #110) remain association fault modes (ADR-0023). Biases position during an outage |
+| 3 | Ground reference station fault (moved, clock step, link lost) | M | M | A new single point of failure that every differenced reading inherits (ADR-0020). Likelihood M while it is a hobby-grade box on a mast |
+| 4 | Slow position spoof that drags the drone off course (carry-off) | L | H | Silent; aimed at drones in UC-01's own threat list. Needs a deliberate, illegal transmitter. A filter-aware drift beats per-epoch gates [Shen 2020] |
+| 5 | Forged records on a ground link | L | H | Skips every radio check (ADR-0026). Needs access to the local network |
+| 6 | Crude position takeover (jump) | L | M | Same transmitter as the slow position spoof but obvious; a GNSS gate catches it |
 | 7 | Rogue or overshadowed cell posing as a tower | L | M | Demonstrated on phones only; registry and clock checks should catch most (ADR-0023) |
 
 ### UC-02: crewed approach into YOW
@@ -40,9 +40,9 @@ Everything here is defensive. Attacks exist only as software fault injection in 
 | Rank | Attack or failure | L | I | Why |
 | --- | --- | --- | --- | --- |
 | 1 | Jamming on final from a vehicle near the airport | M | H | The Newark case is an airport next to a highway [Grabowski 2012]. On an approach, losing GNSS needs a protection level the crew can act on (UC-02) |
-| 2 | Position spoof (ramp or jump), including an aircraft spoofed elsewhere and still wrong on arrival | L | H | Common in conflict-adjacent airspace [Lo 2025; EASA 2022], not reported near Ottawa. Silent and hazardous |
-| 3 | Jam then spoof (GNSS lost, then a false signal offered on reacquisition) | L | H | The known sequence ADR-0025 names. Catching the return of GNSS matters as much as its loss |
-| 4 | ADS-B content that is wrong because the reporting aircraft's GNSS is wrong | M | M | ADS-B is GNSS-derived and keeps high quality flags under spoofing [Park 2026]. Matters for the ADS-B warning (P6), not for our position today |
+| 2 | ADS-B content that is wrong because the reporting aircraft's GNSS is wrong | M | M | ADS-B is GNSS-derived and keeps high quality flags under spoofing [Park 2026]. Matters for the ADS-B warning (P6), not for our position today |
+| 3 | Position spoof (ramp or jump), including an aircraft spoofed elsewhere and still wrong on arrival | L | H | Common in conflict-adjacent airspace [Lo 2025; EASA 2022], not reported near Ottawa. Silent and hazardous |
+| 4 | Jam then spoof (GNSS lost, then a false signal offered on reacquisition) | L | H | The known sequence ADR-0025 names. Catching the return of GNSS matters as much as its loss |
 | 5 | Wide-area jamming with towers drifting in holdover | L | M | Edwards showed two co-located towers holding under GPS-only, intermittent jamming [Kassas 2022], which says little about long or multi-constellation jamming |
 
 ### UC-03: timing user (GNSS-disciplined terminal)
@@ -77,22 +77,22 @@ Top attacks with no scenario, or no detection we can show. These are open work, 
 
 | Attack | Use case (rank) | Gap |
 | --- | --- | --- |
-| Jam then spoof | UC-02 (3) | **No scenario.** Every scenario has one fault type for GNSS; an outage followed by a spoof on return is not in `_attacks.yaml` |
+| Jam then spoof | UC-02 (4) | **No scenario.** Every scenario has one fault type for GNSS; an outage followed by a spoof on return is not in `_attacks.yaml` |
 | Wide-area time spoof that also moves the towers | UC-03 (4) | **No scenario.** `time-spoof` moves only our GNSS time; the sim's tower clocks never follow GNSS. **No detection** from towers by design (ADR-0024); only our own oscillator in holdover can refute it, and only briefly |
-| Network builder's timing fault (holdover, captured grandmaster) | UC-01 (3), UC-03 (4) | **No fault type.** The realistic sets model a shared builder clock, but no attack steps or ramps it. MHSS has the builder hypothesis; nothing exercises it |
+| Network builder's timing fault (holdover, captured grandmaster) | UC-01 (2), UC-03 (4) | **No fault type.** The realistic sets model a shared builder clock, but no attack steps or ramps it. MHSS has the builder hypothesis; nothing exercises it |
 | Towers drifting in holdover during wide-area jamming | UC-02 (5) | **No scenario.** Tower clocks behave the same with GNSS on or off |
-| Slower or filter-aware position drift | UC-01 (2) | Only one ramp rate (2 m/s, T4). No sweep of slower ramps, where the spoof detector and MHSS are weakest |
-| Reference station fault inside MHSS | UC-01 (4) | **No base hypothesis in MHSS.** `ekf-mhss` (#108) does not take the base, so a base fault is caught only by `ekf-base`'s own check (#107), with no protection level that accounts for it |
-| Forged ground-link records | UC-01 (6) | **No scenario and no detection yet.** CurveZMQ and MAVLink signing are #89 (ADR-0026) |
+| Slower or filter-aware position drift | UC-01 (4) | Only one ramp rate (2 m/s, T4). No sweep of slower ramps, where the spoof detector and MHSS are weakest |
+| Reference station fault inside MHSS | UC-01 (3) | **No base hypothesis in MHSS.** `ekf-mhss` (#108) does not take the base, so a base fault is caught only by `ekf-base`'s own check (#107), with no protection level that accounts for it |
+| Forged ground-link records | UC-01 (5) | **No scenario and no detection yet.** CurveZMQ and MAVLink signing are #89 (ADR-0026) |
 | Rogue or overshadowed cell, cellular meaconing | UC-01 (7) | **No scenario.** `tower_clock_step` is the nearest (a step on one tower); there is no phantom cell, ramp on one tower, or relay of several towers |
-| ADS-B content wrong under spoofing | UC-02 (4) | **No ADS-B source in the sim.** ADS-B is tagged GNSS-derived (ADR-0024), so it cannot confirm GNSS once it exists |
+| ADS-B content wrong under spoofing | UC-02 (2) | **No ADS-B source in the sim.** ADS-B is tagged GNSS-derived (ADR-0024), so it cannot confirm GNSS once it exists |
 | Real-data evidence for any attack | all | Attacks have been injected only into simulated runs. Injecting them into real sessions (ADR-0015) waits on the first captures |
 
 ## References
 
 - [Aireon] Aireon, *Countering GNSS spoofing: Aireon's global ADS-B network delivers trust*, n.d., company article. https://aireon.com/countering-gnss-spoofing-aireons-global-ads-b-network-delivers-trust/
 - [Baweja 2026] Baweja, *A Conditional Timing Protection Level: Holdover-Limited Undetected Time Error Under GNSS Spoofing*, 2026, arXiv preprint 2606.24210. https://arxiv.org/abs/2606.24210
-- [Blum 2019] Blum, Dötterböck & Pany, spoofing and meaconing of mobile-network timing receivers (topic; exact title not recorded), 2019, ION ITM. https://www.ion.org/publications/abstract.cfm?articleID=16697
+- [Blum 2019] Blum, Dötterböck & Pany, *Investigation of the Vulnerability of Mobile Networks Against Spoofing Attacks on their GNSS Timing-receiver and Developing a Meaconing Protection*, 2019, ION ITM. https://www.ion.org/publications/abstract.cfm?articleID=16697
 - [EASA 2022] EASA, *Safety Information Bulletin 2022-02: Global Navigation Satellite System outage and alterations leading to communication / navigation / surveillance degradation*, 2022 and updates, safety bulletin. https://www.easa.europa.eu/en/newsroom-and-events/news/easa-updates-safety-information-bulletin-gnss-interference
 - [Grabowski 2012] Grabowski, *Personal Privacy Jammers: Locating Jersey PPDs Jamming GBAS Safety-of-Life Signals*, 2012, GPS World. https://www.gpsworld.com/?p=12837
 - [Inside GNSS 2013] Inside GNSS staff, *FCC Fines Operator of GPS Jammer That Affected Newark Airport GBAS*, 2013, Inside GNSS. https://insidegnss.com/fcc-fines-operator-of-gps-jammer-that-affected-newark-airport-gbas/
