@@ -42,6 +42,8 @@ from pnt.frontends.lte.capture import Capture, Segment
 C = 299_792_458.0
 _K = sig.sync_subcarriers()
 _RES = sig.reserved_subcarriers()
+_K_ALL = np.r_[_K, _RES].astype(np.float32)
+_BINS_ALL = np.r_[_K, _RES]
 # RMS bandwidth of the 62 sync subcarriers: β² = Δf² · mean(k²)
 BETA_HZ = sig.SUBCARRIER_HZ * math.sqrt(float(np.mean(_K.astype(float) ** 2)))
 
@@ -76,7 +78,7 @@ class Config:
     sigma_scale: float = 1.5  # reported σ / ranging bound; 1.5 covers the synthetic tests, TBC
 
 
-@dataclass
+@dataclass(slots=True)
 class Epoch:
     """One 5 ms measurement of one cell (internal; `emit` turns them into Measurements)."""
 
@@ -171,6 +173,12 @@ def _phase(f_hz: float, n, fs: float):
     return 2 * np.pi * (x - np.floor(x))
 
 
+def _phase1(f_hz: float, n: float, fs: float) -> float:
+    """Scalar `_phase`."""
+    x = n * (f_hz / fs)
+    return 2 * math.pi * (x - math.floor(x))
+
+
 def window_spectra(fetch, starts: np.ndarray, fs: float, f_hz: float, backoff: float):
     """FFT of one useful-symbol window per start (fractional corrected index of the useful
     part), after removing carrier offset `f_hz`. Returns the 62 sync bins and 10 reserved bins,
@@ -179,11 +187,12 @@ def window_spectra(fetch, starts: np.ndarray, fs: float, f_hz: float, backoff: f
     n_u = sig.useful_length(fs)
     w = np.round(starts - backoff).astype(np.int64)
     idx = w[:, None] + np.arange(n_u)[None, :]
-    x = fetch(idx) * np.exp(-1j * _phase(f_hz, idx, fs)).astype(np.complex64)
-    y = np.fft.fft(x, axis=1)
-    e = (w - starts)[:, None]  # window start relative to the expected useful start (<= 0)
-    ramp = lambda k: np.exp(-2j * np.pi * k[None, :] * e / n_u)  # noqa: E731
-    return y[:, _K % n_u] * ramp(_K), y[:, _RES % n_u] * ramp(_RES)
+    x = fetch(idx) * np.exp(-1j * _phase(f_hz, idx, fs).astype(np.float32))
+    y = sp_fft.fft(x, axis=1)
+    e = ((w - starts) / n_u).astype(np.float32)[:, None]  # window start vs useful start
+    ramp = np.exp((-2j * np.pi) * _K_ALL[None, :] * e)
+    y = y[:, _BINS_ALL % n_u] * ramp
+    return y[:, : _K.size], y[:, _K.size :]
 
 
 def delay_profile(z: np.ndarray, fs: float, interp: int) -> np.ndarray:
@@ -349,7 +358,7 @@ def _identify(fetch, c0, jf, n_id2, f_bin, h_count, fs, fc, cfg) -> Found | None
 # --- tracking -----------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class State:
     """Loop state at half-frame `k`: boundary offset theta (samples), rate nu, covariance."""
 
@@ -500,12 +509,12 @@ class _Track:
                 snr_ema = snr_post if snr_ema is None else 0.9 * snr_ema + 0.1 * snr_post
                 st.update(0, theta_meas, r_code)
                 n_ref = float(bounds[r] + 0.5 * (self.sss_off + self.pss_off) + self.n_u / 2)
-                psi = float(phase[r] + _phase(f_used, n_ref, fs))
+                psi = float(phase[r]) + _phase1(f_used, n_ref, fs)
                 locked = math.sqrt(max(st.p11, 0.0)) * fc < cfg.carrier_lock_hz
                 if locked and last is not None and last.k == kk - 1:
                     dn = n_ref - last.n_ref
                     f_hat = -st.nu * fc
-                    dpsi = psi - last.psi - float(_phase(f_hat, dn, fs))
+                    dpsi = psi - last.psi - _phase1(f_hat, dn, fs)
                     dpsi = (dpsi + math.pi) % (2 * math.pi) - math.pi
                     nu_meas = -(f_hat + dpsi * fs / (2 * math.pi * dn)) / fc
                     var_phi = 0.5 / max(snr_post, 1e-3) + 0.5 / max(last.snr_post, 1e-3)
@@ -589,14 +598,19 @@ class _Track:
         floor = 2 * sig.N_SYNC * noise
         side = self.sidelobe[win % self.sidelobe.size]
         rel = 10 ** (cfg.first_path_rel_db / 10)
-        for i in range(1, win.size - 1):
-            if win[i] >= -1.5 * cfg.interp:
-                break
-            v = prof[i]
-            if v < prof[i - 1] or v < prof[i + 1]:
-                continue
-            if v >= rel * top and v >= cfg.first_path_sidelobe * side[i] * top and v >= 4 * floor:
-                return (win[i] + float(_parabola(prof[i - 1], v, prof[i + 1]))) / cfg.interp
+        i = np.arange(1, win.size - 1)
+        v = prof[i]
+        ok = (
+            (win[i] < -1.5 * cfg.interp)
+            & (v >= prof[i - 1])
+            & (v >= prof[i + 1])
+            & (v >= rel * top)
+            & (v >= cfg.first_path_sidelobe * side[i] * top)
+            & (v >= 4 * floor)
+        )
+        if ok.any():
+            j = int(i[np.argmax(ok)])  # the earliest qualifying peak
+            return (win[j] + float(_parabola(prof[j - 1], prof[j], prof[j + 1]))) / cfg.interp
         return 0.0
 
     def _relocate(self, cell: CellTrack, st: State, kk: int, good: State | None, last):
