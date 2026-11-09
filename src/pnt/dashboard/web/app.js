@@ -14,7 +14,7 @@ const $ = (id) => document.getElementById(id);
 
 const S = {
   info: null, emitters: new Map(), hist: [], frame: null, heard: new Set(),
-  view: "follow", manual: null, done: false,
+  view: "follow", manual: null, done: false, failed: false,
 };
 // history point: [t, e, n, truth_e, truth_n, hpl, tpl_s, status, err_h, clock_err_s]
 const P = { t: 0, e: 1, n: 2, te: 3, tn: 4, hpl: 5, tpl: 6, st: 7, err: 8, cerr: 9 };
@@ -389,7 +389,7 @@ es.addEventListener("info", (ev) => {
     notes.push(`Pre-flight prediction leaves out unplanned faults: ${i.preflight.dropped_faults.join(", ")}`);
   notes.push("Alert limits are TBC placeholders (REQ-01/02/03). ANP: 95 % radius from the estimate's covariance.");
   $("notes").textContent = notes.join("  ·  ");
-  S.emitters.clear(); S.hist = []; S.frame = null; S.done = false;
+  S.emitters.clear(); S.hist = []; S.frame = null; S.done = false; S.failed = false;
   conn.className = "dot live";
 });
 es.addEventListener("emitters", (ev) => addEmitters(JSON.parse(ev.data)));
@@ -407,8 +407,16 @@ es.addEventListener("end", () => {
   es.close(); // nothing more will come; otherwise the browser would reconnect and replay the history
   $("speed").textContent += "  finished";
 });
+// The numbers have stopped: leave no green NOMINAL on screen. The next `info` and `frame` restore it.
+function feedLost(message) {
+  conn.className = "dot err";
+  $("status").className = "card status lost";
+  $("status-word").textContent = "NO DATA";
+  $("headline").textContent = message;
+}
 es.addEventListener("error", (ev) => {
-  if (ev.data) { conn.className = "dot err"; $("headline").textContent = `Feed error: ${JSON.parse(ev.data).message}`; }
+  if (ev.data) { S.failed = true; feedLost(`Feed error: ${JSON.parse(ev.data).message}. The values on this page are stale.`); }
+  else if (!S.done && !S.failed) feedLost("Connection to the server lost: the values on this page are stale. Retrying.");
   else if (!S.done) conn.className = "dot err";
 });
 window.addEventListener("resize", redraw);
