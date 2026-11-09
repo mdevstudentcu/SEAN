@@ -292,7 +292,7 @@ def main(argv=None) -> None:
     by_key = {k: results[i * len(seeds) : (i + 1) * len(seeds)] for i, k in enumerate(keys)}
     base = by_key[(args.outage, ())]
 
-    kind = "sim; every model placeholder (systems/verification.md, Sim validity)"
+    kind = "sim; model status in systems/verification.md, Sim validity"
     seeds_txt = f"seeds 0-{args.runs - 1}"
 
     def cap(scn: str) -> str:
@@ -416,8 +416,8 @@ def markdown(s: dict, written: list[Path], out: Path) -> str:
     lines = [
         f"# Results figures: `{s['estimator']}`",
         "",
-        f"Commit `{s['commit']}`, seeds 0-{s['runs'] - 1}, sim (every model `placeholder` in "
-        "`systems/verification.md`). Regenerate with `just figures "
+        f"Commit `{s['commit']}`, seeds 0-{s['runs'] - 1}, sim (each model's status is in the "
+        "*Sim validity* table of `systems/verification.md`). Regenerate with `just figures "
         f"{s['estimator']} {s['runs']}`.",
         "",
         "Figures: " + ", ".join(f"`{w.name}`" for w in written),
