@@ -1,10 +1,18 @@
 """Companion Foxglove file for a session (issue #6, ADR-0010): `pnt viz <session>`.
 
 Our session records use local ENU metres and our own schemas, which Foxglove's Map panel cannot
-draw. This writes a separate `viz.mcap` in Foxglove's schemas, leaving the session untouched, so
-`systems/icd/session.md` does not change. Lat/lon appears only here, for display (ADR-0008).
+draw. This writes a separate file in Foxglove's schemas beside the session (`<folder>.viz.mcap`
+or `<file>.viz.mcap`, sim-plan D1), leaving the session untouched, so `systems/icd/session.md`
+does not change. Lat/lon appears only here, for display (ADR-0008).
 
-Topics, all stamped with the session's GPS-time log time:
+The estimates drawn are those logged on `/nav/<estimator>`; if the session has none (a real
+recording, or a sim run with another estimator), that estimator is re-run over the session's
+measurements, as `pnt replay` does.
+
+Times: Foxglove reads timestamps as Unix time, so every log time, publish time and
+LocationFix stamp is converted from GPS time with `pnt.core.time.gps_ns_to_unix_ns`.
+
+Topics:
 - /viz/truth, /viz/estimate: foxglove.LocationFix
 - /viz/towers: foxglove.GeoJSON, published once, because the viewer keeps every message it draws
 - /viz/nav: error, HPL, status, alarm, fault state and which towers are lost, for the panels
@@ -16,14 +24,14 @@ import json
 from pathlib import Path
 
 import numpy as np
-import yaml
 from mcap.writer import Writer
 
 from pnt.core.frames import emitter_enu, enu_to_llh
 from pnt.core.measurement import Estimate, Measurement, Truth
-from pnt.core.time import s_to_ns
+from pnt.core.time import gps_ns_to_unix_ns, s_to_ns
 from pnt.io import session as session_io
-from pnt.io.mcap_log import read_metadata, read_session
+from pnt.io.mcap_log import read_session
+from pnt.nav import ESTIMATORS
 
 ALARM_FLAGS = {"gnss_excluded", "spoof_suspected", "time_spoof_suspected"}
 STATUS_CODE = {"nominal": 0, "degraded": 1, "unsafe": 2}
@@ -96,17 +104,31 @@ ESTIMATE_COLOR = {"r": 0.95, "g": 0.45, "b": 0.10, "a": 1.0}
 
 
 def default_output(path: str | Path) -> Path:
+    """Beside the session (sim-plan D1): `X.viz.mcap` next to folder `X`, `<stem>.viz.mcap`
+    next to a bare file. Never inside the folder, whose contents ICD-session fixes."""
     p = Path(path)
-    return p / "viz.mcap" if p.is_dir() else p.with_suffix(".viz.mcap")
+    return p.with_name(f"{p.name}.viz.mcap") if p.is_dir() else p.with_suffix(".viz.mcap")
+
+
+def check_output(session: str | Path, out: str | Path, force: bool = False) -> None:
+    """Refuse an `out` that would overwrite the session: its MCAP, or anything inside its
+    folder. Refuse an existing `out` unless `force`. Raises FileExistsError."""
+    s, o = Path(session).resolve(), Path(out).resolve()
+    if o == session_io.mcap_path(s).resolve() or (s.is_dir() and o.is_relative_to(s)):
+        raise FileExistsError(f"{out} is part of session {session}; write the view beside it")
+    if o.is_dir():
+        raise FileExistsError(f"{out} is a folder; give a file name ending in .viz.mcap")
+    if o.exists() and not force:
+        raise FileExistsError(f"{out} already exists; choose another --out or pass --force")
 
 
 def _stamp(t_ns: int) -> dict:
     return {"sec": t_ns // 1_000_000_000, "nsec": t_ns % 1_000_000_000}
 
 
-def _fix(t_ns, llh, color, cov=None) -> dict:
+def _fix(t_gps_ns, llh, color, cov=None) -> dict:
     return {
-        "timestamp": _stamp(t_ns),
+        "timestamp": _stamp(gps_ns_to_unix_ns(t_gps_ns)),
         "frame_id": "wgs84",
         "latitude": float(llh[0]),
         "longitude": float(llh[1]),
@@ -143,11 +165,12 @@ class _VizWriter:
             topic=topic, message_encoding="json", schema_id=sid
         )
 
-    def write(self, topic: str, t_ns: int, payload: dict) -> None:
+    def write(self, topic: str, t_gps_ns: int, payload: dict) -> None:
+        t_unix_ns = gps_ns_to_unix_ns(t_gps_ns)
         self._w.add_message(
             channel_id=self._channels[topic],
-            log_time=t_ns,
-            publish_time=t_ns,
+            log_time=t_unix_ns,
+            publish_time=t_unix_ns,
             data=json.dumps(payload).encode(),
         )
 
@@ -160,28 +183,48 @@ def write_viz(
     out: str | Path,
     estimator: str = "baseline",
     fault_windows: list[tuple[int, int | None]] | None = None,
+    force: bool = False,
 ) -> dict:
-    """Write the companion file. `fault_windows` are (start_ns, end_ns or None). Returns counts."""
+    """Write the companion file. `fault_windows` are (start_ns, end_ns or None) in GPS ns.
+    Refuses to overwrite as `check_output` says. Returns counts, and whether the estimates were
+    recomputed because the session had none on `/nav/<estimator>`."""
+    check_output(session, out, force)
     path = session_io.mcap_path(session)
-    origin = yaml.safe_load(read_metadata(path).get("origin_llh", "null"))
+    origin = session_io.read_meta(session).get("origin_llh")
     if origin is None:
-        raise ValueError(f"{path} has no origin_llh in its metadata, so it can't be put on a map")
+        raise ValueError(
+            f"{session} has no origin_llh in its metadata, so it can't be put on a map"
+        )
 
-    truth, estimates, heard_at, towers = {}, [], {}, {}
+    truth, estimates, meas, heard_at, towers = {}, [], [], {}, {}
     nav_topic = f"/nav/{estimator}"
     for topic, rec in read_session(path, topics=["/truth", nav_topic, "/meas/"]):
         if isinstance(rec, Truth):
             truth[rec.t_ns] = rec
         elif isinstance(rec, Estimate) and topic == nav_topic:
             estimates.append(rec)
-        elif isinstance(rec, Measurement) and rec.kind == "pseudorange":
+        elif isinstance(rec, Measurement):
+            meas.append(rec)
+            if rec.kind != "pseudorange":
+                continue
             heard_at.setdefault(rec.emitter, []).append(rec.t_ns)
             if rec.emitter not in towers:
                 enu = emitter_enu(rec.meta, origin)
                 if enu is not None:
                     towers[rec.emitter] = enu_to_llh(enu, origin)
-    if not estimates:
-        raise ValueError(f"{path} has no estimates on {nav_topic}")
+    recomputed = not estimates
+    if recomputed:
+        if estimator not in ESTIMATORS:
+            raise ValueError(
+                f"{path} has no estimates on {nav_topic}, and {estimator!r} is not an estimator "
+                f"to re-run (choose from {sorted(ESTIMATORS)})"
+            )
+        estimates = list(ESTIMATORS[estimator](meas, origin_llh=origin))
+        if not estimates:
+            raise ValueError(
+                f"{path} has no estimates on {nav_topic}, and re-running {estimator} over its "
+                "measurements gave none"
+            )
 
     heard_at = {e: np.array(sorted(t)) for e, t in heard_at.items()}
     windows = fault_windows or []
@@ -216,6 +259,7 @@ def write_viz(
                 _fix(e.t_ns, enu_to_llh(e.pos_enu, origin), ESTIMATE_COLOR, e.pos_cov),
             )
             current = heard(e.t_ns)
+            heard_before = {em for em, times in heard_at.items() if times[0] <= e.t_ns}
             nav = {
                 "status": e.status,
                 "status_code": STATUS_CODE.get(e.status, -1),
@@ -224,7 +268,7 @@ def write_viz(
                     any(s <= e.t_ns and (end is None or e.t_ns < end) for s, end in windows)
                 ),
                 "towers_heard": len(current),
-                "towers_lost": ",".join(sorted(set(heard_at) - current)) or "none",
+                "towers_lost": ",".join(sorted(heard_before - current)) or "none",
                 "flags": ",".join(e.flags),
             }
             if e.hpl_m is not None:
@@ -233,4 +277,9 @@ def write_viz(
                 nav["h_error_m"] = float(np.hypot(*np.subtract(e.pos_enu, g.pos_enu)[:2]))
             w.write("/viz/nav", e.t_ns, nav)
         w.finish()
-    return {"estimates": len(estimates), "truth": n_truth, "towers": len(towers)}
+    return {
+        "estimates": len(estimates),
+        "truth": n_truth,
+        "towers": len(towers),
+        "recomputed": recomputed,
+    }
