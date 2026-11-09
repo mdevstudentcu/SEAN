@@ -154,44 +154,44 @@ def emit(
         if not cell.epochs:
             continue
         ep = sorted(cell.epochs, key=lambda e: e.k)
-        t = np.array([cap.t0_ns + e.c_ref * 1e9 / fs for e in ep])
-        bins = np.floor(t / period_ns).astype(np.int64)
-        arcs = np.array([e.arc for e in ep])
-        start = 0
-        for i in range(1, len(ep) + 1):
-            if i < len(ep) and bins[i] == bins[start] and arcs[i] == arcs[start]:
-                continue
-            group = ep[start:i]
-            out += _outputs(cell, group, t[start:i], cap, gaps, cfg, receiver, L)
-            start = i
+        a = {
+            name: np.array([getattr(e, name) for e in ep])
+            for name in ("k", "c_ref", "theta_meas", "nu", "sigma", "snr_post", "psi", "n_ref",
+                         "locked", "arc")
+        }  # fmt: skip
+        a["t"] = cap.t0_ns + a["c_ref"] * 1e9 / fs
+        key = np.floor(a["t"] / period_ns).astype(np.int64) * 1_000_000 + a["arc"]
+        cuts = np.r_[0, np.nonzero(np.diff(key))[0] + 1, len(ep)]
+        for lo, hi in zip(cuts[:-1], cuts[1:], strict=True):
+            g = {name: v[lo:hi] for name, v in a.items()}
+            flags = sorted({f for e in ep[lo:hi] for f in e.flags})
+            out += _outputs(cell, g, flags, cap, gaps, cfg, receiver, L)
     out.sort(key=lambda m: (m.t_ns, m.emitter, m.kind))
     return out
 
 
-def _outputs(cell, group, t, cap, gaps, cfg, receiver, L) -> list[Measurement]:
+def _outputs(cell, g, flags, cap, gaps, cfg, receiver, L) -> list[Measurement]:
     fs, fc = cap.fs, cell.fc
-    n = len(group)
+    n = g["k"].size
     if n < 2:
         return []
     ref = n // 2
-    t_ref = t[ref]
+    t, t_ref = g["t"], g["t"][ref]
     base = cell.n0 % (2 * L)
-    rho = np.array([C * (base + e.theta_meas) / fs for e in group])
-    rate = np.array([C * e.nu for e in group])
-    sig_m = np.array([cfg.sigma_scale * C * e.sigma / fs for e in group])
+    rho = C * (base + g["theta_meas"]) / fs
+    sig_m = cfg.sigma_scale * C * g["sigma"] / fs
     w = 1 / sig_m**2
-    aligned = rho - rate * (t - t_ref) / 1e9
+    aligned = rho - C * g["nu"] * (t - t_ref) / 1e9
     value = float(np.sum(w * aligned) / np.sum(w))
     sigma_crb = float(1 / math.sqrt(np.sum(w)))
     sigma_obs = float(np.std(aligned - value, ddof=1) / math.sqrt(n)) if n >= 5 else float("nan")
     sigma = max(sigma_crb, sigma_obs) if not math.isnan(sigma_obs) else sigma_crb
-    snr = np.array([e.snr_post for e in group]) / (2 * sig.N_SYNC)
-    nu = float(np.mean([e.nu for e in group]))
-    flags = sorted({f for e in group for f in e.flags})
+    snr = float(np.mean(g["snr_post"])) / (2 * sig.N_SYNC)
+    nu = float(np.mean(g["nu"]))
     emitter = f"lte:{cell.earfcn}:{cell.pci}" if cell.earfcn is not None else f"lte::{cell.pci}"
-    f_idx = int(gaps.to_file(np.int64(math.floor(group[ref].c_ref)))[0])
+    f_idx = int(gaps.to_file(np.int64(math.floor(g["c_ref"][ref])))[0])
     meta = {
-        "snr_db": round(float(10 * math.log10(max(float(np.mean(snr)), 1e-6))), 2),
+        "snr_db": round(10 * math.log10(max(snr, 1e-6)), 2),
         "cfo_hz": round(-nu * fc, 3),
         "dongle": cap.dongle,
         "rx_clock": cap.dongle,
@@ -200,7 +200,7 @@ def _outputs(cell, group, t, cap, gaps, cfg, receiver, L) -> list[Measurement]:
         "pci": cell.pci,
         "fc_hz": fc,
         "n_epochs": n,
-        "arc": group[0].arc,
+        "arc": int(g["arc"][0]),
         "sigma_crb_m": round(sigma_crb, 3),
         "sigma_obs_m": None if math.isnan(sigma_obs) else round(sigma_obs, 3),
         "ambiguity_m": C * sig.FRAME_S,
@@ -211,7 +211,7 @@ def _outputs(cell, group, t, cap, gaps, cfg, receiver, L) -> list[Measurement]:
         Measurement(t_ns=t_ns, source="lte", kind="pseudorange", emitter=emitter,
                     receiver=receiver, value=(value,), sigma=(sigma,), meta=meta)
     ]  # fmt: skip
-    dop = _doppler(group, fs, fc)
+    dop = _doppler(g, fs, fc)
     if dop is not None:
         out.append(Measurement(t_ns=t_ns, source="lte", kind="doppler", emitter=emitter,
                                receiver=receiver, value=(dop[0],), sigma=(dop[1],),
@@ -219,17 +219,15 @@ def _outputs(cell, group, t, cap, gaps, cfg, receiver, L) -> list[Measurement]:
     return out
 
 
-def _doppler(group, fs: float, fc: float) -> tuple[float, float] | None:
+def _doppler(g, fs: float, fc: float) -> tuple[float, float] | None:
     """Range rate (m/s) and its σ from a least-squares fit of the carrier phase."""
-    locked = [e for e in group if e.locked]
-    if len(locked) < 4:
+    lk = g["locked"].astype(bool)
+    if lk.sum() < 4:
         return None
-    f_hat = -float(np.mean([e.nu for e in locked])) * fc
-    n = np.array([e.n_ref for e in locked])
-    n = n - n[0]
-    psi = np.array([e.psi for e in locked]) - 2 * np.pi * f_hat * n / fs
-    psi = np.unwrap(psi)
-    w = 2 * np.maximum(np.array([e.snr_post for e in locked]), 1e-3)  # 1 / var(phase)
+    f_hat = -float(np.mean(g["nu"][lk])) * fc
+    n = g["n_ref"][lk] - g["n_ref"][lk][0]
+    psi = np.unwrap(g["psi"][lk] - 2 * np.pi * f_hat * n / fs)
+    w = 2 * np.maximum(g["snr_post"][lk], 1e-3)  # 1 / var(phase)
     nb = np.sum(w * n) / np.sum(w)
     sxx = np.sum(w * (n - nb) ** 2)
     slope = np.sum(w * (n - nb) * (psi - np.sum(w * psi) / np.sum(w))) / sxx
