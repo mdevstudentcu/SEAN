@@ -243,7 +243,8 @@ class HealthMonitor:
         else:
             headline = (
                 "ok",
-                "All sources in use; the horizontal protection level is within the limit.",
+                "GPS in use, no fault flagged; the horizontal protection level is within the "
+                "limit. See Sources for the towers and other sources.",
             )
         return {
             "t_s": t,
