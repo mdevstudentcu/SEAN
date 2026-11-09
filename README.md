@@ -9,7 +9,7 @@ A removable, receive-only payload listens to the signals already around us (cell
 ## How it fits together
 
 ```
- payload (Pi 3B+ + Pi Zero 2 W hub)                 ground laptop
+ payload (Pi 4B)                                    ground laptop
  ┌───────────────────────────┐   Wi-Fi (ZeroMQ)   ┌──────────────────────────────────────────┐
  │ GPS+PPS  IMU  baro  Wi-Fi │ ─────────────────► │ front-ends → estimator → integrity → UI  │
  │ SDR A (ADS-B)  SDR B (LTE,│     or MCAP log    │                ▲                         │

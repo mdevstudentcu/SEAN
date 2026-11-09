@@ -15,7 +15,7 @@ Scored by the judges ("safety, RF, aviation, privacy, cybersecurity, and regulat
 
 ## Privacy
 
-- Wi-Fi BSSIDs are salted and hashed on the Pi Zero 2 W hub before they leave it (ADR-0011). Client probe requests are never captured.
+- Wi-Fi BSSIDs are salted and hashed on the board that scans, before they leave it (ADR-0011, ADR-0018). Client probe requests are never captured.
 - ADS-B data is public broadcast; we store it but publish only aggregates.
 - Camera footage stays local and is not published without review.
 
