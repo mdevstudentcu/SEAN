@@ -22,18 +22,57 @@ Tower clocks (ADR-0022, Proposed) have two models, picked with `clock_model`:
 - "independent" (default, the model before ADR-0022): one clock offset per clock, a random walk
   (`q_emitter`). Such a clock is free to absorb its own tower's error, so it adds no
   fault-detection redundancy (Jia, Khalife & Kassas, IEEE T-ITS 2023).
-- "calibrated": offset and drift per clock, on the two-state oscillator model. While GNSS is
-  trusted (position accepted recently, no exclusion, no time alarm) the filter is *calibrating*:
-  the clock gets extra process noise (`calib_q_offset`, `calib_q_drift`) so offset and drift
-  track what the towers show. Otherwise it *coasts*: the learned offset and drift are the prior
-  and only the oscillator noise (`tower_h0`, `tower_h_2`) is added, so they stay tight.
-  "Trusted" only means "accepted", so a slow spoof that passes the gate is calibrated into the
-  tower clocks too: stronger GNSS trust tests are I9/I10's job.
+- "calibrated": offset and drift per clock, on the two-state oscillator model. While the
+  calibration gate is open the filter is *calibrating*: the clock gets extra process noise
+  (`calib_q_offset`, `calib_q_drift`) so offset and drift track what the towers show. Otherwise
+  it *coasts*: the learned offset and drift are the prior and only the oscillator noise
+  (`tower_h0`, `tower_h_2`) is added, so they stay tight.
 Either model can group clocks:
 - `sites`: emitter -> site. Sectors of one site share one clock. Default: each emitter is a site.
 - `builders`: site -> network builder. A builder's sites share a common clock block, and each
   site keeps a residual block on top of it (initial sigma `init_residual_sigma`, TBC). Off by
   default. How builder identity reaches the filter in real data is open (I3/ICD).
+
+Calibration gate (calibrated model only). It opens when both hold:
+- GNSS has been trusted (position accepted recently, no exclusion, no time alarm) continuously
+  for `calib_gate_s`.
+- The checks in `calib_checks` agree. Each check is a predicate `(ekf) -> True | False | None`:
+  True confirms GNSS, False refutes it, None has no opinion (no recent data). The gate needs at
+  least one True and no False. Only evidence that does not fail with GNSS may return True
+  (ADR-0024). GNSS-timed evidence (towers) and our GNSS-disciplined clock may only refute.
+  The defaults (`CALIB_CHECKS`) use the mean NIS over the last `calib_check_s`:
+  - `baro_agrees`: barometer against the filter's altitude. Independent, so it can confirm.
+  - `rx_clock_consistent`: GNSS time against our clock model. Refutes only.
+  - `towers_consistent`: tower pseudorange innovations. Refutes only. Tower time follows GNSS
+    time, so the tower clocks never confirm GNSS.
+  With no barometer (or other confirming check) the clocks never calibrate.
+  More trust tests (#82, #83) are added by appending a predicate to `calib_checks`.
+
+Rollback (calibrated model only). A slow spoof can still pass the gate, so the filter keeps a
+ring buffer of clock snapshots (mean and covariance of every clock block, about 1 Hz, reaching
+back `calib_rollback_s`). When GNSS is flagged (exclusion or time alarm) for
+`calib_alarm_hold_s`, and the clocks have calibrated since the last rollback:
+- Each clock block that existed at the snapshot taken `calib_rollback_s` before the alarm
+  started is restored from it and carried to now on the coast model: the mean moves by the
+  learned drift and the covariance grows by the tower oscillator noise. Everything learned after
+  the snapshot is discarded.
+- A clock block first seen after that snapshot goes back to its first-sight prior (its mean is
+  kept, its covariance is reset): everything it knows was learned after the snapshot.
+- Cross-covariance: zeroed between the clocks and the other states (position, velocity,
+  receiver clock), and those other states keep their covariance. The restored clocks become an
+  independent prior, the same assumption a clock makes at first sight (`_augment`). Why:
+  - The filter's cross terms describe today's clocks, which are being discarded, and the
+    snapshot's describe the other states as they were a rollback ago. Neither is right now.
+  - The restored clocks depend only on measurements from before the snapshot. Today's
+    position and velocity have been re-fixed since by `calib_rollback_s` of GNSS or tower
+    updates, so the correlation left is small. It is not zero: this is an approximation.
+  - P stays symmetric and positive semidefinite: it is block diagonal with PSD blocks.
+  - The bound that holds for any correlation, covariance intersection (both blocks doubled),
+    was tried and rejected: doubling the position covariance just as GNSS is flagged makes the
+    flagged GNSS easier to accept again, and misleading epochs rose on meaconing and spoof-ramp
+    (numbers in PR #102).
+- The snapshot buffer restarts from the restored state, so a later alarm never reaches back
+  past the rollback into the discarded history.
 
 GNSS position and GNSS time are tracked separately for health, so rejecting one is never hidden
 by accepting the other at the same instant.
@@ -41,7 +80,8 @@ by accepting the other at the same instant.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Iterator, Mapping
+from collections import deque
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 
 import numpy as np
 
@@ -55,6 +95,8 @@ GNSS_TIME = "gnss:time"  # health key for GNSS time, separate from GNSS position
 POS, VEL, CLK, DRIFT = slice(0, 3), slice(3, 6), 6, 7
 N_CORE = 8
 CLOCK_MODELS = ("independent", "calibrated")
+SNAPSHOT_NS = 1_000_000_000  # clock snapshots for rollback, about 1 Hz
+CHECK_MIN_SAMPLES = 5  # a windowed check with fewer innovations has no opinion
 
 
 def _two_state_q(s_off: float, s_drift: float, dt: float) -> np.ndarray:
@@ -94,6 +136,13 @@ class EKF:
         calib_q_drift: float = 0.01,  # m/s/sqrt(s): extra drift noise while calibrating (TBC)
         init_tower_drift_sigma: float = 1.0,  # m/s (3 ppb): a tower clock's drift (TBC)
         init_residual_sigma: tuple[float, float] = (300.0, 0.1),  # m, m/s: site vs builder (TBC)
+        calib_gate_s: float = 30.0,  # s: GNSS trusted this long before calibrating (TBC)
+        calib_check_s: float = 10.0,  # s: window of the gate's NIS checks (TBC)
+        calib_nis_max: float = 3.0,  # mean NIS above which baro or GNSS time disagrees (TBC)
+        calib_tower_nis_max: float = 3.0,  # mean NIS above which the towers disagree (TBC)
+        calib_checks: Sequence[Callable[[EKF], bool | None]] | None = None,  # CALIB_CHECKS
+        calib_rollback_s: float | None = 60.0,  # s: rollback reach; None turns it off (TBC)
+        calib_alarm_hold_s: float = 1.0,  # s: alarm held this long rolls back (TBC)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -115,11 +164,25 @@ class EKF:
         self.s_calib = (calib_q_offset**2, calib_q_drift**2)
         self.init_tower_drift_sigma = init_tower_drift_sigma
         self.init_residual_sigma = init_residual_sigma
+        self.calib_gate_ns = int(calib_gate_s * 1e9)
+        self.calib_check_ns = int(calib_check_s * 1e9)
+        self.calib_nis_max, self.calib_tower_nis_max = calib_nis_max, calib_tower_nis_max
+        self.calib_checks = tuple(CALIB_CHECKS if calib_checks is None else calib_checks)
+        self.rollback_ns = None if calib_rollback_s is None else int(calib_rollback_s * 1e9)
+        self.alarm_hold_ns = int(calib_alarm_hold_s * 1e9)
         self.x: np.ndarray | None = None
         self.P: np.ndarray | None = None
         self.t_ns: int | None = None
         self.clock_idx: dict[str, int] = {}  # clock block ("site:..", "builder:..") -> index
-        self.calibrating = False  # tower clocks calibrating (GNSS trusted) or coasting
+        self.calibrating = False  # tower clocks calibrating (gate open) or coasting
+        self.rollbacks: list[tuple[int, int]] = []  # (alarm start, snapshot time) per rollback
+        self._clock_prior: dict[str, tuple[float, float]] = {}  # block -> first-sight sigmas
+        self._trusted_since: int | None = None
+        self._alarm_since: int | None = None
+        self._learned = False  # calibrated since the last rollback
+        self._snaps: deque[tuple[int, np.ndarray, np.ndarray]] = deque()  # (t, x_c, P_cc)
+        self._nis: dict[str, deque[tuple[int, float, int]]] = {}  # check -> (t, NIS, dof)
+        self._last_nis = (0.0, 0)
         self._emitter_pos: dict[str, np.ndarray | None] = {}
         self.last_used: dict[str, int] = {}
         self.last_rejected: dict[str, int] = {}
@@ -147,6 +210,7 @@ class EKF:
         P[n:, n:] = np.diag(np.square(sigma[:w]))
         self.P = P
         self.clock_idx[key] = n
+        self._clock_prior[key] = (float(sigma[0]), float(sigma[1]))
         return n
 
     def clock_offsets(self, emitter: str, residual: float) -> tuple[list[int], bool]:
@@ -182,6 +246,37 @@ class EKF:
             and self.last_rejected.get(GNSS_TIME, never) <= self.last_used.get(GNSS_TIME, never)
         )
 
+    def gnss_flagged(self) -> bool:
+        """GNSS position excluded or GNSS time alarmed: the alarms that trigger a rollback."""
+        never = -(10**18)
+        return self.last_rejected.get("gnss", never) > self.last_used.get(
+            "gnss", never
+        ) or self.last_rejected.get(GNSS_TIME, never) > self.last_used.get(GNSS_TIME, never)
+
+    def calibration_allowed(self) -> bool:
+        """The calibration gate: GNSS trusted for `calib_gate_s` and the checks agree."""
+        if not self.gnss_trusted():
+            self._trusted_since = None
+            return False
+        if self._trusted_since is None:
+            self._trusted_since = self.t_ns
+        if self.t_ns - self._trusted_since < self.calib_gate_ns:
+            return False
+        votes = [check(self) for check in self.calib_checks]
+        return True in votes and False not in votes
+
+    def windowed_nis(self, check: str) -> float | None:
+        """Mean NIS per degree of freedom of one check's innovations over `calib_check_s`, or
+        None with fewer than CHECK_MIN_SAMPLES of them."""
+        w = self._nis.get(check)
+        if w is None:
+            return None
+        while w and w[0][0] < self.t_ns - self.calib_check_ns:
+            w.popleft()
+        if len(w) < CHECK_MIN_SAMPLES:
+            return None
+        return sum(n for _, n, _ in w) / sum(d for _, _, d in w)
+
     def predict(self, t_ns: int) -> None:
         dt = (t_ns - self.t_ns) / 1e9
         if dt <= 0:
@@ -200,7 +295,8 @@ class EKF:
         Q[CLK, DRIFT] = Q[DRIFT, CLK] = c2 * self.sg * dt**2 / 2
         Q[DRIFT, DRIFT] = c2 * self.sg * dt
         if self.calibrated:
-            self.calibrating = self.gnss_trusted()
+            self.calibrating = self.calibration_allowed()
+            self._learned |= self.calibrating
             s_off, s_drift = self.s_tower
             if self.calibrating:
                 s_off, s_drift = s_off + self.s_calib[0], s_drift + self.s_calib[1]
@@ -214,11 +310,69 @@ class EKF:
         self.x = F @ self.x
         self.P = F @ self.P @ F.T + Q
         self.t_ns = t_ns
+        if self.calibrated and self.rollback_ns is not None:
+            self._snapshot()
+
+    # --- rollback (calibrated model) -----------------------------------------------------------
+    def _snapshot(self) -> None:
+        if self._snaps and self.t_ns - self._snaps[-1][0] < SNAPSHOT_NS:
+            return
+        self._snaps.append((self.t_ns, self.x[N_CORE:].copy(), self.P[N_CORE:, N_CORE:].copy()))
+        # Keep the newest snapshot old enough for an alarm that started a hold ago
+        horizon = self.t_ns - self.rollback_ns - self.alarm_hold_ns - SNAPSHOT_NS
+        while len(self._snaps) > 1 and self._snaps[1][0] <= horizon:
+            self._snaps.popleft()
+
+    def _watch_alarm(self) -> None:
+        if not self.gnss_flagged():
+            self._alarm_since = None
+            return
+        if self._alarm_since is None:
+            self._alarm_since = self.t_ns
+        if self._learned and self.t_ns - self._alarm_since >= self.alarm_hold_ns:
+            self.rollback(self._alarm_since)
+
+    def rollback(self, alarm_ns: int) -> None:
+        """Restore the clocks from the snapshot `calib_rollback_s` before `alarm_ns` (the
+        oldest kept, if none is that old). See the module docstring for the covariance. Public
+        so that a spoof alarm from another detector (#82, #83) can call it too."""
+        if not self._snaps:
+            return
+        target = alarm_ns - self.rollback_ns
+        t_s, xc, Pcc = self._snaps[0]
+        for snap in self._snaps:
+            if snap[0] > target:
+                break
+            t_s, xc, Pcc = snap
+        dt = (self.t_ns - t_s) / 1e9
+        k = len(xc)
+        F = np.eye(k)
+        Q = np.zeros((k, k))
+        q = _two_state_q(*self.s_tower, dt)
+        for i in self.clock_idx.values():
+            j = i - N_CORE
+            if j < k:
+                F[j, j + 1] = dt
+                Q[j : j + 2, j : j + 2] = q
+        old = slice(N_CORE, N_CORE + k)
+        P = np.zeros_like(self.P)  # cross terms zeroed: see the module docstring
+        P[:N_CORE, :N_CORE] = self.P[:N_CORE, :N_CORE]
+        P[old, old] = F @ Pcc @ F.T + Q
+        for key, i in self.clock_idx.items():
+            if i >= N_CORE + k:  # first seen after the snapshot: back to its first-sight prior
+                P[i : i + 2, i : i + 2] = np.diag(np.square(self._clock_prior[key]))
+        self.x[old] = F @ xc
+        self.P = (P + P.T) / 2
+        self.rollbacks.append((alarm_ns, t_s))
+        self._learned = False
+        self._snaps.clear()
+        self._snapshot()
 
     def _update(self, key: str, t_ns: int, y, H, R, gate: bool = True) -> bool:
         y = np.atleast_1d(y)
         S_inv = np.linalg.inv(H @ self.P @ H.T + R)
         nis = float(y @ S_inv @ y)
+        self._last_nis = (nis, len(y))
         if gate and nis > CHI2_999[len(y)]:
             self.last_rejected[key] = t_ns
             return False
@@ -245,6 +399,25 @@ class EKF:
         y, H, R, gate = out
         key = GNSS_TIME if (m.source, m.kind) == ("gnss", "time") else m.source
         self._update(key, m.t_ns, y, H, R, gate)
+        if self.calibrated:
+            self._record(m, key, gate)
+            if self.rollback_ns is not None:
+                self._watch_alarm()
+
+    def _record(self, m: Measurement, key: str, gated: bool) -> None:
+        """Log the NIS of the innovations the gate's default checks read."""
+        if m.kind == "altitude" and m.source != "gnss":
+            check = "baro"
+        elif key == GNSS_TIME:
+            check = "rx_clock"
+        elif m.kind == "pseudorange" and gated:  # not first sight: that NIS says nothing
+            check = "towers"
+        else:
+            return
+        w = self._nis.setdefault(check, deque())
+        w.append((m.t_ns, *self._last_nis))
+        while w[0][0] < m.t_ns - self.calib_check_ns:
+            w.popleft()
 
     def _emitter(self, m: Measurement) -> np.ndarray | None:
         if m.emitter not in self._emitter_pos:
@@ -284,6 +457,35 @@ class EKF:
             trust=trust,
             flags=flags,
         )
+
+
+# --- calibration gate checks: (ekf) -> True (confirms GNSS), False (refutes), None ------------
+def baro_agrees(ekf: EKF) -> bool | None:
+    """Barometer against the filter's (GNSS-driven) altitude. Independent of GNSS (ADR-0024), so
+    it is the one default check that can confirm."""
+    r = ekf.windowed_nis("baro")
+    return None if r is None else r <= ekf.calib_nis_max
+
+
+def rx_clock_consistent(ekf: EKF) -> bool | None:
+    """GNSS time against our own clock model. Refutes only: our oscillator is GNSS-disciplined
+    while GNSS is available (ADR-0024), so agreement is not independent evidence."""
+    r = ekf.windowed_nis("rx_clock")
+    return False if r is not None and r > ekf.calib_nis_max else None
+
+
+def towers_consistent(ekf: EKF) -> bool | None:
+    """Tower pseudorange innovations. Refutes only: tower time is GNSS-timed (ADR-0024), so the
+    tower clocks never confirm GNSS, but towers that disagree with it are evidence against it."""
+    r = ekf.windowed_nis("towers")
+    return False if r is not None and r > ekf.calib_tower_nis_max else None
+
+
+CALIB_CHECKS: tuple[Callable[[EKF], bool | None], ...] = (
+    baro_agrees,
+    rx_clock_consistent,
+    towers_consistent,
+)
 
 
 # --- measurement models: (ekf, m) -> (innovation, H, R, gate) or None ----------------------
