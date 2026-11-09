@@ -383,9 +383,11 @@ def _cmd_sweep(args) -> None:
     commit = _commit()
     print(
         f"sweep experiment, scenario {args.scenario}, estimator {args.estimator}, {args.runs} "
-        f"runs per row (seeds 0..{args.runs - 1}, paired), {commit}. One value changed per row; "
-        "the estimator keeps its own model. Means over runs; hpl_bound_worst is the worst run, "
-        "hazardous_epochs the total."
+        f"runs per row (seeds 0..{args.runs - 1}, paired), {commit}. One value changed per row. "
+        "The filter is told the committed values, except in told_sigma_m rows, which change the "
+        "noise it is told, and told_position_sigma_m rows, which put that error in the tower "
+        "positions it is told; gnss and baro sigma_m rows change both truth and told. Means over "
+        "runs; hpl_bound_worst is the worst run, hazardous_epochs the total."
     )
     print(experiments.markdown(rows, fmt=_fmt_cell))
     if args.json:
