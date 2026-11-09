@@ -26,6 +26,7 @@ from pnt.nav import base_rover, baseline, ekf
 ESTIMATORS = {
     "baseline": baseline.run,
     "ekf": ekf.run,
+    "ekf-calibrated": ekf.run_calibrated,  # opt-in: ADR-0022 clocks and the tower error model
     "ekf-base": base_rover.run,
     "ekf-mhss": partial(ekf.run, monitor=MHSS),
 }
