@@ -64,5 +64,7 @@ def test_imu_records_leave_every_other_record_unchanged():
     assert {m.kind for m in imu} == {"accel_gyro"}
     assert set(np.diff([m.t_ns for m in imu])) == {10_000_000}  # 100 Hz
     f = np.array([m.value[:3] for m in imu])
-    assert abs(np.linalg.norm(f, axis=1).mean() - 9.81) < 0.2  # hovering-ish: about 1 g
+    # Regression guard, not a requirement: a level-ish flight reads about 1 g (within 0.08 m/s^2
+    # on seeds 0-2, the 1 % scale error; 0.2 leaves room)
+    assert abs(np.linalg.norm(f, axis=1).mean() - 9.81) < 0.2
     assert list(baseline.run(a)) == list(baseline.run(b))

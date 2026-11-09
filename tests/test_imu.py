@@ -102,7 +102,9 @@ def test_imu_dropout_falls_back_to_constant_velocity():
         return np.sqrt(np.trace(np.reshape(by_t[T0_NS + int(t_s * 1e9)].pos_cov, (3, 3))[:2, :2]))
 
     assert est[-1].t_ns >= T0_NS + int(69.9e9)
-    assert sigma(66.9) - sigma(62.0) > 5 * (sigma(61.9) - sigma(60.0))  # CV grows much faster
+    # Regression guard, not a requirement: constant velocity grows the sigma much faster (the
+    # ratio measures about 11 on seeds 0-2; 5 leaves room)
+    assert sigma(66.9) - sigma(62.0) > 5 * (sigma(61.9) - sigma(60.0))
     assert by_t[T0_NS + int(66.0e9)].trust["imu"] == 0.0  # gnss_timeout_s without IMU use
     e, _ = errors_at(est, k, 69.9)
     assert np.all(np.isfinite(e))
