@@ -227,10 +227,16 @@ def cmd_plot(args) -> None:
 def cmd_experiment(args) -> None:
     run = experiments.towers if args.name == "towers" else experiments.grid
     rows = run(args.scenario, runs=args.runs, estimator=args.estimator)
-    print(f"{args.name} experiment, scenario {args.scenario}, {args.runs} runs, {_commit()}")
+    commit = _commit()
+    print(
+        f"{args.name} experiment, scenario {args.scenario}, estimator {args.estimator}, "
+        f"{args.runs} runs, {commit}"
+    )
     print(experiments.markdown(rows))
     if args.json:
-        Path(args.json).write_text(json.dumps(rows, indent=2))
+        meta = {"experiment": args.name, "scenario": args.scenario, "estimator": args.estimator}
+        out = {**meta, "runs": args.runs, "commit": commit, "rows": rows}
+        Path(args.json).write_text(json.dumps(out, indent=2))
 
 
 def cmd_live(args) -> None:
