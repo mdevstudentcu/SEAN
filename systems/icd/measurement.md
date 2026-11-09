@@ -32,6 +32,7 @@ Three record types flow through the pipeline. All are msgspec structs, encoded a
 
 - **Why a field, not a topic namespace** (e.g. `/ref/meas/<source>`): the receiver travels with the record, so it survives every path a record takes, including the live msgpack stream and the `Source` iterators, which carry no topic (ADR-0004). MCAP topics stay `/meas/<source>` for both receivers.
 - **Consumers:** a consumer that does not model the reference receiver (today every estimator) uses only `receiver == "payload"` records. Feeding reference records to it as if they came from the payload is an error.
+- **Filtering rule:** `pnt.nav.estimate` is the one place that feeds any source's records to an estimator; it passes only `payload` records, and logs how many others it dropped, unless the estimator opts in to more receivers with a `receivers` attribute.
 
 ### `kind` registry
 
