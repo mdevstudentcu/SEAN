@@ -34,7 +34,12 @@ Tools we can use:
 
 ## Decision
 
-Sign MAVLink 2 traffic, authenticate every ZeroMQ link (CurveZMQ preferred, option A, `TBC` against WireGuard), and hash-chain each session log with the chain head held off the recording machine.
+Sign MAVLink 2 traffic and authenticate every ZeroMQ link with CurveZMQ (option A). Hash-chaining the session logs is the design, but it waits until after judging.
+
+We chose CurveZMQ over WireGuard (decided 2026-11-09):
+- pyzmq is already a dependency, and the laptop's libzmq has CURVE.
+- WireGuard would add a system dependency and set-up on three hosts.
+- Whether the Pi's libzmq has CURVE is checked on day 1 (#88).
 
 ## Consequences
 
@@ -42,7 +47,7 @@ Sign MAVLink 2 traffic, authenticate every ZeroMQ link (CurveZMQ preferred, opti
 - **Unauthenticated input is dropped, not fused.**
   - The panel shows per-link counts of rejected, unsigned and replayed messages.
   - Which unsigned MAVLink messages, if any, are still accepted is `TBD`; the default is none.
-- **Session logs.**
+- **Session logs (roadmap, not before judging).** The hash chain needs an `icd` PR. For the demo, I16 covers MAVLink signing, CurveZMQ, and a test that a forged message is rejected.
   - Each recorded record (or chunk, `TBD`) carries a hash over the previous hash and its own content.
   - The head is streamed to the laptop every `TBD` s, so an edit, a deletion or a truncation on the payload is detectable.
   - This changes `systems/icd/session.md`, so it needs an `icd` PR with the other owner's approval. Old sessions still load and are marked unverified.
