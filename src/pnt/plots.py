@@ -5,6 +5,7 @@
 - stanford.png: HPL against true error, with the misleading and unavailable regions counted
 - trust.png: per-source trust over time
 - time.png: clock error and its 1-sigma, only if the estimator estimates the clock
+- time_stanford.png: time protection level against true |clock error|, same condition
 
 Every figure carries a caption naming the scenario (or session), seed, estimator and commit
 (REQ-10). Needs matplotlib (the `ground` extra).
@@ -21,12 +22,10 @@ import numpy as np
 from pnt.core.frames import llh_to_enu
 from pnt.core.measurement import Estimate, Truth
 from pnt.core.time import s_to_ns
+from pnt.integrity.protection import tpl
 from pnt.io import session
 from pnt.io.mcap_log import read_session
-from pnt.metrics import ALARM_FLAGS
-
-# TBC: REQ-01/REQ-02 targets set the real alert limit (same placeholder as the baseline).
-ALERT_LIMIT_M = 50.0
+from pnt.metrics import ALARM_FLAGS, ALERT_LIMIT_M, TIME_ALERT_LIMIT_S
 
 
 @dataclass
@@ -82,6 +81,7 @@ class Series:
     clock_err: np.ndarray  # s, nan where not estimated
     clock_sigma: np.ndarray
     t0_ns: int
+    time_pl: np.ndarray | None = None  # s, nan where the clock is not estimated
 
 
 def series(run: RunData, estimator: str) -> Series:
@@ -104,6 +104,9 @@ def series(run: RunData, estimator: str) -> Series:
             [np.nan if e.clock_sigma_s is None else e.clock_sigma_s for e in est]
         ),
         t0_ns=t0,
+        time_pl=np.array(
+            [np.nan if e.clock_sigma_s is None else tpl(e.clock_sigma_s) for e in est]
+        ),
     )
 
 
@@ -181,21 +184,21 @@ def stanford_counts(err: np.ndarray, hpl: np.ndarray, alert_limit_m: float) -> d
     }
 
 
-def fig_stanford(run: RunData, estimator: str, alert_limit_m: float = ALERT_LIMIT_M):
+def _stanford(caption, err, pl, al, unit, what, title):
+    """A Stanford plot of `pl` against `err` (both already in `unit`) with alert limit `al`."""
     from matplotlib.colors import LogNorm
 
-    s = series(run, estimator)
-    ok = ~np.isnan(s.err_h) & ~np.isnan(s.hpl)
-    err, hpl = s.err_h[ok], s.hpl[ok]
-    top = max(2 * alert_limit_m, float(np.nanpercentile(np.r_[err, hpl], 99.5)) * 1.1)
-    fig, ax = _figure(run.caption(estimator), figsize=(6, 5.5))
+    ok = ~np.isnan(err) & ~np.isnan(pl)
+    err, pl = err[ok], pl[ok]
+    top = max(2 * al, float(np.nanpercentile(np.r_[err, pl], 99.5)) * 1.1)
+    fig, ax = _figure(caption, figsize=(6, 5.5))
     bins = np.linspace(0, top, 80)
-    h = ax.hist2d(err, hpl, bins=[bins, bins], norm=LogNorm(), cmap="viridis", cmin=1)
+    h = ax.hist2d(err, pl, bins=[bins, bins], norm=LogNorm(), cmap="viridis", cmin=1)
     fig.colorbar(h[3], ax=ax, label="epochs")
     ax.plot([0, top], [0, top], color="k", lw=1)
-    ax.axvline(alert_limit_m, color="k", ls="--", lw=0.8)
-    ax.axhline(alert_limit_m, color="k", ls="--", lw=0.8)
-    c = stanford_counts(err, hpl, alert_limit_m)
+    ax.axvline(al, color="k", ls="--", lw=0.8)
+    ax.axhline(al, color="k", ls="--", lw=0.8)
+    c = stanford_counts(err, pl, al)
     n = max(c["epochs"], 1)
 
     def pct(k):
@@ -204,19 +207,41 @@ def fig_stanford(run: RunData, estimator: str, alert_limit_m: float = ALERT_LIMI
     # The regions are thin wedges, so counts go in one box rather than on the regions
     box = "\n".join(
         [
-            f"nominal (error ≤ HPL ≤ AL): {pct('nominal')}",
-            f"misleading (HPL < error ≤ AL): {pct('misleading')}",
-            f"hazardous (error > AL, HPL ≤ AL): {pct('hazardous')}",
-            f"unavailable (HPL > AL): {pct('unavailable')}",
+            f"nominal (error ≤ {what} ≤ AL): {pct('nominal')}",
+            f"misleading ({what} < error ≤ AL): {pct('misleading')}",
+            f"hazardous (error > AL, {what} ≤ AL): {pct('hazardous')}",
+            f"unavailable ({what} > AL): {pct('unavailable')}",
         ]
     )
     ax.text(0.98, 0.98, box, transform=ax.transAxes, fontsize=7.5, ha="right", va="top",
             bbox=dict(boxstyle="round", fc="white", ec="0.7", alpha=0.9))  # fmt: skip
-    ax.text(alert_limit_m, top * 0.01, " AL", fontsize=7, va="bottom")
-    ax.set(xlim=(0, top), ylim=(0, top), xlabel="true horizontal error (m)", ylabel="HPL (m)")
-    ax.set_title(f"Stanford plot: {estimator}, AL {alert_limit_m:g} m")
+    ax.text(al, top * 0.01, " AL", fontsize=7, va="bottom")
+    ax.set(xlim=(0, top), ylim=(0, top), xlabel=f"true {title[0]} ({unit})",
+           ylabel=f"{what} ({unit})")  # fmt: skip
+    ax.set_title(title[1])
     fig.tight_layout(rect=(0, 0.03, 1, 1))
     return fig
+
+
+def fig_stanford(run: RunData, estimator: str, alert_limit_m: float = ALERT_LIMIT_M):
+    s = series(run, estimator)
+    title = f"Stanford plot: {estimator}, AL {alert_limit_m:g} m"
+    return _stanford(run.caption(estimator), s.err_h, s.hpl, alert_limit_m, "m", "HPL",
+                     ("horizontal error", title))  # fmt: skip
+
+
+def fig_time_stanford(
+    run: RunData, estimator: str, time_alert_limit_s: float = TIME_ALERT_LIMIT_S
+):
+    """|clock error| against the time protection level (our definition, pnt.integrity), in µs.
+    None if the estimator does not estimate the clock."""
+    s = series(run, estimator)
+    if np.isnan(s.time_pl).all():
+        return None
+    al_us = time_alert_limit_s * 1e6
+    title = f"Timing Stanford plot: {estimator}, AL {al_us:g} µs (TBC)"
+    return _stanford(run.caption(estimator), np.abs(s.clock_err) * 1e6, s.time_pl * 1e6, al_us,
+                     "µs", "time PL", ("|clock error|", title))  # fmt: skip
 
 
 def fig_trust(run: RunData, estimator: str):
@@ -253,6 +278,7 @@ def save_all(
     out_dir: str | Path,
     estimator: str | None = None,
     alert_limit_m: float = ALERT_LIMIT_M,
+    time_alert_limit_s: float = TIME_ALERT_LIMIT_S,
 ) -> list[Path]:
     import matplotlib.pyplot as plt
 
@@ -274,6 +300,7 @@ def save_all(
         "stanford": fig_stanford(run, estimator, alert_limit_m),
         "trust": fig_trust(run, estimator),
         "time": fig_time(run, estimator),
+        "time_stanford": fig_time_stanford(run, estimator, time_alert_limit_s),
     }
     for name, fig in figs.items():
         if fig is None:
