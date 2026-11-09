@@ -7,7 +7,14 @@ import numpy as np
 import pytest
 
 from pnt.core.frames import llh_to_enu
-from pnt.sim.scenario import REFERENCE_DIR, generate, load, select_towers
+from pnt.sim.scenario import (
+    REFERENCE_DIR,
+    SAME_SITE_M,
+    generate,
+    load,
+    select_towers,
+    tower_height_m,
+)
 
 CSV = REFERENCE_DIR / "cells-ottawa.csv"
 ORIGIN = [45.3876, -75.6960, 70.0]
@@ -69,3 +76,20 @@ def test_extractor_filters_and_deduplicates(tmp_path, monkeypatch):
         result = list(csv.DictReader(f))
     assert len(result) == 1
     assert result[0]["location"] == "Near Site" and result[0]["height_m"] == "110.0"
+
+
+def test_a_site_filed_twice_counts_once():
+    # Two TELUS filings for one Bank St mast sit 0.37 m apart in the ISED data
+    towers = select_towers("cells-ottawa.csv", "TELUS", 886.25, count=6, min_km=0.8)
+    for i, a in enumerate(towers):
+        for b in towers[i + 1 :]:
+            north = (a[0] - b[0]) * 111_132.0
+            east = (a[1] - b[1]) * 111_320.0 * np.cos(np.radians(a[0]))
+            assert np.hypot(north, east) >= SAME_SITE_M
+
+
+def test_heights_without_ground_elevation_get_the_scenario_ground():
+    assert tower_height_m(24.0, ground_m=70.0) == 94.0  # antenna height alone
+    assert tower_height_m(108.0, ground_m=70.0) == 108.0  # ground already included
+    towers = select_towers("cells-ottawa.csv", "TELUS", 886.25, count=6, min_km=0.8, ground_m=70)
+    assert min(t[2] for t in towers) >= 70.0  # no tower below the ground it stands on
