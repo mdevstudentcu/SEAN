@@ -1,6 +1,6 @@
 # Hardware
 
-- **Bill of materials and sources:** [`bom.md`](bom.md). **Antenna build guide:** [`antennas.md`](antennas.md).
+- **Bill of materials and sources:** [`bom.md`](bom.md). **Antennas are bought** (BOM section 3); the build guide [`antennas.md`](antennas.md) is a fallback.
 
 - **Payload spec and rationale** (parts, why each, budgets, wiring diagram): the shared doc "PNT Payload — Hardware Spec & Rationale" (link in the team channel).
 - CAD (STL/STEP/3MF) goes here via git LFS (`git lfs install` once): frame (ModuFrame-5 base, CC BY-SA, credited), payload box, antenna masts.
