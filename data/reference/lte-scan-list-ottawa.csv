@@ -1,0 +1,24 @@
+earfcn,band,dl_mhz,bw_mhz,licensee,sites,cells,sites_near,nearest_km,flags
+2460,5,875,10,Rogers Communications Canada Inc.,108,327,19,0.18,
+5145,12,742.5,5,TELUS Communications Inc.,112,345,16,0.29,
+5255,13,753.5,5,TELUS Communications Inc.,112,345,16,0.29,
+2535,5,882.5,5,TELUS Communications Inc.,111,342,16,0.29,
+9690,29,720,4,TELUS Communications Inc.,102,310,16,0.29,nonstandard_bw
+9740,29,725,6,TELUS Communications Inc.,102,310,16,0.29,nonstandard_bw
+2572,5,886.25,2.5,TELUS Communications Inc.,92,282,16,0.29,off_raster;nonstandard_bw
+2598,5,888.75,2.5,TELUS Communications Inc.,92,282,16,0.29,off_raster;nonstandard_bw
+5035,12,731.5,5,Rogers Communications Canada Inc.,88,266,16,0.60,
+5085,12,736.5,5,Rogers Communications Canada Inc.,88,266,16,0.60,
+5205,13,748.5,5,Vidéotron ltée,66,200,8,0.95,
+68811,71,639.5,15,Vidéotron ltée,65,197,8,0.95,tx_rx_swapped
+68861,71,644.5,15,Vidéotron ltée,65,197,8,0.95,tx_rx_swapped
+68911,71,649.5,15,Vidéotron ltée,65,197,8,0.95,tx_rx_swapped
+5060,12,734,10,Vidéotron ltée,22,66,2,2.21,
+2535,5,882.5,10,Bell Mobility Inc.,1,1,1,1.33,
+2572,5,886.25,10,Bell Mobility Inc.,1,1,1,1.33,off_raster
+2598,5,888.75,10,Bell Mobility Inc.,1,1,1,1.33,off_raster
+68611,71,619.5,5,Rogers Communications Canada Inc.,1,3,1,1.42,
+68661,71,624.5,5,Rogers Communications Canada Inc.,1,3,1,1.42,
+2560,5,885,10,TELUS Communications Inc.,19,60,0,4.83,
+68711,71,629.5,5,TELUS Communications Inc.,9,29,0,7.00,
+68761,71,634.5,5,TELUS Communications Inc.,9,29,0,7.00,
