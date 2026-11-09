@@ -7,6 +7,10 @@ ZeroMQ PUB side, two-frame messages:
 
 Dropping messages is acceptable: everything is also recorded on board (ADR-0009). An XPUB socket
 is used (it sends like PUB) so the sender can tell when a subscriber has joined.
+
+With `auth` (ADR-0026, #89) the socket is a CurveZMQ server: every message is encrypted and
+authenticated, and a ZAP handler admits only the trusted laptop keys. `pnt record` requires it
+unless `--insecure` is given; without `auth` the stream is plaintext (tests, private links).
 """
 
 from __future__ import annotations
@@ -21,13 +25,44 @@ TOPIC_META = b"meta"
 SEND_HWM = 10_000  # messages queued per subscriber before PUB drops (ADR-0009)
 
 
+class _AllowList:
+    """ZAP credentials check: a client key is admitted only if it is trusted."""
+
+    def __init__(self, keys):
+        self.keys = frozenset(keys)
+        self.refused = 0
+
+    def callback(self, domain, key: bytes) -> bool:
+        if key in self.keys:
+            return True
+        self.refused += 1
+        return False
+
+
 class Streamer:
-    def __init__(self, endpoint: str = DEFAULT_ENDPOINT, context=None):
+    def __init__(self, endpoint: str = DEFAULT_ENDPOINT, context=None, auth=None):
+        """`auth`: a `pnt.io.linkauth.ServerAuth`, or None for a plaintext stream."""
         import zmq  # payload and ground extras
 
         self._zmq = zmq
-        self.ctx = context or zmq.Context.instance()
+        self.auth = auth
+        self._authenticator = None
+        self._allow = None
+        self._own_ctx = auth is not None
+        # a ZAP handler serves a whole context, so a secured stream gets a context of its own
+        self.ctx = zmq.Context() if self._own_ctx else (context or zmq.Context.instance())
+        if auth is not None:
+            from zmq.auth.thread import ThreadAuthenticator
+
+            self._allow = _AllowList(auth.clients.values())
+            self._authenticator = ThreadAuthenticator(self.ctx)
+            self._authenticator.start()  # before bind: no connection is accepted unchecked
+            self._authenticator.configure_curve_callback("*", self._allow)
         self.sock = self.ctx.socket(zmq.XPUB)
+        if auth is not None:
+            self.sock.curve_secretkey = auth.secret
+            self.sock.curve_publickey = auth.public
+            self.sock.curve_server = True
         self.sock.setsockopt(zmq.SNDHWM, SEND_HWM)
         self.sock.setsockopt(zmq.LINGER, 0)
         self.sock.setsockopt(zmq.XPUB_VERBOSE, 1)  # report every subscription, not just the first
@@ -66,5 +101,21 @@ class Streamer:
     def send_meta(self, meta: dict, receiver: str) -> None:
         self._send([TOPIC_META, json.dumps({**meta, "receiver": receiver}).encode()])
 
+    @property
+    def refused(self) -> int:
+        """Connections whose client key was not trusted (ZAP)."""
+        return self._allow.refused if self._allow else 0
+
+    def describe(self) -> str:
+        """One line for the session notes: how the stream is protected."""
+        if self.auth is None:
+            return "stream: NOT authenticated or encrypted (plaintext ZeroMQ)"
+        refused = f"connections refused: {self.refused}"
+        return f"stream: authenticated, {self.auth.describe()}; {refused}"
+
     def close(self) -> None:
         self.sock.close()
+        if self._authenticator is not None:
+            self._authenticator.stop()
+        if self._own_ctx:
+            self.ctx.term()

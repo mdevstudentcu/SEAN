@@ -26,6 +26,10 @@ class LiveSource:
 
     `meta` holds the latest session metadata each receiver sent (origin, hardware, notes).
     With `idle_timeout_s`, iteration ends after that long with nothing received.
+
+    With `auth` (a `pnt.io.linkauth.ClientAuth`, ADR-0026) each endpoint is reached over CurveZMQ
+    with its server key pinned: only a host holding that key's secret completes the handshake,
+    so nothing from an impersonator or a tampered connection is ever read.
     """
 
     def __init__(
@@ -34,8 +38,14 @@ class LiveSource:
         reorder_s: float = REORDER_S,
         idle_timeout_s: float | None = None,
         context=None,
+        auth=None,
     ):
         self.endpoints = [endpoints] if isinstance(endpoints, str) else list(endpoints)
+        self.auth = auth
+        if auth is not None:
+            unpinned = [ep for ep in self.endpoints if ep not in auth.servers]
+            if unpinned:
+                raise ValueError(f"no server key pinned for {unpinned}")
         self.reorder_ns = int(reorder_s * 1e9)
         self.idle_timeout_s = idle_timeout_s
         self.context = context
@@ -58,10 +68,21 @@ class LiveSource:
             sock.setsockopt(zmq.LINGER, 0)
             for topic in (b"meas", b"meta"):
                 sock.setsockopt(zmq.SUBSCRIBE, topic)
+            if self.auth is not None:
+                sock.curve_publickey = self.auth.public
+                sock.curve_secretkey = self.auth.secret
             for ep in self.endpoints:
+                if self.auth is not None:  # options are taken per connection, at connect()
+                    sock.curve_serverkey = self.auth.servers[ep][1]
                 sock.connect(ep)
             self._sock = sock
         return self._sock
+
+    def describe(self) -> str:
+        """One line for the session notes: how the stream was protected."""
+        if self.auth is None:
+            return "stream: NOT authenticated or encrypted (plaintext ZeroMQ, --insecure)"
+        return f"stream: authenticated, {self.auth.describe()}"
 
     def stop(self) -> None:
         """End iteration after flushing what is held (call from another thread)."""

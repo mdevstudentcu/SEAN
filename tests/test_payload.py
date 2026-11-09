@@ -532,7 +532,7 @@ def test_payload_code_needs_only_the_payload_extra():
         "            raise ImportError(name)\n"
         "sys.meta_path.insert(0, B())\n"
         "import pnt.cli, pnt.payload.config, pnt.payload.day1, pnt.payload.survey\n"
-        "import pnt.payload.streamer, pnt.sources.live\n"
+        "import pnt.payload.streamer, pnt.sources.live, pnt.io.linkauth, zmq.auth.thread\n"
     )
     res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert res.returncode == 0, res.stderr
@@ -580,16 +580,25 @@ def test_real_readers_stop_cleanly_even_when_a_dongle_is_stuck(tmp_path):
 
 def test_pnt_live_runs_the_estimator_on_the_stream_and_records_it(tmp_path, capsys):
     """`pnt live` over loopback: origin from the payload's meta, estimates printed, the stream
-    and the estimates recorded to a session that `pnt replay` reads."""
+    and the estimates recorded to a session that `pnt replay` reads. The stream is authenticated
+    (ADR-0026), as `pnt live` requires by default; both sessions say so."""
+    if not zmq.has("curve"):
+        pytest.skip("libzmq built without CURVE")
+    from pnt.io import linkauth
+
+    pi_keys, laptop_keys = tmp_path / "pi-keys", tmp_path / "laptop-keys"
+    linkauth.trust("laptop", linkauth.generate("laptop", laptop_keys).decode(), pi_keys)
+    linkauth.trust("payload", linkauth.generate("payload", pi_keys).decode(), laptop_keys)
     gpsd = FakeGpsd()
     bus = FakeI2C()
-    streamer = Streamer("tcp://127.0.0.1:*")
+    streamer = Streamer("tcp://127.0.0.1:*", auth=linkauth.server_auth("payload", pi_keys))
     rec = Recorder(tmp_path / "pi", [Gpsd(port=gpsd.port), Mpu6050(bus=bus), Bmp280(bus=bus)],
                    streamer=streamer)  # fmt: skip
     pi = threading.Thread(target=rec.run, kwargs={"duration_s": 5.0})
     pi.start()
     out = tmp_path / "live"
-    main(["live", "--connect", streamer.endpoint, "--duration", "4", "--out", str(out)])
+    main(["live", "--connect", streamer.endpoint, "--duration", "4", "--out", str(out),
+          "--keys", str(laptop_keys)])  # fmt: skip
     pi.join()
     streamer.close()
     gpsd.close()
@@ -597,6 +606,8 @@ def test_pnt_live_runs_the_estimator_on_the_stream_and_records_it(tmp_path, caps
     assert "enu=(" in printed and "'late': 0" in printed
     meta = session.read_meta(out)
     assert meta["origin_llh"] == pytest.approx(ORIGIN, abs=1e-5)
+    assert "stream: authenticated, CurveZMQ" in meta["notes"]
+    assert "stream: authenticated, CurveZMQ" in session.read_meta(tmp_path / "pi")["notes"]
     topics = {t for t, _ in read_session(out / "session.mcap")}
     assert {"/meas/gnss", "/meas/imu", "/nav/baseline"} <= topics
 
@@ -1023,7 +1034,7 @@ def test_pnt_live_with_origin_fills_in_the_payloads_meta_when_it_arrives(tmp_pat
     pi.start()
     out = tmp_path / "live"
     main(["live", "--connect", streamer.endpoint, "--origin", ORIGIN_ARG, "--duration", "3",
-          "--out", str(out)])  # fmt: skip
+          "--out", str(out), "--insecure"])  # fmt: skip
     pi.join()
     streamer.close()
     gpsd.close()
@@ -1035,7 +1046,7 @@ def test_pnt_live_with_origin_fills_in_the_payloads_meta_when_it_arrives(tmp_pat
 def test_pnt_live_with_origin_says_unknown_if_the_payload_never_spoke(tmp_path):
     out = tmp_path / "live"
     main(["live", "--connect", "tcp://127.0.0.1:9", "--origin", ORIGIN_ARG, "--duration", "0.3",
-          "--out", str(out)])  # fmt: skip
+          "--out", str(out), "--insecure"])  # fmt: skip
     meta = session.read_meta(out)
     assert meta["platform"] == "unknown" and meta["hardware"] == ["unknown"]
     assert "payload commit unknown" in meta["notes"] and "None" not in meta["notes"]
