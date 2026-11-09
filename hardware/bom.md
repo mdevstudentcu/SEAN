@@ -1,6 +1,6 @@
 # Bill of materials
 
-- **Status:** Draft, 2026-11-08; ground station added 2026-11-09
+- **Status:** Draft, 2026-11-08; ground reference station adopted 2026-11-09 (ADR-0020)
 - **Prices:** CAD before tax, as listed on Amazon.ca and PiShop.ca on the date in each section (2026-11-08 unless noted). Delivery dates are what Amazon showed then for Ottawa (K1V); recheck at checkout.
 - Unknowns are `TBD` (no value yet) or `TBC` (proposed, not confirmed).
 
@@ -26,14 +26,14 @@ Every item in this file meets these, and anything added later must too. An item 
 | --- | --- | --- |
 | Must buy | SDR A, SDR B, SMA pigtails | **$133.09** |
 | Buy only if day-1 tests need the hub (ADR-0018) | Pi Zero 2 W | $69.28 |
-| Ground station (buy only if base/rover is adopted) | Reference SDR bundle + GPS with PPS | $92.34 |
+| Must buy: ground reference station (ADR-0020) | Reference SDR bundle + GPS with PPS | **$92.34** |
 
 ## 1. Payload: compute, timing and sensors
 
 | Item | Qty | Role | Source | Price | Status / notes |
 | --- | --- | --- | --- | --- | --- |
 | Raspberry Pi 4B (payload) | 1 | Records SDR IQ, GPS, sensors; streams to laptop | Team (owned) | — | ADR-0018. SDRs on the USB 2 ports (USB 3 noise, RSK-06); 5 V 3 A supply, heatsink or fan; USB current `TBC` |
-| Raspberry Pi 3B+ | 1 | Spare; candidate ground-reference receiver if base/rover is adopted (`TBC`) | Team (owned) | — | ADR-0018 |
+| Raspberry Pi 3B+ | 1 | Not on the payload; runs the ground reference station (section 5) | Team (owned) | — | ADR-0018, ADR-0020 |
 | microSD card, ≥ 64 GB, A2 (or a USB SSD) | 1 | OS + session logs. Raw IQ from one SDR at 2.4 MS/s is ~17 GB/h; both SDRs ~35 GB/h | Team `TBC` | — | Confirm size and speed |
 | Raspberry Pi Zero 2 W | 0–1 | Fallback sensor hub if day-1 tests fail on the 4B: IMU, baro, PPS edge, Wi-Fi scans (ADR-0018) | Team `TBC`, else Buy: Amazon.ca | $69.28, overnight, **1 left** | PiShop.ca: out of stock (both variants). Plugs into a 4B USB 2 port (data port) |
 | Adafruit Ultimate GPS HAT | 1 | GPS fix, PPS on GPIO4, truth outdoors | HON | — | ADR-0014 |
@@ -91,7 +91,7 @@ Build steps, dimensions and tests: [`antennas.md`](antennas.md).
 
 ### Ground reference station (prices and delivery checked 2026-11-09)
 
-A static receiver at a surveyed point that hears the same towers as the payload. It estimates their clocks for differential LTE (base/rover). Buy it only if the team adopts base/rover; otherwise it stays in simulation.
+**Adopted (ADR-0020).** A static receiver at a surveyed point that hears the same towers as the payload. It estimates their clocks for differential LTE (base/rover), and the sim gets the same second receiver.
 
 It needs **no IMU, barometer or camera**, since it doesn't move. It does need a **GPS with PPS**: base and payload must share a time frame to well under 1 µs (1 µs ≈ 300 m), and NTP from the laptop only gives milliseconds.
 
@@ -99,7 +99,7 @@ It needs **no IMU, barometer or camera**, since it doesn't move. It does need a 
 | --- | --- | --- | --- | --- | --- |
 | NooElec NESDR SMArt v5 **Bundle** | 1 | Reference LTE receiver: same radio as the payload's SDR B, so the receiver biases match | Buy: Amazon.ca, ASIN B01GDN1T4S | $77.95 | **Today (Nov 9), 2–6 pm.** The bundle's magnetic base, 2 m cable and telescopic antennas (set to ~10.7 cm for 700 MHz) replace building a second LTE antenna |
 | GY-NEO6MV2 NEO-6M GPS, with patch antenna | 1 | PPS timebase and surveyed position (average the fix over ≥ 1 h) | Buy: Amazon.ca, ASIN B0CTG63TYF | $14.39 | **Today (Nov 9), 2–6 pm** on orders over $25. **No PPS pin:** solder one wire from the PPS LED's pad to Pi GPIO4 (`TBC`: check the board photos) |
-| Raspberry Pi 3B+ | 1 | Runs the reference SDR; PPS-disciplined timestamps (chrony + `pps-gpio`) | Team (owned; spare, ADR-0018) | — | Or the HON lab Pi |
+| Raspberry Pi 3B+ | 1 | Runs the reference SDR; PPS-disciplined timestamps (chrony + `pps-gpio`) | Team (owned, ADR-0018) | — | Or the HON lab Pi |
 | microSD, 16–32 GB | 1 | Reference Pi OS. Data streams to the laptop, so nothing large is stored | Team `TBC`, else Buy | ~$12 `TBC` | The payload keeps the team's 32 GB card |
 | 5 V 2.5 A micro-USB supply | 1 | Reference Pi power (wall) | Team `TBC` | — | |
 | Ethernet cable | 1 | Reference → laptop, live | Team `TBC` | — | No SD storage limit, no Wi-Fi contention |
@@ -150,7 +150,8 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 
 ## Open decisions
 
-- Ground station: buy it only if base/rover is adopted (decision P4). Order **today** for same-day delivery; the NEO-6M PPS solder joint needs someone with a soldering iron.
+- Ground reference station (ADR-0020): **order today** for same-day delivery. The NEO-6M PPS solder joint needs someone with a soldering iron. If the parts miss Tue Nov 10, it stays in sim (ADR-0020, reopen).
+- Base/payload receiver ID in the measurement or session ICD: a separate `icd` PR (ADR-0020).
 
 - Hub needed at all: day-1 test of IMU jitter, CPU load, dropped samples and PPS offset on the 4B (ADR-0018, `TBD`). If yes, its USB link is serial or network gadget (`TBC`).
 - USB current: two SDRs (plus the Zero, if used) against the 4B's USB budget; measure with the DPS-150 (ADR-0018, `TBC`).
