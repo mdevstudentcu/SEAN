@@ -21,6 +21,7 @@ Do not rebuild these:
 - Receiver `clock:` model with clock truth, GPS time and `gnss_health` measurements.
 - Transmitter positions in lat/lon.
 - The Sim validity table in `verification.md`.
+- Shared tower clocks (#77, ADR-0022 Proposed): a scenario's `tower_clocks:` block makes each tower's clock its builder's clock plus a site and a sector residual (`sim/models.py` `oscillator`). Builders come from the filed carrier, or from the seed for synthetic towers; `sim/scenario.py` `tower_groups(spec, seed)` returns the `(sites, builders)` grouping for an estimator config. Only `realistic` and `worst` turn it on; the base scenarios keep independent tower clocks as the idealised control. Status `placeholder`.
 
 ## Main gaps
 
