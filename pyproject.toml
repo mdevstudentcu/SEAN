@@ -31,6 +31,7 @@ payload = [
 ]
 dev = [
     "pytest>=8",
+    "pytest-xdist>=3.6",
     "ruff>=0.6",
 ]
 
@@ -47,6 +48,8 @@ packages = ["src/pnt"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+# Run tests across all cores (pytest-xdist); `-n0` runs them serially.
+addopts = "-n auto"
 
 [tool.ruff]
 line-length = 99
