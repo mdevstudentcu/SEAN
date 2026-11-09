@@ -91,7 +91,7 @@ Top attacks with no scenario, or no detection we can show. These are open work, 
 ## References
 
 - [Aireon] Aireon, *Countering GNSS spoofing: Aireon's global ADS-B network delivers trust*, n.d., company article. https://aireon.com/countering-gnss-spoofing-aireons-global-ads-b-network-delivers-trust/
-- [Baweja 2026] Baweja, analysis of a JammerTest 2024 time pull (topic; exact title not recorded), 2026, arXiv preprint 2606.24210. https://arxiv.org/pdf/2606.24210
+- [Baweja 2026] Baweja, *A Conditional Timing Protection Level: Holdover-Limited Undetected Time Error Under GNSS Spoofing*, 2026, arXiv preprint 2606.24210. https://arxiv.org/abs/2606.24210
 - [Blum 2019] Blum, Dötterböck & Pany, spoofing and meaconing of mobile-network timing receivers (topic; exact title not recorded), 2019, ION ITM. https://www.ion.org/publications/abstract.cfm?articleID=16697
 - [EASA 2022] EASA, *Safety Information Bulletin 2022-02: Global Navigation Satellite System outage and alterations leading to communication / navigation / surveillance degradation*, 2022 and updates, safety bulletin. https://www.easa.europa.eu/en/newsroom-and-events/news/easa-updates-safety-information-bulletin-gnss-interference
 - [Grabowski 2012] Grabowski, *Personal Privacy Jammers: Locating Jersey PPDs Jamming GBAS Safety-of-Life Signals*, 2012, GPS World. https://www.gpsworld.com/?p=12837
