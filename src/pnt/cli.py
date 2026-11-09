@@ -259,7 +259,8 @@ def cmd_results(args) -> None:
         ". Time-to-alert: first alert after the fault starts, over the runs that alerted. "
         "Resilience level: our TBC mapping onto the DHS/CISA levels 1-4 (`pnt.metrics."
         "resilience_level`), judged for each part the fault corrupts, overall the worse; 0 means "
-        "not even level 1 (or no clock under a time fault). Recovery is judged "
+        "not even level 1 (or no clock under a time fault). Our level 2 is stricter than DHS's: "
+        "it needs no hazardously misleading epoch, not just a solution. Recovery is judged "
         f"{RECOVERY_SETTLE_S:g} s after the fault ends; no degradation means fault-window p95 "
         f"within {NO_DEGRADATION_RATIO:g}x the pre-fault p95."
     )

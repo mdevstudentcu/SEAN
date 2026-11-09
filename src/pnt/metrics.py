@@ -32,7 +32,9 @@ TIME_ALERT_LIMIT_S = 1.5e-6
 # v2.0 2022). Its levels are cumulative: 1 recovers once the threat is removed, 2 keeps giving a
 # solution during the threat (degradation may be unbounded), 3 keeps the degradation bounded,
 # 4 operates through the threat without degradation. The framework is outcome-based and gives no
-# numbers, so the thresholds below are ours. TBC: the coordinator refines the mapping.
+# numbers, so the thresholds below are ours (TBC). Our level 2 is stricter than DHS's: it asks for
+# no hazardously misleading epoch during the threat, not only for a solution, because a confident
+# wrong answer is the aviation hazard (decided 2026-11-09).
 RECOVERY_SETTLE_S = 30.0  # TBC: time allowed after the fault ends before recovery is judged
 NO_DEGRADATION_RATIO = 1.5  # TBC: fault-window p95 within this factor of the pre-fault p95
 
