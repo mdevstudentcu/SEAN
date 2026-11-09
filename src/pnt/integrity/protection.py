@@ -22,3 +22,21 @@ def hpl(pos_cov: np.ndarray, k: float = K_H) -> float:
 
 def vpl(pos_cov: np.ndarray, k: float = K_V) -> float:
     return float(k * np.sqrt(max(float(np.asarray(pos_cov)[2, 2]), 0.0)))
+
+
+# Multiplier on the clock 1-sigma for the time protection level, the same as K_H so position and
+# time carry the same nominal integrity risk. TBC: REQ-03's target sets the real value.
+K_T = 5.33
+
+
+def tpl(clock_sigma_s: float | None, k: float = K_T) -> float | None:
+    """Time protection level (s): a bound on |receiver clock error| from the clock 1-sigma.
+
+    There is no standard definition of a time protection level (CISA, DHS and IEEE P1952 publish
+    none that we found), so this is ours: TPL = K_T * clock_sigma_s, the HPL recipe applied to the
+    one-dimensional clock state, with the same Gaussian, honest-covariance assumption. Computed
+    outside the estimator from `Estimate.clock_sigma_s`; None when the clock is not estimated.
+    """
+    if clock_sigma_s is None:
+        return None
+    return float(k * max(clock_sigma_s, 0.0))
