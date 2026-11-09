@@ -4,7 +4,7 @@ Guidance for coding agents (and people) working in this repo. Read this before c
 
 ## What this repo is
 
-Our entry for **Hack the Horizons (Honeywell Aerospace × Carleton), Challenge 2: resilient navigation in GPS-denied environments.** A removable, receive-only payload records signals of opportunity (cellular, ADS-B, VOR, Wi-Fi, broadcast time) plus IMU, barometer and GPS. A ground laptop fuses them into position and time with numerical confidence, and shows it live. Judging is Thu 2026-11-12.
+Our entry for **Hack the Horizons (Honeywell Aerospace × Carleton), Challenge 2: resilient navigation in GPS-denied environments.** A removable, receive-only payload records signals of opportunity (cellular, ADS-B, VOR, Wi-Fi) plus IMU, barometer and GPS. A ground laptop fuses them into position and time with numerical confidence, and shows it live. Judging is Thu 2026-11-12.
 
 | Path | What | Runs on |
 | --- | --- | --- |
@@ -12,7 +12,7 @@ Our entry for **Hack the Horizons (Honeywell Aerospace × Carleton), Challenge 2
 | `src/pnt/core/` | `Measurement` record, time (GPS ns), frames (WGS84/ECEF/ENU) | everywhere |
 | `src/pnt/sources/` | The three interchangeable sources: `sim`, `replay`, `live` (ADR-0004) | laptop |
 | `src/pnt/sim/` | Trajectories, per-source error models, fault injection, `scenarios/*.yaml` | laptop |
-| `src/pnt/frontends/` | Raw signal → observables (LTE, ADS-B, VOR, Wi-Fi, CHU, GNSS, IMU) | laptop |
+| `src/pnt/frontends/` | Raw signal → observables (LTE, ADS-B, VOR, Wi-Fi, GNSS, IMU) | laptop |
 | `src/pnt/nav/` | Estimators. `baseline.py` is the deliberately simple reference filter | laptop |
 | `src/pnt/integrity/` | Protection levels, fault detection, per-source trust | laptop |
 | `src/pnt/payload/` | Recorder and streamer | **Raspberry Pi 3B+** (ADR-0018) |

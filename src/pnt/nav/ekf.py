@@ -213,7 +213,7 @@ def _altitude(ekf: EKF, m: Measurement):
 def _time(ekf: EKF, m: Measurement):
     """GNSS time solution: local clock minus GPS time, in seconds (ICD `time`).
 
-    Only GNSS for now. Broadcast time (CHU, WWVB) is UTC plus a propagation delay, so it needs
+    Only GNSS for now. Broadcast time (WWVB, FM RDS) is UTC plus a propagation delay, so it needs
     the leap-second offset and its own model before it can update this state."""
     if m.source != "gnss":
         return None
