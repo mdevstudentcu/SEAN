@@ -10,4 +10,4 @@ Requirements trace to these (mentor guidance, `mentor-qa.md` Q7). Each names who
 
 All three share REQ-06 to REQ-10 (SoOP primary, receive-only, privacy, platform-agnostic payload, reproducibility).
 
-Targets for each (accuracy, integrity level, timing bound) wait on mentor answers to Q1–Q3; until then they are the `TBD` defaults in `requirements.md`. The prioritized attack list per use case is open work (threat model).
+Targets for each (accuracy, integrity level, timing bound) wait on mentor answers to Q1–Q3; until then they are the `TBD` defaults in `requirements.md`. The prioritized attack list per use case is in [`threat-model.md`](threat-model.md).
