@@ -135,7 +135,7 @@ Each entry gives authors, year, venue and a link. Organisation-authored sources 
 
 - [3GPP TS 36.104] 3GPP (ETSI TS 136 104), *E-UTRA Base Station radio transmission and reception*, §6.5.1, Release 8 onward (2008–), technical specification. https://www.etsi.org/deliver/etsi_ts/136100_136199/136104/
 - [3GPP TS 36.211] 3GPP (ETSI TS 136 211), *E-UTRA Physical channels and modulation*, Release 8 onward (2008–), technical specification. https://www.etsi.org/deliver/etsi_ts/136200_136299/136211/
-- [Baweja 2026] Baweja, *JammerTest 2024 time-pull analysis*, 2026, arXiv preprint 2606.24210. https://arxiv.org/pdf/2606.24210
+- [Baweja 2026] Baweja, analysis of a JammerTest 2024 time pull (topic; exact title not recorded), 2026, arXiv preprint 2606.24210. https://arxiv.org/pdf/2606.24210
 - [Blanch 2012] Blanch, Walter & Enge, *Advanced RAIM User Algorithm Description*, 2012, ION GNSS. https://web.stanford.edu/group/scpnt/gpslab/pubs/papers/Blanch_et_al_IONGNSS_2012_v2.pdf
 - [Celentano 2020] Celentano, *Wireless Network Sharing, Canadian Style*, 2020, Inside Towers. https://insidetowers.com/?p=41263
 - [Clements 2026] Clements et al., *Single-satellite geolocation of GNSS spoofers*, 2026, NAVIGATION 73. https://navi.ion.org/content/73/1/navi.750
