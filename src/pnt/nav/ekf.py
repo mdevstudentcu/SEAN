@@ -191,6 +191,7 @@ class EKF:
         self._learned = False  # calibrated since the last rollback
         self._snaps: deque[tuple[int, np.ndarray, np.ndarray]] = deque()  # (t, x_c, P_cc)
         self._nis: dict[str, deque[tuple[int, float, int]]] = {}  # check -> (t, NIS, dof)
+        self._nis_mean: dict[str, tuple] = {}  # check -> (first, last, count, mean) cache
         self._last_nis = (0.0, 0)
         self._emitter_pos: dict[str, np.ndarray | None] = {}
         self.last_used: dict[str, int] = {}
@@ -297,7 +298,12 @@ class EKF:
             w.popleft()
         if len(w) < CHECK_MIN_SAMPLES:
             return None
-        return sum(n for _, n, _ in w) / sum(d for _, _, d in w)
+        cached = self._nis_mean.get(check)  # same window as last time: same mean
+        if cached and cached[0] is w[0] and cached[1] is w[-1] and cached[2] == len(w):
+            return cached[3]
+        mean = sum(n for _, n, _ in w) / sum(d for _, _, d in w)
+        self._nis_mean[check] = (w[0], w[-1], len(w), mean)
+        return mean
 
     def predict(self, t_ns: int) -> None:
         dt = (t_ns - self.t_ns) / 1e9
@@ -398,7 +404,8 @@ class EKF:
 
     def _update(self, key: str, t_ns: int, y, H, R, gate: bool = True) -> bool:
         y = np.atleast_1d(y)
-        S_inv = np.linalg.inv(H @ self.P @ H.T + R)
+        S = H @ self.P @ H.T + R
+        S_inv = 1.0 / S if S.shape == (1, 1) else np.linalg.inv(S)
         nis = float(y @ S_inv @ y)
         self._last_nis = (nis, len(y))
         if gate and nis > CHI2_999[len(y)]:
