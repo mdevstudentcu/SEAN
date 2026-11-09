@@ -560,16 +560,23 @@ def cmd_live(args) -> None:
     if args.duration:
         threading.Timer(args.duration, src.stop).start()
     writer = None
+
+    def live_meta(out: Path) -> dict:
+        """What is known of the payload so far; with `--origin` that starts as nothing."""
+        pi = src.meta.get("payload") or {}
+        notes = f"live stream recorded on the laptop from {', '.join(src.endpoints)}; "
+        notes += f"payload commit {pi.get('commit') or 'unknown'}"
+        if not pi:
+            notes += " (the payload sent no session metadata)"
+        return {"name": out.name, "platform": pi.get("platform") or "unknown",
+                "origin_llh": list(origin), "simulated": False, "commit": _commit(),
+                "hardware": pi.get("hardware") or ["unknown"], "reference": reference,
+                "notes": notes}  # fmt: skip
+
     if args.out:
         out = Path(args.out)
         out.mkdir(parents=True)
-        pi = src.meta.get("payload", {})
-        meta = {"name": out.name, "platform": pi.get("platform"), "origin_llh": list(origin),
-                "simulated": False, "commit": _commit(), "hardware": pi.get("hardware"),
-                "reference": reference,
-                "notes": f"live stream recorded on the laptop from {', '.join(src.endpoints)}; "
-                         f"payload commit {pi.get('commit')}"}  # fmt: skip
-        session.write_meta(out, meta)
+        session.write_meta(out, live_meta(out))
         writer = SessionWriter(out / session.MCAP_NAME)
 
     def tee():
@@ -595,6 +602,7 @@ def cmd_live(args) -> None:
     finally:
         if writer:
             writer.close()
+            session.write_meta(out, live_meta(out))  # the payload's meta has arrived by now
     print(f"live: {n} estimates; stream {src.stats}")
 
 
