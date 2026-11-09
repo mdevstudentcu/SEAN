@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from pnt.cli import main
 from pnt.core.frames import llh_to_enu
 from pnt.core.measurement import validate
 from pnt.io import session
@@ -134,3 +135,10 @@ def test_with_base_variants_compose_and_only_they_get_base_attacks():
     spec = load("uc01-drone-circuit-with-base")
     assert spec["name"] == "uc01-drone-circuit-with-base" and "reference" in spec
 
+
+def test_sim_session_records_the_station(tmp_path, capsys):
+    out = tmp_path / "s"
+    main(["sim", "realistic-with-base-nominal", "--out", str(out), "--estimator", "ekf-base"])
+    meta = session.read_meta(out)
+    assert meta["reference"] == generate(load("realistic-with-base-nominal"), seed=0).reference
+    assert session.read_meta(out / session.MCAP_NAME)["reference"] == meta["reference"]
