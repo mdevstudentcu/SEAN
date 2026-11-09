@@ -6,6 +6,7 @@ import pytest
 pytest.importorskip("sgp4")
 
 from pnt.core.frames import llh_to_enu  # noqa: E402
+from pnt.nav import ESTIMATORS
 from pnt.sim import leo  # noqa: E402
 from pnt.sim.scenario import REFERENCE_DIR, T0_NS, generate, load  # noqa: E402
 
@@ -78,7 +79,11 @@ def test_receiver_clock_drift_shifts_doppler():
         assert b.value[0] - a.value[0] == pytest.approx(leo.C_MPS * 1e-8, abs=1e-3)
 
 
-def test_scenario_produces_iridium_measurements_and_the_filter_still_runs():
-    run = generate(load("iridium-outage"), seed=0)
+@pytest.mark.parametrize("estimator", sorted(ESTIMATORS))
+def test_scenario_produces_iridium_measurements_and_the_filter_still_runs(estimator):
+    spec = load("iridium-outage")
+    run = generate(spec, seed=0)
     dopplers = [m for m in run.measurements if m.source == "leo"]
     assert dopplers and all(m.kind == "doppler" for m in dopplers)
+    estimates = list(ESTIMATORS[estimator](run.measurements, origin_llh=spec["origin_llh"]))
+    assert len(estimates) > 3000  # regression guard: ~360 s at 10 Hz, Doppler ignored
