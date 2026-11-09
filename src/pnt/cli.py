@@ -424,6 +424,26 @@ def cmd_preflight(args) -> None:
         Path(args.json).write_text(json.dumps(out, indent=2))
 
 
+def cmd_frontend_lte(args) -> None:
+    """LTE front end (#23): RTL-SDR capture -> /meas/lte records in a new session."""
+    from pnt.frontends.lte import frontend, open_capture
+
+    cap = open_capture(args.capture, args.sidecar, args.earfcn)
+    src = cap.path.parent if (cap.path.parent / session.MCAP_NAME).exists() else None
+    if args.out:
+        out = Path(args.out)
+    elif src is not None:
+        out = _unique(src.with_name(f"{src.name}-lte"))
+    else:
+        out = _unique(SESSIONS / f"lte-{cap.path.stem}-{datetime.now():%Y%m%d-%H%M%S}")
+    if _holds_data(out) and not args.force:
+        raise SystemExit(f"{out} already holds data; choose another --out or pass --force")
+    result = frontend.process_capture(cap, receiver=args.receiver)
+    print(frontend.summary(result, cap))
+    frontend.write_session(result, cap, out, _commit(), copy_from=None if args.no_copy else src)
+    print(f"wrote {out}")
+
+
 def cmd_live(args) -> None:
     raise SystemExit("live: not built yet (ADR-0009). Use `pnt replay` on a recorded session.")
 
@@ -528,6 +548,18 @@ def main(argv=None) -> None:
     s.add_argument("--plot", help="PNG of prediction against real runs (needs --compare)")
     s.add_argument("--json")
     s.set_defaults(fn=cmd_preflight)
+
+    s = sub.add_parser("frontend", help="turn raw captures into measurements")
+    fe = s.add_subparsers(dest="frontend", required=True)
+    s = fe.add_parser("lte", help="RTL-SDR .cu8 capture -> LTE pseudorange and doppler")
+    s.add_argument("capture", help=".cu8 file; its .json sidecar sits beside it")
+    s.add_argument("--sidecar", help="sidecar .json (default: beside the capture)")
+    s.add_argument("--earfcn", type=int, help="override the EARFCN computed from the frequency")
+    s.add_argument("--out", help="new session folder or .mcap (default: <session>-lte)")
+    s.add_argument("--force", action="store_true", help="overwrite an existing --out")
+    s.add_argument("--receiver", choices=["payload", "reference"], default="payload")
+    s.add_argument("--no-copy", action="store_true", help="don't copy the capture's session")
+    s.set_defaults(fn=cmd_frontend_lte)
 
     s = sub.add_parser("live", help="run on the payload's live stream (not built yet)")
     s.set_defaults(fn=cmd_live)

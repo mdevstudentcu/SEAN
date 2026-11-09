@@ -53,8 +53,11 @@ class Config:
     acq_ms: float = 80.0  # search window (16 half-frames), TBC
     max_ppm: float = 5.0  # dongle offset searched (TCXO spec ±1 ppm, cold start more), TBC
     cfo_step_hz: float = 2000.0  # carrier-offset bins: ≤ 1 kHz off costs a 67 µs PSS < 0.1 dB
-    acq_peak_to_mean: float = 6.0  # folded PSS peak over its mean, regression guard, TBC
-    sss_peak_to_mean: float = 6.0  # best SSS score over the mean |score|, regression guard, TBC
+    # Regression guards, TBC: on 100 noise-only 80 ms windows the largest folded-PSS peak-to-
+    # mean was 3.1 and the largest SSS score 6.1 (1 in 1,775 candidates above 6); a true cell's
+    # SSS score is 12-15 and a strong cell's PSS ghosts score at most 4.1 on the SSS.
+    acq_peak_to_mean: float = 4.0
+    sss_peak_to_mean: float = 6.5
     max_cells_per_root: int = 6
     search_period_s: float = 10.0  # look for new cells this often, TBC
     settle_s: float = 0.02  # skipped after a retune (R820T settling), TBC
