@@ -5,7 +5,9 @@ import re
 import socket
 import threading
 import time
+import urllib.error
 import urllib.request
+from contextlib import contextmanager
 from pathlib import Path
 
 import numpy as np
@@ -304,3 +306,63 @@ def test_server_streams_a_sim_run_and_takes_acks(tmp_path):
     finally:
         server.should_exit = True
         thread.join(5)
+
+
+@contextmanager
+def _serving(tmp_path, **kwargs):
+    """A panel on a real uvicorn server, its short sim run finished: (app, base URL, port)."""
+    pytest.importorskip("fastapi")  # ground extra
+    import uvicorn
+
+    from pnt.dashboard.server import create_app
+
+    feed = sim_feed(_small(tmp_path), seed=0, estimator="ekf", preflight=False)
+    app = create_app(feed, speed=float("inf"), **kwargs)
+    port = _free_port()
+    server = uvicorn.Server(uvicorn.Config(app, port=port, log_level="error"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    try:
+        for _ in range(400):
+            if server.started and app.state.hub.done:
+                break
+            time.sleep(0.05)
+        assert app.state.hub.done
+        yield app, f"http://127.0.0.1:{port}", port
+    finally:
+        server.should_exit = True
+        thread.join(5)
+
+
+def _post_ack(base: str, headers: dict) -> int:
+    req = urllib.request.Request(base + "/api/ack", data=b"", headers=headers, method="POST")
+    try:
+        return urllib.request.urlopen(req).status
+    except urllib.error.HTTPError as e:
+        return e.code
+
+
+def test_ack_refuses_cross_site_requests(tmp_path):
+    with _serving(tmp_path) as (app, base, port):
+        n = len(app.state.monitor.shown())
+        assert n > 0
+        own = f"127.0.0.1:{port}"
+        assert _post_ack(base, {"Origin": "https://evil.example"}) == 403
+        assert _post_ack(base, {"Origin": "null"}) == 403
+        rebound = f"evil.example:{port}"  # DNS rebinding: Origin and Host agree, on a hostile name
+        assert _post_ack(base, {"Origin": f"http://{rebound}", "Host": rebound}) == 403
+        assert len(app.state.monitor.shown()) == n  # none of them acknowledged anything
+        assert _post_ack(base, {"Origin": f"http://{own}", "Host": own}) == 200  # the page's own
+        assert len(app.state.monitor.shown()) < n
+
+
+def test_ack_without_origin_still_works(tmp_path):
+    with _serving(tmp_path) as (_, base, _port):
+        assert _post_ack(base, {}) == 200
+
+
+def test_ack_on_a_wildcard_bind_checks_origin_only(tmp_path):
+    with _serving(tmp_path, host="0.0.0.0") as (_, base, _port):
+        lan = "192.168.1.5:8050"
+        assert _post_ack(base, {"Origin": f"http://{lan}", "Host": lan}) == 200
+        assert _post_ack(base, {"Origin": "https://evil.example", "Host": lan}) == 403
