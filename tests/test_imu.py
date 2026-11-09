@@ -128,6 +128,26 @@ def test_imu_states_sit_before_the_clocks_so_rollback_keeps_them():
     assert f.n_core == ekf.N_CORE + 9 == len(f.x)
     assert f.imu.bg.stop == f.n_core
 
+    # One tower, then a rollback past a corrupted clock: the clock comes back, the IMU stays
+    f.process(Measurement(t_ns=1_000_000_000, source="lte", kind="pseudorange", emitter="lte:1:1",
+                          value=(1000.0,), sigma=(5.0,),
+                          meta={"emitter_enu": [1000.0, 0.0, 0.0]}))  # fmt: skip
+    f.predict(2_000_000_000)  # the snapshot the rollback restores
+    i = f.n_core
+    assert list(f.clock_idx.values()) == [i]
+    offset, drift = f.x[i], f.x[i + 1]
+    f.predict(4_000_000_000)
+    f.x[f.imu.att.start : f.imu.bg.stop] = np.arange(1.0, 10.0) * 1e-3  # distinct IMU states
+    f.x[i] += 500.0
+    core_x, core_P = f.x[:i].copy(), f.P[:i, :i].copy()
+
+    f.rollback(13_000_000_000)  # target: 3 s, so the snapshot at 2 s
+
+    assert f.rollbacks == [(13_000_000_000, 2_000_000_000)]
+    assert f.x[i] == pytest.approx(offset + 2.0 * drift)
+    assert np.array_equal(f.x[:i], core_x)
+    assert np.array_equal(f.P[:i, :i], core_P)
+
 
 ATTITUDE = rotation([0.2, -0.3, 1.1])
 PREDICT_NS = 350_000_000  # three covariance chunks of `max_step_s`
