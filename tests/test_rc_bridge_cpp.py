@@ -166,6 +166,7 @@ class DriverLink:
     def close(self) -> None:
         self.proc.stdin.close()
         self.proc.wait(timeout=10)
+        self.proc.stdout.close()
 
 
 def test_link_test_passes_against_the_cpp_bridge(driver):
