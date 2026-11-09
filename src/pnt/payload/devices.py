@@ -12,6 +12,7 @@ import platform
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -165,6 +166,15 @@ class Health:
 # --- camera ---------------------------------------------------------------------------------
 
 
+def _dies_with_parent(cmd: list[str]) -> list[str]:
+    """Have the kernel send `cmd` SIGINT if the recorder is killed outright (`setpriv`, from
+    util-linux, is on every Pi OS). The camera runs in its own session and writes to a file, so
+    nothing else would stop it from filling the card. Linux only."""
+    if sys.platform == "linux" and shutil.which("setpriv"):
+        return ["setpriv", "--pdeathsig", "INT", *cmd]
+    return cmd
+
+
 class Camera:
     """Pi camera to `camera.mp4` with `camera.json` (ICD-session) through `rpicam-vid`.
 
@@ -205,7 +215,10 @@ class Camera:
         log = tempfile.TemporaryFile()  # noqa: SIM115 - closed below; tail goes to /events
         t_launch = now_gps_ns()
         self.proc = subprocess.Popen(  # own session: Ctrl-C is for the recorder, which stops it
-            self.command(out), stdout=log, stderr=subprocess.STDOUT, start_new_session=True
+            _dies_with_parent(self.command(out)),
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
         )
         side = {"t_ns": None, "t_ns_launch": t_launch, "width": self.width,
                 "height": self.height, "fps": self.fps,

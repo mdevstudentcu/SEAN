@@ -477,14 +477,21 @@ def cmd_record(args) -> None:
         streamer=streamer,
     )
     stop = threading.Event()
-    signal.signal(signal.SIGTERM, lambda *_: stop.set())
+    # Ctrl-C (any number of times), a dropped ssh and `kill` all end the recording the same way:
+    # stop the devices and finish the files. Only SIGKILL or power loss can cut it off.
+    caught = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
+    before = {sig: signal.signal(sig, lambda *_: stop.set()) for sig in caught}
     print(f"recording {folder} (Ctrl-C to stop)")
     clock = clock_status()
     if "NOT locked" in clock:
         print(f"WARNING: {clock}: timestamps are not GPS time yet (wait for chrony, RUNBOOK A4)")
     if streamer:
         print(f"streaming on {streamer.endpoint}")
-    meta = rec.run(args.duration, stop)
+    try:
+        meta = rec.run(args.duration, stop)
+    finally:
+        for sig, handler in before.items():
+            signal.signal(sig, handler)
     if streamer:
         streamer.close()
     print(f"wrote {folder}")
