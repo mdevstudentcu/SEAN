@@ -1,4 +1,4 @@
-"""`pnt` command line: sim, eval, replay, viz, results, record, live."""
+"""`pnt` command line: sim, eval, replay, viz, results, live."""
 
 from __future__ import annotations
 
