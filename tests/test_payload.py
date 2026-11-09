@@ -988,3 +988,34 @@ def test_wifi_scan_asks_for_a_passive_scan_req07(monkeypatch):
     _run_one_scan(monkeypatch, seen.append)
     (cmd,) = seen
     assert cmd[cmd.index("scan") :] == ["scan", "passive"]
+
+
+# --- pnt live --out metadata ------------------------------------------------------------------
+
+ORIGIN_ARG = ",".join(map(str, ORIGIN))
+
+
+def test_pnt_live_with_origin_fills_in_the_payloads_meta_when_it_arrives(tmp_path):
+    gpsd = FakeGpsd()
+    streamer = Streamer("tcp://127.0.0.1:*")
+    rec = Recorder(tmp_path / "pi", [Gpsd(port=gpsd.port)], platform="vehicle", streamer=streamer)
+    pi = threading.Thread(target=rec.run, kwargs={"duration_s": 4.0})
+    pi.start()
+    out = tmp_path / "live"
+    main(["live", "--connect", streamer.endpoint, "--origin", ORIGIN_ARG, "--duration", "3",
+          "--out", str(out)])  # fmt: skip
+    pi.join()
+    streamer.close()
+    gpsd.close()
+    meta = session.read_meta(out)
+    assert meta["platform"] == "vehicle" and meta["hardware"] == ["adafruit-gps-hat"]
+    assert f"payload commit {rec.meta()['commit']}" in meta["notes"]
+
+
+def test_pnt_live_with_origin_says_unknown_if_the_payload_never_spoke(tmp_path):
+    out = tmp_path / "live"
+    main(["live", "--connect", "tcp://127.0.0.1:9", "--origin", ORIGIN_ARG, "--duration", "0.3",
+          "--out", str(out)])  # fmt: skip
+    meta = session.read_meta(out)
+    assert meta["platform"] == "unknown" and meta["hardware"] == ["unknown"]
+    assert "payload commit unknown" in meta["notes"] and "None" not in meta["notes"]
