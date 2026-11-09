@@ -98,3 +98,17 @@ def test_monitor_does_not_degrade_the_solution_in_a_gps_outage():
     plain = list(ekf.run(run.measurements, origin_llh=spec["origin_llh"]))
     mhss = list(ESTIMATORS["ekf-mhss"](run.measurements, origin_llh=spec["origin_llh"]))
     assert p95(mhss) <= p95(plain) + 1.0
+
+
+def test_a_spoof_alarm_attribute_on_the_filter_takes_gnss_out():
+    # #102 gives the EKF a boolean `spoof_alarm`; MHSS must treat it as a GNSS alarm
+    spec = load("nominal")
+    run = generate(spec, seed=0)
+
+    def monitor(f):
+        f.spoof_alarm = True
+        return MHSS(f)
+
+    est = list(ekf.run(run.measurements, origin_llh=spec["origin_llh"], monitor=monitor))
+    flagged = {f"mhss_excluded:{GNSS_CM}", f"mhss_alarm:{GNSS_CM}"}
+    assert all(flagged & set(e.flags) for e in est[20:])

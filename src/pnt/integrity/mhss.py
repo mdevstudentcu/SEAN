@@ -85,7 +85,8 @@ NOT_HORIZONTAL = frozenset({"baro", "gnss:time"})
 # filter (its group is silent) doesn't divide by zero. Regression guard, not a requirement.
 SEP_FLOOR_M = 0.1
 # Main-filter flags that mean "GNSS is not to be trusted". `spoof_suspected` is the name
-# pnt.metrics already counts as an alarm; the EKF on main raises only `gnss_excluded`.
+# pnt.metrics already counts as an alarm; the EKF on main raises only `gnss_excluded`. A filter
+# with a boolean `spoof_alarm` attribute (#102) raises the same alarm through it.
 GNSS_ALARM_FLAGS = frozenset({"gnss_excluded", "spoof_suspected"})
 
 
@@ -324,7 +325,10 @@ class MHSS:
             f = h.filters[i]
             rows.append(_Row(h.name, h.prior, h.test[i], f, s_k, sep, sd, *hs[i][:2]))
 
-        alarm = bool(p.alarm_flags & set(est.flags))
+        # GNSS alarm from the main filter: its flags on main, or `spoof_alarm` once #102 adds it
+        alarm = bool(p.alarm_flags & set(est.flags)) or bool(
+            getattr(self.main, "spoof_alarm", False)
+        )
         if not alarm:
             self.alarm_since = None
         elif self.alarm_since is None:
