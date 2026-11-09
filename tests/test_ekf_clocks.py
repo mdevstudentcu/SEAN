@@ -285,6 +285,7 @@ SLOW_SPOOF_SIGNS = _refutes_between(110.0, 110.5, every_s=8.0)  # gaps shorter t
 def _run_spoof(until_s: float, checks=SLOW_SPOOF_SIGNS, **config):
     """Run _slow_spoof up to `until_s`, or to just after the first rollback if `until_s` is
     None. Returns the filter and each clock's drift when the spoof started."""
+    config = {"spoof_p": None, **config}  # the GNSS jump raises the alarm, not the towers
     f = ekf.EKF(clock_model="calibrated", calib_checks=checks, **config)
     pre = None
     for m in _slow_spoof():
@@ -361,3 +362,71 @@ def test_the_independent_model_matches_main():
     )
     assert est[-1].hpl_m == pytest.approx(26.943874643141232, rel=1e-9)
     assert float(np.sum([e.pos_enu for e in est])) == pytest.approx(203689.58730246662, rel=1e-9)
+
+
+# --- towers-vs-GNSS spoof detector (#83) ---------------------------------------------------
+def _spoofed(rate=2.0, start=150.0, end=np.inf, tower_step=None, duration=300.0):
+    """_drifting_towers without an outage, GNSS dragged north-east at `rate` m/s from `start`
+    to `end` (then honest again). `tower_step` = (emitter index, metres): that tower's
+    pseudorange steps from `start` instead."""
+    meas, truth = _drifting_towers(outage=(1e9, 1e9), duration=duration)
+    u = np.array([1.0, 1.0, 0.0]) / np.sqrt(2.0)
+    out = []
+    for m in meas:
+        s = m.t_ns / 1e9
+        if m.source == "gnss" and start <= s < end:
+            m = M(m.t_ns, "gnss", "position_enu", tuple(np.add(m.value, rate * (s - start) * u)),
+                  m.sigma)  # fmt: skip
+        if tower_step and m.emitter == f"lte:{tower_step[0]}" and s >= start:
+            m = _pr(m.t_ns, m.emitter, m.meta["emitter_enu"], m.value[0] + tower_step[1])
+        out.append(m)
+    return out, truth
+
+
+def _alarm_times(meas, **config) -> list[float]:
+    est = list(ekf.run(meas, clock_model="calibrated", **config))
+    return [e.t_ns / 1e9 for e in est if "spoof_suspected" in e.flags]
+
+
+def test_towers_detect_a_2_mps_position_ramp_req04():
+    # T4 (systems/plan.md, TBC): a 2 m/s ramp detected within 30 s. Regression guard on this
+    # fixture (four towers, 5 m noise), not evidence for the target: that is the paired eval.
+    meas, _ = _spoofed()
+    on = _alarm_times(meas)
+    assert on and 150.0 < on[0] <= 180.0
+
+
+def test_no_spoof_alarm_on_clean_gnss_req04():
+    meas, _ = _drifting_towers(outage=(1e9, 1e9), duration=300.0)
+    assert _alarm_times(meas) == []
+
+
+def test_one_faulty_tower_does_not_raise_the_gnss_alarm():
+    # A single tower clock step is a tower fault: leaving each site out in turn removes it
+    meas, _ = _spoofed(rate=0.0, tower_step=(0, 300.0))
+    assert _alarm_times(meas) == []
+
+
+def test_the_alarm_excludes_gnss_and_rolls_the_clocks_back():
+    meas, _ = _spoofed()
+    f = ekf.EKF(clock_model="calibrated")
+    _feed(f, meas, until_s=200.0)
+    assert f.spoof_alarm and f.spoof_alarms
+    raised = f.spoof_alarms[0]
+    assert f.rollbacks and f.rollbacks[0][0] <= raised + f.alarm_hold_ns
+    assert {"gnss_excluded", "spoof_suspected"} <= set(f.estimate().flags)
+    assert f.last_used["gnss"] <= raised  # never used again while the alarm holds
+
+
+def test_the_alarm_clears_once_gnss_agrees_again():
+    meas, _ = _spoofed(end=200.0, duration=300.0)
+    on = _alarm_times(meas)
+    assert on and on[-1] < 300.0 - 1.0  # cleared before the end of the run
+    assert on[-1] >= 200.0 + 30.0  # but not before spoof_clear_s of agreement
+
+
+def test_the_detector_is_not_armed_before_it_has_learned_its_null_scale():
+    meas, _ = _spoofed(start=20.0)  # spoof before spoof_learn_s of quiet data
+    f = ekf.EKF(clock_model="calibrated")
+    _feed(f, meas, until_s=60.0)
+    assert f.spoof_stat is None and not f.spoof_alarm

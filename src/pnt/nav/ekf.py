@@ -46,13 +46,14 @@ Calibration gate (calibrated model only). It opens when both hold:
   - `towers_consistent`: tower pseudorange innovations. Refutes only. Tower time follows GNSS
     time, so the tower clocks never confirm GNSS.
   With no barometer (or other confirming check) the clocks never calibrate.
-  More trust tests (#82, #83) are added by appending a predicate to `calib_checks`.
+  - `towers_agree_with_gnss`: the spoof detector's statistic (below). Refutes only.
+  More trust tests (#82) are added by appending a predicate to `calib_checks`.
 
 Rollback (calibrated model only). A slow spoof can still pass the gate, so the filter keeps a
 ring buffer of clock snapshots (mean and covariance of every clock block, about 1 Hz). It also
 tracks the current suspicious episode: it starts at the first sign of trouble (a gate check
-refutes GNSS, or GNSS position or time is rejected) and ends after `calib_check_s` without one,
-the memory of the windowed checks. When
+refutes GNSS, GNSS position or time is rejected, or the spoof detector's statistic is over its
+threshold) and ends after `calib_check_s` without one, the memory of the windowed checks. When
 GNSS is flagged (exclusion or time alarm) for `calib_alarm_hold_s`, and the clocks have
 calibrated since the last rollback:
 - The rollback reaches `calib_rollback_margin_s` before the start of the episode (or of the
@@ -79,6 +80,33 @@ calibrated since the last rollback:
 - The snapshot buffer restarts from the restored state, so a later alarm never reaches back
   past the rollback into the discarded history.
 
+Spoof detector (calibrated model only, #83). Calibrated tower clocks hold still, so towers that
+disagree with the GNSS-steered position are evidence against GNSS, never for it. ADR-0024: tower
+time can't confirm GNSS; differences between towers, their geometry, can refute it.
+- Statistic: over the last `spoof_window_s`, the tower innovations taken while GNSS steers the
+  position are fitted (weighted least squares on their line-of-sight rows) to a common
+  horizontal position offset plus one common clock term per builder. The clock term is tower
+  time (our clock, a builder's timing), which counts neither way; the offset's chi-square value
+  (2 dof) is the statistic. Each site is left out in turn and the smallest value kept, so one
+  faulty tower or site clock can't raise it. No opinion (None) with fewer than
+  `SPOOF_MIN_SITES` sites, or when the towers disagree among themselves: the fit's residual
+  over its 99.9 % chi-square bound.
+- Tower faults: a site the filter keeps rejecting for `calib_check_s` while GNSS is trusted and
+  the statistic is under its threshold (a jump, a badly learned clock) is left out until it is
+  accepted again.
+- Arming: the statistic's mean over quiet windows (GNSS trusted, no suspicious episode) is
+  learned. The detector is armed after `spoof_learn_s` of it, and only while that mean is no
+  larger than an honest chi-square's (2): towers whose errors run larger than their model says
+  (unmodelled multipath, our clock in the towers) are not fit to refute GNSS.
+- Threshold: the chi-square quantile for `spoof_p` per test (TBC), held for `spoof_persist_s`
+  (TBC). Over the threshold at all is a sign of trouble (it closes the calibration gate through
+  `towers_agree_with_gnss`); held, it raises the alarm.
+- Alarm: `spoof_alarm` is True, the estimate carries `spoof_suspected` (and `gnss_excluded`),
+  GNSS position is not used, and the clocks roll back. GNSS time keeps its own test. The alarm
+  clears once GNSS position has agreed with the tower-steered estimate (mean NIS within its
+  99.9 % bound over `spoof_window_s`) for `spoof_clear_s`. `spoof_alarms` lists when each was
+  raised. This is the output for integrity (#82).
+
 GNSS position and GNSS time are tracked separately for health, so rejecting one is never hidden
 by accepting the other at the same instant.
 """
@@ -102,6 +130,14 @@ N_CORE = 8
 CLOCK_MODELS = ("independent", "calibrated")
 SNAPSHOT_NS = 1_000_000_000  # clock snapshots for rollback, about 1 Hz
 CHECK_MIN_SAMPLES = 5  # a windowed check with fewer innovations has no opinion
+SPOOF_MIN_SITES = 4  # every site left out still leaves 3: enough for 2 offsets and a clock
+
+
+def CHI2_999_MEAN(dof: int) -> float:  # noqa: N802
+    """99.9 % bound on a mean NIS per degree of freedom over `dof` dof (Wilson-Hilferty)."""
+    z = 3.090232306167813  # standard normal 99.9 % quantile
+    a = 2.0 / (9.0 * dof)
+    return (1.0 - a + z * np.sqrt(a)) ** 3
 
 
 def _two_state_q(s_off: float, s_drift: float, dt: float) -> np.ndarray:
@@ -149,6 +185,11 @@ class EKF:
         calib_rollback_s: float | None = 300.0,  # s: longest rollback reach; None: off (TBC)
         calib_rollback_margin_s: float = 10.0,  # s: rollback reaches this far before trouble (TBC)
         calib_alarm_hold_s: float = 1.0,  # s: alarm held this long rolls back (TBC)
+        spoof_window_s: float = 10.0,  # s: window of the towers-vs-GNSS test (TBC)
+        spoof_p: float | None = 1e-3,  # P(one test over threshold | no spoof); None: off (TBC)
+        spoof_persist_s: float = 3.0,  # s: exceedance held this long raises the alarm (TBC)
+        spoof_clear_s: float = 30.0,  # s: GNSS consistent this long clears the alarm (TBC)
+        spoof_learn_s: float = 60.0,  # s: null scale learned this long before arming (TBC)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -177,6 +218,12 @@ class EKF:
         self.rollback_ns = None if calib_rollback_s is None else int(calib_rollback_s * 1e9)
         self.margin_ns = int(calib_rollback_margin_s * 1e9)
         self.alarm_hold_ns = int(calib_alarm_hold_s * 1e9)
+        self.spoof_window_ns = int(spoof_window_s * 1e9)
+        self.detect_spoof = spoof_p is not None
+        self.spoof_threshold = -2.0 * np.log(spoof_p or 1.0)  # chi-square, 2 dof: P(T > thr) = p
+        self.spoof_persist_ns = int(spoof_persist_s * 1e9)
+        self.spoof_clear_ns = int(spoof_clear_s * 1e9)
+        self.spoof_learn_ns = int(spoof_learn_s * 1e9)
         self.x: np.ndarray | None = None
         self.P: np.ndarray | None = None
         self.t_ns: int | None = None
@@ -194,6 +241,17 @@ class EKF:
         self._nis_mean: dict[str, tuple] = {}  # check -> (first, last, count, mean) cache
         self._last_nis = (0.0, 0)
         self._emitter_pos: dict[str, np.ndarray | None] = {}
+        # Spoof detector (calibrated model, #83): see the module docstring
+        self.spoof_alarm = False  # GNSS excluded because the towers refute it
+        self.spoof_alarms: list[int] = []  # time each alarm was raised
+        self.spoof_stat: float | None = None  # latest test statistic, None: no opinion
+        self._tower_innov: deque[tuple[int, str, np.ndarray, float, float]] = deque()
+        self._exceed_since: int | None = None
+        self._gnss_nis: deque[tuple[int, float, int]] = deque()  # while alarmed, for recovery
+        self._clear_since: int | None = None
+        self._last_innov: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None
+        self._null = [0.0, 0, None]  # sum and count of quiet statistics, first quiet time
+        self._site_bad: dict[str, tuple[int | None, bool]] = {}  # (rejected since, faulty)
         self.last_used: dict[str, int] = {}
         self.last_rejected: dict[str, int] = {}
 
@@ -408,6 +466,7 @@ class EKF:
         S_inv = 1.0 / S if S.shape == (1, 1) else np.linalg.inv(S)
         nis = float(y @ S_inv @ y)
         self._last_nis = (nis, len(y))
+        self._last_innov = (y, S, H)
         if gate and nis > CHI2_999[len(y)]:
             self.last_rejected[key] = t_ns
             return False
@@ -433,13 +492,149 @@ class EKF:
             return
         y, H, R, gate = out
         key = GNSS_TIME if (m.source, m.kind) == ("gnss", "time") else m.source
+        if self.spoof_alarm and key == "gnss":
+            self._excluded_gnss(key, m.t_ns, y, H, R)
+            return
         used = self._update(key, m.t_ns, y, H, R, gate)
         if self.calibrated:
             if key in ("gnss", GNSS_TIME) and not used:
                 self._note_trouble(True)  # an alarm precursor: GNSS rejected
             self._record(m, key, gate)
+            if m.kind == "pseudorange" and gate and self.detect_spoof:
+                self._spoof_test(m, used)
             if self.rollback_ns is not None:
                 self._watch_alarm()
+
+    # --- spoof detector (calibrated model, #83) ------------------------------------------------
+    def _spoof_test(self, m: Measurement, used: bool) -> None:
+        """Add this tower innovation to the window and run the towers-vs-GNSS test."""
+        never = -(10**18)
+        site = self.sites.get(m.emitter, m.emitter)
+        if self.gnss_trusted() and self._exceed_since is None:
+            # A site the filter keeps rejecting for calib_check_s while GNSS is trusted and the
+            # towers as a whole don't refute it has a tower fault (a jump, a badly learned
+            # clock): it is no evidence about GNSS until accepted again. Frozen while the
+            # statistic is over its threshold, when a spoof makes good towers look bad.
+            since = self._site_bad.get(site, (None, False))[0]
+            since = None if used else (self.t_ns if since is None else since)
+            bad = since is not None and self.t_ns - since >= self.calib_check_ns
+            self._site_bad[site] = (since, bad)
+        if self.t_ns - self.last_used.get("gnss", never) > self.gnss_timeout_ns:
+            self._tower_innov.clear()  # only innovations taken while GNSS steers the position
+            self.spoof_stat = self._exceed_since = None
+            return
+        if self._site_bad.get(site, (None, False))[1]:
+            return
+        y, S, H = self._last_innov
+        self._tower_innov.append((self.t_ns, site, H[0, :2].copy(), float(y[0]), float(S[0, 0])))
+        while self._tower_innov[0][0] < self.t_ns - self.spoof_window_ns:
+            self._tower_innov.popleft()
+        raw = self.towers_vs_gnss()
+        if raw is not None and self.gnss_trusted() and self.trouble_since is None:
+            self._null[0] += raw  # quiet: learn the statistic's null scale
+            self._null[1] += 1
+            if self._null[2] is None:
+                self._null[2] = self.t_ns
+        armed = self._null[2] is not None and self.t_ns - self._null[2] >= self.spoof_learn_ns
+        armed = armed and self.spoof_scale() <= 1.0  # the towers behave as their model says
+        self.spoof_stat = raw if armed else None
+        if self.spoof_stat is None or self.spoof_stat <= self.spoof_threshold:
+            self._exceed_since = None
+            return
+        self._note_trouble(True)  # an alarm precursor
+        if self._exceed_since is None:
+            self._exceed_since = self.t_ns
+        if self.t_ns - self._exceed_since >= self.spoof_persist_ns:
+            self._raise_spoof_alarm()
+
+    def spoof_scale(self) -> float:
+        """How much larger the statistic runs with no spoof than an honest chi-square (mean 2)
+        would: its mean over quiet windows, over 2, and never below 1. Unmodelled tower errors
+        (multipath correlated over tens of seconds, our clock in the towers) inflate it."""
+        total, n, _ = self._null
+        return max(1.0, total / n / 2.0) if n else 1.0
+
+    def towers_vs_gnss(self) -> float | None:
+        """The test statistic: the horizontal position offset that the windowed tower innovations
+        point to, as a chi-square value with 2 dof. Weighted least squares on the line-of-sight
+        rows, with one common clock term per builder (or one for all ungrouped sites) as a
+        nuisance: a shift common to the towers (our own clock, a builder's timing) is tower time,
+        which never counts for or against GNSS (ADR-0024); only the differences between towers,
+        their geometry, do. Each site in turn is left out and the smallest value kept, so one
+        faulty tower or site clock can't raise it alone. None (no opinion) with fewer than
+        SPOOF_MIN_SITES sites, or when the sites left can't fix the offset."""
+        per_site: dict[str, list] = {}
+        rss = 0.0
+        for _, site, u, y, s in self._tower_innov:
+            h = np.array([u[0], u[1], 1.0])
+            acc = per_site.setdefault(site, [np.zeros((3, 3)), np.zeros(3)])
+            acc[0] += np.outer(h, h) / s
+            acc[1] += h * (y / s)
+            rss += y * y / s
+        if len(per_site) < SPOOF_MIN_SITES:
+            return None
+        groups = sorted({self.builders.get(site, "") for site in per_site})
+        k = 2 + len(groups)
+        N, b = np.zeros((k, k)), np.zeros(k)
+        cols = {}
+        for site, (n_s, b_s) in per_site.items():
+            idx = [0, 1, 2 + groups.index(self.builders.get(site, ""))]
+            cols[site] = np.ix_(idx, idx), idx
+            N[cols[site][0]] += n_s
+            b[idx] += b_s
+        # The towers must first agree among themselves: after the offset and clock fit, their
+        # residual is within its 99.9 % chi-square bound. Otherwise they disagree with each
+        # other (a tower fault, unmodelled errors) and hold no opinion about GNSS.
+        dof = len(self._tower_innov) - k
+        w = np.linalg.eigvalsh(N)
+        if dof < 1 or w[0] <= 1e-9 * w[-1]:
+            return None
+        if (rss - b @ np.linalg.solve(N, b)) / dof > CHI2_999_MEAN(dof):
+            return None
+        stat = np.inf
+        for site, (n_s, b_s) in per_site.items():
+            N_o, b_o = N.copy(), b.copy()
+            N_o[cols[site][0]] -= n_s
+            b_o[cols[site][1]] -= b_s
+            w = np.linalg.eigvalsh(N_o)
+            if w[0] <= 1e-9 * w[-1]:  # the sites left can't fix the offset and the clocks
+                return None
+            x = np.linalg.solve(N_o, b_o)
+            cov_p = np.linalg.inv(N_o)[:2, :2]
+            stat = min(stat, float(x[:2] @ np.linalg.solve(cov_p, x[:2])))
+        return stat
+
+    def _raise_spoof_alarm(self) -> None:
+        self.spoof_alarm = True
+        self.spoof_alarms.append(self.t_ns)
+        self.last_rejected["gnss"] = self.t_ns  # GNSS excluded from now
+        self._tower_innov.clear()
+        self._gnss_nis.clear()
+        self.spoof_stat = self._exceed_since = self._clear_since = None
+
+    def _excluded_gnss(self, key: str, t_ns: int, y, H, R) -> None:
+        """GNSS position while the spoof alarm holds: never used. (GNSS time keeps its own test
+        against our clock: the towers do not observe our clock unless `pseudorange_receiver_clock`
+        is on, so they hold no evidence about GNSS time.) The alarm clears once GNSS position has
+        agreed with the tower-steered estimate (mean NIS within its chi-square bound) for
+        `spoof_clear_s`."""
+        self.last_rejected[key] = t_ns
+        y = np.atleast_1d(y)
+        nis = float(y @ np.linalg.solve(H @ self.P @ H.T + R, y))
+        w = self._gnss_nis
+        w.append((t_ns, nis, len(y)))
+        while w[0][0] < t_ns - self.spoof_window_ns:
+            w.popleft()
+        dof = sum(d for _, _, d in w)
+        full = t_ns - w[0][0] >= self.spoof_window_ns - SNAPSHOT_NS
+        if not full or sum(n for _, n, _ in w) > CHI2_999_MEAN(dof) * dof:
+            self._clear_since = None
+            return
+        if self._clear_since is None:
+            self._clear_since = t_ns
+        if t_ns - self._clear_since >= self.spoof_clear_ns:
+            self.spoof_alarm = False
+            self._clear_since = None
 
     def _record(self, m: Measurement, key: str, gated: bool) -> None:
         """Log the NIS of the innovations the gate's default checks read."""
@@ -472,6 +667,8 @@ class EKF:
             flags.append("gnss_excluded")
         if self.last_rejected.get(GNSS_TIME, never) > self.last_used.get(GNSS_TIME, never):
             flags.append("time_spoof_suspected")  # GNSS time disagrees with our clock model
+        if self.spoof_alarm:
+            flags.append("spoof_suspected")  # the towers refute GNSS (#83)
         h = hpl(P3)
         status = "unsafe" if h > self.alert_limit_m else ("degraded" if flags else "nominal")
         trust = {
@@ -518,10 +715,18 @@ def towers_consistent(ekf: EKF) -> bool | None:
     return False if r is not None and r > ekf.calib_tower_nis_max else None
 
 
+def towers_agree_with_gnss(ekf: EKF) -> bool | None:
+    """The spoof detector's statistic over its threshold (before persistence): the towers'
+    geometry points to a position offset. Refutes only (ADR-0024)."""
+    s = ekf.spoof_stat
+    return False if s is not None and s > ekf.spoof_threshold else None
+
+
 CALIB_CHECKS: tuple[Callable[[EKF], bool | None], ...] = (
     baro_agrees,
     rx_clock_consistent,
     towers_consistent,
+    towers_agree_with_gnss,
 )
 
 
