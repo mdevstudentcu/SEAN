@@ -185,6 +185,12 @@ def test_status_without_a_protection_level_is_the_estimators():
     assert s["status"] == "degraded"
 
 
+def test_nominal_headline_makes_no_claim_about_the_towers():
+    s = HealthMonitor(50.0, 1.5e-6).update(_est(0.0, trust={"gnss": 1.0, "lte": 0.0}))
+    assert s["status"] == "nominal" and s["low_trust"] == {"lte": 0.0}
+    assert "All sources" not in s["headline"] and "GPS in use" in s["headline"]
+
+
 def test_low_trust_listed_apart():
     s = HealthMonitor(50.0, 1.5e-6).update(_est(0.0, trust={"gnss": 0.0, "lte": 1.0}))
     assert s["low_trust"] == {"gnss": 0.0} and s["trusted"] == {"lte": 1.0}
