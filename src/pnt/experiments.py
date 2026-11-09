@@ -23,7 +23,9 @@ OSCILLATORS = {"tcxo": 100.0, "ocxo": 5.0}
 def _run(spec: dict, estimator: str, seed: int, drop: str | None = None):
     run = generate(spec, seed=seed)
     meas = [m for m in run.measurements if drop is None or m.emitter != drop]
-    estimates = estimate(estimator, meas, origin_llh=spec.get("origin_llh"))
+    estimates = estimate(
+        estimator, meas, origin_llh=spec.get("origin_llh"), reference=run.reference
+    )
     return run, score(list(estimates), run.truth, spec, T0_NS)
 
 

@@ -7,7 +7,9 @@ given in lat/lon) and yields Estimates (see `baseline.run`).
 `estimate` is the one place that feeds measurements to an estimator, whatever the source (sim,
 replay or live, ADR-0004). It passes only the receivers the estimator models (ICD-measurement):
 `payload` by default. An estimator that models more sets a `receivers` attribute, e.g.
-`run.receivers = RECEIVERS` for a base/rover filter (ADR-0020).
+`run.receivers = RECEIVERS` for a base/rover filter (ADR-0020). Such an estimator is also
+given the session's `reference` block (ICD-session: the station's surveyed position), as the
+`reference` keyword.
 """
 
 from __future__ import annotations
@@ -16,9 +18,9 @@ import logging
 from collections.abc import Callable, Iterable, Iterator
 
 from pnt.core.measurement import Estimate, Measurement
-from pnt.nav import baseline, ekf
+from pnt.nav import base_rover, baseline, ekf
 
-ESTIMATORS = {"baseline": baseline.run, "ekf": ekf.run}
+ESTIMATORS = {"baseline": baseline.run, "ekf": ekf.run, "ekf-base": base_rover.run}
 DEFAULT_RECEIVERS = frozenset({"payload"})
 
 log = logging.getLogger(__name__)
@@ -33,10 +35,12 @@ def estimate(
     estimator: str | Callable,
     measurements: Iterable[Measurement],
     origin_llh=None,
+    reference: dict | None = None,
 ) -> Iterator[Estimate]:
     """Run `estimator` (a registry name or the function) over `measurements`, passing only the
     receivers it models. Records it drops are counted and logged as a warning when the run ends,
-    so they are never lost silently."""
+    so they are never lost silently. `reference` is the session's `reference` block; only an
+    estimator that models the reference receiver is given it, and only when there is one."""
     name = estimator if isinstance(estimator, str) else getattr(estimator, "__name__", "?")
     fn = ESTIMATORS[estimator] if isinstance(estimator, str) else estimator
     keep = receivers(fn)
@@ -49,8 +53,9 @@ def estimate(
             else:
                 dropped[m.receiver] = dropped.get(m.receiver, 0) + 1
 
+    extra = {"reference": reference} if reference is not None and "reference" in keep else {}
     try:
-        yield from fn(fed(), origin_llh=origin_llh)
+        yield from fn(fed(), origin_llh=origin_llh, **extra)
     finally:
         if dropped:
             log.warning(
