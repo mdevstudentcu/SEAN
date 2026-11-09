@@ -1,0 +1,242 @@
+"""What the panel shows, independent of how it reaches the browser (#25).
+
+A `Feed` is any measurement source (sim, replay, live: ADR-0004) plus the estimator to run on
+it, and truth when it is known. `frames` runs the estimator and turns every Estimate into one
+JSON-ready dict; `paced` holds those frames to the data's own clock (times `speed`) and thins
+them to what a screen can show. The server only moves the frames: a live stream (`pnt live`,
+ADR-0009) is one more Feed, with `pace=False`.
+"""
+
+from __future__ import annotations
+
+import math
+import time
+from collections.abc import Callable, Iterable, Iterator
+from dataclasses import dataclass, field
+
+import numpy as np
+
+from pnt.core.frames import emitter_enu, llh_to_enu
+from pnt.core.measurement import Measurement, Truth
+from pnt.dashboard.health import HealthMonitor
+from pnt.nav import estimate
+
+# An emitter counts as heard on the map if one of its records is this recent. TBC: two missed
+# readings of a 1 Hz tower.
+HEARD_S = 2.5
+# Most frames per wall-clock second sent to the browser; every estimate still goes through the
+# health monitor. TBC: REQ-05 asks for >= 1 Hz (TBC); 10 Hz is the estimators' epoch rate.
+MAX_RATE_HZ = 10.0
+
+
+@dataclass
+class Feed:
+    name: str
+    kind: str  # "sim" | "replay" | "live"
+    measurements: Iterable[Measurement]
+    estimator: str = "ekf"
+    origin_llh: list[float] | None = None
+    reference: dict | None = None  # ICD-session `reference` block
+    truth: dict[int, Truth] | None = None  # by t_ns
+    preflight: dict | None = None  # {"t_s": [...], "hpl_m": [...]} from pnt.integrity.preflight
+    pace: bool = True  # False for live: the data arrive in real time already
+    notes: list[str] = field(default_factory=list)
+
+    def info(self, alert_limit_m: float, time_alert_limit_s: float) -> dict:
+        """The static part of the panel: sent once to every browser that connects."""
+        ref = None
+        if self.reference and self.origin_llh is not None:
+            ref = [float(v) for v in llh_to_enu(self.reference["position_llh"], self.origin_llh)]
+        return {
+            "name": self.name,
+            "kind": self.kind,
+            "estimator": self.estimator,
+            "origin_llh": self.origin_llh,
+            "reference_enu": ref,
+            "has_truth": bool(self.truth),
+            "alert_limit_m": alert_limit_m,
+            "time_alert_limit_s": time_alert_limit_s,
+            "preflight": self.preflight,
+            "notes": self.notes,
+        }
+
+
+def replay_feed(path, estimator: str = "ekf", preflight: bool = True) -> Feed:
+    """A recorded session (folder or .mcap). Truth if it has a `/truth` topic. A simulated
+    session also gets its scenario's pre-flight prediction (`pnt.integrity.preflight`)."""
+    from pnt.io import session
+    from pnt.io.mcap_log import read_session
+    from pnt.sources.replay import ReplaySource
+
+    mcap = session.mcap_path(path)
+    meta = session.read_meta(path)
+    truth = {r.t_ns: r for _, r in read_session(mcap, topics=["/truth"])}
+    feed = Feed(
+        name=session.session_name(path),
+        kind="replay",
+        measurements=ReplaySource(mcap),
+        estimator=estimator,
+        origin_llh=meta.get("origin_llh"),
+        reference=meta.get("reference"),
+        truth=truth or None,
+    )
+    if preflight and meta.get("scenario"):
+        _add_preflight(feed, meta["scenario"], int(meta.get("seed") or 0), named=True)
+    return feed
+
+
+def sim_feed(scenario: str, seed: int = 0, estimator: str = "ekf", preflight: bool = True) -> Feed:
+    """A scenario run straight from the sim: nothing is recorded."""
+    from pnt.sources.sim import SimSource
+
+    src = SimSource(scenario, seed=seed)
+    run = src.run
+    feed = Feed(
+        name=f"{run.name} (seed {seed})",
+        kind="sim",
+        measurements=src,
+        estimator=estimator,
+        origin_llh=run.spec.get("origin_llh"),
+        reference=run.reference,
+        truth={t.t_ns: t for t in run.truth},
+        notes=[f"{_clock_s(t)}: {text}" for t, text in run.events],
+    )
+    if preflight:
+        _add_preflight(feed, run.spec, seed)
+    return feed
+
+
+def _clock_s(t_ns: int) -> str:
+    from pnt.sim.scenario import T0_NS
+
+    return f"T+{(t_ns - T0_NS) / 1e9:.0f} s"
+
+
+def _add_preflight(feed: Feed, scenario, seed: int, named: bool = False) -> None:
+    """The predicted HPL strip, on the panel's clock (seconds since the first estimate)."""
+    from pnt.integrity import preflight
+    from pnt.sim.scenario import load_named
+
+    try:
+        spec = load_named(scenario) if named else scenario  # session files are untrusted input
+        p = preflight.predict(spec, seed=seed, estimator=feed.estimator)
+    except (ValueError, FileNotFoundError, KeyError) as exc:
+        feed.notes.append(f"no pre-flight prediction: {exc}")
+        return
+    if not len(p.t_s):
+        return
+    t0 = p.t_s[0]  # the panel's clock starts at the first estimate, as the prediction's does
+    feed.preflight = {
+        "t_s": [round(float(t - t0), 2) for t in p.t_s],
+        "hpl_m": [None if v != v else round(float(v), 2) for v in p.hpl_m],
+        "unavailable": [(a - t0, b - t0) for a, b in p.unavailable()],
+        "dropped_faults": p.dropped_faults,
+    }
+
+
+class _Watch:
+    """Passes measurements through to the estimator, noting each emitter's position and when it
+    was last heard (payload receiver only: the reference station is drawn from the session)."""
+
+    def __init__(self, measurements: Iterable[Measurement], origin_llh):
+        self.it = iter(measurements)
+        self.origin_llh = origin_llh
+        self.last: dict[str, int] = {}
+        self.new: list[dict] = []
+        self._known: set[str] = set()
+
+    def __iter__(self) -> Iterator[Measurement]:
+        for m in self.it:
+            if m.emitter and m.receiver == "payload":
+                if m.emitter not in self._known:
+                    self._known.add(m.emitter)
+                    pos = emitter_enu(m.meta, self.origin_llh) if m.meta else None
+                    if pos is not None:
+                        e, n = (float(v) for v in pos[:2])
+                        self.new.append({"id": m.emitter, "source": m.source, "e": e, "n": n})
+                self.last[m.emitter] = m.t_ns
+            yield m
+
+
+def _num(x) -> float | None:
+    """JSON has no NaN: None instead."""
+    return None if x is None or not math.isfinite(x) else float(x)
+
+
+def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
+    """One frame per Estimate. `lock`, if given, guards the monitor (the server acknowledges
+    alerts from another thread)."""
+    watch = _Watch(feed.measurements, feed.origin_llh)
+    heard_ns = int(HEARD_S * 1e9)
+    run = estimate(feed.estimator, watch, origin_llh=feed.origin_llh, reference=feed.reference)
+    for est in run:
+        if lock is not None:
+            with lock:
+                health = monitor.update(est)
+        else:
+            health = monitor.update(est)
+        cov = np.reshape(est.pos_cov, (3, 3))
+        truth = feed.truth.get(est.t_ns) if feed.truth else None
+        err = None
+        if truth is not None:
+            err = float(np.hypot(*np.subtract(est.pos_enu, truth.pos_enu)[:2]))
+        new, watch.new = watch.new, []
+        yield {
+            "t_s": health["t_s"],
+            "pos": [float(v) for v in est.pos_enu],
+            "vel": [float(v) for v in est.vel_enu[:2]],
+            "cov": [float(cov[0, 0]), float(cov[0, 1]), float(cov[1, 1])],  # ee, en, nn (m^2)
+            "hpl_m": _num(est.hpl_m),
+            "vpl_m": _num(est.vpl_m),
+            "clock_bias_s": _num(est.clock_bias_s),
+            "clock_sigma_s": _num(est.clock_sigma_s),
+            "status": est.status,
+            "flags": list(est.flags),
+            "truth": None if truth is None else [float(v) for v in truth.pos_enu],
+            "truth_clock_s": None if truth is None else _num(truth.clock_bias_s),
+            "err_h_m": err,
+            "health": {k: _num(v) if isinstance(v, float) else v for k, v in health.items()},
+            "heard": sorted(e for e, t in watch.last.items() if est.t_ns - t <= heard_ns),
+            "new_emitters": new,
+        }
+
+
+def paced(
+    source: Iterable[dict],
+    speed: float = 1.0,
+    max_rate_hz: float = MAX_RATE_HZ,
+    pace: bool = True,
+    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+) -> Iterator[dict]:
+    """Frames held to the data's clock times `speed` (no holding with `pace=False` or an
+    infinite speed), thinned to at most `max_rate_hz` per wall second. A thinned-out frame's new
+    emitters ride on the next frame sent; the last frame is always sent. Each frame sent carries
+    `lag_s`: how far behind its due time it went out (> 0 when the estimator is slower than the
+    requested speed)."""
+    hold = pace and math.isfinite(speed)
+    gap = 1.0 / max_rate_hz
+    start = t_first = None
+    last_sent = -math.inf
+    pending: list[dict] = []
+    frame = None
+    for frame in source:
+        now = clock()
+        if start is None:
+            start, t_first = now, frame["t_s"]
+        due = start + (frame["t_s"] - t_first) / speed if hold else now
+        if due > now:
+            sleep(due - now)
+            now = due
+        pending += frame["new_emitters"]
+        if now - last_sent < gap:
+            continue
+        last_sent = now
+        frame["new_emitters"], pending = pending, []
+        frame["lag_s"] = max(0.0, clock() - due)
+        yield frame
+        frame = None
+    if frame is not None:  # the last frame was thinned out: send it anyway
+        frame["new_emitters"] = pending
+        frame["lag_s"] = 0.0
+        yield frame
