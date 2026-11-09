@@ -16,7 +16,7 @@ MCAP_NAME = "session.mcap"
 META_NAME = "meta.yaml"
 META_KEYS = (
     "name", "platform", "origin_llh", "simulated", "scenario", "seed", "commit", "hardware",
-    "notes",
+    "reference", "notes",
 )  # fmt: skip
 
 
@@ -55,5 +55,5 @@ def read_meta(path: str | Path) -> dict:
     if p.is_dir() and (p / META_NAME).exists():
         return yaml.safe_load((p / META_NAME).read_text()) or {}
     raw = read_metadata(mcap_path(p))
-    parsed = ("origin_llh", "seed", "simulated", "hardware")  # stored as strings in MCAP
+    parsed = ("origin_llh", "seed", "simulated", "hardware", "reference")  # strings in MCAP
     return {k: yaml.safe_load(v) if k in parsed else v for k, v in raw.items()}

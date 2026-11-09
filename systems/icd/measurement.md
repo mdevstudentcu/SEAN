@@ -1,6 +1,6 @@
 # ICD-measurement: pipeline records
 
-- **Status:** Baselined 2026-11-08 (ADR-0006)
+- **Status:** Baselined 2026-11-08 (ADR-0006); `receiver` field added 2026-11-09 (ADR-0020)
 - **Owners:** front-ends/capture (SW 1) ↔ nav/integrity (SW 2). Changes need both.
 - **Code:** `src/pnt/core/measurement.py` (this file wins if they disagree)
 
@@ -14,6 +14,7 @@ Three record types flow through the pipeline. All are msgspec structs, encoded a
 | `source` | str | Which sensor or signal family produced it (registry below) |
 | `kind` | str | What the value is (registry below) |
 | `emitter` | str | Transmitter ID, or `""` for self-contained sensors. Cell: `lte:<earfcn>:<pci>`; aircraft: `adsb:<icao>`; VOR: `vor:<ident>`; Wi-Fi: `wifi:<hashed bssid>` |
+| `receiver` | str | Which receiver made the measurement (registry below). Default `payload` |
 | `value` | tuple[float] | The observable, in the units of its kind |
 | `sigma` | tuple[float] | 1-σ uncertainty per element, same units; the front-end's own estimate |
 | `meta` | dict | Optional extras: SNR, emitter position (`emitter_enu` or `emitter_llh`), raw-file offset, flags |
@@ -21,6 +22,16 @@ Three record types flow through the pipeline. All are msgspec structs, encoded a
 ### `source` registry
 
 `gnss`, `imu`, `baro`, `lte`, `nr`, `adsb`, `vor`, `wifi`, `ble`, `fm`, `leo` (simulated), `cam`. Simulated data keeps the same names; the session metadata says it is simulated.
+
+### `receiver` registry
+
+| receiver | What |
+| --- | --- |
+| `payload` | The flown or carried payload. The default: a record without the field is a payload record, so every session recorded before the field existed loads unchanged |
+| `reference` | The static ground reference station at a surveyed point (ADR-0020). Its position is in the session's `meta.yaml` (`reference`, ICD-session) |
+
+- **Why a field, not a topic namespace** (e.g. `/ref/meas/<source>`): the receiver travels with the record, so it survives every path a record takes, including the live msgpack stream and the `Source` iterators, which carry no topic (ADR-0004). MCAP topics stay `/meas/<source>` for both receivers.
+- **Consumers:** a consumer that does not model the reference receiver (today every estimator) uses only `receiver == "payload"` records. Feeding reference records to it as if they came from the payload is an error.
 
 ### `kind` registry
 
@@ -58,3 +69,5 @@ New kinds are added here first, then in code.
 ## Truth (simulation and RTK sessions only)
 
 `t_ns`, `pos_enu` (3), `vel_enu` (3), `clock_bias_s`.
+
+`Estimate` and `Truth` have no `receiver` field: both describe the payload. The reference station is static, so its truth is its position in `meta.yaml`.
