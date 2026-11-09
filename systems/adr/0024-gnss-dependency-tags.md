@@ -41,11 +41,10 @@ Every measurement source carries one of three GNSS-dependency tags (independent,
 - **Classification continues.** Sources in the ICD registry that are not listed above (`nr`, `wifi`, `ble`, `fm`, `leo`, `cam`) are `TBD`. Until a source is classified, it is treated as GNSS-dependent (the conservative default).
 - **Not received:** P25 and Remote ID are listed so their class is on record. We don't receive P25: it is communication content. Remote ID is sim only, because storing an operator's location conflicts with ADR-0011. SBAS is sim only.
 - **Display:** the operator panel shows each source's tag next to its trust (I17).
-- **Open question: where the tag lives.**
-  - (a) A lookup table in `integrity/` keyed by `source` (and `kind` where it differs). This needs no ICD change.
-  - (b) A field in `Measurement` or a defined `meta` key set by the front-ends. This is an ICD change and needs an `icd` PR with the other owner's approval.
-
-  The two software owners decide this. This ADR changes nothing in the ICD.
+- **Where the tag lives: a lookup table in `integrity/`,** keyed by `source` (and `kind` where it differs). Decided 2026-11-09, over a field in `Measurement`.
+  - The tag belongs to the source type, not to each record, so a per-record field would repeat the same value.
+  - The one runtime change, our oscillator becoming independent in holdover, is integrity logic either way.
+  - This ADR changes nothing in the ICD.
 - **Reopen if:**
   - a source is shown to keep time independently of GNSS (for example, a builder with a non-GNSS timing source)
   - a new source class does not fit the three tags
