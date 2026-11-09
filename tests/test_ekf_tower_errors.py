@@ -108,6 +108,44 @@ def test_without_two_calibrated_sites_the_drift_prior_is_wide():
     assert f.site_drift_prior() == (0.0, f.init_tower_drift_sigma)
 
 
+def test_rollback_returns_tower_states_first_seen_after_the_snapshot_to_their_priors():
+    # GNSS jumps at 100 s, so the alarm rolls back to the snapshot about 90 s. "lte:late" is first
+    # heard at 95 s, after it, and the receiver passes close so its told position gets observed
+    early, late = np.array([3000.0, 4000.0, 30.0]), np.array([0.0, 300.0, 30.0])
+    f = ekf.EKF(**ekf.CALIBRATED, calib_gate_s=0.0, calib_checks=(lambda _: True,), spoof_p=None)
+
+    def tick(t, fix_offset=0.0):
+        t_ns, p = int(t * 1e9), np.array([40.0 * (t - 97.0), 0.0, 30.0])
+        fix = (float(p[0] + fix_offset), 0.0, 30.0)
+        yield Measurement(t_ns=t_ns, source="gnss", kind="position_enu", value=fix,
+                          sigma=(2.0,) * 3)  # fmt: skip
+        yield _pr(t_ns, "lte:0", np.linalg.norm(p - early) + 500.0, tower=early)
+        if t >= 95.0:
+            yield _pr(t_ns, "lte:late", np.linalg.norm(p - late) + 200.0, tower=late)
+
+    for t in range(50, 100):
+        for m in tick(float(t)):
+            f.process(m)
+    mp, (pos, _) = f.multipath_idx["lte:late"], f.position_idx["lte:late"]
+    clock = f.clock_idx["site:lte:late"]
+    s_mp, s_pos = f.multipath_sigma[mp], f.tower_position_sigma_m
+    late_states = [mp, pos, pos + 1, clock, clock + 1]
+    priors = np.square([s_mp, s_pos, s_pos, f.init_emitter_sigma, f.init_tower_drift_sigma])
+    assert np.all(np.diag(f.P)[late_states] < priors)  # all of them have learned something
+    early_mp = f.multipath_idx["lte:0"]
+    assert f.P[early_mp, early_mp] < f.multipath_sigma[early_mp] ** 2
+
+    for t in np.arange(100.0, 103.0, 0.5):
+        for m in tick(float(t), fix_offset=5000.0):  # rejected by the gate: GNSS flagged
+            if not f.rollbacks:  # stop at the rollback, before anything is learned again
+                f.process(m)
+    assert len(f.rollbacks) == 1 and f.rollbacks[0][1] < 95e9  # the snapshot predates lte:late
+    assert np.diag(f.P)[late_states] == pytest.approx(priors)
+    others = np.delete(f.P[late_states], late_states, axis=1)
+    assert np.all(others == 0.0)  # an independent prior again, as at first sight
+    assert f.P[early_mp, early_mp] < f.multipath_sigma[early_mp] ** 2  # restored, not reset
+
+
 def test_drift_seeding_is_off_unless_asked_for():
     # clock_model="calibrated" alone keeps the fixed prior; only CALIBRATED seeds
     f = _started(seed_site_drift=False)
