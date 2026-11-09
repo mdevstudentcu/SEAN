@@ -1,4 +1,4 @@
-"""Operator dashboard (ADR-0010, REQ-05): FastAPI + one static page in web/, frames pushed over
+"""Operator dashboard (ADR-0027, REQ-05): FastAPI + one static page in web/, frames pushed over
 Server-Sent Events (`server.py` says why not a websocket).
 
 Shows: map (truth if known, estimate, error ellipse, HPL circle, towers, reference station),
