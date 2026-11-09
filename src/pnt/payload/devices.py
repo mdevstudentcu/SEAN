@@ -41,6 +41,8 @@ def parse_chrony_csv(text: str, fields: tuple[str, ...]) -> list[dict]:
     """`chronyc -c tracking` (one row) or `chronyc -c sources` (one row per source)."""
     rows = []
     for line in text.strip().splitlines():
+        if "," not in line:  # an error message, not a CSV row
+            continue
         parts = line.split(",")
         rows.append({k: _num(v) for k, v in zip(fields, parts, strict=False)})
     return rows
