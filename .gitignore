@@ -39,3 +39,6 @@ firmware/**/.pio/
 # Sionna RT trial (analysis/sionna_campus.py): its own environment and the raw OSM extract
 .sionna/
 osm.json
+
+# Firmware secrets (PSKs, Wi-Fi passwords): created by hand, never committed (ADR-0029)
+firmware/**/secrets.h

@@ -780,6 +780,13 @@ def main(argv=None) -> None:
     add_estimator(s)
     s.set_defaults(fn=cmd_live)
 
+    # Gamepad -> ESP32 RC bridge, tethered hover only (ADR-0029). Self-contained block.
+    from pnt.flight import rc_link
+
+    s = sub.add_parser("rc", help="fly a tethered hover from a gamepad via the ESP32 bridge")
+    rc_link.add_arguments(s)
+    s.set_defaults(fn=rc_link.cmd_rc)
+
     args = p.parse_args(argv)
     args.fn(args)
 
