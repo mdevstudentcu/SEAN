@@ -14,6 +14,7 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
   - `stanford.png`: HPL against error pooled over `--stanford` (default the `realistic` set) (REQ-02)
   - `ablation.png`: fault-window p95 with all SoOP removed and with each other aid removed (REQ-06)
   - `holdover.png`: clock error and time protection level after GPS loss (REQ-03), when the estimator has a clock
+- `lte_link_synthetic.py`: synthetic baseband through the LTE front end, cell lookup and `ekf`, with and without the dongle clock state (synthetic only)
 - Planned: timing holdover from real sessions. No real session exists yet; `summary.md` keeps a marked placeholder for them
 
 ## Viewing a run in Foxglove
