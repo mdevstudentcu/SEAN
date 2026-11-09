@@ -125,12 +125,17 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 | --- | --- | --- | --- |
 | Frame: ModuFrame-5 base (CC BY-SA), 3D printed | 1 | Build (EDC additive manufacturing lab) | `TBD` |
 | Readytosky 2205 2700KV motors | 4 | `TBD` | `TBD` |
-| 45 A BLHeli_S ESCs | 4 | `TBD` | `TBD` |
-| ArduPilot flight controller | 1 | `TBD` | `TBD` |
-| MTF-01 optical flow + rangefinder | 1 | `TBD` | `TBD` |
+| iFlight BLITZ ATF435 stack: BLITZ ATF435 flight controller + BLITZ E55S 4-in-1 ESC, wire harness, grommets | 1 | Team: Ottawa FPV Shop, $112.99 (listing checked 2026-11-09) | Chosen by the team 2026-11-09; in hand `TBC`. See the notes below the table |
+| MTF-01 optical flow + rangefinder | 1 | `TBD` | `TBD`; needs a UART on the flight controller (the ATF435 has 6) |
 | RC transmitter + receiver with kill switch | 1 | `TBD` | `TBD` |
 | LiPo packs, charger, LiPo bag | `TBD` | `TBD` | `TBD` |
 | Props and prop guards | `TBD` | `TBD` | `TBD` |
+
+**The BLITZ ATF435 stack** ([Ottawa FPV Shop listing](https://ottawafpvshop.ca/products/iflight-blitz-atf435-stack-with-e55s-4-in-1-esc), [iFlight](https://shop.iflight.com/electronics-cat27/BLITZ-ATF435-Stack-E55S-4-IN-1-ESC-Pro2054)):
+- **Flight controller:** AT32F435 MCU, ICM42688 gyro, DPS310 barometer, AT7456E OSD, 32 MB blackbox flash, 6 UARTs, I2C pads, 30.5 × 30.5 mm mounting. BEC 5 V 2.5 A and 9 V 2 A.
+- **ESC:** E55S 4-in-1, 2–6S, 55 A continuous (65 A burst), current sensor, BLHeli_S/Bluejay firmware, DShot. It replaces the four separate 45 A ESCs this list used to have.
+- **Firmware: Betaflight or INAV, not ArduPilot.** Betaflight and INAV both have an `IFLIGHT_BLITZ_ATF435` target (INAV checked in `src/main/target/` on master, 2026-11-09). ArduPilot's board list (`libraries/AP_HAL_ChibiOS/hwdef/` on master, 477 boards, checked 2026-11-09) has no AT32F435 board; its iFlight Blitz boards are F745 and H743 only. iFlight also says its products don't support autonomous flight. **This conflicts with ADR-0012** (ArduPilot, scripted GUIDED flights over MAVLink) and with `flight/params/`, which are ArduPilot parameter files. See open decisions.
+- **Power:** the flight controller's 5 V 2.5 A BEC is not enough for the Pi 4B plus two SDRs (section 4), so the payload keeps its own 5 V ≥ 3 A BEC.
 
 ## Not using
 
@@ -148,6 +153,8 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 | DIY antennas (ADS-B and LTE ground planes, VOR dipole), SMA pigtails, copper wire, PCB plates | Nobody free to build them this week; antennas are bought (section 3). [`antennas.md`](antennas.md) is the fallback |
 
 ## Open decisions
+
+- **Flight-controller firmware (ADR-0012):** the BLITZ ATF435 can't run ArduPilot. Either fly INAV on it and amend ADR-0012 (scripted flights become INAV missions, and the recorder listens to INAV's MAVLink telemetry; which messages INAV sends is `TBC`), or buy an ArduPilot-supported flight controller in time for rule 1. Owner decision.
 
 - Ground reference station (ADR-0020) and antennas: **order today**. The GPS and LTE 2-pack come today, the SDR and ADS-B antenna tomorrow. The NEO-6M PPS solder joint needs someone with a soldering iron. If the parts miss Tue Nov 10, it stays in sim (ADR-0020, reopen).
 - Base/payload receiver ID in the measurement or session ICD: a separate `icd` PR (ADR-0020).
