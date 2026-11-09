@@ -15,7 +15,7 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0009](0009-live-transport-zeromq.md) | Live transport is ZeroMQ PUB/SUB | Accepted |
 | [0010](0010-dashboard.md) | Operator dashboard is FastAPI plus one static page | Accepted |
 | [0011](0011-privacy-at-capture.md) | Privacy is enforced at capture | Accepted |
-| [0012](0012-flight-control-levels.md) | RC stays the safety layer; scripted flights first | Accepted |
+| [0012](0012-flight-control-levels.md) | RC stays the safety layer; scripted flights first | Superseded by 0028 |
 | [0013](0013-no-iridium-hardware.md) | LEO (Iridium) is simulated, not received | Accepted |
 | [0014](0014-provided-gps-and-sensors.md) | Use the Honeywell-provided GPS HAT, IMU and barometer | Accepted |
 | [0015](0015-sim-calibrated-to-reality.md) | The simulation is calibrated against real measurements | Accepted |
@@ -30,3 +30,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0024](0024-gnss-dependency-tags.md) | Every source carries a GNSS-dependency tag | Proposed |
 | [0025](0025-hostile-emitter-beacon.md) | A located jammer may be a low-trust beacon, in sim only | Proposed |
 | [0026](0026-ground-link-security.md) | Ground links are signed and authenticated; logs are hash-chained | Proposed |
+| [0028](0028-fly-inav.md) | The drone flies INAV on the BLITZ ATF435, pilot-flown with an RC kill switch | Accepted |

@@ -21,8 +21,8 @@ Scored by the judges ("safety, RF, aviation, privacy, cybersecurity, and regulat
 
 ## Flight
 
-- Independent RC link with a physical kill switch is always present; software never removes the pilot's ability to take over (ADR-0012).
-- Flights indoors in a netted area, with prop guards, a speed limit, a geofence, and ArduPilot failsafes (RC loss / battery → land).
+- Independent RC link with a physical kill switch is always present; software never removes the pilot's ability to take over (ADR-0028, which supersedes ADR-0012). Without it the drone doesn't fly.
+- Flights indoors in a netted area, with prop guards, a speed limit, INAV's failsafe (RC loss → land), and a geofence if the INAV version supports it (`TBC`).
 - Carleton appears to be inside YOW controlled airspace: no outdoor flights without the required Transport Canada certificate and NAV CANADA authorization (ASM-06).
 - LiPo handling: charge in a LiPo bag, never unattended; damaged packs are retired.
 
