@@ -22,6 +22,10 @@ Attacks (`type` in a scenario's `faults:` list):
   its old surveyed position (a knocked mast, a wrong survey). Not an attack on GNSS: the base as
   its own fault hypothesis (ADR-0020)
 - reference_clock_step: the reference station's clock steps by offset_m
+- tower_holdover: towers lose GNSS with the payload (wide-area jamming) and their clocks drift in
+  holdover from start_s: a growing clock error on their pseudoranges (ADR-0022, ADR-0024)
+- imu_degradation: the IMU's bias steps or ramps, its noise grows, it sticks, or it drops out
+  (sensor degradation)
 
 Any fault may name a `receiver` (`payload` or `reference`) to touch only that receiver's records;
 without one it touches both.
@@ -38,6 +42,8 @@ import numpy as np
 from pnt.core.frames import llh_to_enu
 from pnt.core.measurement import Measurement
 from pnt.core.time import s_to_ns
+from pnt.sim import models
+from pnt.sim.sensors import DEG, G
 
 # Nominal GNSS health reported outside any jamming: (jam indicator 0..1, satellites, HDOP)
 NOMINAL_HEALTH = (0.0, 10.0, 1.0)
@@ -52,6 +58,9 @@ class Context:
     rng: np.random.Generator
     emitters: dict[str, list[float]] = field(default_factory=dict)  # true ENU, by emitter ID
     reference_enu: np.ndarray | None = None  # the reference station's true position
+    # (sites, builders) as `scenario.tower_groups` gives them, when the scenario groups its tower
+    # clocks (`tower_clocks:`, ADR-0022); None otherwise
+    tower_groups: tuple[dict[str, str], dict[str, str]] | None = None
 
 
 Event = tuple[int, str]
@@ -293,3 +302,189 @@ def jamming_zone(meas, f, ctx, start, end):
     return [m for m in out if m is not None], [
         (start, f"jamming zone at ({c}): lost within {r_in:.0f} m, degraded within {r_on:.0f} m")
     ]
+
+
+# Holdover classes of a tower's timing reference, as the frequency offset it has when it loses
+# GNSS (drift_mps: 1-sigma, drawn per oscillator at onset) and its frequency wander afterwards
+# (drift_rw_mps, m/s/sqrt(s)), in the units of `models.oscillator`. 1 m/s is 3.34 ppb. All TBC.
+HOLDOVER_GRADES = {
+    "ocxo": {
+        # TBC. "In holdover an OCXO-class reference drifts by microseconds per hour" (research.md,
+        # finding 4, citing Sharma, Owens & Kiernan, arXiv 2607.11398, 2026). 1 us/h as the
+        # 1-sigma onset frequency offset: 2.78e-10 x c = 0.083 m/s. The low end of that phrase.
+        "drift_mps": 0.083,
+        # TBC. h_-2 = 4e-26 for an OCXO (Shamaei, Khalife & Kassas, IEEE TWC 2018), the value the
+        # realistic and worst sets' tower_clocks use: c sqrt(2 pi^2 h_-2) = 2.7e-4 m/s/sqrt(s)
+        "drift_rw_mps": 2.7e-4,
+    },
+    "rubidium": {
+        # TBC, unsourced: systems/research.md gives no rubidium holdover figure (its summary of
+        # Winter 2024 names a rubidium reference, no holdover drift). 1 us/day: 1.16e-11 x c
+        # = 0.0035 m/s
+        "drift_mps": 0.0035,
+        # TBC, unsourced: a tenth of the OCXO wander
+        "drift_rw_mps": 2.7e-5,
+    },
+}
+# TBC: no source gives a builder's share. The variance share of the holdover drift and wander that
+# all towers of one builder have in common (a builder-wide timing source in holdover, ADR-0022),
+# the same even split the realistic and worst sets use for their tower clocks.
+HOLDOVER_BUILDER_SHARE = 0.5
+_HOLDOVER_GRID_S = 1.0  # numerical: holdover clocks are drawn on this grid and interpolated
+
+
+def _holdover_towers(f: dict, ctx, source: str) -> list[str]:
+    towers = [e for e in ctx.emitters if e.startswith(f"{source}:")]
+    if "emitters" in f:
+        unknown = set(f["emitters"]) - set(towers)
+        if unknown:
+            raise ValueError(f"tower_holdover: no {source} emitters {sorted(unknown)}")
+        return [e for e in towers if e in f["emitters"]]
+    if "fraction" in f:
+        k = int(round(float(f["fraction"]) * len(towers)))
+        return [towers[i] for i in sorted(ctx.rng.choice(len(towers), k, replace=False))]
+    return towers
+
+
+@attack("tower_holdover")
+def tower_holdover(meas, f, ctx, start, end):
+    """Wide-area jamming takes GNSS from the towers' timing references too (ADR-0024: GNSS-timed).
+    From start_s each affected tower's clock leaves its disciplined state and drifts as a
+    `models.oscillator` started at zero offset (no step at onset) with a frequency offset drawn at
+    onset and frequency wander. The error adds to the sim's normal tower clock.
+
+    - grade: `ocxo` (default) or `rubidium` (HOLDOVER_GRADES); drift_mps and drift_rw_mps
+      override it.
+    - emitters (IDs) or fraction (of the source's towers, drawn with the seed) leave the rest
+      untouched: not every site is GNSS-timed. Default: all.
+    - When the scenario groups its tower clocks (`tower_clocks:`), builder_share of the variance
+      is one oscillator per builder, shared by its towers, and the rest one per site. Otherwise
+      each tower drifts alone. Each tower's own spread is the same either way.
+    - After end_s the error stays where it reached (TBC: relocking and slewing back is not
+      modelled). Both receivers hear the same tower, so the reference station's ranges move too.
+    """
+    f = {"source": "lte", **f}
+    source = f["source"]
+    grade = f.get("grade", "ocxo")
+    if grade not in HOLDOVER_GRADES:
+        raise ValueError(f"tower_holdover grade {grade!r} (known: {sorted(HOLDOVER_GRADES)})")
+    size = {**HOLDOVER_GRADES[grade], **{k: f[k] for k in ("drift_mps", "drift_rw_mps") if k in f}}
+    towers = _holdover_towers(f, ctx, source)
+
+    sites, builders = ctx.tower_groups or ({}, {})
+    share = float(f.get("builder_share", HOLDOVER_BUILDER_SHARE)) if ctx.tower_groups else 0.0
+    site_of = {e: sites.get(e, e) for e in towers}
+    builder_of = {e: builders.get(site_of[e]) for e in towers}
+
+    hit = [i for i, m in enumerate(meas) if _active(m, f, start, None)]
+    hit = [i for i in hit if meas[i].kind == "pseudorange" and meas[i].emitter in site_of]
+    out = list(meas)
+    if hit:
+        last = max(meas[i].t_ns for i in hit) if end is None else end
+        span = (last - start) / 1e9
+        grid = np.append(np.arange(0.0, span, _HOLDOVER_GRID_S), span)
+
+        def draw(var_share: float) -> np.ndarray:
+            k = np.sqrt(var_share)
+            return models.oscillator(
+                ctx.rng,
+                grid,
+                drift_mps=k * size["drift_mps"],
+                drift_rw_mps=k * size["drift_rw_mps"],
+            )
+
+        by_builder = {b: draw(share) for b in sorted({b for b in builder_of.values() if b})}
+        by_site = {s: draw(1.0 - share) for s in sorted(set(site_of.values()))}
+        clock = {
+            e: by_site[site_of[e]] + by_builder.get(builder_of[e], 0.0) for e in sorted(site_of)
+        }
+        for i in hit:
+            m = meas[i]
+            err = np.interp(_since(m, start), grid, clock[m.emitter])  # holds after end_s
+            out[i] = _replace(m, value=(m.value[0] + float(err),))
+    return out, [
+        (start, f"{len(towers)} {source} towers drift in {grade} holdover{_window(f, end)}")
+    ]
+
+
+# IMU degradation sizes, all TBC. Bias steps default to the raw offsets the MPU-6050 datasheet
+# allows before start-up calibration (sim/sensors.py provenance): as if that calibration were lost.
+# TBC. Datasheet zero-g offset +/-50-80 mg (MPU-6000/6050 rev 3.4), the low end
+IMU_ACCEL_STEP_MG = 50.0
+IMU_GYRO_STEP_DPS = 20.0  # TBC. Datasheet zero-rate output +/-20 deg/s (MPU-6000/6050 rev 3.4)
+IMU_NOISE_SCALE = 3.0  # TBC, unsourced: white noise this many times the nominal
+_IMU_AXES = {"accel": (0, 1, 2), "gyro": (3, 4, 5)}  # columns of an accel_gyro value
+_IMU_MODES = ("bias", "noise", "stuck", "dropout")
+
+
+@attack("imu_degradation")
+def imu_degradation(meas, f, ctx, start, end):
+    """The IMU degrades in the window. Records keep their shape, timestamps, sigma and meta, so
+    nothing tells the estimator (except `dropout`, whose records are gone).
+
+    - mode `bias`: accel_step_mg / gyro_step_dps from start_s, plus accel_rate_mg_per_s /
+      gyro_rate_dps_per_s times the time since start_s (a ramp; set the step to 0 for a pure
+      ramp). Defaults: IMU_ACCEL_STEP_MG, IMU_GYRO_STEP_DPS, no ramp.
+    - mode `noise`: the white noise becomes noise_scale times the nominal. Only the noisy samples
+      exist, so it adds white noise of sigma sqrt(noise_scale^2 - 1) x the record's sigma. Not
+      re-quantized or clipped to the sensor's range.
+    - mode `stuck`: the last reading before start_s repeats (the first in the window if none).
+    - mode `dropout`: the records are lost.
+    - sensor: `accel`, `gyro` or `both` (default); axes: body axes 0-2 (default all). They pick
+      the columns bias, noise and stuck touch.
+    """
+    f = {"source": "imu", **f}
+    mode = f.get("mode", "bias")
+    if mode not in _IMU_MODES:
+        raise ValueError(f"imu_degradation mode {mode!r} (known: {list(_IMU_MODES)})")
+    sensor = f.get("sensor", "both")
+    sensors_ = ("accel", "gyro") if sensor == "both" else (sensor,)
+    if any(s not in _IMU_AXES for s in sensors_):
+        raise ValueError(f"imu_degradation sensor {sensor!r} (known: accel, gyro, both)")
+    axes = [int(a) for a in f.get("axes", (0, 1, 2))]
+    cols = [_IMU_AXES[s][a] for s in sensors_ for a in axes]
+    desc = f"IMU {mode} ({sensor}, axes {axes}){_window(f, end)}"
+
+    hit = [i for i, m in enumerate(meas) if _active(m, f, start, end) and m.kind == "accel_gyro"]
+    if mode == "dropout":
+        drop = set(hit)
+        return [m for i, m in enumerate(meas) if i not in drop], [(start, desc)]
+    out = list(meas)
+    if not hit:
+        return out, [(start, desc)]
+    vals = np.array([meas[i].value for i in hit], float)
+    if mode == "bias":
+        t = np.array([_since(meas[i], start) for i in hit])
+        accel = (
+            (f.get("accel_step_mg", IMU_ACCEL_STEP_MG) + f.get("accel_rate_mg_per_s", 0.0) * t)
+            * 1e-3
+            * G
+        )
+        gyro = (
+            f.get("gyro_step_dps", IMU_GYRO_STEP_DPS) + f.get("gyro_rate_dps_per_s", 0.0) * t
+        ) * DEG
+        for c in cols:
+            vals[:, c] += accel if c < 3 else gyro
+    elif mode == "noise":
+        k = float(f.get("noise_scale", IMU_NOISE_SCALE))
+        if k < 1.0:
+            raise ValueError("imu_degradation noise_scale below 1 would remove noise")
+        sigma = np.array([meas[i].sigma for i in hit], float)
+        vals[:, cols] += ctx.rng.normal(0.0, 1.0, (len(hit), len(cols))) * (
+            sigma[:, cols] * np.sqrt(k**2 - 1.0)
+        )
+    else:  # stuck
+        first = min((meas[i] for i in hit), key=lambda m: m.t_ns)
+        before = [
+            m
+            for m in meas
+            if m.kind == "accel_gyro"
+            and m.source == first.source
+            and m.receiver == first.receiver
+            and m.t_ns < start
+        ]
+        held = np.array(max(before, key=lambda m: m.t_ns).value if before else first.value)
+        vals[:, cols] = held[cols]
+    for k, i in enumerate(hit):
+        out[i] = _replace(meas[i], value=tuple(float(x) for x in vals[k]))
+    return out, [(start, desc)]

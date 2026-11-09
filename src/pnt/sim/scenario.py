@@ -194,9 +194,11 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     ]
 
     tower_clk: dict[str, np.ndarray] = {}
+    groups = None  # (sites, builders) when the scenario groups its tower clocks (ADR-0022)
     if spec.get("tower_clocks"):
         rng_clk = np.random.default_rng([seed, _TOWER_CLOCK_STREAM])
-        tower_clk = _tower_clocks(spec["tower_clocks"], tower_groups(spec, seed), t_truth, rng_clk)
+        groups = tower_groups(spec, seed)
+        tower_clk = _tower_clocks(spec["tower_clocks"], groups, t_truth, rng_clk)
 
     meas: list[Measurement] = []
     emitters: dict[str, list[float]] = {}
@@ -280,6 +282,7 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
         rng=rng,
         emitters=emitters,
         reference_enu=None if ref is None else ref.true_enu,
+        tower_groups=groups,
     )
     meas, events = attacks.apply(meas, spec.get("faults", []), ctx)
     meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter, m.receiver))
