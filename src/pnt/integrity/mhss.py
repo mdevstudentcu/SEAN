@@ -16,43 +16,52 @@ fails together, not by tower:
   ID, unclassified sources). GNSS-timed sources stay in: their geometry differences still count,
   and only their time part fails with GNSS. On the EKF on main every tower has its own free clock
   offset and the towers carry no receiver clock, so tower time never reaches our position or
-  clock and there is nothing to release. A shared builder clock term (#77) must be released
-  (left unconstrained) inside this hypothesis's sub-filters; see `MHSS.__init__`.
+  clock and there is nothing to release. Once the EKF shares a builder clock term (#77), this
+  hypothesis's sub-filters must leave that term unconstrained (not built yet).
 A GNSS layer hypothesis is not added: it is a subset of `gnss-cm`, whose sub-filter already
 excludes it. Groupings (site and builder of each emitter) are optional inputs; by default every
 emitter is its own site and there are no builder hypotheses.
 
-Sub-filters. Each hypothesis's sub-filter is a copy of the main EKF taken when its group first
-appears, fed every later measurement except the group's. The GNSS-free sub-filter cannot run
-from the start: tower clocks are only learned while GNSS is trusted (ADR-0022), so it is a pair of
-staggered copies re-seeded from the main filter every `gnss_window_s`. The older copy is used, so
-a GNSS fault is separable for between half and one window after onset. A copy is only re-seeded
-while its own test is quiet (below `reseed_test_max` of the threshold) and nothing is excluded,
-so a fault already showing is never absorbed. A fault slower than that can still be absorbed
-step by step: this monitor protects against faults that grow faster than about
-reseed_test_max * threshold per window.
+Sub-filters (a bank, not a snapshot). Each hypothesis's sub-filter is a copy of the main EKF
+taken when its group first appears, fed every later measurement except the group's. The GNSS-free
+sub-filter cannot run from the start: tower clocks are only learned while GNSS is trusted
+(ADR-0022), so it is a pair of staggered copies re-seeded from the main filter every
+`gnss_window_s`, and the older copy is used. A copy is only re-seeded after its test has been
+quiet (below `reseed_test_max`) for `reseed_quiet_s`, never while anything is flagged, and never
+both copies within half a window, so a fault already showing is not absorbed. A fault that stays
+below about reseed_test_max of the threshold can still be absorbed step by step.
 
 `mode="snapshot"` instead re-seeds every sub-filter from the main filter at every epoch: the
 weighted-least-squares snapshot on the EKF's linearised model with the EKF prior as a
-pseudo-measurement. It is kept for comparison: the prior already carries every past fault, so
-a slow fault that the main filter has absorbed shows no separation.
+pseudo-measurement. Kept for comparison only: the prior already carries every past fault, so a
+slow fault that the main filter has absorbed shows no separation (50-run eval on spoof-ramp:
+81,016 hazardous epochs against the bank's 0).
 
 Per epoch, horizontal only, for the all-in-view solution x0 (covariance P0) and each subset k
-(xk, Pk), with N hypotheses of prior p_k:
-- separation d_k = xk - x0, covariance S_k = Pk - P0 (Brenner), floored at SEP_FLOOR_M^2
-- test: q_k = sqrt(d_k' S_k^-1 d_k) / c_fa, c_fa = sqrt(-2 ln(P_FA / N)); fails if q_k > 1
-  (d_k' S_k^-1 d_k is chi-square with 2 dof when fault-free, so P_FA is the continuity budget)
-- threshold on the error axis: T_k = c_fa * sqrt(max eig S_k)
-- HPL = max(K_ff * s0, max_k (T_k + K_k * s_k)), s = sqrt(max eigenvalue) of P0 or Pk,
-  K_ff = sqrt(-2 ln(PHMI / 2)), K_k = sqrt(-2 ln(PHMI / (2 N p_k))).
-  This is Blanch's MHSS bound with the integrity risk split evenly (half fault-free, half over
-  the N hypotheses, his conservative closed form instead of a bisection) and the horizontal error
-  bounded radially through the largest eigenvalue (P(|e| > K s) <= exp(-K^2 / 2) for a 2-D
-  Gaussian), the convention `protection.hpl` uses, instead of per axis.
-- exclusion: if any test fails, or a GNSS alarm from the main filter has held for
-  `alarm_hold_s` (then k* = gnss-cm), the output switches to the subset k* with the largest q_k.
-  Under one fault, the error of x_k* is bounded by K_ff * s_k* if the fault was in k*, or by
-  |x_k* - x_m| + K_m * s_m if it was in m, so HPL = the max of those over m.
+(xk, Pk), with N hypotheses of prior p_k; s is sqrt(largest eigenvalue) of a 2x2 covariance:
+- Test: d_k = xk - x0 with covariance S_k = Pk - P0 (Brenner), eigenvalues taken by magnitude
+  and floored (sub-filters gate on their own, so S_k is not always PSD).
+  q_k = sqrt(d_k' S_k^-1 d_k) / c_fa, c_fa = sqrt(-2 ln(P_FA / N)): d_k' S_k^-1 d_k is
+  chi-square with 2 dof when fault-free, so P_FA is the continuity budget. A test counts as
+  failed after q_k > 1 for `detect_hold_s`. A sub-filter with no horizontal measurement for
+  `aided_s` is dead reckoning and is not tested.
+- HPL: the smallest L with
+      exp(-L^2 / 2 s0^2) + sum_k p_k exp(-(L - b_k)^2 / 2 s_k^2) <= PHMI,
+  solved by bisection. This is Blanch's MHSS bound with the horizontal error bounded radially
+  (P(|e| > K s) <= exp(-K^2 / 2) for a 2-D Gaussian, the convention of `protection.hpl`)
+  instead of per axis. With `pl_separation="actual"` (default) b_k = |d_k|: under H_k, xk is
+  fault-free and |e0| <= |d_k| + |ek|, so the bound holds whatever the test says. With
+  "threshold", b_k = c_fa * s(S_k), Blanch's form, which needs the test to have passed and is
+  about twice as large here. `allocation="even"` replaces the bisection by its closed-form
+  upper end (half the risk fault-free, the rest split evenly).
+- Exclusion: the worst failed hypothesis, or `gnss-cm` when the main filter's GNSS alarm has held
+  for `alarm_hold_s`. The output switches to that subset only if the subset could serve alone
+  (its fault-free bound within the alert limit, as ARAIM requires an available solution after
+  exclusion); otherwise the hypothesis is flagged `mhss_alarm:<name>` and the output stays.
+  After exclusion the bound uses xk* as reference: K_ff s_k* if the fault was in k*, or
+  |xk* - xm| + K_m s_m if it was in m.
+- Not covered: two faults at once in different groups (e.g. GNSS and one site: 6e-6 with these
+  priors), and the vertical (VPL stays the filter's).
 
 All priors and budgets are `TBC`; see `Params`.
 """

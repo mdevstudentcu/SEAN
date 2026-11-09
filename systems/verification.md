@@ -33,6 +33,26 @@ How each simulated model aligns to reality. Status: `placeholder` (datasheet/lit
 | Attacks (spoof, jam) | injected in software | — | Same attacks injected into real sessions | placeholder |
 | Ray-traced blockage (Sionna) | excess delay, blocked segments | ray trace with assumed heights and materials (ADR-0016) | LTE sessions along the traced route | placeholder |
 
+## Integrity monitor: solution separation (#82)
+
+How estimator `ekf-mhss` computes its HPL (REQ-02) and excludes faults (REQ-04). Code: `src/pnt/integrity/mhss.py` and `dependency.py`; the default `ekf` output is unchanged.
+
+- **Fault hypotheses** group what fails together (ADR-0022, ADR-0024), not single towers: a tower with its own unknown clock adds no detection redundancy (Jia, Khalife & Kassas, IEEE T-ITS 2023).
+  - one per LTE site, or per tower when the site is unknown
+  - one per network builder, when the grouping is given (`scenario.tower_groups` in sim; #87 for real data)
+  - one per source layer (LTE, barometer, …)
+  - GNSS common mode: GNSS plus every GNSS-derived or unclassified source. GNSS-timed towers stay in it for their geometry.
+- **Subset solutions** come from a bank of copies of the EKF, each fed everything except its hypothesis's measurements (Brenner's Kalman-filter solution separation).
+  - The GNSS-free copy is re-seeded from the main filter every `gnss_window_s` (`TBC`, 60 s), in two staggered copies, and only after its test has been quiet for 10 s (`TBC`). Tower clocks are only learned while GNSS is trusted (ADR-0022), so a GNSS-free copy run from the start knows no tower clock.
+  - A snapshot (re-seed every epoch: the EKF prior as a pseudo-measurement) was tried and rejected: the prior already holds a slow fault, so a 2 m/s ramp never separates.
+- **Test, per epoch, horizontal:** each separation from the all-in-view solution against its covariance Pk − P0 (chi-square, 2 dof), at a continuity budget `p_fa` (`TBC`, 1e-5) shared over the hypotheses, failing for 1 s (`TBC`) before it counts. A copy with no horizontal measurement for 10 s is dead reckoning and is not tested.
+- **HPL:** the multiple-hypothesis bound of Blanch et al. (IEEE TAES 2015), solved by bisection at integrity risk `phmi` (`TBC`, 1e-7, the risk behind `K_H`): fault-free term plus, per hypothesis, prior × the tail beyond its separation. We use the observed separation |xk − x0| where Blanch uses the detection threshold: under that hypothesis xk is fault-free, so the error is within |xk − x0| + |xk − truth| whatever the test says. The horizontal error is bounded radially through the covariance's largest eigenvalue.
+  - Priors `p_site` 1e-3, `p_builder` 1e-4, `p_layer` 1e-4, `p_gnss_cm` 1e-3 are all `TBC`; their reasoning is in `mhss.Params`.
+- **Exclusion:** a failed test, or a GNSS alarm from the filter held for 1 s, switches the output to the subset without the worst hypothesis, if that subset could serve alone (fault-free bound within the alert limit), and flags `mhss_excluded:<hypothesis>` (plus `gnss_excluded` for GNSS). Otherwise it flags `mhss_alarm:<hypothesis>` and keeps the output. The HPL after exclusion holds whichever single hypothesis was faulty.
+- **Valid only with honest subset covariances.** On `realistic-*` the GNSS-free copy's NEES is about 7,000 (2 if honest; 5 runs of `realistic-nominal`): the EKF's tower model (white noise, no multipath correlation, no told-position error, receiver clock off by default) doesn't match that sim. There MHSS raises `mhss_alarm:gnss-cm` most of the time and is never available, which is safe but useless until the tower model (#77) is honest.
+- **Not covered:** two faults at once in different groups (for example GNSS and one site); faults that stay below about half the threshold; the vertical (VPL is the filter's).
+- **Evidence:** paired 50-run evals of `ekf-mhss` against `ekf` on the base attack scenarios and every `realistic-*` scenario, and Stanford plots, in the description of the PR that closes #82.
+
 ## Results
 
 <!-- results:start -->
