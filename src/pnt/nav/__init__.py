@@ -14,14 +14,31 @@ given the session's `reference` block (ICD-session: the station's surveyed posit
 
 from __future__ import annotations
 
+import functools
 import logging
 from collections.abc import Callable, Iterable, Iterator
 
 from pnt.core.measurement import Estimate, Measurement
 from pnt.nav import base_rover, baseline, ekf
 
-ESTIMATORS = {"baseline": baseline.run, "ekf": ekf.run, "ekf-base": base_rover.run}
 DEFAULT_RECEIVERS = frozenset({"payload"})
+
+
+def configured(fn: Callable, **config) -> Callable:
+    """`fn` with `config` passed to it, modelling the same receivers."""
+    out = functools.partial(fn, **config)
+    out.receivers = getattr(fn, "receivers", DEFAULT_RECEIVERS)
+    return out
+
+
+ESTIMATORS = {
+    "baseline": baseline.run,
+    "ekf": ekf.run,
+    "ekf-base": base_rover.run,
+    # Stage 2 (#12): the same filters with IMU-driven prediction (nav/imu.py)
+    "ekf-imu": configured(ekf.run, motion="imu"),
+    "ekf-base-imu": configured(base_rover.run, motion="imu"),
+}
 
 log = logging.getLogger(__name__)
 

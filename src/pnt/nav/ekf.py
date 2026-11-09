@@ -1,11 +1,14 @@
-"""The main estimator (issue #12), stage 1: clock states, no IMU yet.
+"""The main estimator (issue #12): clock states (stage 1) and an optional IMU motion model
+(stage 2).
 
 State (metres and metres per second throughout, so the matrix stays well conditioned):
-    [ e n u | ve vn vu | c*dt  c*ddt | tower clocks ... ]
-      position  velocity   receiver clock  one block per tower clock, added on first sight
+    [ e n u | ve vn vu | c*dt  c*ddt | (IMU: dθ b_a b_g) | tower clocks ... ]
+      position  velocity   receiver clock  motion="imu" only  one block per tower clock
 
-- Motion: constant velocity driven by white acceleration. Stage 2 replaces this with IMU
-  propagation (#9 models, #14 trajectories) without changing the measurement side.
+- Motion (`motion`): "cv" (default), constant velocity driven by white acceleration; or "imu",
+  strapdown propagation of the payload's IMU (stage 2, `nav/imu.py`), which adds attitude error
+  and accelerometer and gyro bias states after the receiver clock. The measurement side is the
+  same for both.
 - Receiver clock: offset and drift with the standard two-state oscillator model (white
   frequency noise h0 and random-walk frequency noise h-2). Defaults are literature values for a
   TCXO-class oscillator, TBC until measured (ADR-0015).
@@ -122,12 +125,14 @@ from pnt.core.frames import emitter_enu
 from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.protection import hpl, vpl
 from pnt.nav.baseline import CHI2_999
+from pnt.nav.imu import ImuMotion
 
 C = 299_792_458.0
 GNSS_TIME = "gnss:time"  # health key for GNSS time, separate from GNSS position ("gnss")
 POS, VEL, CLK, DRIFT = slice(0, 3), slice(3, 6), 6, 7
 N_CORE = 8
 CLOCK_MODELS = ("independent", "calibrated")
+MOTIONS = ("cv", "imu")
 SNAPSHOT_NS = 1_000_000_000  # clock snapshots for rollback, about 1 Hz
 CHECK_MIN_SAMPLES = 5  # a windowed check with fewer innovations has no opinion
 SPOOF_MIN_SITES = 4  # every site left out still leaves 3: enough for 2 offsets and a clock
@@ -190,9 +195,15 @@ class EKF:
         spoof_persist_s: float = 3.0,  # s: exceedance held this long raises the alarm (TBC)
         spoof_clear_s: float = 30.0,  # s: GNSS consistent this long clears the alarm (TBC)
         spoof_learn_s: float = 60.0,  # s: null scale learned this long before arming (TBC)
+        motion: str = "cv",  # or "imu" (stage 2, nav/imu.py)
+        imu: Mapping | None = None,  # ImuMotion options when motion="imu"
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
+        if motion not in MOTIONS:
+            raise ValueError(f"motion must be one of {MOTIONS}, not {motion!r}")
+        self.imu = ImuMotion(**(imu or {})) if motion == "imu" else None
+        self.n_core = N_CORE  # states before the first clock block (IMU states included)
         self.origin_llh = origin_llh
         self.q_accel, self.q_emitter = q_accel, q_emitter
         self.sf, self.sg = h0 / 2.0, 2.0 * np.pi**2 * h_2  # clock noise spectral densities
@@ -268,6 +279,9 @@ class EKF:
             ]
         )
         self.t_ns = m.t_ns
+        if self.imu is not None:
+            self.imu.augment(self, POS, VEL)
+        self.n_core = len(self.x)
 
     def _augment(self, key: str, value: float, sigma: tuple[float, float]) -> int:
         """Add a clock block (offset, and drift if calibrated) with the given initial sigmas."""
@@ -380,6 +394,7 @@ class EKF:
         Q[CLK, CLK] = c2 * (self.sf * dt + self.sg * dt**3 / 3)
         Q[CLK, DRIFT] = Q[DRIFT, CLK] = c2 * self.sg * dt**2 / 2
         Q[DRIFT, DRIFT] = c2 * self.sg * dt
+        nav = None if self.imu is None else self.imu.propagate(self, t_ns, F, Q)
         if self.calibrated:
             self.calibrating = self.calibration_allowed()
             self._learned |= self.calibrating
@@ -394,6 +409,8 @@ class EKF:
             for i in self.clock_idx.values():
                 Q[i, i] = self.q_emitter**2 * dt
         self.x = F @ self.x
+        if nav is not None:
+            self.x[nav[0]] = nav[1]  # the nonlinear mean of position, velocity and attitude
         self.P = F @ self.P @ F.T + Q
         self.t_ns = t_ns
         if self.calibrated and self.rollback_ns is not None:
@@ -403,7 +420,8 @@ class EKF:
     def _snapshot(self) -> None:
         if self._snaps and self.t_ns - self._snaps[-1][0] < SNAPSHOT_NS:
             return
-        self._snaps.append((self.t_ns, self.x[N_CORE:].copy(), self.P[N_CORE:, N_CORE:].copy()))
+        c = self.n_core
+        self._snaps.append((self.t_ns, self.x[c:].copy(), self.P[c:, c:].copy()))
         # Keep the newest snapshot old enough for the reach of an alarm now: the margin before
         # the current episode (or before a hold ago, if there is none), at most `calib_rollback_s`
         start = self.trouble_since
@@ -442,16 +460,17 @@ class EKF:
         Q = np.zeros((k, k))
         q = _two_state_q(*self.s_tower, dt)
         for i in self.clock_idx.values():
-            j = i - N_CORE
+            j = i - self.n_core
             if j < k:
                 F[j, j + 1] = dt
                 Q[j : j + 2, j : j + 2] = q
-        old = slice(N_CORE, N_CORE + k)
+        c = self.n_core
+        old = slice(c, c + k)
         P = np.zeros_like(self.P)  # cross terms zeroed: see the module docstring
-        P[:N_CORE, :N_CORE] = self.P[:N_CORE, :N_CORE]
+        P[:c, :c] = self.P[:c, :c]
         P[old, old] = F @ Pcc @ F.T + Q
         for key, i in self.clock_idx.items():
-            if i >= N_CORE + k:  # first seen after the snapshot: back to its first-sight prior
+            if i >= c + k:  # first seen after the snapshot: back to its first-sight prior
                 P[i : i + 2, i : i + 2] = np.diag(np.square(self._clock_prior[key]))
         self.x[old] = F @ xc
         self.P = (P + P.T) / 2
@@ -479,6 +498,10 @@ class EKF:
 
     # --- measurements ------------------------------------------------------------------------
     def process(self, m: Measurement) -> None:
+        if m.kind == "accel_gyro":  # IMU samples drive the prediction, never an update
+            if self.imu is not None:
+                self.imu.add(self, m)
+            return
         if self.x is None:
             if m.kind == "position_enu":
                 self._init(m)
