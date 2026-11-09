@@ -35,11 +35,12 @@ Either model can group clocks:
   site keeps a residual block on top of it (initial sigma `init_residual_sigma`, TBC). Off by
   default. How builder identity reaches the filter in real data is open (I3/ICD).
 
-New site clocks (calibrated model, ungrouped sites): a site first heard once two or more sites
-have calibrated (drift sigma under half its prior) takes their mean drift as its prior, with
-their spread and uncertainty as its sigma (at least `site_drift_floor`, TBC), rather than a fixed
-(0, `init_tower_drift_sigma`). A drift every site shows (our clock's while it is not modelled,
-a builder's) then carries over instead of making the new site look faulty.
+New site clocks (`seed_site_drift`, off by default, on in `CALIBRATED`; calibrated model, ungrouped
+sites): a site first heard once two or more sites have calibrated (drift sigma under half its
+prior) takes their mean drift as its prior, with their spread and uncertainty as its sigma (at
+least `site_drift_floor`, TBC), rather than a fixed (0, `init_tower_drift_sigma`). A drift every
+site shows (our clock's while it is not modelled, a builder's) then carries over instead of
+making the new site look faulty.
 
 Tower error model (`CALIBRATED`; each part off by default, every value TBC until the radio test
 and published data replace it, ADR-0015). Beyond the white noise each reading reports:
@@ -217,6 +218,7 @@ class EKF:
         multipath_ratio: float = 0.0,  # tower multipath sigma / reported sigma; 0: off (TBC)
         multipath_tau_s: float = 30.0,  # s: tower multipath correlation time (TBC)
         tower_position_sigma_m: float = 0.0,  # m per horizontal axis: told position; 0: off (TBC)
+        seed_site_drift: bool = False,  # seed a new site's drift from the calibrated sites
         site_drift_floor: float = 0.1,  # m/s: least drift sigma of a seeded new site (TBC)
     ):
         if clock_model not in CLOCK_MODELS:
@@ -286,7 +288,7 @@ class EKF:
         # per-site told-position error states, added on first sight
         self.multipath_ratio, self.multipath_tau_s = multipath_ratio, multipath_tau_s
         self.tower_position_sigma_m = tower_position_sigma_m
-        self.site_drift_floor = site_drift_floor
+        self.seed_site_drift, self.site_drift_floor = seed_site_drift, site_drift_floor
         self.multipath_idx: dict[str, int] = {}  # emitter -> its multipath state
         self.multipath_sigma: dict[int, float] = {}  # state -> steady-state sigma (m)
         self.position_idx: dict[str, tuple] = {}  # site -> (told-position error state, los0)
@@ -390,7 +392,7 @@ class EKF:
         skey = f"site:{site}"
         new = skey not in self.clock_idx
         if new:
-            if builder is None and self.calibrated:
+            if builder is None and self.calibrated and self.seed_site_drift:
                 drift, sigma = self.site_drift_prior()
                 self._augment(skey, residual, (wide[0], sigma), drift, prior=wide)
             elif builder is None:
@@ -923,6 +925,7 @@ CALIBRATED: dict = {
     "multipath_ratio": 1.0,  # multipath sigma = reported sigma (realistic set, TBC)
     "multipath_tau_s": 30.0,  # s (realistic set, TBC)
     "tower_position_sigma_m": 100.0,  # m per axis (realistic set, TBC)
+    "seed_site_drift": True,
 }
 
 
