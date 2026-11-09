@@ -34,4 +34,4 @@ Scored by the judges ("safety, RF, aviation, privacy, cybersecurity, and regulat
 
 - Spoofing is treated as an adversary, not noise: the estimator cross-checks GPS against independent sources (REQ-04).
 - Sources that fail together with GPS (ADS-B content, GNSS-disciplined tower timing) are not counted as independent evidence.
-- Live stream is on a local network only; no remote control path exists through the payload stream.
+- Live stream is on a local network only; no remote control path exists through the payload stream. It is authenticated and encrypted with CurveZMQ, and plaintext needs an explicit `--insecure` (ADR-0026, #89).

@@ -29,7 +29,7 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0023](0023-tower-identity.md) | Tower identity: ISED registry, PCI scan and mapper | Proposed |
 | [0024](0024-gnss-dependency-tags.md) | Every source carries a GNSS-dependency tag | Proposed |
 | [0025](0025-hostile-emitter-beacon.md) | A located jammer may be a low-trust beacon, in sim only | Proposed |
-| [0026](0026-ground-link-security.md) | Ground links are signed and authenticated; logs are hash-chained | Proposed |
+| [0026](0026-ground-link-security.md) | Ground links are signed and authenticated; logs are hash-chained | Accepted (CurveZMQ); MAVLink signing `TBC`; hash chain after judging |
 | [0027](0027-dashboard-sse-canvas.md) | The dashboard streams over Server-Sent Events and draws on canvas | Accepted |
 | [0028](0028-fly-inav.md) | The drone flies INAV on the BLITZ ATF435, pilot-flown with an RC kill switch | Accepted |
 | [0029](0029-tethered-hover-wifi-control.md) | Tethered indoor hover may be flown from a gamepad through an ESP32 Wi-Fi bridge | Accepted |
