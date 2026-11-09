@@ -148,8 +148,6 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
             meas += models.baro(ts_ns, pos, rng, **cfg)
         elif model == "pseudorange":
             em_llh = cfg.pop("emitters_llh", None)
-            if "ray_table" in cfg:
-                cfg["ray_table"] = load_ray_table(cfg["ray_table"])
             if "towers_from" in cfg:
                 em_llh = select_towers(**cfg.pop("towers_from"), ground_m=spec["origin_llh"][2])
             if em_llh is not None:  # real transmitter positions (data/reference)
@@ -160,6 +158,10 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
                 )
             for i, e in enumerate(em):
                 emitters[f"{source}:sim{i}"] = [float(x) for x in e]
+            if "ray_table" in cfg:
+                if em_llh is None:
+                    raise ValueError("ray_table needs real tower positions (towers_from)")
+                cfg["ray_table"] = load_ray_table(cfg["ray_table"], em_llh, spec["duration_s"])
             told_em, em_llh = _told_positions(
                 cfg.pop("told_position_sigma_m", 0.0), em, em_llh, spec, rng
             )
@@ -221,18 +223,45 @@ def _metres_apart(a: dict, b: dict) -> float:
     return float(np.hypot(dn, de))
 
 
-def load_ray_table(file: str) -> dict[int, tuple[np.ndarray, np.ndarray]]:
-    """A ray tracer's output, per tower: (times in s, excess delay in m, NaN where no path)."""
+def load_ray_table(
+    file: str, towers_llh=None, duration_s: float | None = None
+) -> dict[int, tuple[np.ndarray, np.ndarray]]:
+    """A ray tracer's output per tower: (times in s, excess delay in m, NaN where no path).
+
+    With `towers_llh`, the result is keyed by the scenario's tower order, matched by position, and
+    a tower the table doesn't cover is an error rather than another tower's rows. With
+    `duration_s`, a run longer than the table is an error rather than a repeated last row.
+    """
     with open(REFERENCE_DIR / file, newline="") as f:
         rows = list(csv.DictReader(f))
+    by_tower: dict[int, list[dict]] = {}
+    for r in rows:
+        by_tower.setdefault(int(r["tower"]), []).append(r)
     table: dict[int, tuple[np.ndarray, np.ndarray]] = {}
-    for tower in sorted({int(r["tower"]) for r in rows}):
-        mine = sorted((r for r in rows if int(r["tower"]) == tower), key=lambda r: float(r["t_s"]))
+    for tower, mine in sorted(by_tower.items()):
+        mine.sort(key=lambda r: float(r["t_s"]))
         table[tower] = (
             np.array([float(r["t_s"]) for r in mine]),
             np.array([float(r["excess_m"]) if r["excess_m"] else np.nan for r in mine]),
         )
-    return table
+    if duration_s is not None:
+        for times, _ in table.values():
+            step = float(np.median(np.diff(times)))
+            if duration_s > times[-1] + step:
+                raise ValueError(f"{file} covers {times[-1] + step:.0f} s, run is {duration_s} s")
+    if towers_llh is None:
+        return table
+    out = {}
+    for i, (lat, lon, _) in enumerate(towers_llh):
+        match = [
+            t
+            for t, mine in by_tower.items()
+            if _metres_apart({"lat": lat, "lon": lon}, mine[0]) < SAME_SITE_M
+        ]
+        if not match:
+            raise ValueError(f"{file} has no ray trace for the tower at {lat}, {lon}")
+        out[i] = table[match[0]]
+    return out
 
 
 def select_towers(
