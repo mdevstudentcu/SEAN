@@ -19,6 +19,7 @@ import numpy as np
 from pnt.core.frames import emitter_enu, llh_to_enu
 from pnt.core.measurement import Measurement, Truth
 from pnt.dashboard.health import HealthMonitor
+from pnt.metrics import ALERT_LIMIT_M
 from pnt.nav import estimate
 
 # An emitter counts as heard on the map if one of its records is this recent. TBC: two missed
@@ -61,7 +62,9 @@ class Feed:
         }
 
 
-def replay_feed(path, estimator: str = "ekf", preflight: bool = True) -> Feed:
+def replay_feed(
+    path, estimator: str = "ekf", preflight: bool = True, alert_limit_m: float = ALERT_LIMIT_M
+) -> Feed:
     """A recorded session (folder or .mcap). Truth if it has a `/truth` topic. A simulated
     session also gets its scenario's pre-flight prediction (`pnt.integrity.preflight`)."""
     from pnt.io import session
@@ -81,11 +84,18 @@ def replay_feed(path, estimator: str = "ekf", preflight: bool = True) -> Feed:
         truth=truth or None,
     )
     if preflight and meta.get("scenario"):
-        _add_preflight(feed, meta["scenario"], int(meta.get("seed") or 0), named=True)
+        seed = int(meta.get("seed") or 0)
+        _add_preflight(feed, meta["scenario"], seed, alert_limit_m, named=True)
     return feed
 
 
-def sim_feed(scenario: str, seed: int = 0, estimator: str = "ekf", preflight: bool = True) -> Feed:
+def sim_feed(
+    scenario: str,
+    seed: int = 0,
+    estimator: str = "ekf",
+    preflight: bool = True,
+    alert_limit_m: float = ALERT_LIMIT_M,
+) -> Feed:
     """A scenario run straight from the sim: nothing is recorded."""
     from pnt.sources.sim import SimSource
 
@@ -102,7 +112,7 @@ def sim_feed(scenario: str, seed: int = 0, estimator: str = "ekf", preflight: bo
         notes=[f"{_clock_s(t)}: {text}" for t, text in run.events],
     )
     if preflight:
-        _add_preflight(feed, run.spec, seed)
+        _add_preflight(feed, run.spec, seed, alert_limit_m)
     return feed
 
 
@@ -112,14 +122,16 @@ def _clock_s(t_ns: int) -> str:
     return f"T+{(t_ns - T0_NS) / 1e9:.0f} s"
 
 
-def _add_preflight(feed: Feed, scenario, seed: int, named: bool = False) -> None:
+def _add_preflight(
+    feed: Feed, scenario, seed: int, alert_limit_m: float, named: bool = False
+) -> None:
     """The predicted HPL strip, on the panel's clock (seconds since the first estimate)."""
     from pnt.integrity import preflight
     from pnt.sim.scenario import load_named
 
     try:
         spec = load_named(scenario) if named else scenario  # session files are untrusted input
-        p = preflight.predict(spec, seed=seed, estimator=feed.estimator)
+        p = preflight.predict(spec, seed, feed.estimator, alert_limit_m)
     except (ValueError, FileNotFoundError, KeyError) as exc:
         feed.notes.append(f"no pre-flight prediction: {exc}")
         return
@@ -190,7 +202,7 @@ def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
             "vpl_m": _num(est.vpl_m),
             "clock_bias_s": _num(est.clock_bias_s),
             "clock_sigma_s": _num(est.clock_sigma_s),
-            "status": est.status,
+            "status": health["status"],  # against the panel's limit (health.panel_status)
             "flags": list(est.flags),
             "truth": None if truth is None else [float(v) for v in truth.pos_enu],
             "truth_clock_s": None if truth is None else _num(truth.clock_bias_s),
