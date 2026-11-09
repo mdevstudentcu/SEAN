@@ -332,11 +332,13 @@ def test_plaintext_needs_insecure(tmp_path, capsys):
     none = str(tmp_path / "no-keys")
     out = tmp_path / "s"
     quiet = ["--no-gnss", "--no-imu", "--no-baro", "--no-camera", "--no-fc", "--duration", "1"]
+    bounded = ["--origin", "45,-75,70", "--duration", "0.5"]  # ends even if it were let through
     with pytest.raises(SystemExit, match="pnt keys gen --role payload"):
-        main(["record", "--keys", none, "--out", str(out), "--stream", "tcp://0.0.0.0:0", *quiet])
+        main(["record", "--keys", none, "--out", str(out), "--stream", "tcp://127.0.0.1:*",
+              *quiet])  # fmt: skip
     assert not out.exists()  # refused before anything was recorded
     with pytest.raises(SystemExit, match="pnt keys gen --role laptop"):
-        main(["live", "--keys", none, "--connect", "tcp://127.0.0.1:9", "--origin", "45,-75,70"])
+        main(["live", "--keys", none, "--connect", "tcp://127.0.0.1:9", *bounded])
     main(["record", "--keys", none, "--out", str(out), "--stream", "tcp://127.0.0.1:*",
           "--insecure", *quiet])  # fmt: skip
     assert "WARNING: --insecure" in capsys.readouterr().out
@@ -346,8 +348,11 @@ def test_plaintext_needs_insecure(tmp_path, capsys):
 def test_pnt_record_refuses_without_a_trusted_laptop(hosts, tmp_path):
     lone = tmp_path / "lone"
     linkauth.generate("payload", lone)
+    quiet = ["--no-gnss", "--no-imu", "--no-baro", "--no-camera", "--no-fc", "--duration", "1"]
     with pytest.raises(SystemExit, match="pnt keys trust laptop"):
-        main(["record", "--keys", str(lone), "--out", str(tmp_path / "s"), "--no-gnss"])
+        main(["record", "--keys", str(lone), "--out", str(tmp_path / "s"),
+              "--stream", "tcp://127.0.0.1:*", *quiet])  # fmt: skip
+    assert not (tmp_path / "s").exists()
 
 
 def test_without_curve_the_stream_is_refused_not_downgraded(hosts, tmp_path, monkeypatch):
@@ -360,6 +365,7 @@ def test_without_curve_the_stream_is_refused_not_downgraded(hosts, tmp_path, mon
         main(["record", "--keys", str(hosts["pi"]), "--out", str(tmp_path / "s"),
               "--stream", "tcp://127.0.0.1:*", *quiet])  # fmt: skip
     with pytest.raises(SystemExit, match="without CURVE"):
-        main(["live", "--keys", str(hosts["laptop"]), "--connect", "tcp://127.0.0.1:9"])
+        main(["live", "--keys", str(hosts["laptop"]), "--connect", "tcp://127.0.0.1:9",
+              "--origin", "45,-75,70", "--duration", "0.5"])  # fmt: skip
     with pytest.raises(SystemExit, match="without CURVE"):
         main(["keys", "gen", "--role", "laptop", "--keys", str(tmp_path / "k")])
