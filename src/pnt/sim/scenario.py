@@ -31,6 +31,20 @@ SAME_SITE_M = 10.0
 GROUND_MISSING_BELOW_M = 80.0
 # Fixed scenario start so runs are reproducible (REQ-10): judging day, 18:00 UTC.
 T0_NS = utc_to_gps_ns(datetime(2026, 11, 12, 18, 0, tzinfo=UTC))
+# Who built each carrier's radios in Ottawa (ADR-0022, Proposed): Bell and TELUS share one RAN
+# that TELUS builds, Rogers runs its own, Freedom is being folded into Vidéotron. TBC by the scan.
+BUILDER_OF_CARRIER = {
+    "telus": "telus-built",
+    "bell": "telus-built",
+    "rogers": "rogers",
+    "vidéotron": "videotron",
+    "videotron": "videotron",
+    "freedom": "videotron",
+}
+BUILDERS = ("telus-built", "rogers", "videotron")
+# Random streams of their own, so tower grouping and tower clocks can be rebuilt from the seed
+# alone and leave every other draw in `generate` as it was.
+_GROUP_STREAM, _TOWER_CLOCK_STREAM = 220, 221
 
 
 @dataclass
@@ -42,6 +56,8 @@ class SimRun:
     measurements: list[Measurement]
     events: list[tuple[int, str]] = field(default_factory=list)
     emitters: dict[str, list[float]] = field(default_factory=dict)
+    # Truth for debugging: each tower's clock (m) at the truth times, when `tower_clocks:` is on
+    tower_clocks: dict[str, np.ndarray] = field(default_factory=dict)
 
 
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
@@ -133,6 +149,11 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
         for t, p, v, c in zip(t_truth, pos_t, vel_t, clock_t, strict=True)
     ]
 
+    tower_clk: dict[str, np.ndarray] = {}
+    if spec.get("tower_clocks"):
+        rng_clk = np.random.default_rng([seed, _TOWER_CLOCK_STREAM])
+        tower_clk = _tower_clocks(spec["tower_clocks"], tower_groups(spec, seed), t_truth, rng_clk)
+
     meas: list[Measurement] = []
     emitters: dict[str, list[float]] = {}
     for source, cfg in spec.get("sources", {}).items():
@@ -169,6 +190,10 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
                 if "clock" not in spec:
                     raise ValueError("receiver_clock needs a `clock:` model in the scenario")
                 cfg["clock_s"] = np.interp(ts, t_truth, clock_t)
+            if tower_clk:
+                cfg["tower_clock_m"] = np.array(
+                    [np.interp(ts, t_truth, tower_clk[f"{source}:sim{i}"]) for i in range(len(em))]
+                )
             meas += models.pseudoranges(
                 ts_ns,
                 pos,
@@ -205,7 +230,81 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     )
     meas, events = attacks.apply(meas, spec.get("faults", []), ctx)
     meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter))
-    return SimRun(spec["name"], spec, seed, truth, meas, events, emitters)
+    return SimRun(spec["name"], spec, seed, truth, meas, events, emitters, tower_clk)
+
+
+def tower_groups(spec: dict, seed: int = 0) -> tuple[dict[str, str], dict[str, str]]:
+    """How a scenario's towers share clocks (ADR-0022): (sites, builders), where `sites` maps
+    each pseudorange emitter to its site and `builders` maps each site to its network builder.
+
+    The shape the EKF's `sites` and `builders` options take. Deterministic for a spec and seed,
+    and it draws nothing from the run's own random stream, so an eval can call it beside
+    `generate`.
+    - Builder: from the tower's filed carrier (`towers_from`), mapped by BUILDER_OF_CARRIER.
+      Towers with no carrier (synthetic, or `emitters_llh`) get one drawn from BUILDERS with
+      the seed.
+    - Site: towers of one builder within SAME_SITE_M of each other, across sources, are one
+      site, named after its first emitter. Synthetic towers are a site each. The sim has no
+      PCI, so sectors can't be grouped by PCI // 3: each emitter is one sector.
+    """
+    rng = np.random.default_rng([seed, _GROUP_STREAM])
+    sites: dict[str, str] = {}
+    builders: dict[str, str] = {}
+    placed: list[tuple[str, str, dict]] = []  # (site, builder, {lat, lon}) of placed sites
+    for source, cfg in spec.get("sources", {}).items():
+        if cfg.get("model", source) != "pseudorange":
+            continue
+        llh, carriers = cfg.get("emitters_llh"), None
+        if "towers_from" in cfg:
+            rows = _tower_rows(**cfg["towers_from"])
+            llh = [[float(r["lat"]), float(r["lon"]), 0.0] for r in rows]
+            carriers = [r["carrier"] for r in rows]
+        for i in range(cfg["n_emitters"] if llh is None else len(llh)):
+            emitter = f"{source}:sim{i}"
+            if carriers is None:
+                builder = BUILDERS[int(rng.integers(len(BUILDERS)))]
+            else:
+                builder = builder_of(carriers[i])
+            here = None if llh is None else {"lat": llh[i][0], "lon": llh[i][1]}
+            site = next(
+                (
+                    s
+                    for s, b, p in placed
+                    if here is not None and b == builder and _metres_apart(here, p) < SAME_SITE_M
+                ),
+                None,
+            )
+            if site is None:
+                site = emitter
+                builders[site] = builder
+                if here is not None:
+                    placed.append((site, builder, here))
+            sites[emitter] = site
+    return sites, builders
+
+
+def builder_of(carrier: str) -> str:
+    """The network builder behind a carrier name as ISED files it (BUILDER_OF_CARRIER)."""
+    match = [b for name, b in BUILDER_OF_CARRIER.items() if name in carrier.lower()]
+    if not match:
+        raise ValueError(f"no network builder known for carrier {carrier!r}")
+    return match[0]
+
+
+def _tower_clocks(cfg: dict, groups, t: np.ndarray, rng) -> dict[str, np.ndarray]:
+    """Each tower's clock (m) at times t: its builder's clock + its site's residual + its own
+    (sector) residual, each an independent `models.oscillator` with that level's settings."""
+    unknown = set(cfg) - {"builder", "site", "sector"}
+    if unknown:
+        raise ValueError(f"tower_clocks levels are builder, site and sector, not {unknown}")
+    sites, builders = groups
+
+    def draw(level: str) -> np.ndarray:
+        return models.oscillator(rng, t, **(cfg.get(level) or {}))
+
+    by_builder = {b: draw("builder") for b in dict.fromkeys(builders.values())}
+    by_site = {s: by_builder[b] + draw("site") for s, b in builders.items()}
+    return {e: by_site[s] + draw("sector") for e, s in sites.items()}
 
 
 def tower_height_m(filed_m: float, ground_m: float) -> float:
@@ -278,6 +377,16 @@ def select_towers(
     A site filed more than once (closer than SAME_SITE_M) counts once: its nearest filing wins.
     Heights go through `tower_height_m` with `ground_m`, the scenario origin's height.
     """
+    return [
+        [float(r["lat"]), float(r["lon"]), tower_height_m(float(r["height_m"]), ground_m)]
+        for r in _tower_rows(file, carrier, tx_mhz, count, min_km)
+    ]
+
+
+def _tower_rows(
+    file: str, carrier: str, tx_mhz: float, count: int, min_km: float = 0.0
+) -> list[dict]:
+    """The registry rows `select_towers` picks, in its order, with every filed field."""
     with open(REFERENCE_DIR / file, newline="") as f:
         rows = [
             r
@@ -292,10 +401,7 @@ def select_towers(
             sites.append(r)
     if len(sites) < count:
         raise ValueError(f"only {len(sites)} sites match {carrier} at {tx_mhz} MHz, need {count}")
-    return [
-        [float(r["lat"]), float(r["lon"]), tower_height_m(float(r["height_m"]), ground_m)]
-        for r in sites[:count]
-    ]
+    return sites[:count]
 
 
 def _told_positions(sigma_m: float, em: np.ndarray, em_llh, spec: dict, rng):
