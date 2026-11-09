@@ -2,6 +2,7 @@
 # Day-1 test of the Pi 4B payload (#88, ADR-0018) with the PPS check (#17, RSK-05).
 # Run on the Pi from ~/pnt:  [DEV_A=0 DEV_B=1] bash deploy/pi/day1.sh [minutes] [sdr_a_hz] [sdr_b_hz]
 # DEV_A/DEV_B: rtl_sdr device index or serial of each dongle (see `rtl_test -t`).
+# The stream needs the keys from RUNBOOK "Keys"; RECORD_ARGS=--insecure only if libzmq lacks CURVE.
 # Writes, under data/sessions/: the session, <session>.pps.json, <session>.day1.md and .json.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -20,7 +21,8 @@ $PNT pps-check --seconds 30 --out "$out.pps.json"
 echo "== Recording $MIN min: both SDRs, GPS, IMU, baro, camera, streaming =="
 echo "   While it runs, read the USB current off the DPS-150."
 $PNT record --out "$out" --platform static --duration "$((MIN * 60))" \
-  --sdr "a:$FA:rate=1.92e6:dev=${DEV_A:-0}${EARFCN_A:+:earfcn=$EARFCN_A}" --sdr "b:$FB:rate=2.4e6:dev=${DEV_B:-1}"
+  --sdr "a:$FA:rate=1.92e6:dev=${DEV_A:-0}${EARFCN_A:+:earfcn=$EARFCN_A}" --sdr "b:$FB:rate=2.4e6:dev=${DEV_B:-1}" \
+  ${RECORD_ARGS:-}
 
 read -r -p "USB current from the DPS-150, amps (blank if not read): " AMPS
 $PNT day1 "$out" ${AMPS:+--usb-current-a "$AMPS"}
