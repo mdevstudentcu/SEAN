@@ -1,8 +1,8 @@
 # ADR-0021: We pitch integrity-first navigation that treats signals of opportunity as things that can fail
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-11-09)
 - **Date:** 2026-11-09
-- **Deciders:** team
+- **Deciders:** Shrikar Vempati, M. Elshoubky (the two owners)
 - **Traces to:** REQ-01–REQ-06, UC-01–UC-03, ADR-0015, ADR-0020
 
 ## Context
@@ -12,7 +12,7 @@ A multi-signal EKF with per-tower clocks is a known approach (the Kassas group h
 - **Every signal of opportunity can be faked, cloned or replayed,** and none is authenticated at the signal level.
 - **A tower with its own unknown clock adds no fault-detection redundancy, and towers that share a clock can be grouped and calibrated into one testable constellation** ([Jia, Khalife & Kassas, IEEE T-ITS 2023](https://people.engineering.osu.edu/sites/default/files/2023-10/Kassas_Performance_analysis_of_opportunistic_ARAIM_for_navigation_with_GNSS_signals_fused_with_terrestrial_signals_of_opportunity.pdf)).
 - **Tower time is often GNSS-disciplined,** so it can fail together with GPS.
-- **The niche is open.** Honeywell's own alternative-navigation suite covers vision, magnetic, LEO and celestial navigation, but not terrestrial communication signals.
+- **The niche is open.** Honeywell's own alternative-navigation suite covers vision, magnetic and LEO navigation, and lists radios and star trackers among other modalities; we found no released terrestrial-communications module.
 
 Novelty claims rest on web and arXiv searches, re-checked against the full papers on 2026-11-09 ([`research.md`, novelty check](../research.md#novelty-check-98), #98). That check found P1 largely and P2 and P4 partly pre-empted by the Kassas group. A second reading the same day found P3 and P5 partly pre-empted too: time protection levels for GNSS timing receivers (Kirkko-Jaakkola et al. 2017; Baweja 2026), and GNSS time checked against other clocks (Zhang, Spanghero & Papadimitratos 2020). JAM-ME (Tedeschi et al. 2020, read in full) already uses a jammer as a navigation beacon, so P8 is partly pre-empted too. Nothing published was found for P8 below, or for the tower-based parts of P3 and P5, which are planned and not yet on `main`.
 
@@ -51,7 +51,7 @@ We pitch integrity-first navigation that treats towers, network builders and GNS
   - Core work comes first, in this order: P0, P1, P5, P3, P2, P4.
   - Add-ons follow, as time allows.
   - The step order and owners are in [`../plan.md`](../plan.md).
-- **The pitch leads with P3 and P5** (decided by the owner on 2026-11-09, after #98, and kept in their narrower wording after the second reading the same day; narrowed again to what `main` does on 2026-11-09 by AceAtDev, in the review of PR #111): calibrated towers catch a GNSS position spoof, GNSS time is checked against our own clock model, and the time we hold comes with a protection level. Pitch line: "Time integrity exists for GNSS receivers. Our time bound today covers oscillator holdover; extending it to tower-held time is planned." P1, P2 and P4 are presented as building on opportunistic ARAIM and base/rover differencing, saying what we add. This changes the story, not the work: the order below stands.
+- **The pitch leads with P3 and P5** (decided by Shrikar Vempati on 2026-11-09, after #98, and kept in their narrower wording after the second reading the same day; narrowed again to what `main` does on 2026-11-09 by M. Elshoubky in the review of PR #111, and accepted by Shrikar Vempati): calibrated towers catch a GNSS position spoof, GNSS time is checked against our own clock model, and the time we hold comes with a protection level. Pitch line: "Time integrity exists for GNSS receivers. Our time bound today covers oscillator holdover; extending it to tower-held time is planned." P1, P2 and P4 are presented as building on opportunistic ARAIM and base/rover differencing, saying what we add. This changes the story, not the work: the order below stands.
 - **Claims and evidence:**
   - Every claim follows `systems/quality.md`: paired evals against `main`, Stanford plots on fault scenarios, and the sim model's validity status stated.
   - "First" is never claimed. For P3, P5 and P8 the wording is "we found no published…", with the still-unread papers in [`research.md`](../research.md#still-unread) named in the speaker notes. "Collaborative integrity" isn't used as a novelty term.
