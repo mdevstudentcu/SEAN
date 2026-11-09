@@ -7,6 +7,7 @@ against the Cramér-Rao bound, not requirements.
 
 import math
 from dataclasses import replace
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -15,6 +16,8 @@ from pnt.cli import main
 from pnt.core.measurement import validate
 from pnt.frontends.lte import capture, process_file, synth
 from pnt.frontends.lte import signals as sig
+from pnt.frontends.lte.frontend import emit
+from pnt.frontends.lte.tracker import CellTrack, Config, Epoch, GapMap
 from pnt.io.mcap_log import read_session
 from pnt.sources.replay import ReplaySource
 
@@ -247,6 +250,30 @@ def test_cell_found_a_little_late_is_a_new_arc_not_a_gap(tmp_path):
     pr = [m for m in r.measurements if m.kind == "pseudorange"]
     assert not any(m.meta["flags"] for m in pr)
     assert {m.meta["arc"] for m in pr} == {0, 1}
+
+
+def _epochs(n0, t_s, arc):
+    """Twenty 5 ms epochs of one arc, its k counted from 0, starting at `t_s`."""
+    L = sig.half_frame_length(FS)
+    return [
+        Epoch(k=k, c_ref=t_s * FS + k * L, theta_meas=0.0, nu=0.0, sigma=0.1, snr_post=100.0,
+              psi=0.0, n_ref=t_s * FS + k * L + 1000, locked=False, arc=arc, n0=n0)
+        for k in range(20)
+    ]  # fmt: skip
+
+
+def _capture_stub(t0_ns=T0):
+    return SimpleNamespace(t0_ns=t0_ns, fs=FS, dongle="sdr_a")
+
+
+def test_arcs_with_overlapping_half_frame_counts_are_emitted_separately():
+    # A cell re-found with new timing restarts k at 0, so the two arcs' k ranges overlap.
+    cell = CellTrack(2460, FC, 8, 5000.0, arc=1, epochs=[*_epochs(1000.0, 0.0, 0),
+                                                         *_epochs(5000.0, 30.0, 1)])  # fmt: skip
+    pr = emit([cell], _capture_stub(), GapMap(), Config())
+    assert [m.meta["arc"] for m in pr] == [0, 1]
+    # Each arc keeps its own frame reference.
+    assert [m.value[0] for m in pr] == pytest.approx([synth.C * n / FS for n in (1000, 5000)])
 
 
 def test_sample_rate_2_4_msps(tmp_path):
