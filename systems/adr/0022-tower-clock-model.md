@@ -1,7 +1,7 @@
 # ADR-0022: Tower clocks are per-site offset and drift, grouped by network builder and learned while GNSS is trusted
 
 - **Status:** Proposed
-- **Date:** 2026-11-09
+- **Date:** 2026-11-09, amended 2026-11-09 (the default bar and our clock in the tower ranges, decided by the owner: see *Amendment*)
 - **Deciders:** team
 - **Traces to:** REQ-01, REQ-02, REQ-03, REQ-04, ASM-01, ADR-0015, ADR-0020
 
@@ -45,7 +45,7 @@ Each LTE site (sectors on one EARFCN grouped by `PCI // 3`) gets clock offset an
 - **A poisoned calibration is discarded.** The prior is only as good as the GNSS it was learned under (ASM-01). A slow spoof passes the measurement gate, so trust in GNSS is not enough. Calibration is therefore gated and can be rolled back (decided 2026-11-09):
   - **Gate:** the clocks learn only after GNSS has been trusted continuously for `calib_gate_s` (`TBC`, 30 s), and only while the evidence that does not depend on GNSS agrees with it (barometer, our own clock, and later the trust tests of #82 and #83). Tower time never counts as confirming GNSS (ADR-0024).
   - **Rollback:** the filter keeps clock snapshots for the last `calib_rollback_s` (`TBC`, 60 s). When GNSS is flagged, the clocks return to the snapshot from before the suspect window, and everything learned since is discarded.
-- **Default.** The calibrated model is opt-in until, with the gate and rollback, it is no worse than per-tower clocks on the realistic scenario set and on every spoof scenario (paired 50-run evals). Then it becomes the default.
+- **Default.** The calibrated model is opt-in until it passes the bar in *Amendment* (paired 50-run evals against per-tower clocks). Then it becomes the default.
 - **The sim.** The base scenarios keep independent, drift-free tower clocks as the idealised control. The realistic and worst-case sets model shared builder clocks and site clocks, and the pitch numbers come from the realistic set.
 - **Each SDR is its own receiver clock.** A dongle that hears only one site of a builder adds a clock state and no redundancy, so the band plan should give each dongle at least two sites per builder (`TBC` by the scan).
 - **Base/rover (ADR-0020).** With the base running, differencing cancels site and builder clocks, and this model is the single-receiver fallback and the sim default. Neither protects absolute time against a wide-area spoof that captures the builders' timing: that stays with the GNSS common-mode hypothesis.
@@ -54,3 +54,12 @@ Each LTE site (sectors on one EARFCN grouped by `PCI // 3`) gets clock offset an
   - the static capture shows no common term within a builder (fall back to per-site clocks with drift)
   - jumps are frequent enough that the prior is useless within the outage lengths we target
   - the scan shows the builder split in Ottawa is not the one assumed here
+
+## Amendment (2026-11-09, decided by the owner)
+
+1. **Our receiver clock is modelled in the tower ranges.** The realistic and worst sets put one shared receiver-clock error into every tower reading. Left out of the filter, each tower's clock has to absorb it. In an outage the clock common to all towers is observable only as one shared term, which costs one tower's worth of geometry, the same reason GNSS needs a fourth satellite. That cost is expected and is reported, not hidden.
+2. **The bar for making the calibrated model the default** replaces the one in *Consequences*:
+   - **Spoof scenarios** (a `spoof_ramp`, `spoof_jump`, `meaconing` or `time_spoof` fault) are judged on integrity: misleading and hazardous epochs no worse than per-tower clocks, T4 detection time no worse, and at most 1 false alarm per hour.
+   - **Non-attack scenarios** keep the p95 bar, no worse than per-tower clocks: nominal, the realistic set without attacks, outages, and tower faults such as `tower-clock-step`.
+   - Both are paired 50-run evals (seeds 0–49) against `main`.
+
