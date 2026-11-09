@@ -8,14 +8,14 @@ Source: Honeywell kickoff deck, Challenge 2 (overview, instructions, deliverable
 
 ## Requirements
 
-Targets marked `TBD` are open questions for our Honeywell mentors (see the end of this file). Use cases are defined in [`use-cases.md`](use-cases.md); mentor answers so far are in [`mentor-qa.md`](mentor-qa.md).
+Targets marked `TBD` are open questions for our Honeywell mentors (see the end of this file). Values marked `TBC` are our proposals (T1–T5 in [`plan.md`](plan.md)), used until the mentors answer. Use cases are defined in [`use-cases.md`](use-cases.md); mentor answers so far are in [`mentor-qa.md`](mentor-qa.md).
 
 | ID | Requirement | Success measure | Verif. | Use cases | Status |
 | --- | --- | --- | --- | --- | --- |
-| REQ-01 | **Navigation continuity.** After GPS is lost, the system keeps providing horizontal position. | Horizontal error ≤ `TBD` m (95th percentile) for ≥ `TBD` s after GPS loss | A, T | UC-01, UC-02 | Draft |
-| REQ-02 | **Position confidence.** Every position estimate carries a horizontal protection level (HPL). | HPL bounds the true error in ≥ `TBD` % of epochs; shown as a Stanford plot | A, T | UC-01, UC-02 | Draft |
-| REQ-03 | **Timing continuity and confidence.** The system keeps time after GPS loss and reports its uncertainty. | Time error ≤ `TBD` µs after `TBD` min without GPS; reported 1-σ bounds it in ≥ `TBD` % of epochs | T | UC-03 | Draft |
-| REQ-04 | **Spoofing and fault detection.** The system detects GPS that disagrees with independent sources and stops trusting it. | Detects a spoof drift of `TBD` m/s within `TBD` s; false alarms ≤ `TBD` per hour | A, T | all | Draft |
+| REQ-01 | **Navigation continuity.** After GPS is lost, the system keeps providing horizontal position. Horizontal error ≤ 25 m (95th percentile) for ≥ 300 s after GPS loss (UC-01), and within RNP 0.3 (556 m) in the terminal phase (UC-02) (`TBC`) | A, T | UC-01, UC-02 | Draft |
+| REQ-02 | **Position confidence.** Every position estimate carries a horizontal protection level (HPL). | HPL bounds the true error in ≥ 99.9 % of epochs, with no hazardously misleading epochs on the fault scenarios; alert limit 50 m (UC-01), 556 m (UC-02) (`TBC`); shown as a Stanford plot | A, T | UC-01, UC-02 | Draft |
+| REQ-03 | **Timing continuity and confidence.** The system keeps time after GPS loss and reports its uncertainty. | Time error ≤ 1.5 µs after 10 min without GPS; reported 1-σ bounds it in ≥ 68 % of epochs (`TBC`) | T | UC-03 | Draft |
+| REQ-04 | **Spoofing and fault detection.** The system detects GPS that disagrees with independent sources and stops trusting it. | Detects a 2 m/s position spoof ramp within 30 s and a 50 ns/s time ramp within 60 s; false alarms ≤ 1 per hour on nominal runs (`TBC`) | A, T | all | Draft |
 | REQ-05 | **Real-time monitoring.** An operator display shows position, HPL, timing uncertainty and per-source status live. | Update rate ≥ `TBC` 1 Hz; end-to-end latency ≤ `TBD` s | D, T | all | Draft |
 | REQ-06 | **Signals of opportunity are primary.** Communication signals carry the solution; IMU and others assist. | Ablation: removing SoOP degrades REQ-01 by more than removing any single non-SoOP aid | A | all | Draft |
 | REQ-07 | **Receive-only.** The payload makes no intentional emissions beyond licence-exempt control, telemetry and Wi-Fi links. | No transmit path exists in hardware or code | I | all | Draft |
