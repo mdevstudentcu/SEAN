@@ -32,3 +32,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0026](0026-ground-link-security.md) | Ground links are signed and authenticated; logs are hash-chained | Proposed |
 | [0027](0027-dashboard-sse-canvas.md) | The dashboard streams over Server-Sent Events and draws on canvas | Accepted |
 | [0028](0028-fly-inav.md) | The drone flies INAV on the BLITZ ATF435, pilot-flown with an RC kill switch | Accepted |
+| [0029](0029-tethered-hover-wifi-control.md) | Tethered indoor hover may be flown from a gamepad through an ESP32 Wi-Fi bridge | Accepted |
