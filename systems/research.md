@@ -118,13 +118,13 @@ Each could still pre-empt a claim; none was read for this check.
 - Kassas group, *Opportunistic Autonomous Integrity Monitoring for Enhanced UAV Safety*: P2.
 - An IEEE Xplore and ION full-text search for "signals of opportunity" with "spoofing", "integrity" or "holdover", 2023–2026, as the hostile-SoOP report recommended.
 
-### Proposed wording changes (pending owner)
+### Wording changes (adopted 2026-11-09)
 
-These are proposals for the owners. ADR-0021's decision is not edited here; a change to it goes through its owners (rule 4 in `README.md`).
+The owner adopted these on 2026-11-09, together with leading the pitch on P3 and P5; ADR-0021 now carries them.
 
 1. **Context, second bullet.** Add that Jia et al. already group towers that share a clock into one constellation, calibrate them from GNSS, and allow a constellation-wide fault: "…adds no fault-detection redundancy, and towers that share a clock can be grouped and calibrated into one testable constellation (Jia, Khalife & Kassas 2023)."
 2. **P1 wording.** From "Calibrated tower clocks with site and network-builder grouping" to "Two-level tower clocks (site under network builder) with drift, learned under a gated calibration that is rolled back if GNSS was lying; extends Jia et al.'s SOP constellations". Pitch line: "We build on opportunistic ARAIM's grouping; what we add is protecting the calibration from a spoofed GPS."
-3. **P2 wording and role.** From "Solution-separation integrity with dependency-aware fault hypotheses, main novelty claim" to "Solution separation in which GNSS-timed and GNSS-derived sources fail with GPS, and each network builder's timing is its own fault". Pitch line: "Opportunistic ARAIM already lets a group of towers fail together. We found no published work that ties that group fault to the towers' GNSS timing, or that puts GNSS-dependent sources inside the GNSS fault." Whether P2 stays the main claim is open question 1.
+3. **P2 wording and role.** From "Solution-separation integrity with dependency-aware fault hypotheses, main novelty claim" to "Solution separation in which GNSS-timed and GNSS-derived sources fail with GPS, and each network builder's timing is its own fault". Pitch line: "Opportunistic ARAIM already lets a group of towers fail together. We found no published work that ties that group fault to the towers' GNSS timing, or that puts GNSS-dependent sources inside the GNSS fault." P2 is no longer the main claim: the pitch leads with P3 and P5.
 4. **P4 wording.** From "Base/rover differencing with collaborative integrity" to "Base/rover differencing in which the base is itself monitored as a fault". Drop "collaborative integrity" as a novelty term until Maaref 2020 is read.
 5. **Edwards on any slide.** "Two co-located towers of different operators kept their clock difference for over 95 minutes of intermittent, GPS-only jamming (Kassas et al. 2022)."
 6. **P3, P5 and P8 wording stays** "we found no published…", with the unread papers above named in the speaker notes.
