@@ -1,11 +1,14 @@
-"""The main estimator (issue #12), stage 1: clock states, no IMU yet.
+"""The main estimator (issue #12): clock states (stage 1) and an optional IMU motion model
+(stage 2).
 
 State (metres and metres per second throughout, so the matrix stays well conditioned):
-    [ e n u | ve vn vu | c*dt  c*ddt | tower clocks ... ]
-      position  velocity   receiver clock  one block per tower clock, added on first sight
+    [ e n u | ve vn vu | c*dt  c*ddt | (IMU: dθ b_a b_g) | tower clocks ... ]
+      position  velocity   receiver clock  motion="imu" only  one block per tower clock
 
-- Motion: constant velocity driven by white acceleration. Stage 2 replaces this with IMU
-  propagation (#9 models, #14 trajectories) without changing the measurement side.
+- Motion (`motion`): "cv" (default), constant velocity driven by white acceleration; or "imu",
+  strapdown propagation of the payload's IMU (stage 2, `nav/imu.py`), which adds attitude error
+  and accelerometer and gyro bias states after the receiver clock. The measurement side is the
+  same for both.
 - Receiver clock: offset and drift with the standard two-state oscillator model (white
   frequency noise h0 and random-walk frequency noise h-2). Defaults are literature values for a
   TCXO-class oscillator, TBC until measured (ADR-0015).
@@ -147,12 +150,14 @@ from pnt.core.frames import emitter_enu
 from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.protection import hpl, vpl
 from pnt.nav.baseline import CHI2_999
+from pnt.nav.imu import ImuMotion
 
 C = 299_792_458.0
 GNSS_TIME = "gnss:time"  # health key for GNSS time, separate from GNSS position ("gnss")
 POS, VEL, CLK, DRIFT = slice(0, 3), slice(3, 6), 6, 7
 N_CORE = 8
 CLOCK_MODELS = ("independent", "calibrated")
+MOTIONS = ("cv", "imu")
 SNAPSHOT_NS = 1_000_000_000  # clock snapshots for rollback, about 1 Hz
 CHECK_MIN_SAMPLES = 5  # a windowed check with fewer innovations has no opinion
 SPOOF_MIN_SITES = 4  # every site left out still leaves 3: enough for 2 offsets and a clock
@@ -220,9 +225,15 @@ class EKF:
         tower_position_sigma_m: float = 0.0,  # m per horizontal axis: told position; 0: off (TBC)
         seed_site_drift: bool = False,  # seed a new site's drift from the calibrated sites
         site_drift_floor: float = 0.1,  # m/s: least drift sigma of a seeded new site (TBC)
+        motion: str = "cv",  # or "imu" (stage 2, nav/imu.py)
+        imu: Mapping | None = None,  # ImuMotion options when motion="imu"
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
+        if motion not in MOTIONS:
+            raise ValueError(f"motion must be one of {MOTIONS}, not {motion!r}")
+        self.imu = ImuMotion(**(imu or {})) if motion == "imu" else None
+        self.n_core = N_CORE  # states before the first clock block (IMU states included)
         self.origin_llh = origin_llh
         self.q_accel, self.q_emitter = q_accel, q_emitter
         self.sf, self.sg = h0 / 2.0, 2.0 * np.pi**2 * h_2  # clock noise spectral densities
@@ -306,6 +317,9 @@ class EKF:
             ]
         )
         self.t_ns = m.t_ns
+        if self.imu is not None:
+            self.imu.augment(self, POS, VEL)
+        self.n_core = len(self.x)
 
     def _append_states(self, mean, sigma) -> int:
         """Add independent states with the given means and sigmas; returns the first index."""
@@ -478,11 +492,14 @@ class EKF:
         Q[CLK, CLK] = c2 * (self.sf * dt + self.sg * dt**3 / 3)
         Q[CLK, DRIFT] = Q[DRIFT, CLK] = c2 * self.sg * dt**2 / 2
         Q[DRIFT, DRIFT] = c2 * self.sg * dt
+        nav = None if self.imu is None else self.imu.propagate(self, t_ns, F, Q)
         if self.calibrated:
             self.calibrating = self.calibration_allowed()
             self._learned |= self.calibrating
         self._tower_process(F, Q, dt, self.calibrating)
         self.x = F @ self.x
+        if nav is not None:
+            self.x[nav[0]] = nav[1]  # the nonlinear mean of position, velocity and attitude
         self.P = F @ self.P @ F.T + Q
         self.t_ns = t_ns
         if self.calibrated and self.rollback_ns is not None:
@@ -514,7 +531,8 @@ class EKF:
     def _snapshot(self) -> None:
         if self._snaps and self.t_ns - self._snaps[-1][0] < SNAPSHOT_NS:
             return
-        self._snaps.append((self.t_ns, self.x[N_CORE:].copy(), self.P[N_CORE:, N_CORE:].copy()))
+        c = self.n_core
+        self._snaps.append((self.t_ns, self.x[c:].copy(), self.P[c:, c:].copy()))
         # Keep the newest snapshot old enough for the reach of an alarm now: the margin before
         # the current episode (or before a hold ago, if there is none), at most `calib_rollback_s`
         start = self.trouble_since
@@ -549,22 +567,23 @@ class EKF:
             t_s, xc, Pcc = snap
         dt = (self.t_ns - t_s) / 1e9
         k = len(xc)
-        m = len(self.x) - N_CORE
+        c = self.n_core
+        m = len(self.x) - c
         F, Q = np.eye(m), np.zeros((m, m))
-        self._tower_process(F, Q, dt, calibrating=False, base=N_CORE)  # the coast model
+        self._tower_process(F, Q, dt, calibrating=False, base=c)  # the coast model
         F, Q = F[:k, :k], Q[:k, :k]
-        old = slice(N_CORE, N_CORE + k)
+        old = slice(c, c + k)
         P = np.zeros_like(self.P)  # cross terms zeroed: see the module docstring
-        P[:N_CORE, :N_CORE] = self.P[:N_CORE, :N_CORE]
+        P[:c, :c] = self.P[:c, :c]
         P[old, old] = F @ Pcc @ F.T + Q
         for key, i in self.clock_idx.items():
-            if i >= N_CORE + k:  # first seen after the snapshot: back to its first-sight prior
+            if i >= c + k:  # first seen after the snapshot: back to its first-sight prior
                 P[i : i + 2, i : i + 2] = np.diag(np.square(self._clock_prior[key]))
         for i, s in self.multipath_sigma.items():  # the same for the tower error states
-            if i >= N_CORE + k:
+            if i >= c + k:
                 P[i, i] = s**2
         for i, _ in self.position_idx.values():
-            if i >= N_CORE + k:
+            if i >= c + k:
                 P[i, i] = P[i + 1, i + 1] = self.tower_position_sigma_m**2
         self.x[old] = F @ xc
         self.P = (P + P.T) / 2
@@ -592,6 +611,10 @@ class EKF:
 
     # --- measurements ------------------------------------------------------------------------
     def process(self, m: Measurement) -> None:
+        if m.kind == "accel_gyro":  # IMU samples drive the prediction, never an update
+            if self.imu is not None:
+                self.imu.add(self, m)
+            return
         if self.x is None:
             if m.kind == "position_enu":
                 self._init(m)
