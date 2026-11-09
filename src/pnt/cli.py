@@ -53,7 +53,7 @@ def _commit() -> str:
 
 def _fmt(metrics: dict) -> str:
     return "\n".join(
-        f"  {k:<22} {v:10.3f}" if isinstance(v, float) else f"  {k:<22} {v}"
+        f"  {k:<28} {v:10.3f}" if isinstance(v, float) else f"  {k:<28} {v}"
         for k, v in metrics.items()
     )
 
