@@ -1,9 +1,22 @@
 # Bill of materials
 
-- **Status:** Draft, 2026-11-08
-- **Prices:** CAD before tax, as listed on Amazon.ca and PiShop.ca on 2026-11-08. Delivery dates are what Amazon showed then for Ottawa (K1V); recheck at checkout.
-- **Delivery rule:** real sessions are recorded Mon–Tue (ADR-0015) and the sim freezes Wednesday, so anything not in hand by **Tue 2026-11-10 evening** is not worth buying.
+- **Status:** Draft, 2026-11-08; ground station added 2026-11-09
+- **Prices:** CAD before tax, as listed on Amazon.ca and PiShop.ca on the date in each section (2026-11-08 unless noted). Delivery dates are what Amazon showed then for Ottawa (K1V); recheck at checkout.
 - Unknowns are `TBD` (no value yet) or `TBC` (proposed, not confirmed).
+
+## Buying rules
+
+Every item in this file meets these, and anything added later must too. An item that breaks one goes to *Not using* with the reason.
+
+1. **In hand by Tue 2026-11-10 evening.** Real sessions are recorded Mon–Tue (ADR-0015) and the sim freezes Wednesday. An item arriving later is not worth buying unless an owner says otherwise.
+2. **Price, source and delivery stated.**
+   - Bought items give the price, the seller and listing ID (ASIN), and the delivery date with the date it was checked.
+   - Owned or supplied items say who has them (Team, HON, Workshop).
+   - "International shipping" is called out, because those dates slip.
+3. **Cheapest option that does the job.** Where a cheaper or more robust option exists, the alternatives and their trade-off (price, delivery, effort such as soldering) are listed next to it.
+4. **Receive-only.** Nothing on the payload or the ground station transmits on the bands we measure (ADR-0001, REQ-07). Licence-exempt control, telemetry and Wi-Fi links are the only exceptions.
+5. **Traceable.** Each item says what it is for and the ADR, REQ or decision that needs it. An item no decision needs is not bought.
+6. **No third-party software or data here.** Code and datasets follow the `AGENTS.md` rules, not this file.
 
 **Source key:** **HON** = Honeywell lab supplies (`Hackathon Material Supplies From HONAero.pdf`, not committed) · **Team** = already owned · **Buy** = to order · **Workshop** = Carleton EDC mechatronics workshop consumables · **Build** = made by us
 
@@ -13,7 +26,7 @@
 | --- | --- | --- |
 | Must buy | SDR A, SDR B, SMA pigtails | **$133.09** |
 | Buy only if day-1 tests need the hub (ADR-0018) | Pi Zero 2 W | $69.28 |
-| Optional | Ground-reference SDR | $63.95 |
+| Ground station (buy only if base/rover is adopted) | Reference SDR bundle + GPS with PPS | $92.34 |
 
 ## 1. Payload: compute, timing and sensors
 
@@ -26,7 +39,7 @@
 | Adafruit Ultimate GPS HAT | 1 | GPS fix, PPS on GPIO4, truth outdoors | HON | — | ADR-0014 |
 | GPS active antenna, 28 dB, 5 m, SMA | 1 | Puts the GPS antenna on a mast away from SDR/USB noise (RSK-06) | HON | — | |
 | SMA to u.FL adapter cable | 1 | Antenna → HAT | HON | — | |
-| CR1220 coin cell | 1 | Keeps the HAT's RTC alive (faster fix) | Buy (any pharmacy) | `TBD` | Optional |
+| CR1220 coin cell | 1 | Keeps the HAT's RTC alive (faster fix) | Buy: any pharmacy, same day | ~$5 `TBC` | Optional: only if cold starts are too slow on day 1 |
 | MPU6050 IMU, BMP280 barometer, jumpers | 1 kit | IMU + baro on the Pi 4B's I2C (the Zero's, if the hub is used) | HON (Sensor Kit v4.0) | — | ADR-0014 |
 | Pi camera | 1 | Optional video log | Team | — | |
 | Heatsink + 5 V fan | 1 | Pi cooling under SDR load | HON | — | |
@@ -69,13 +82,42 @@ Build steps, dimensions and tests: [`antennas.md`](antennas.md).
 
 ## 5. Ground
 
+### Laptop and link
+
 | Item | Qty | Role | Source | Price | Status / notes |
 | --- | --- | --- | --- | --- | --- |
 | Laptop | 1 | Front-ends, estimator, dashboard | Team | — | |
 | Wi-Fi link (phone hotspot or router) | 1 | Live stream (ADR-0009) | Team | — | Replay is the fallback (RSK-04) |
-| Raspberry Pi (lab) | 1 | Ground reference station | HON | — | Only useful with the SDR below |
-| NooElec NESDR SMArt v5 (dongle only) | 1 | *Optional:* ground reference for differential LTE | Buy: Amazon.ca | $63.95 | Tue Nov 10 |
-| GPS for the reference station (e.g. NEO-6M) | 1 | *Optional:* timebase at the reference | `TBD` | `TBD` | ADR-0014 suggests it; only with the reference SDR |
+
+### Ground reference station (prices and delivery checked 2026-11-09)
+
+A static receiver at a surveyed point that hears the same towers as the payload. It estimates their clocks for differential LTE (base/rover). Buy it only if the team adopts base/rover; otherwise it stays in simulation.
+
+It needs **no IMU, barometer or camera**, since it doesn't move. It does need a **GPS with PPS**: base and payload must share a time frame to well under 1 µs (1 µs ≈ 300 m), and NTP from the laptop only gives milliseconds.
+
+| Item | Qty | Role | Source | Price | Status / notes |
+| --- | --- | --- | --- | --- | --- |
+| NooElec NESDR SMArt v5 **Bundle** | 1 | Reference LTE receiver: same radio as the payload's SDR B, so the receiver biases match | Buy: Amazon.ca, ASIN B01GDN1T4S | $77.95 | **Today (Nov 9), 2–6 pm.** The bundle's magnetic base, 2 m cable and telescopic antennas (set to ~10.7 cm for 700 MHz) replace building a second LTE antenna |
+| GY-NEO6MV2 NEO-6M GPS, with patch antenna | 1 | PPS timebase and surveyed position (average the fix over ≥ 1 h) | Buy: Amazon.ca, ASIN B0CTG63TYF | $14.39 | **Today (Nov 9), 2–6 pm** on orders over $25. **No PPS pin:** solder one wire from the PPS LED's pad to Pi GPIO4 (`TBC`: check the board photos) |
+| Raspberry Pi 3B+ | 1 | Runs the reference SDR; PPS-disciplined timestamps (chrony + `pps-gpio`) | Team (owned; spare, ADR-0018) | — | Or the HON lab Pi |
+| microSD, 16–32 GB | 1 | Reference Pi OS. Data streams to the laptop, so nothing large is stored | Team `TBC`, else Buy | ~$12 `TBC` | The payload keeps the team's 32 GB card |
+| 5 V 2.5 A micro-USB supply | 1 | Reference Pi power (wall) | Team `TBC` | — | |
+| Ethernet cable | 1 | Reference → laptop, live | Team `TBC` | — | No SD storage limit, no Wi-Fi contention |
+| Female–female jumper wires | 4 | GPS UART + PPS to the Pi header | HON (sensor kit) | — | |
+
+**Total to buy: $92.34** (≈ $104 with 13% HST), arriving today.
+
+**Before use, run a zero-baseline test:**
+- Run the reference and the payload side by side for 5–10 min.
+- Any difference between their measurements is receiver bias. Measure it once and subtract it.
+
+**Alternatives:**
+
+| Option | Price | Arrives | Trade-off |
+| --- | --- | --- | --- |
+| ATGM336H GPS (ASIN B0GSZY9ZYB) instead of the NEO-6M | $20.20 | Wed Nov 11, ships internationally | Real PPS pin, no soldering; arrives the day before judging, so backup only |
+| NESDR SMArt v5 dongle only (Amazon.ca, seller NooElec; ASIN `TBC`) instead of the bundle | $63.95 | Tue Nov 10 | Saves $14 but needs a second hand-built LTE antenna (section 3) |
+| GT-U7 GPS (has a PPS pin) | $19.99 | Nov 13–24 | Breaks rule 1: too late |
 
 ## 6. Drone
 
@@ -98,7 +140,8 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 | --- | --- |
 | ESP32-S3 | None available; sensors go on the Pi 4B, Pi Zero 2 W hub as fallback (ADR-0018). Wi-Fi FTM and FTM responders are dropped |
 | Raspberry Pi Pico 2W (HON) | Considered as the hub; the Pi 4B (or the Zero fallback) runs the same Python and generated MAVLink as the recorder (ADR-0018) |
-| RTL-SDR Blog V3/V4, dipole kit, FM filter | Amazon.ca delivery Dec 21–25 |
+| RTL-SDR Blog V3/V4, dipole kit, FM filter | Amazon.ca delivery Dec 21–25 (rule 1) |
+| GT-U7 GPS module | Amazon.ca delivery Nov 13–24 (rule 1); the ground station uses a NEO-6M instead |
 | Airspy Mini | Budget |
 | Flamingo FM band-stop filter ($46) | Skipped; VOR is 16.8 km away. Revisit only if the RF survey shows FM overload |
 | LoRa HAT 915 MHz (HON) | A 22 dBm transmitter ~20 MHz above the 850 MHz LTE downlink would desensitize the unfiltered SDRs; Canadian certification unconfirmed |
@@ -106,6 +149,8 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 | L-band patch antenna (Iridium) | LEO layer is simulated (ADR-0013, mentor Q5) |
 
 ## Open decisions
+
+- Ground station: buy it only if base/rover is adopted (decision P4). Order **today** for same-day delivery; the NEO-6M PPS solder joint needs someone with a soldering iron.
 
 - Hub needed at all: day-1 test of IMU jitter, CPU load, dropped samples and PPS offset on the 4B (ADR-0018, `TBD`). If yes, its USB link is serial or network gadget (`TBC`).
 - USB current: two SDRs (plus the Zero, if used) against the 4B's USB budget; measure with the DPS-150 (ADR-0018, `TBC`).
