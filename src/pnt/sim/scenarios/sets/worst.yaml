@@ -1,5 +1,8 @@
 # Worst: few towers, strong reflections, poor tower data, and a filter told the noise is better
 # than it is. A stress case, not a prediction. Every value is TBC (ADR-0015).
+# Caveat: `receiver_clock: true` puts one shared clock error into every tower reading. Neither
+# estimator on main models that yet (#12), so they reject the towers here: results in this
+# environment measure that gap, not how hard the environment is.
 description: Stress case with few towers and strong persistent errors.
 duration_s: 360
 dt_s: 0.1

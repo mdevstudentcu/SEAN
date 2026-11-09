@@ -1,5 +1,8 @@
 # Realistic: our best current estimate of a low-cost receiver in the real world. Every value is
 # TBC until the radio test and published data replace it (ADR-0015).
+# Caveat: `receiver_clock: true` puts one shared clock error into every tower reading. Neither
+# estimator on main models that yet (#12), so they reject the towers here: results in this
+# environment measure that gap, not how hard the environment is.
 description: Best current estimate of real conditions for a low-cost receiver.
 duration_s: 360
 dt_s: 0.1
