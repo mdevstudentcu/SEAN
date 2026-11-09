@@ -14,6 +14,7 @@ trajectory:
 sources:
   gnss: {rate_hz: 5, sigma_m: 2.5}
   baro: {rate_hz: 10, sigma_m: 0.5}
+  imu: {rate_hz: 100}   # MPU6050 (ADR-0014, sim/sensors.py); rate TBC until the Pi 4B day-1 test (ADR-0018)
   lte:
     model: pseudorange
     rate_hz: 1

@@ -50,3 +50,19 @@ def test_replay_can_hide_a_source(tmp_path):
             w.write(f"/meas/{meas.source}", meas)
     hidden = list(ReplaySource(path, hide={"gnss": (T0_NS, None)}))
     assert all(m.source != "gnss" for m in hidden)
+
+
+def test_imu_records_leave_every_other_record_unchanged():
+    """The IMU draws from its own stream, so a scenario with it is the same run plus IMU records,
+    and an estimator that ignores the IMU gives the same estimates."""
+    spec = load("gps-outage")
+    without = {**spec, "sources": {k: v for k, v in spec["sources"].items() if k != "imu"}}
+    a = generate(spec, seed=2).measurements
+    b = generate(without, seed=2).measurements
+    imu = [m for m in a if m.source == "imu"]
+    assert [m for m in a if m.source != "imu"] == b
+    assert {m.kind for m in imu} == {"accel_gyro"}
+    assert set(np.diff([m.t_ns for m in imu])) == {10_000_000}  # 100 Hz
+    f = np.array([m.value[:3] for m in imu])
+    assert abs(np.linalg.norm(f, axis=1).mean() - 9.81) < 0.2  # hovering-ish: about 1 g
+    assert list(baseline.run(a)) == list(baseline.run(b))
