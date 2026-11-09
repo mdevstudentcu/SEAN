@@ -552,9 +552,12 @@ def cmd_live(args) -> None:
     if args.out:
         out = Path(args.out)
         out.mkdir(parents=True)
-        meta = {"name": out.name, "platform": "live", "origin_llh": list(origin),
-                "simulated": False, "commit": _commit(), "reference": reference,
-                "notes": f"recorded on the laptop from {', '.join(src.endpoints)}"}  # fmt: skip
+        pi = src.meta.get("payload", {})
+        meta = {"name": out.name, "platform": pi.get("platform"), "origin_llh": list(origin),
+                "simulated": False, "commit": _commit(), "hardware": pi.get("hardware"),
+                "reference": reference,
+                "notes": f"live stream recorded on the laptop from {', '.join(src.endpoints)}; "
+                         f"payload commit {pi.get('commit')}"}  # fmt: skip
         session.write_meta(out, meta)
         writer = SessionWriter(out / session.MCAP_NAME)
 

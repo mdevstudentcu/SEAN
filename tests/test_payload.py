@@ -80,7 +80,7 @@ class FakeSdrStream:
         self.drop_at, self.drop_s = drop_at, drop_s
         self.stderr = ["Found 1 device(s): fake"]
 
-    def read(self, nbytes):
+    def read(self, nbytes, stop=None):
         due = self.t0 + (self.k + 1) * (nbytes / 2) / self.fs
         if self.k >= self.drop_at:
             due += self.drop_s
@@ -487,3 +487,68 @@ def test_payload_code_needs_only_the_payload_extra():
     )
     res = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert res.returncode == 0, res.stderr
+
+
+# A stand-in for rtl_sdr: 10 chunks of IQ, then silence like a stuck dongle.
+STUCK_SDR = (
+    "import sys, time\n"
+    "sys.stderr.write('Found 1 device(s)\\n'); sys.stderr.flush()\n"
+    "for _ in range(10):\n"
+    "    sys.stdout.buffer.write(bytes(2400)); sys.stdout.buffer.flush(); time.sleep(0.05)\n"
+    "time.sleep(60)\n"
+)
+# A stand-in for rpicam-vid: writes to its output until SIGINT, then exits cleanly.
+FAKE_CAMERA = (
+    "import signal, sys, time\n"
+    "signal.signal(signal.SIGINT, lambda *a: sys.exit(0))\n"
+    "f = open(sys.argv[1], 'wb')\n"
+    "while True:\n"
+    "    f.write(b'frame'); f.flush(); time.sleep(0.05)\n"
+)
+
+
+def test_real_readers_stop_cleanly_even_when_a_dongle_is_stuck(tmp_path):
+    """The pipe reader and the camera process, through their real code paths (a Python
+    stand-in replaces the binary). A dongle that stops sending must not hang the recorder."""
+    import sys
+
+    from pnt.payload.devices import Camera
+    from pnt.payload.sdr import RtlSdrStream
+
+    stand_in = [sys.executable, "-c", STUCK_SDR]
+    sdr = RtlSdr(
+        "a", 48e3, rate_hz=48e3, chunk=1200, stream_factory=lambda _: RtlSdrStream(stand_in)
+    )
+    cam = Camera(cmd=[sys.executable, "-c", FAKE_CAMERA])
+    t = time.monotonic()
+    meta = Recorder(tmp_path / "s", [sdr, cam]).run(duration_s=1.5)
+    assert time.monotonic() - t < 10
+    assert set(meta["hardware"]) == {"rtl-sdr", "pi-camera"}, meta["notes"]
+    side = json.loads((tmp_path / "s" / "sdr_a.json").read_text())
+    assert side["samples"] == 10 * 1200 and side["stderr"] == ["Found 1 device(s)"]
+    cam_json = json.loads((tmp_path / "s" / "camera.json").read_text())
+    assert cam_json["t_ns"] >= cam_json["t_ns_launch"]
+    assert (tmp_path / "s" / "camera.mp4").stat().st_size > 0
+
+
+def test_pnt_live_runs_the_estimator_on_the_stream_and_records_it(tmp_path, capsys):
+    """`pnt live` over loopback: origin from the payload's meta, estimates printed, the stream
+    and the estimates recorded to a session that `pnt replay` reads."""
+    gpsd = FakeGpsd()
+    bus = FakeI2C()
+    streamer = Streamer("tcp://127.0.0.1:*")
+    rec = Recorder(tmp_path / "pi", [Gpsd(port=gpsd.port), Mpu6050(bus=bus), Bmp280(bus=bus)],
+                   streamer=streamer)  # fmt: skip
+    pi = threading.Thread(target=rec.run, kwargs={"duration_s": 5.0})
+    pi.start()
+    out = tmp_path / "live"
+    main(["live", "--connect", streamer.endpoint, "--duration", "4", "--out", str(out)])
+    pi.join()
+    streamer.close()
+    gpsd.close()
+    printed = capsys.readouterr().out
+    assert "enu=(" in printed and "'late': 0" in printed
+    meta = session.read_meta(out)
+    assert meta["origin_llh"] == pytest.approx(ORIGIN, abs=1e-5)
+    topics = {t for t, _ in read_session(out / "session.mcap")}
+    assert {"/meas/gnss", "/meas/imu", "/nav/baseline"} <= topics

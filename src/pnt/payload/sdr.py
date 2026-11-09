@@ -24,6 +24,7 @@ import fcntl
 import json
 import os
 import queue
+import select
 import shutil
 import subprocess
 import threading
@@ -114,7 +115,10 @@ class RtlSdrStream:
     def __init__(self, cmd: list[str]):
         self.cmd = cmd
         pipe = subprocess.PIPE
-        self.proc = subprocess.Popen(cmd, stdout=pipe, stderr=pipe, bufsize=0)
+        # own session: a Ctrl-C in the terminal reaches the recorder, which stops rtl_sdr itself
+        self.proc = subprocess.Popen(
+            cmd, stdout=pipe, stderr=pipe, bufsize=0, start_new_session=True
+        )
         try:
             fcntl.fcntl(self.proc.stdout.fileno(), F_SETPIPE_SZ, 1 << 20)
         except OSError:
@@ -127,13 +131,18 @@ class RtlSdrStream:
         for line in iter(self.proc.stderr.readline, b""):
             self.stderr.append(line.decode(errors="replace").rstrip())
 
-    def read(self, nbytes: int) -> bytes:
-        """Exactly `nbytes`, or fewer at end of stream."""
+    def read(self, nbytes: int, stop=None) -> bytes:
+        """Exactly `nbytes`; fewer at end of stream, or once `stop` is set (a stuck dongle
+        cannot hold the recorder up)."""
         buf = bytearray(nbytes)
         view = memoryview(buf)
         got = 0
         fd = self.proc.stdout.fileno()
         while got < nbytes:
+            if not select.select([fd], [], [], 0.5)[0]:
+                if stop is not None and stop.is_set():
+                    break
+                continue
             n = os.readv(fd, [view[got:]])
             if n == 0:
                 break
@@ -257,11 +266,11 @@ class RtlSdr:
         ctx.event(now, f"{self.name} started", command=self.command())
         try:
             while not ctx.stop.is_set() and not write_error:
-                data = self._stream.read(nbytes)
+                data = self._stream.read(nbytes, ctx.stop)
                 t = self._clock()
-                if not data:
-                    break
                 n = len(data) // 2
+                if n == 0:
+                    break
                 self.buffers.append([self.samples, t - round(n * 1e9 / self.rate_hz)])
                 self.samples += n
                 q.put(data[: 2 * n])
