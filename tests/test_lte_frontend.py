@@ -312,6 +312,14 @@ def test_arcs_with_overlapping_half_frame_counts_are_emitted_separately():
     assert [m.value[0] for m in pr] == pytest.approx([synth.C * n / FS for n in (1000, 5000)])
 
 
+def test_t_ns_is_exact_integer_gps_time():
+    # A float64 near 1.4e18 ns can only hold multiples of 256 ns.
+    t0 = T0 + 1
+    cell = CellTrack(2460, FC, 8, 1000.0, epochs=_epochs(1000.0, 0.0, 0))
+    pr = emit([cell], _capture_stub(t0), GapMap(), Config())
+    assert pr[0].t_ns == t0 + 50_000_000  # the middle epoch: k = 10, 5 ms each
+
+
 def test_sample_rate_2_4_msps(tmp_path):
     tower = synth.Tower(pci=9, delay_s=2.2345678e-3, delay_rate=-20 / synth.C)
     r = process_file(write(tmp_path, "fs24", [tower], 0.8, 0.0, fs=2.4e6, fc=731.5e6))

@@ -161,8 +161,8 @@ def emit(
         }  # fmt: skip
         arc_shift, marks = _gap_effects(a["n_ref"], gaps)
         a["arc"] = a["arc"] + arc_shift
-        a["t"] = cap.t0_ns + a["c_ref"] * 1e9 / fs
-        key = np.floor(a["t"] / period_ns).astype(np.int64) * 1_000_000 + a["arc"]
+        a["t"] = cap.t0_ns + np.rint(a["c_ref"] * 1e9 / fs).astype(np.int64)  # int64 GPS ns
+        key = a["t"] // period_ns * 1_000_000 + a["arc"]
         cuts = np.r_[0, np.nonzero(np.diff(key))[0] + 1, len(ep)]
         for lo, hi in zip(cuts[:-1], cuts[1:], strict=True):
             g = {name: v[lo:hi] for name, v in a.items()}
@@ -226,7 +226,7 @@ def _outputs(cell, g, flags, cap, gaps, cfg, receiver, L) -> list[Measurement]:
         "ambiguity_m": C * sig.FRAME_S,
         "flags": flags,
     }
-    t_ns = int(round(t_ref))
+    t_ns = int(t_ref)
     out = [
         Measurement(t_ns=t_ns, source="lte", kind="pseudorange", emitter=emitter,
                     receiver=receiver, value=(value,), sigma=(sigma,), meta=meta)
