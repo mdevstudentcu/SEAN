@@ -37,7 +37,7 @@ def test_registered_and_opt_in():
 
 
 def test_groups_follow_adr0024():
-    mon = MHSS(None, site_of={"lte:a": "S1"}, builder_of={"lte:a": "TELUS"})
+    mon = MHSS(None, sites={"lte:a": "S1"}, builders={"S1": "TELUS"})
     assert set(mon.groups(M("gnss", "position_enu"))) == {GNSS_CM}
     assert set(mon.groups(M("gnss", "time"))) == {GNSS_CM}
     assert set(mon.groups(M("adsb", "adsb_report"))) == {GNSS_CM}  # GNSS-derived
