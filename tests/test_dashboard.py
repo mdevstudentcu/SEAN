@@ -130,6 +130,25 @@ def test_time_pl_over_its_limit_raises_an_alert():
     assert s["alerts"][0]["severity"] == health.ALARM
 
 
+def test_status_follows_the_panels_alert_limit():
+    tight = HealthMonitor(20.0, 1.5e-6)
+    tight.update(_est(0.0))  # settled
+    s = tight.update(_est(1.0, status="nominal", hpl=40.0))
+    assert s["status"] == "unsafe" and "within the limit" not in s["headline"]
+    assert [a["key"] for a in s["alerts"]] == ["status:unsafe"]
+    wide = HealthMonitor(556.0, 1.5e-6)
+    wide.update(_est(0.0))
+    s = wide.update(_est(1.0, status="unsafe", hpl=100.0))  # the estimator's own 50 m limit
+    assert s["status"] == "nominal" and s["alerts"] == []
+    s = wide.update(_est(2.0, status="unsafe", hpl=100.0, flags=["gnss_unavailable"]))
+    assert s["status"] == "degraded"
+
+
+def test_status_without_a_protection_level_is_the_estimators():
+    s = HealthMonitor(50.0, 1.5e-6).update(_est(0.0, status="degraded", hpl=None))
+    assert s["status"] == "degraded"
+
+
 def test_low_trust_listed_apart():
     s = HealthMonitor(50.0, 1.5e-6).update(_est(0.0, trust={"gnss": 0.0, "lte": 1.0}))
     assert s["low_trust"] == {"gnss": 0.0} and s["trusted"] == {"lte": 1.0}
@@ -188,6 +207,17 @@ def test_frames_from_sim_are_json_and_raise_the_outage(tmp_path):
     keys = {a["key"] for a in out[-1]["health"]["alerts"]}
     assert "gnss_unavailable" in keys  # latched from the outage, still shown after it ends
     assert all(f["err_h_m"] is not None for f in out)
+
+
+def test_frames_and_preflight_use_the_panels_alert_limit(tmp_path):
+    def run(limit):
+        feed = sim_feed(_small(tmp_path), seed=0, estimator="ekf", alert_limit_m=limit)
+        return feed, list(frames(feed, HealthMonitor(limit, 1.5e-6)))
+
+    feed, out = run(1e6)
+    assert feed.preflight["unavailable"] == [] and "unsafe" not in {f["status"] for f in out}
+    feed, out = run(0.01)  # below any HPL: every epoch is over it
+    assert feed.preflight["unavailable"] and {f["status"] for f in out} == {"unsafe"}
 
 
 def _free_port() -> int:

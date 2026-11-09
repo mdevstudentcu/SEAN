@@ -157,6 +157,19 @@ def time_to_limit_s(t_s: np.ndarray, pl: np.ndarray, limit: float) -> float | No
     return tta if tta <= TTA_HORIZON_S else None
 
 
+def panel_status(est: Estimate, alert_limit_m: float) -> str:
+    """The estimate's status, judged against the panel's alert limit. An estimator calls itself
+    unsafe against its own built-in limit, so the panel keeps its "degraded" and "nominal" but
+    decides "unsafe" here, the same way (HPL over the limit)."""
+    if est.hpl_m is None:
+        return est.status
+    if est.hpl_m > alert_limit_m:
+        return "unsafe"
+    if est.status == "unsafe":
+        return "degraded" if est.flags else "nominal"
+    return est.status
+
+
 @dataclass
 class Alert:
     id: int
@@ -200,9 +213,10 @@ class HealthMonitor:
                 ALARM,
                 "Time protection level over the time alert limit: do not rely on our time output.",
             )
-        if est.status in STATUS and est.status != "degraded":
-            current[f"status:{est.status}"] = STATUS[est.status]
-        self.settled = self.settled or est.status == "nominal" or t >= STARTUP_MAX_S
+        status = panel_status(est, self.al)
+        if status in STATUS and status != "degraded":
+            current[f"status:{status}"] = STATUS[status]
+        self.settled = self.settled or status == "nominal" or t >= STARTUP_MAX_S
         for key, (sev, text) in current.items() if self.settled else ():
             aid = self._open.get(key)  # a cleared, acknowledged alert is already forgotten
             if aid is None:
@@ -222,8 +236,8 @@ class HealthMonitor:
         tta_h = self._trend(self._hpl, t, hpl, self.al)
         tta_t = self._trend(self._tpl, t, tpl_s, self.tal)
         trust = dict(sorted(est.trust.items()))
-        if est.status in STATUS:
-            headline = STATUS[est.status]
+        if status in STATUS:
+            headline = STATUS[status]
         else:
             headline = (
                 "ok",
@@ -231,7 +245,7 @@ class HealthMonitor:
             )
         return {
             "t_s": t,
-            "status": est.status,
+            "status": status,
             "headline": headline[1],
             "causes": [
                 {"flag": f, "severity": s, "text": txt}

@@ -362,14 +362,25 @@ def _dash_sim(args) -> None:
     """`pnt sim <scenario> --dash`: the scenario straight onto the panel, nothing recorded."""
     from pnt.dashboard.feed import sim_feed
 
-    feed = sim_feed(args.scenario, args.seed, args.estimator, preflight=not args.no_preflight)
+    feed = sim_feed(
+        args.scenario,
+        args.seed,
+        args.estimator,
+        preflight=not args.no_preflight,
+        alert_limit_m=args.alert_limit,
+    )
     _serve_dash(feed, args)
 
 
 def cmd_dash(args) -> None:
     from pnt.dashboard.feed import replay_feed
 
-    feed = replay_feed(args.session, args.estimator, preflight=not args.no_preflight)
+    feed = replay_feed(
+        args.session,
+        args.estimator,
+        preflight=not args.no_preflight,
+        alert_limit_m=args.alert_limit,
+    )
     _serve_dash(feed, args)
 
 
