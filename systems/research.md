@@ -50,7 +50,7 @@ Which other sources are worth adding, and where Honeywell already is.
 
 ## Novelty check (#98)
 
-ADR-0021 says "first" is never claimed and the wording stays "we found no published…" until the closest papers have been read in full. This section records that reading, done 2026-11-09. "Read in full" means the whole open PDF or HTML was read; where only an abstract or a citing paper was available, the entry says so and draws no conclusion beyond it.
+ADR-0021 says "first" is never claimed and the wording stays "we found no published…" until the closest papers have been read in full. This section records that reading, done 2026-11-09, and a second reading the same day for the lead claims P3 and P5. "Read in full" means the whole open PDF or HTML was read; where only an abstract or a citing paper was available, the entry says so and draws no conclusion beyond it.
 
 ### What each paper does
 
@@ -93,18 +93,40 @@ ADR-0021 says "first" is never claimed and the wording stays "we found no publis
 
 **Tedeschi, Oligeri & Di Pietro, IEEE Access 2020 (JAM-ME).** **Full text not retrieved**: IEEE Access is open access, but every automated fetch was blocked. From the abstract and the authors' page only: a drone estimates a jammer's position from the jamming signal and uses it as a radio beacon to reach a target, in simulation, with about 70 % mission overhead under conservative assumptions. Whether it has any uncertainty bound or deceptive-jammer model is unknown until a person reads the PDF.
 
+### Second reading (P3, P5 lead claims), 2026-11-09
+
+Read after the owner moved the pitch to P3 and P5. **It changes both verdicts: P3 and P5 are each partly published** (see the table below). Neither paper found does what we do with towers, but the general ideas behind both claims are in print.
+
+**Time protection levels for GNSS timing receivers (P5).**
+- **Kirkko-Jaakkola et al., ION GNSS 2017.** Abstract only. Derives time protection level equations for a GNSS time solution from false-alarm and missed-detection probabilities and the number of simultaneous faults, and falls back to oscillator holdover when a fault cannot be excluded.
+- **Lin, Su & Schön, ION GNSS+ 2024.** Abstract only (full text behind a sign-in). An integrity framework for GNSS time synchronisation with timing errors, sector-specific timing alert limits (finance, telecom) and timing protection levels; better clocks (CSAC) help.
+- **Baweja, arXiv 2606.24210 (2026).** Read in full (HTML). Single-author preprint, not peer reviewed. We cited it before only for its JammerTest time pull; it is in fact **a conditional timing protection level under spoofing**: a detectability floor from a cross-satellite consistency monitor plus the oscillator's holdover uncertainty over the detection latency. It argues that no finite bound exists without an independent detector. Its only aiding during holdover is the local oscillator; no terrestrial or opportunistic source is used. It states that it carries no integrity-risk budget and is calibrated on one campaign, not validated.
+- **Winter, Morrison & Sokolova, Sensors 2024.** Read (open full text). The "Winter et al." that Lapin 2024 cites for clocks clustering by operator is this group's work. Measures LTE and 5G sync-signal timing from a static receiver against a GNSS-disciplined rubidium clock, motivated by time holdover. No holdover through an outage is demonstrated, and no bound or protection level is computed.
+
+**GNSS time-spoof detection from other time sources (P3).**
+- **Zhang, Spanghero & Papadimitratos, IEEE/ION PLANS 2020 (arXiv 2202.10891).** Read in part: abstract, related-technology survey and system model. Validates GNSS time against other time sources on a commodity platform: Wi-Fi beacon timestamps and NTP, after a survey that includes cellular network time. Shifts above about 24 µs (Wi-Fi) and 2 ms (NTP) are detected. The external sources are trusted as independent of GNSS; tower clocks are not calibrated, and no time bound is given.
+- **Sharma, Owens & Kiernan, arXiv 2607.11398 (2026).** Read in full (HTML). Network-side: the operator correlates timing drift across base stations that share a grandmaster to detect a GNSS spoof of the grandmaster, in simulation (detection above 95 % for drifts over 0.5 ns/s). Nothing a passive user can measure, and no user-facing time bound.
+- **Crosara, Tuninato, Ardizzon, Caparra, Lapin & Laurenti, IEEE SPAWC 2025.** Abstract only: no open copy found (Padova repository lists no file, no arXiv version). Attacks on 5G PRS positioning that alter propagation times and corrupt the estimated clock offset. An attack paper on network positioning, not a detector.
+- **Bai, Sun, Dempster, Zhao & Feng, IEEE TAES 2024.** Abstract only. Detects and mitigates GNSS **position** spoofing with one 5G base station in a hybrid EKF, treating 5G as spoof-free. Not time-only, and the base station's GNSS-disciplined time is not considered.
+
+**The rest of the list.**
+- **Khalife, Maaref & Kassas, IEEE AES Magazine 2023** [Khalife 2023b] (*Opportunistic Autonomous Integrity Monitoring for Enhanced UAV Safety*). Read in full. Snapshot opportunistic ARAIM with a fault tree of up to three simultaneous faults; P_SOP 10⁻⁴ per tower and **P_const,SOP set to 0**, because no tower-group fault had been seen in their tests (they note this may be optimistic). Its experiment uses a base receiver for differential corrections and **assumes the base has a known position and clock and adds no common error**.
+- **Maaref, Khalife & Kassas, ACM/IEEE ICCPS 2019** (work-in-progress abstract, the conference precursor of Maaref 2020). Read in full (2 pages). A base with a known state estimates tower clocks and shares them; EKF with NIS outlier detection. The base is not a fault.
+- **Maaref & Kassas, IEEE T-IV 2020.** **Not retrievable**: no open copy found (author pages, NSF PAR, eScholarship hold only the 2019 precursor).
+- **JAM-ME (Tedeschi, Oligeri & Di Pietro 2020).** **Not retrievable** within our access rules: IEEE Access is open access, but the publisher blocks automated fetches, the HBKU and Manara repositories link only the DOI or refuse access, and there is no arXiv version. A person can open https://doi.org/10.1109/ACCESS.2019.2963105 in a browser.
+
 ### What they pre-empt in ADR-0021
 
 | ID | Contribution | Pre-empted by | What is left that we did not find published |
 | --- | --- | --- | --- |
 | P0 | Attack library and report card | Not addressed by these papers | Unchanged; it was never a novelty claim |
 | P1 | Calibrated tower clocks, site and builder grouping | **Largely**: Jia 2023 groups towers sharing a clock into a constellation and calibrates their offsets from GNSS | Two levels (site offset under a builder term), drift states, builder rather than brand as the key, and a calibration that is gated and rolled back when GNSS turns out to be spoofed |
-| P2 | Solution separation with dependency-aware fault hypotheses | **Partly**: Jia 2023 already runs MHSS with tower faults and, formally, a constellation-wide fault per tower group | A GNSS common-mode hypothesis that also contains GNSS-timed and GNSS-derived sources (ADR-0024); the builder-wide fault tied to timing holdover or capture; adversarial towers; a Kalman-filter bank with GNSS-free re-seeding |
-| P3 | Calibrated clocks as a time-spoof and meaconing detector | Not by these papers. Sharma 2026 and the Padova work are still unread (see below) | A user-side, passive detector of time-only spoofs from calibrated tower clocks |
-| P4 | Base/rover with collaborative integrity | **Partly**: Maaref 2022 describes earlier work [Maaref 2020] with a base estimating tower clocks inside an integrity framework; differencing itself is published [Khalife 2023] | The base as its own fault hypothesis (moved, clock step, lost, spoofed), and an authenticated base link (ADR-0026). Confirm once Maaref 2020 is read |
-| P5 | Time protection level | Not by these papers | Unchanged |
+| P2 | Solution separation with dependency-aware fault hypotheses | **Partly**: Jia 2023 already runs MHSS with tower faults and, formally, a constellation-wide fault per tower group; Khalife 2023b sets that group fault's prior to zero | A GNSS common-mode hypothesis that also contains GNSS-timed and GNSS-derived sources (ADR-0024); a non-zero builder-wide fault tied to timing holdover or capture; adversarial towers; a Kalman-filter bank with GNSS-free re-seeding |
+| P3 | Calibrated clocks as a time-spoof and meaconing detector | **Partly**: checking GNSS time against other time sources is published (Zhang 2020: Wi-Fi and NTP, tens of µs to ms); operators detect grandmaster spoofing network-side (Sharma 2026); 5G aiding detects position spoofs (Bai 2024) | A passive user's detector built on **calibrated tower clocks**, sensitive well below Zhang's thresholds (sizes `TBC` until measured), that treats tower time as GNSS-timed so it can refute GNSS time but never confirm it, and catches a meacon's delay as a clock step |
+| P4 | Base/rover with collaborative integrity | **Partly**: a base estimating tower clocks inside an integrity framework is published (Maaref 2019, and Maaref 2020 as described by Maaref 2022); differencing itself is published [Khalife 2023] | The base as its own fault hypothesis (moved, clock step, lost, spoofed): both papers read assume the base is known and fault-free. An authenticated base link (ADR-0026). Maaref 2020 itself is still unread |
+| P5 | Time protection level | **Partly**: time protection levels for GNSS timing receivers are published (Kirkko-Jaakkola 2017; Lin 2024), including one bounded by oscillator holdover under spoofing (Baweja 2026) | A time protection level for time **held by signals of opportunity** through a GNSS outage, whose bound accounts for the towers being GNSS-timed; and the timing Stanford plot and report card against it. No paper found does this |
 | P6, P7, P9–P13 | Add-ons | Not addressed by these papers | Not checked here |
-| P8 | Hostile emitter as a low-trust beacon | JAM-ME, abstract only | A fused, gated, fault-hypothesised hostile beacon. Unchanged until JAM-ME is read in full |
+| P8 | Hostile emitter as a low-trust beacon | JAM-ME, abstract only; full text not retrievable | A fused, gated, fault-hypothesised hostile beacon. Unchanged until a person reads JAM-ME |
 
 Two further corrections to our earlier wording:
 - **"Integrity groups assume benign towers" holds** for the three Kassas-group papers read: their faults are ranging errors, multipath and blocked line of sight. **"Security groups compute no protection levels" holds** for both KTH papers.
@@ -112,11 +134,20 @@ Two further corrections to our earlier wording:
 
 ### Still unread
 
-Each could still pre-empt a claim; none was read for this check.
-- Maaref & Kassas, IEEE T-IV 2020 (base-assisted integrity): P4. Not retrievable as open text.
-- Sharma, Owens & Kiernan, arXiv 2607.11398, and Ardizzon & Laurenti (Padova, 2025): P3 (network-side and propagation-time attacks on clock estimation).
-- Kassas group, *Opportunistic Autonomous Integrity Monitoring for Enhanced UAV Safety*: P2.
-- An IEEE Xplore and ION full-text search for "signals of opportunity" with "spoofing", "integrity" or "holdover", 2023–2026, as the hostile-SoOP report recommended.
+Each could still change a verdict.
+- Maaref & Kassas, IEEE T-IV 2020 (P4): not retrievable as open text.
+- JAM-ME (P8): not retrievable by an agent; needs a person with a browser.
+- Full texts of Kirkko-Jaakkola 2017, Lin 2024 (P5), Crosara 2025 and Bai 2024 (P3): abstracts only.
+- An IEEE Xplore and ION full-text search for "signals of opportunity" with timing integrity or time spoofing. The web and arXiv searches done (2026-11-09) found the papers above and nothing that computes a time protection level for SoOP-held time or detects time-only spoofs from calibrated tower clocks.
+
+### Proposed wording changes after the second reading (pending owner)
+
+These change wording adopted earlier the same day. ADR-0021 is not edited here: its "Reopen if" names exactly this case (a still-unread paper shows P3 or P5 published), so the owner decides.
+
+1. **P5.** From "Time protection level" to "A time protection level for time held by signals of opportunity, which accounts for the towers' GNSS-disciplined clocks". Pitch line: "Time protection levels exist for GNSS timing receivers (Kirkko-Jaakkola et al. 2017). We found no published one for time held by cell towers through a GNSS outage."
+2. **P3.** From "Calibrated clocks as a time-spoof and meaconing detector" to "Calibrated tower clocks as a passive time-spoof and meaconing detector that can refute GNSS time but never confirm it". Pitch line: "Checking GNSS time against other clocks is known (Zhang, Spanghero & Papadimitratos 2020, with Wi-Fi and NTP). We found no published detector that uses calibrated cell-tower clocks, or that treats tower time as failing with GPS."
+3. **ADR-0021 Context** says the check found "nothing published for P3, P5 or P8". After this reading that holds only for P8 (and P8's closest paper is unread).
+4. **`src/pnt/integrity/protection.py`** says no standard defines a time protection level. That stays true of standards, but research definitions exist (above); the docstring could cite Kirkko-Jaakkola 2017 and Baweja 2026. A code change, so not made here.
 
 ### Wording changes (adopted 2026-11-09)
 
@@ -135,10 +166,12 @@ Each entry gives authors, year, venue and a link. Organisation-authored sources 
 
 - [3GPP TS 36.104] 3GPP (ETSI TS 136 104), *E-UTRA Base Station radio transmission and reception*, §6.5.1, Release 8 onward (2008–), technical specification. https://www.etsi.org/deliver/etsi_ts/136100_136199/136104/
 - [3GPP TS 36.211] 3GPP (ETSI TS 136 211), *E-UTRA Physical channels and modulation*, Release 8 onward (2008–), technical specification. https://www.etsi.org/deliver/etsi_ts/136200_136299/136211/
-- [Baweja 2026] Baweja, analysis of a JammerTest 2024 time pull (topic; exact title not recorded), 2026, arXiv preprint 2606.24210. https://arxiv.org/pdf/2606.24210
+- [Bai 2024] Bai, Sun, Dempster, Zhao & Feng, *GNSS Spoofing Detection and Mitigation With a Single 5G Base Station Aiding*, 2024, IEEE TAES, doi:10.1109/TAES.2024.3382074. https://doi.org/10.1109/TAES.2024.3382074
+- [Baweja 2026] Baweja, *A Conditional Timing Protection Level: Holdover-Limited Undetected Time Error Under GNSS Spoofing*, 2026, arXiv preprint 2606.24210. https://arxiv.org/abs/2606.24210
 - [Blanch 2012] Blanch, Walter & Enge, *Advanced RAIM User Algorithm Description*, 2012, ION GNSS. https://web.stanford.edu/group/scpnt/gpslab/pubs/papers/Blanch_et_al_IONGNSS_2012_v2.pdf
 - [Celentano 2020] Celentano, *Wireless Network Sharing, Canadian Style*, 2020, Inside Towers. https://insidetowers.com/?p=41263
 - [Clements 2026] Clements et al., *Single-satellite geolocation of GNSS spoofers*, 2026, NAVIGATION 73. https://navi.ion.org/content/73/1/navi.750
+- [Crosara 2025] Crosara, Tuninato, Ardizzon, Caparra, Lapin & Laurenti, *Spoofing Attacks on 5G PRS-Based Positioning*, 2025, IEEE SPAWC, doi:10.1109/SPAWC66079.2025.11143312. https://hdl.handle.net/11577/3565973
 - [Erni 2022] Erni, Kotuliak, Leu, Roeschlin & Capkun, *AdaptOver: Adaptive Overshadowing Attacks in Cellular Networks*, 2022, ACM MobiCom. https://arxiv.org/pdf/2106.05039
 - [Honeywell 2025] Honeywell Aerospace, *Honeywell launches new alternative navigation software*, 2025, press release. https://www.honeywellaerospace.com/us/en/about-us/press-release/2025/10/honeywell-launches-new-alternative-navigation-software-to-counte
 - [ISPreview 2026] ISPreview, *Starlink shuts GPS location feature on satellite broadband service*, 2026, news. https://www.ispreview.co.uk/index.php/2026/04/starlink-shuts-gps-location-feature-on-satellite-broadband-service.html
@@ -146,11 +179,15 @@ Each entry gives authors, year, venue and a link. Organisation-authored sources 
 - [Kassas 2022] Kassas, Khalife, Abdallah & Lee, *I Am Not Afraid of the GPS Jammer: Resilient Navigation via Signals of Opportunity in GPS-Denied Environments*, 2022, IEEE Aerospace and Electronic Systems Magazine, doi:10.1109/MAES.2022.3154110. https://ece.osu.edu/sites/default/files/2022-09/I_am_not_afraid_of_the_GPS_jammer_resilient_navigation_via_signals_of_opportunity_in_GPS_denied_environments.pdf
 - [Kassas 2024] Kassas et al., *I Can Hear You Loud and Clear: GNSS-Less Aircraft Navigation with Terrestrial Cellular Signals of Opportunity*, 2024, IEEE TAES. https://people.engineering.osu.edu/media/document/2025-01-02/kassas_i_can_hear_you_loud_and_clear_gnss_less_aircraft_navigation_with_terrestrial_cellular_signals_of_opportunity.pdf
 - [Khalife 2023] Khalife & Kassas, *Differential Framework for Submeter-Accurate Vehicular Navigation with Cellular Signals*, 2023, IEEE T-IV. https://people.engineering.osu.edu/sites/default/files/2023-04/Kassas_Differential_Framework_for_Submeter_Accurate_Vehicular_Navigation_with_Cellular_Signals.pdf
+- [Khalife 2023b] Khalife, Maaref & Kassas, *Opportunistic Autonomous Integrity Monitoring for Enhanced UAV Safety*, 2023, IEEE Aerospace and Electronic Systems Magazine, doi:10.1109/MAES.2022.3178664. https://people.engineering.osu.edu/sites/default/files/2023-05/Kassas_Opportunistic_Autonomous_Integrity_Monitoring_for_Enhanced_UAV_Safety.pdf
+- [Kirkko-Jaakkola 2017] Kirkko-Jaakkola, Thombre, Honkala, Söderholm, Kaasalainen, Kuusniemi, Zelle, Veerman, Wallin, Aarmo & Boyero, *Receiver-level robustness concepts for EGNSS timing services*, 2017, ION GNSS, doi:10.33012/2017.15137. https://cris.vtt.fi/en/publications/receiver-level-robustness-concepts-for-egnss-timing-services/
 - [Lapin 2024] Lapin et al., *Base Station Clock Offset of Cellular Measurements and Its Impact on Positioning*, 2024, IEEE TVT. https://spcomnav.uab.es/docs/journals/Base_Station_Clock_Offset_of_Cellular_Measurements_and_Its_Impact_on_Positioning.pdf
+- [Lin 2024] Lin, Su & Schön, *Towards Integrity Monitoring for GNSS-Based Time Synchronization in Technical Applications*, 2024, ION GNSS+. https://www.ion.org/publications/abstract.cfm?articleID=19740
 - [Liu 2024] Liu & Papadimitratos, *Extending RAIM with a Gaussian Mixture of Opportunistic Information*, 2024, arXiv preprint 2402.03449. https://arxiv.org/abs/2402.03449
 - [Liu 2025] Liu & Papadimitratos, *Coordinated Position Falsification Attacks and Countermeasures for Location-Based Services*, 2025, arXiv preprint 2510.27346. https://arxiv.org/abs/2510.27346
 - [Lo 2025] Lo, Liu, Ibrahim, Chen & Walter, *Observations of GNSS Spoofing in Russia in 2023–2024*, 2025, ION ITM. https://web.stanford.edu/group/scpnt/gpslab/pubs/papers/Lo_ION_ITM_2025_Russia_Spoofing.pdf
 - [Ludant 2021] Ludant & Noubir, *SigUnder: a Stealthy 5G Low Power Attack and Defenses*, 2021, ACM WiSec. https://dl.acm.org/doi/pdf/10.1145/3448300.3467817
+- [Maaref 2019] Maaref, Khalife & Kassas, *Pseudorange measurement outlier detection for navigation with cellular signals* (work-in-progress abstract), 2019, ACM/IEEE ICCPS, doi:10.1145/3302509.3313334. https://escholarship.org/uc/item/269713kp
 - [Maaref 2020] Maaref & Kassas, *Measurement Characterization and Autonomous Outlier Detection and Exclusion for Ground Vehicle Navigation With Cellular Signals*, 2020, IEEE Transactions on Intelligent Vehicles 5(4). https://doi.org/10.1109/TIV.2020.2991947 (not read: see the novelty check)
 - [Maaref 2021] Maaref, Khalife & Kassas, *Aerial Vehicle Protection Level Reduction by Fusing GNSS and Terrestrial Signals of Opportunity*, 2021, IEEE T-ITS 22(9). https://doi.org/10.1109/TITS.2021.3095184 ; open copy https://par.nsf.gov/servlets/purl/10321488
 - [Maaref 2022] Maaref & Kassas, *Autonomous Integrity Monitoring for Vehicular Navigation With Cellular Signals of Opportunity and an IMU*, 2022, IEEE T-ITS. https://people.engineering.osu.edu/sites/default/files/2022-10/Kassas_Autonomous_integrity_monitoring_for_vehicular_navigation_with_cellular_signals_of_opportunity_and_an_IMU.pdf
@@ -172,5 +209,7 @@ Each entry gives authors, year, venue and a link. Organisation-authored sources 
 - [Tanil 2018] Tanil, Khanafseh, Joerger & Pervan, *An INS Monitor to Detect GNSS Spoofers Capable of Tracking Vehicle Position*, 2018, IEEE TAES. https://www.aoe.vt.edu/content/dam/aoe_vt_edu/people/faculty/joerger/publications/an_ins_monitor_to_detect_gnss_spoofers_capable_of_tracking_vehicle_position.pdf
 - [Tedeschi 2020] Tedeschi, Oligeri & Di Pietro, *Leveraging Jamming to Help Drones Complete Their Mission* (JAM-ME), 2020, IEEE Access 8, doi:10.1109/ACCESS.2019.2963105. https://pietrotedeschi.github.io/publication/tedeschi-2019-leveraging
 - [Tippenhauer 2009] Tippenhauer, Rasmussen, Pöpper & Čapkun, *Attacks on public WLAN-based positioning systems*, 2009, ACM MobiSys. https://dl.acm.org/doi/abs/10.1145/1555816.1555820
+- [Winter 2024] Winter, Morrison & Sokolova, *Analysis of 5G and LTE Signals for Opportunistic Navigation and Time Holdover*, 2024, Sensors 24(1):213, doi:10.3390/s24010213. https://pmc.ncbi.nlm.nih.gov/articles/PMC10781334/
 - [Yang 2019] Yang, Bae, Son, Kim, Kim & Kim, *Hiding in Plain Signal: Physical Signal Overshadowing Attack on LTE*, 2019, USENIX Security. https://www.usenix.org/system/files/sec19-yang-hojoon.pdf
 - [Zhang 2017] Zhang, Zhou & Tokekar, *Strategies to Inject Spoofed Measurement Data to Mislead Kalman Filter*, 2017, arXiv preprint 1710.02442. https://arxiv.org/pdf/1710.02442
+- [Zhang 2020] Zhang, Spanghero & Papadimitratos, *Protecting GNSS-based Services using Time Offset Validation*, 2020, IEEE/ION PLANS, doi:10.1109/PLANS46316.2020.9110224. https://arxiv.org/abs/2202.10891
