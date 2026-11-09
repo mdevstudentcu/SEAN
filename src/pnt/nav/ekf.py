@@ -253,10 +253,16 @@ def run(
     measurements: Iterable[Measurement],
     epoch_ns: int = 100_000_000,
     origin_llh=None,
+    monitor=None,
     **config,
 ) -> Iterator[Estimate]:
-    """Feed time-ordered measurements; yield an Estimate on every epoch boundary."""
+    """Feed time-ordered measurements; yield an Estimate on every epoch boundary.
+
+    `monitor`, if given, is called with the filter and returns an integrity monitor that sees each
+    measurement first (`process`) and may rewrite each Estimate (`estimate`), e.g.
+    `pnt.integrity.mhss.MHSS`. Without it the output is exactly the filter's."""
     ekf = EKF(origin_llh=origin_llh, **config)
+    mon = monitor(ekf) if monitor is not None else None
     next_epoch = None
     for m in measurements:
         if ekf.x is not None:
@@ -264,6 +270,8 @@ def run(
                 next_epoch = (ekf.t_ns // epoch_ns + 1) * epoch_ns
             while next_epoch <= m.t_ns:
                 ekf.predict(next_epoch)
-                yield ekf.estimate()
+                yield ekf.estimate() if mon is None else mon.estimate(ekf.estimate())
                 next_epoch += epoch_ns
+        if mon is not None:
+            mon.process(m)
         ekf.process(m)
