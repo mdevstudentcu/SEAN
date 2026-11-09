@@ -165,12 +165,15 @@ class Recorder:
         self.counts: dict[str, int] = {}
         self._writer_thread: threading.Thread | None = None
         self._abandon = threading.Event()  # set when a device would not stop: finish without it
+        self.clock_note = ""
+        self.write_errors = 0
 
     # --- metadata --------------------------------------------------------------------------
     def meta(self) -> dict:
         captured = [s.device.hardware for s in self.devices if s.state in ("running", "stopped")]
         lines = [self.notes] if self.notes else []
         lines.append(f"receiver: {self.ctx.receiver}")
+        lines.append(self.clock_note)
         lines += [
             f"{s.state}: {s.device.name} ({s.device.hardware}): {s.reason}"
             for s in self.devices
@@ -178,6 +181,8 @@ class Recorder:
         ]
         if self.ctx.dropped:
             lines.append(f"records dropped (queue full): {self.ctx.dropped}")
+        if self.write_errors:
+            lines.append(f"records that could not be written: {self.write_errors}")
         origin = self.ctx.origin_llh
         return {
             "name": self.folder.name,
@@ -199,6 +204,9 @@ class Recorder:
     def start(self) -> None:
         self.folder.mkdir(parents=True, exist_ok=False)
         self._commit = commit()
+        from pnt.payload.devices import clock_status
+
+        self.clock_note = clock_status()
         self._writer = SessionWriter(
             self.folder / session.MCAP_NAME,
             metadata={"name": self.folder.name, "platform": self.platform, "commit": self._commit},
@@ -242,7 +250,12 @@ class Recorder:
             except queue.Empty:
                 item = None
             if item is not None:
-                self._handle(item)
+                try:
+                    self._handle(item)
+                except Exception as exc:  # one bad record must not end the recording
+                    self.write_errors += 1
+                    if self.write_errors % 1000 == 1:
+                        print(f"record: cannot write {item[:2]!r}: {exc!r}")
             now = time.monotonic()
             if self.ctx.origin_changed.is_set():
                 self.ctx.origin_changed.clear()
