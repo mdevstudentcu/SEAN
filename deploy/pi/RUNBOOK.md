@@ -2,6 +2,8 @@
 
 A checklist to follow with the Pi in hand. Commands run **on the Pi in `~/pnt`** unless they say *laptop*. Results stay in `data/sessions/` (never in git); quote a number with its session name and the commit in its `meta.yaml` (REQ-10).
 
+**Use a private link.** `pnt record` streams every record on TCP port 5556 unless given `--no-stream`, and until #89 that stream is unauthenticated and unencrypted: anyone who can reach the port can read the positions. Put the Pi and the laptop on the laptop's own hotspot or on Ethernet, not on campus or venue Wi-Fi.
+
 ## A. Set up (once per SD card)
 
 1. Flash Raspberry Pi OS Bookworm Lite 64-bit: hostname `pnt`, user `pi`, Wi-Fi and SSH on.
@@ -42,7 +44,7 @@ A checklist to follow with the Pi in hand. Commands run **on the Pi in `~/pnt`**
 
 ## E. Live (laptop)
 
-11. While the Pi records: `pnt live --connect tcp://pnt.local:5556 --out data/sessions/<date>-live` prints a position line per second and records what it received. It takes the origin from the Pi's stream (the Pi's first 3D fix) unless `--origin lat,lon,h` is given.
+11. On a private link (top of this page), while the Pi records: `pnt live --connect tcp://pnt.local:5556 --out data/sessions/<date>-live` prints a position line per second and records what it received. It takes the origin from the Pi's stream (the Pi's first 3D fix) unless `--origin lat,lon,h` is given.
 
 ## F. Ground reference station (Pi 3B+, #85)
 
