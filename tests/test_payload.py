@@ -18,6 +18,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import yaml
+from mcap.reader import make_reader
 
 from pnt.cli import main
 from pnt.core import frames
@@ -256,6 +257,8 @@ def test_one_failing_or_absent_device_does_not_stop_the_others(recorded):
     assert "failed: camera (pi-camera): RuntimeError('boom')" in notes
     assert "absent: fc (flight-controller): /dev/does-not-exist does not exist" in notes
     counts = recorded["rec"].counts
+    # Regression guard, not a requirement: 3 s of nominal 100 Hz, 10 Hz and 20 records/s, set
+    # well below nominal because these fakes run in real time on a busy test machine.
     assert counts["imu"] > 150 and counts["baro"] > 20 and counts["gnss"] > 40
 
 
@@ -269,7 +272,14 @@ def test_recorded_measurements_follow_the_icd(recorded):
         ("gnss", "velocity_enu"),
     }
     assert all(isinstance(m.t_ns, int) and m.receiver == "payload" for m in meas)
-    assert [m.t_ns for m in meas] == sorted(m.t_ns for m in meas)
+    # read_session sorts, so look at the file itself: each IMU sample is later than the last
+    with open(recorded["folder"] / "session.mcap", "rb") as f:
+        written = [
+            json.loads(msg.data)["t_ns"]
+            for _, channel, msg in make_reader(f).iter_messages(log_time_order=False)
+            if channel.topic == "/meas/imu"
+        ]
+    assert written and all(a < b for a, b in zip(written, written[1:], strict=False))
     imu = next(m for m in meas if m.source == "imu")
     assert imu.value == pytest.approx((0, 0, 9.80665, 0, 0, 0))
     # times are GPS ns of now, not of 1970 or of the sim's epoch
@@ -299,7 +309,7 @@ def test_recorded_walk_replays_through_pnt_replay(recorded, capsys):
     main(["replay", str(recorded["folder"])])
     out = capsys.readouterr().out
     n = int(out.split(":")[1].split()[0])
-    assert n > 20, out
+    assert n > 20, out  # regression guard, not a requirement: the walk produced estimates
 
 
 def test_live_stream_equals_what_was_recorded(recorded):
@@ -324,6 +334,8 @@ def test_events_hold_pps_health_and_device_status(recorded):
 
 def test_day1_report_from_the_recorded_session(recorded, tmp_path):
     r = day1.report(recorded["folder"], usb_current_a=1.23)
+    # Regression guards, not requirements: ADR-0018's thresholds are TBD, and this is a fake IMU
+    # sampled in real time for 3 s at a nominal 100 Hz.
     assert r["imu"]["rate_hz"] == pytest.approx(100, rel=0.05)
     assert r["imu"]["jitter_ms"]["n"] > 200
     assert r["sdr"][0]["gaps"] == 1
@@ -444,6 +456,7 @@ def test_survey_sigma_comes_from_batch_means_not_sqrt_n():
     res = average(t, ar)
     naive = 2 / np.sqrt(n)
     assert res["stats"]["batches"] == 12
+    # Regression guard, not a requirement: batch means must sit clearly above the sqrt(N) figure
     assert res["sigma_m"] > 5 * naive
     assert np.abs(res["mean_enu"]).max() < 4 * res["sigma_m"]
     assert average(t[:1800], ar[:1800])["sigma_m"] == "TBD"  # 30 min: 3 batches
@@ -705,6 +718,15 @@ def test_torn_chunk_is_dropped_and_records_come_back_in_time_order(tmp_path):
         assert [r.t_ns for _, r in read_session(path)] == [10, 20, 30]
 
 
+def test_read_session_returns_log_time_order_whatever_the_write_order(tmp_path):
+    path = tmp_path / "order.mcap"
+    with SessionWriter(path) as w:
+        for t in (30, 10, 20):
+            w.write("/meas/baro", Measurement(t_ns=t, source="baro", kind="altitude",
+                                              value=(0.0,), sigma=(1.0,)))  # fmt: skip
+    assert [r.t_ns for _, r in read_session(path)] == [10, 20, 30]
+
+
 def test_empty_file_reads_as_an_empty_truncated_session(tmp_path):
     path = tmp_path / "empty.mcap"
     path.touch()
@@ -714,8 +736,6 @@ def test_empty_file_reads_as_an_empty_truncated_session(tmp_path):
 
 
 def test_closed_session_is_still_complete_valid_mcap(tmp_path):
-    from mcap.reader import make_reader
-
     path = tmp_path / "ok.mcap"
     with SessionWriter(path) as w:
         w.write_json("/events", 5, {"text": "x"})
