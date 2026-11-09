@@ -112,6 +112,40 @@ def test_acknowledged_active_alert_stays_until_it_clears():
     assert len(s["alerts"]) == 1 and not s["alerts"][0]["acked"]
 
 
+def test_acknowledged_alert_survives_a_brief_clear():
+    mon = HealthMonitor(50.0, 1.5e-6, t0_ns=0)
+    mon.update(_est(-1.0))  # settled
+    on, off = {"status": "unsafe", "hpl": 60.0}, {"status": "nominal", "hpl": 40.0}
+    first = mon.update(_est(0.0, **on))["alerts"][0]["id"]
+    mon.acknowledge()
+    assert mon.update(_est(0.5, **off))["alerts"] == []  # cleared and acknowledged: off the panel
+    (a,) = mon.update(_est(1.0, **on))["alerts"]  # back within CLEAR_HOLD_S: the same alert
+    assert a["id"] == first and a["acked"] and a["count"] == 1
+
+
+def test_acknowledging_during_a_brief_clear_holds_too():
+    mon = HealthMonitor(50.0, 1.5e-6, t0_ns=0)
+    mon.update(_est(-1.0))
+    on, off = {"status": "unsafe", "hpl": 60.0}, {"status": "nominal", "hpl": 40.0}
+    first = mon.update(_est(0.0, **on))["alerts"][0]["id"]
+    mon.update(_est(0.5, **off))
+    mon.acknowledge()
+    (a,) = mon.update(_est(1.0, **on))["alerts"]
+    assert a["id"] == first and a["acked"]
+
+
+def test_acknowledged_alert_is_forgotten_after_the_hold():
+    mon = HealthMonitor(50.0, 1.5e-6, t0_ns=0)
+    mon.update(_est(-1.0))
+    on, off = {"status": "unsafe", "hpl": 60.0}, {"status": "nominal", "hpl": 40.0}
+    first = mon.update(_est(0.0, **on))["alerts"][0]["id"]
+    mon.acknowledge()
+    mon.update(_est(0.5, **off))
+    # no epoch in between: a return later than CLEAR_HOLD_S is still a new alert
+    (a,) = mon.update(_est(health.CLEAR_HOLD_S + 0.5, **on))["alerts"]
+    assert a["id"] != first and not a["acked"] and a["count"] == 1
+
+
 def test_brief_clear_is_the_same_occurrence():
     mon = HealthMonitor(50.0, 1.5e-6, t0_ns=0)
     mon.update(_est(-1.0))  # settled
