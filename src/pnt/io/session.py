@@ -66,14 +66,20 @@ def session_name(path: str | Path) -> str:
 
 
 def write_meta(folder: str | Path, meta: dict) -> Path:
-    """Write meta.yaml with the ICD's keys in order (unknown keys are rejected)."""
+    """Write meta.yaml with the ICD's keys in order (unknown keys are rejected). Written beside
+    the old one and moved over it, so a full disk cannot leave an empty meta.yaml."""
     unknown = set(meta) - set(META_KEYS)
     if unknown:
         raise ValueError(f"meta keys not in ICD-session: {sorted(unknown)}")
     validate_reference(meta.get("reference"))
     ordered = {k: meta.get(k) for k in META_KEYS}
     path = Path(folder) / META_NAME
-    path.write_text(yaml.safe_dump(ordered, sort_keys=False, default_flow_style=None))
+    tmp = path.with_name(META_NAME + ".tmp")
+    try:
+        tmp.write_text(yaml.safe_dump(ordered, sort_keys=False, default_flow_style=None))
+        tmp.replace(path)
+    finally:
+        tmp.unlink(missing_ok=True)
     return path
 
 

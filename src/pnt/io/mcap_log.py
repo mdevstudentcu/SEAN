@@ -100,8 +100,10 @@ class SessionWriter:
         self._writer.flush()
 
     def close(self) -> None:
-        self._writer.finish()
-        self._file.close()
+        try:
+            self._writer.finish()
+        finally:
+            self._file.close()
 
     def __enter__(self) -> SessionWriter:
         return self
