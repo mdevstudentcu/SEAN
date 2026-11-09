@@ -602,3 +602,26 @@ def test_reference_station_records_are_tagged_reference(tmp_path):
     assert got and {r.receiver for r in got} == {"reference"}
     assert live.meta["reference"]["reference"] == ref
     assert session.read_meta(tmp_path / "base")["hardware"] == ["neo-6m"]
+
+
+def test_gpsd_repeats_of_one_fix_are_fused_once():
+    class Ctx:
+        origin_llh = ORIGIN
+        last_fix = None
+
+        def __init__(self):
+            self.out = []
+
+        def set_origin_once(self, llh):
+            return ORIGIN
+
+        def emit(self, m):
+            self.out.append(m)
+
+    tpv = {"class": "TPV", "mode": 3, "time": "2026-11-10T14:30:00.000Z", "lat": ORIGIN[0],
+           "lon": ORIGIN[1], "altHAE": ORIGIN[2], "epx": 3.0, "epy": 3.0, "epv": 6.0}  # fmt: skip
+    ctx, g = Ctx(), Gpsd()
+    for msg in (tpv, tpv, {**tpv, "time": "2026-11-10T14:30:01.000Z"}):
+        g.handle(msg, ctx)
+    assert [m.t_ns for m in ctx.out] == [1_478_356_218_000_000_000, 1_478_356_219_000_000_000]
+    assert g.status()["repeated_tpv"] == 1

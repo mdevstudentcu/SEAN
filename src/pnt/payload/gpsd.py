@@ -126,6 +126,8 @@ class Gpsd:
         self.fixes = 0
         self.pps = 0
         self.reconnects = 0
+        self.repeats = 0
+        self._last_tpv: str | None = None
 
     def probe(self) -> str | None:
         try:
@@ -135,12 +137,19 @@ class Gpsd:
         return None
 
     def status(self) -> dict:
-        return {"fixes": self.fixes, "pps": self.pps, "reconnects": self.reconnects}
+        return {"fixes": self.fixes, "pps": self.pps, "reconnects": self.reconnects,
+                "repeated_tpv": self.repeats}  # fmt: skip
 
     def handle(self, msg: dict, ctx) -> None:
         cls = msg.get("class")
         now = now_gps_ns()
         if cls == "TPV":
+            # gpsd can report one fix several times as NMEA sentences of the same epoch arrive;
+            # fusing it twice would count it twice. Keep the first report of each fix time.
+            if msg.get("time") is not None and msg.get("time") == self._last_tpv:
+                self.repeats += 1
+                return
+            self._last_tpv = msg.get("time")
             llh = tpv_llh(msg)
             if llh is not None:
                 origin = ctx.set_origin_once(llh)
