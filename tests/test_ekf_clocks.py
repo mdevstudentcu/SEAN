@@ -268,10 +268,24 @@ def _slow_spoof(start=100.0, rate=1.0, alarm=160.0, jump=300.0, late_tower_s=130
     return out
 
 
-def _run_spoof(until_s: float, **config) -> tuple[ekf.EKF, dict[str, float]]:
+def _refutes_between(t0_s: float, t1_s: float, every_s: float = np.inf):
+    """A check that confirms GNSS, except that it refutes it from t0_s to t1_s, repeated every
+    `every_s`: brief signs of trouble, as a slow spoof gives while it grows."""
+
+    def check(f: ekf.EKF) -> bool:
+        t = f.t_ns / 1e9
+        return not (t >= t0_s and (t - t0_s) % every_s < t1_s - t0_s)
+
+    return (check,)
+
+
+SLOW_SPOOF_SIGNS = _refutes_between(110.0, 110.5, every_s=8.0)  # gaps shorter than calib_check_s
+
+
+def _run_spoof(until_s: float, checks=SLOW_SPOOF_SIGNS, **config):
     """Run _slow_spoof up to `until_s`, or to just after the first rollback if `until_s` is
     None. Returns the filter and each clock's drift when the spoof started."""
-    f = ekf.EKF(clock_model="calibrated", calib_checks=ALWAYS, **config)
+    f = ekf.EKF(clock_model="calibrated", calib_checks=checks, **config)
     pre = None
     for m in _slow_spoof():
         if pre is None and m.t_ns >= 100e9:
@@ -283,14 +297,16 @@ def _run_spoof(until_s: float, **config) -> tuple[ekf.EKF, dict[str, float]]:
 
 
 def test_rollback_after_a_slow_spoof_restores_the_pre_spoof_drifts():
-    # The spoof passes the gate (ALWAYS), so the drifts learn it. The alarm at 160 s rolls back
-    # to the snapshot 60 s earlier, taken before the spoof started at 100 s.
+    # The spoof mostly passes the gate, so the drifts learn it. A check refutes GNSS briefly
+    # every 8 s from 110 s, so one episode lasts until the alarm at 160 s. The alarm rolls back
+    # to the snapshot calib_rollback_margin_s (10 s) before the first sign: 100 s, the onset.
     rolled, pre = _run_spoof(None)  # GNSS excluded from 160 s, held 1 s
     kept, _ = _run_spoof(rolled.t_ns / 1e9 + 1e-3, calib_rollback_s=None)
     assert rolled.t_ns == kept.t_ns == 161_000_000_000
     assert len(rolled.rollbacks) == 1
     alarm, snap = rolled.rollbacks[0]
     assert alarm == 160_000_000_000 and 99e9 <= snap <= 100e9
+    assert rolled.trouble_since == 110_000_000_000
     err_rolled = [abs(rolled.x[rolled.clock_idx[k] + 1] - v) for k, v in pre.items()]
     err_kept = [abs(kept.x[kept.clock_idx[k] + 1] - v) for k, v in pre.items()]
     assert max(err_rolled) < 0.02  # m/s; regression guard, not a requirement
@@ -300,6 +316,22 @@ def test_rollback_after_a_slow_spoof_restores_the_pre_spoof_drifts():
     assert np.sqrt(np.diag(rolled.P)[i : i + 2]) == pytest.approx(
         [rolled.init_emitter_sigma, rolled.init_tower_drift_sigma]
     )
+
+
+def test_rollback_keeps_the_clean_calibration_before_the_episode():
+    # No sign of trouble before the alarm at 160 s (a sudden spoof such as meaconing): the
+    # rollback reaches only the margin before the alarm, not a fixed time, so the calibration
+    # learned from clean GNSS before it is kept.
+    rolled, _ = _run_spoof(None, checks=ALWAYS)
+    alarm, snap = rolled.rollbacks[0]
+    assert alarm == 160_000_000_000 and 149e9 <= snap <= 150e9
+
+
+def test_a_quiet_spell_ends_the_suspicious_episode():
+    # One sign at 50 s, then calib_check_s (10 s) without one: the episode is over and the
+    # alarm at 160 s does not reach back to it
+    rolled, _ = _run_spoof(None, checks=_refutes_between(50.0, 51.0))
+    assert 149e9 <= rolled.rollbacks[0][1] <= 150e9
 
 
 @pytest.mark.parametrize("builders", [None, {"lte:0": "acme", "lte:1": "acme"}])

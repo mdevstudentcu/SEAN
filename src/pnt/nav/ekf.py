@@ -49,13 +49,18 @@ Calibration gate (calibrated model only). It opens when both hold:
   More trust tests (#82, #83) are added by appending a predicate to `calib_checks`.
 
 Rollback (calibrated model only). A slow spoof can still pass the gate, so the filter keeps a
-ring buffer of clock snapshots (mean and covariance of every clock block, about 1 Hz, reaching
-back `calib_rollback_s`). When GNSS is flagged (exclusion or time alarm) for
-`calib_alarm_hold_s`, and the clocks have calibrated since the last rollback:
-- Each clock block that existed at the snapshot taken `calib_rollback_s` before the alarm
-  started is restored from it and carried to now on the coast model: the mean moves by the
-  learned drift and the covariance grows by the tower oscillator noise. Everything learned after
-  the snapshot is discarded.
+ring buffer of clock snapshots (mean and covariance of every clock block, about 1 Hz). It also
+tracks the current suspicious episode: it starts at the first sign of trouble (a gate check
+refutes GNSS, or GNSS position or time is rejected) and ends after `calib_check_s` without one,
+the memory of the windowed checks. When
+GNSS is flagged (exclusion or time alarm) for `calib_alarm_hold_s`, and the clocks have
+calibrated since the last rollback:
+- The rollback reaches `calib_rollback_margin_s` before the start of the episode (or of the
+  alarm, if that is earlier), and never further back than `calib_rollback_s`. Clean calibration
+  from before the episode is kept; a fixed reach would throw it away when the alarm is quick.
+- Each clock block that existed at that snapshot is restored from it and carried to now on the
+  coast model: the mean moves by the learned drift and the covariance grows by the tower
+  oscillator noise. Everything learned after the snapshot is discarded.
 - A clock block first seen after that snapshot goes back to its first-sight prior (its mean is
   kept, its covariance is reset): everything it knows was learned after the snapshot.
 - Cross-covariance: zeroed between the clocks and the other states (position, velocity,
@@ -64,8 +69,8 @@ back `calib_rollback_s`). When GNSS is flagged (exclusion or time alarm) for
   - The filter's cross terms describe today's clocks, which are being discarded, and the
     snapshot's describe the other states as they were a rollback ago. Neither is right now.
   - The restored clocks depend only on measurements from before the snapshot. Today's
-    position and velocity have been re-fixed since by `calib_rollback_s` of GNSS or tower
-    updates, so the correlation left is small. It is not zero: this is an approximation.
+    position and velocity have been re-fixed since by the GNSS or tower updates after it, so
+    the correlation left is small. It is not zero: this is an approximation.
   - P stays symmetric and positive semidefinite: it is block diagonal with PSD blocks.
   - The bound that holds for any correlation, covariance intersection (both blocks doubled),
     was tried and rejected: doubling the position covariance just as GNSS is flagged makes the
@@ -141,7 +146,8 @@ class EKF:
         calib_nis_max: float = 3.0,  # mean NIS above which baro or GNSS time disagrees (TBC)
         calib_tower_nis_max: float = 3.0,  # mean NIS above which the towers disagree (TBC)
         calib_checks: Sequence[Callable[[EKF], bool | None]] | None = None,  # CALIB_CHECKS
-        calib_rollback_s: float | None = 60.0,  # s: rollback reach; None turns it off (TBC)
+        calib_rollback_s: float | None = 300.0,  # s: longest rollback reach; None: off (TBC)
+        calib_rollback_margin_s: float = 10.0,  # s: rollback reaches this far before trouble (TBC)
         calib_alarm_hold_s: float = 1.0,  # s: alarm held this long rolls back (TBC)
     ):
         if clock_model not in CLOCK_MODELS:
@@ -169,6 +175,7 @@ class EKF:
         self.calib_nis_max, self.calib_tower_nis_max = calib_nis_max, calib_tower_nis_max
         self.calib_checks = tuple(CALIB_CHECKS if calib_checks is None else calib_checks)
         self.rollback_ns = None if calib_rollback_s is None else int(calib_rollback_s * 1e9)
+        self.margin_ns = int(calib_rollback_margin_s * 1e9)
         self.alarm_hold_ns = int(calib_alarm_hold_s * 1e9)
         self.x: np.ndarray | None = None
         self.P: np.ndarray | None = None
@@ -179,6 +186,8 @@ class EKF:
         self._clock_prior: dict[str, tuple[float, float]] = {}  # block -> first-sight sigmas
         self._trusted_since: int | None = None
         self._alarm_since: int | None = None
+        self.trouble_since: int | None = None  # first sign of trouble in the current episode
+        self._trouble_last: int | None = None
         self._learned = False  # calibrated since the last rollback
         self._snaps: deque[tuple[int, np.ndarray, np.ndarray]] = deque()  # (t, x_c, P_cc)
         self._nis: dict[str, deque[tuple[int, float, int]]] = {}  # check -> (t, NIS, dof)
@@ -255,6 +264,8 @@ class EKF:
 
     def calibration_allowed(self) -> bool:
         """The calibration gate: GNSS trusted for `calib_gate_s` and the checks agree."""
+        votes = [check(self) for check in self.calib_checks]
+        self._note_trouble(False in votes)
         if not self.gnss_trusted():
             self._trusted_since = None
             return False
@@ -262,8 +273,19 @@ class EKF:
             self._trusted_since = self.t_ns
         if self.t_ns - self._trusted_since < self.calib_gate_ns:
             return False
-        votes = [check(self) for check in self.calib_checks]
         return True in votes and False not in votes
+
+    def _note_trouble(self, sign: bool) -> None:
+        """Track the current suspicious episode: it starts at the first sign of trouble (a check
+        refutes GNSS, or GNSS is rejected) and ends after `calib_check_s` without one, the memory
+        of the windowed checks."""
+        if sign:
+            if self.trouble_since is None:
+                self.trouble_since = self.t_ns
+            self._trouble_last = self.t_ns
+        elif self.trouble_since is not None:
+            if self.t_ns - self._trouble_last > self.calib_check_ns:
+                self.trouble_since = self._trouble_last = None
 
     def windowed_nis(self, check: str) -> float | None:
         """Mean NIS per degree of freedom of one check's innovations over `calib_check_s`, or
@@ -318,8 +340,12 @@ class EKF:
         if self._snaps and self.t_ns - self._snaps[-1][0] < SNAPSHOT_NS:
             return
         self._snaps.append((self.t_ns, self.x[N_CORE:].copy(), self.P[N_CORE:, N_CORE:].copy()))
-        # Keep the newest snapshot old enough for an alarm that started a hold ago
-        horizon = self.t_ns - self.rollback_ns - self.alarm_hold_ns - SNAPSHOT_NS
+        # Keep the newest snapshot old enough for the reach of an alarm now: the margin before
+        # the current episode (or before a hold ago, if there is none), at most `calib_rollback_s`
+        start = self.trouble_since
+        if start is None:
+            start = self.t_ns - self.alarm_hold_ns
+        horizon = max(start - self.margin_ns, self.t_ns - self.rollback_ns) - SNAPSHOT_NS
         while len(self._snaps) > 1 and self._snaps[1][0] <= horizon:
             self._snaps.popleft()
 
@@ -333,12 +359,14 @@ class EKF:
             self.rollback(self._alarm_since)
 
     def rollback(self, alarm_ns: int) -> None:
-        """Restore the clocks from the snapshot `calib_rollback_s` before `alarm_ns` (the
-        oldest kept, if none is that old). See the module docstring for the covariance. Public
-        so that a spoof alarm from another detector (#82, #83) can call it too."""
+        """Restore the clocks from the snapshot `calib_rollback_margin_s` before the first sign of
+        trouble in the current episode, or before `alarm_ns` if that is earlier (the oldest kept,
+        if none is that old). See the module docstring for the covariance. Public so that a spoof
+        alarm from another detector (#82) can call it too."""
         if not self._snaps:
             return
-        target = alarm_ns - self.rollback_ns
+        start = alarm_ns if self.trouble_since is None else min(alarm_ns, self.trouble_since)
+        target = start - self.margin_ns
         t_s, xc, Pcc = self._snaps[0]
         for snap in self._snaps:
             if snap[0] > target:
@@ -398,8 +426,10 @@ class EKF:
             return
         y, H, R, gate = out
         key = GNSS_TIME if (m.source, m.kind) == ("gnss", "time") else m.source
-        self._update(key, m.t_ns, y, H, R, gate)
+        used = self._update(key, m.t_ns, y, H, R, gate)
         if self.calibrated:
+            if key in ("gnss", GNSS_TIME) and not used:
+                self._note_trouble(True)  # an alarm precursor: GNSS rejected
             self._record(m, key, gate)
             if self.rollback_ns is not None:
                 self._watch_alarm()
