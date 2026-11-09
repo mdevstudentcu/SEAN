@@ -23,3 +23,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0017](0017-quality-standard.md) | Work is ready when evidence matches the claim | Proposed |
 | [0018](0018-payload-boards.md) | The payload is a Pi 4B recorder; a Pi Zero 2 W hub only if day-1 tests need it | Proposed |
 | [0019](0019-no-chu.md) | Drop CHU broadcast time | Proposed |
+| [0020](0020-ground-reference-station.md) | A ground reference station measures tower clocks for differential LTE | Proposed |
