@@ -5,7 +5,13 @@ import pytest
 
 from pnt.core import frames
 from pnt.core.measurement import Estimate, Measurement, from_json, to_json, validate
-from pnt.core.time import gps_ns_to_utc, gps_ns_to_week_tow, utc_to_gps_ns
+from pnt.core.time import (
+    LEAP_SECONDS,
+    gps_ns_to_unix_ns,
+    gps_ns_to_utc,
+    gps_ns_to_week_tow,
+    utc_to_gps_ns,
+)
 
 ORIGIN = (45.3876, -75.6960, 70.0)
 
@@ -42,6 +48,12 @@ def test_gps_time_roundtrip_and_known_week():
     assert gps_ns_to_utc(t) == dt
     week, _ = gps_ns_to_week_tow(t)
     assert week == 2444  # GPS week of 2026-11-12
+
+
+def test_gps_to_unix_time():
+    assert gps_ns_to_unix_ns(0) == (315_964_800 - LEAP_SECONDS) * 1_000_000_000
+    dt = datetime(2026, 11, 12, 18, 0, 0, 123456, tzinfo=UTC)
+    assert gps_ns_to_unix_ns(utc_to_gps_ns(dt) + 789) == int(dt.timestamp()) * 10**9 + 123_456_789
 
 
 def test_enu_roundtrip_and_origin_is_zero():
