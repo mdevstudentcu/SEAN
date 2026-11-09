@@ -13,10 +13,12 @@ State (metres and metres per second throughout, so the matrix stays well conditi
   value, Jacobian row(s) and noise. Unknown kinds are ignored, so new sources add a model only.
 
 Receiver clock in pseudoranges: a real radio's tower ranges all carry our clock offset (c*dt).
-The sim doesn't add it yet (#47), so `pseudorange_receiver_clock` defaults to False to match the
-data. Turned on against data without the term, a drifting clock makes the filter reject nearly
-every tower. Turn it on when the sim (or real data) has the term, and only with a time source:
-towers alone can't separate our clock from theirs, so its variance grows without bound.
+The realistic and worst sets add it (`receiver_clock: true`); the base scenarios don't, and
+`pseudorange_receiver_clock` defaults to False to match them. Left off against data that has the
+term, every tower's clock has to absorb our clock's drift. Turned on, the clock that all towers
+share is one more unknown: without GNSS time it is observable only as one common term across the
+towers, which costs one tower's worth of geometry, as a GNSS receiver needs a fourth satellite
+for its clock. While GNSS time is trusted it anchors the split between our clock and the towers'.
 
 Tower clocks (ADR-0022, Proposed) have two models, picked with `clock_model`:
 - "independent" (default, the model before ADR-0022): one clock offset per clock, a random walk
@@ -32,6 +34,28 @@ Either model can group clocks:
 - `builders`: site -> network builder. A builder's sites share a common clock block, and each
   site keeps a residual block on top of it (initial sigma `init_residual_sigma`, TBC). Off by
   default. How builder identity reaches the filter in real data is open (I3/ICD).
+
+New site clocks (calibrated model, ungrouped sites): a site first heard once two or more sites
+have calibrated (drift sigma under half its prior) takes their mean drift as its prior, with
+their spread and uncertainty as its sigma (at least `site_drift_floor`, TBC), rather than a fixed
+(0, `init_tower_drift_sigma`). A drift every site shows (our clock's while it is not modelled,
+a builder's) then carries over instead of making the new site look faulty.
+
+Tower error model (`CALIBRATED`; each part off by default, every value TBC until the radio test
+and published data replace it, ADR-0015). Beyond the white noise each reading reports:
+- Multipath (`multipath_ratio`, `multipath_tau_s`): a first-order Gauss-Markov state per
+  emitter, steady-state sigma `multipath_ratio` times the reported sigma, as `ekf-base` sizes its
+  difference bias. A reflection stays wrong for tens of seconds, so treating it as white noise
+  makes the filter overconfident in an outage.
+- Told position (`tower_position_sigma_m`): the published tower position is off by a constant
+  (east, north) error per site. The part along the first line of sight is a constant range bias
+  that the site clock already absorbs; the states carry only how the bias changes as the line
+  of sight turns (see `tower_states`).
+- Clock process noise: `CALIBRATED` sets the tower offset noise (`tower_h0`) and our clock's
+  (`h0`, `h_2`) to the realistic set's placeholders rather than literature TCXO values.
+These states are learned while GNSS is trusted, like the clocks, and roll back with them.
+Cost: a slow drag that a reflection could explain is absorbed by the multipath states before
+the towers-vs-GNSS test sees it, so that test loses power against slow ramps (PR evidence).
 
 Calibration gate (calibrated model only). It opens when both hold:
 - GNSS has been trusted (position accepted recently, no exclusion, no time alarm) continuously
@@ -190,6 +214,10 @@ class EKF:
         spoof_persist_s: float = 3.0,  # s: exceedance held this long raises the alarm (TBC)
         spoof_clear_s: float = 30.0,  # s: GNSS consistent this long clears the alarm (TBC)
         spoof_learn_s: float = 60.0,  # s: null scale learned this long before arming (TBC)
+        multipath_ratio: float = 0.0,  # tower multipath sigma / reported sigma; 0: off (TBC)
+        multipath_tau_s: float = 30.0,  # s: tower multipath correlation time (TBC)
+        tower_position_sigma_m: float = 0.0,  # m per horizontal axis: told position; 0: off (TBC)
+        site_drift_floor: float = 0.1,  # m/s: least drift sigma of a seeded new site (TBC)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -254,6 +282,14 @@ class EKF:
         self._site_bad: dict[str, tuple[int | None, bool]] = {}  # (rejected since, faulty)
         self.last_used: dict[str, int] = {}
         self.last_rejected: dict[str, int] = {}
+        # Honest tower error model (see the module docstring): per-emitter multipath and
+        # per-site told-position error states, added on first sight
+        self.multipath_ratio, self.multipath_tau_s = multipath_ratio, multipath_tau_s
+        self.tower_position_sigma_m = tower_position_sigma_m
+        self.site_drift_floor = site_drift_floor
+        self.multipath_idx: dict[str, int] = {}  # emitter -> its multipath state
+        self.multipath_sigma: dict[int, float] = {}  # state -> steady-state sigma (m)
+        self.position_idx: dict[str, tuple] = {}  # site -> (told-position error state, los0)
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -269,17 +305,74 @@ class EKF:
         )
         self.t_ns = m.t_ns
 
-    def _augment(self, key: str, value: float, sigma: tuple[float, float]) -> int:
-        """Add a clock block (offset, and drift if calibrated) with the given initial sigmas."""
-        n, w = len(self.x), self.width
-        self.x = np.append(self.x, [value, 0.0][:w])
+    def _append_states(self, mean, sigma) -> int:
+        """Add independent states with the given means and sigmas; returns the first index."""
+        n, w = len(self.x), len(mean)
+        self.x = np.append(self.x, mean)
         P = np.zeros((n + w, n + w))
         P[:n, :n] = self.P
-        P[n:, n:] = np.diag(np.square(sigma[:w]))
+        P[n:, n:] = np.diag(np.square(sigma))
         self.P = P
-        self.clock_idx[key] = n
-        self._clock_prior[key] = (float(sigma[0]), float(sigma[1]))
         return n
+
+    def _augment(
+        self, key: str, value: float, sigma: tuple[float, float], drift: float = 0.0, prior=None
+    ) -> int:
+        """Add a clock block (offset, and drift if calibrated) with the given initial sigmas.
+        `prior` (default `sigma`) is what a rollback resets it to if it is first seen after the
+        snapshot: a seed taken from other sites then may itself have learned the spoof."""
+        w = self.width
+        n = self._append_states([value, drift][:w], sigma[:w])
+        self.clock_idx[key] = n
+        self._clock_prior[key] = tuple(float(v) for v in (prior or sigma))
+        return n
+
+    def site_drift_prior(self) -> tuple[float, float]:
+        """Drift prior (mean, sigma) for a new ungrouped site clock (calibrated model). Seeded from
+        the sites already calibrated (drift sigma under half its prior): their mean drift, with
+        their spread and their own uncertainty, at least `site_drift_floor` and at most the wide
+        `init_tower_drift_sigma`. With fewer than two such sites: (0, init_tower_drift_sigma).
+        A drift common to every site (our own clock's, a builder's) then carries over to the new
+        site instead of being rejected as a fault."""
+        wide = self.init_tower_drift_sigma
+        d, v = [], []
+        for key, i in self.clock_idx.items():
+            if key.startswith("site:") and self.P[i + 1, i + 1] < (wide / 2) ** 2:
+                d.append(self.x[i + 1])
+                v.append(self.P[i + 1, i + 1])
+        if len(d) < 2:
+            return 0.0, wide
+        sigma = np.sqrt(np.var(d, ddof=1) + np.mean(v))
+        return float(np.mean(d)), float(np.clip(sigma, self.site_drift_floor, wide))
+
+    def tower_states(
+        self, emitter: str, sigma: float, los: np.ndarray
+    ) -> tuple[int | None, tuple[int, np.ndarray] | None]:
+        """This emitter's multipath state, and its site's told-position error states with the
+        horizontal line of sight they were added at, adding them on first sight (`los`: the line
+        of sight now, tower to receiver); None where that part of the model is off.
+        - Multipath: a first-order Gauss-Markov state per emitter, steady-state sigma
+          `multipath_ratio` times the reported `sigma`, time constant `multipath_tau_s`.
+        - Told position: a constant (east, north) error per site, prior `tower_position_sigma_m`
+          per axis, shared by the site's sectors. It moves the range by -(los - los0) . error:
+          the part along the first line of sight, los0, is a constant range bias that the site's
+          clock offset already carries. Modelling it twice would let any common position offset
+          (a spoof dragging GNSS) be explained as every tower having moved."""
+        mp = pos = None
+        if self.multipath_ratio > 0:
+            mp = self.multipath_idx.get(emitter)
+            if mp is None:
+                s = self.multipath_ratio * sigma
+                mp = self.multipath_idx[emitter] = self._append_states([0.0], [s])
+                self.multipath_sigma[mp] = s
+        if self.tower_position_sigma_m > 0:
+            site = self.sites.get(emitter, emitter)
+            pos = self.position_idx.get(site)
+            if pos is None:
+                s = self.tower_position_sigma_m
+                i = self._append_states([0.0, 0.0], [s, s])
+                pos = self.position_idx[site] = (i, np.array(los[:2], float))
+        return mp, pos
 
     def clock_offsets(self, emitter: str, residual: float) -> tuple[list[int], bool]:
         """State indices of the clock offsets in this emitter's pseudorange, adding blocks on
@@ -297,7 +390,10 @@ class EKF:
         skey = f"site:{site}"
         new = skey not in self.clock_idx
         if new:
-            if builder is None:
+            if builder is None and self.calibrated:
+                drift, sigma = self.site_drift_prior()
+                self._augment(skey, residual, (wide[0], sigma), drift, prior=wide)
+            elif builder is None:
                 self._augment(skey, residual, wide)
             else:
                 self._augment(skey, residual - self.x[idx[0]], self.init_residual_sigma)
@@ -383,21 +479,34 @@ class EKF:
         if self.calibrated:
             self.calibrating = self.calibration_allowed()
             self._learned |= self.calibrating
-            s_off, s_drift = self.s_tower
-            if self.calibrating:
-                s_off, s_drift = s_off + self.s_calib[0], s_drift + self.s_calib[1]
-            q = _two_state_q(s_off, s_drift, dt)
-            for i in self.clock_idx.values():
-                F[i, i + 1] = dt
-                Q[i : i + 2, i : i + 2] = q
-        else:
-            for i in self.clock_idx.values():
-                Q[i, i] = self.q_emitter**2 * dt
+        self._tower_process(F, Q, dt, self.calibrating)
         self.x = F @ self.x
         self.P = F @ self.P @ F.T + Q
         self.t_ns = t_ns
         if self.calibrated and self.rollback_ns is not None:
             self._snapshot()
+
+    def _tower_process(self, F, Q, dt: float, calibrating: bool, base: int = 0) -> None:
+        """Fill in the tower states' transition and process noise over dt: the clock blocks
+        (`calibrating` adds the calibration noise), and the multipath states (Gauss-Markov).
+        Told-position errors are constant. `base` is subtracted from the state indices, for a
+        matrix that starts at that state (rollback's clock-and-tower block)."""
+        if self.calibrated:
+            s_off, s_drift = self.s_tower
+            if calibrating:
+                s_off, s_drift = s_off + self.s_calib[0], s_drift + self.s_calib[1]
+            q = _two_state_q(s_off, s_drift, dt)
+            for i in self.clock_idx.values():
+                F[i - base, i - base + 1] = dt
+                Q[i - base : i - base + 2, i - base : i - base + 2] = q
+        else:
+            for i in self.clock_idx.values():
+                Q[i - base, i - base] = self.q_emitter**2 * dt
+        if self.multipath_sigma:
+            phi = np.exp(-dt / self.multipath_tau_s)
+            for i, s in self.multipath_sigma.items():
+                F[i - base, i - base] = phi
+                Q[i - base, i - base] = s**2 * (1.0 - phi**2)
 
     # --- rollback (calibrated model) -----------------------------------------------------------
     def _snapshot(self) -> None:
@@ -438,14 +547,10 @@ class EKF:
             t_s, xc, Pcc = snap
         dt = (self.t_ns - t_s) / 1e9
         k = len(xc)
-        F = np.eye(k)
-        Q = np.zeros((k, k))
-        q = _two_state_q(*self.s_tower, dt)
-        for i in self.clock_idx.values():
-            j = i - N_CORE
-            if j < k:
-                F[j, j + 1] = dt
-                Q[j : j + 2, j : j + 2] = q
+        m = len(self.x) - N_CORE
+        F, Q = np.eye(m), np.zeros((m, m))
+        self._tower_process(F, Q, dt, calibrating=False, base=N_CORE)  # the coast model
+        F, Q = F[:k, :k], Q[:k, :k]
         old = slice(N_CORE, N_CORE + k)
         P = np.zeros_like(self.P)  # cross terms zeroed: see the module docstring
         P[:N_CORE, :N_CORE] = self.P[:N_CORE, :N_CORE]
@@ -453,6 +558,12 @@ class EKF:
         for key, i in self.clock_idx.items():
             if i >= N_CORE + k:  # first seen after the snapshot: back to its first-sight prior
                 P[i : i + 2, i : i + 2] = np.diag(np.square(self._clock_prior[key]))
+        for i, s in self.multipath_sigma.items():  # the same for the tower error states
+            if i >= N_CORE + k:
+                P[i, i] = s**2
+        for i, _ in self.position_idx.values():
+            if i >= N_CORE + k:
+                P[i, i] = P[i + 1, i + 1] = self.tower_position_sigma_m**2
         self.x[old] = F @ xc
         self.P = (P + P.T) / 2
         self.rollbacks.append((alarm_ns, t_s))
@@ -766,12 +877,27 @@ def _pseudorange(ekf: EKF, m: Measurement):
         return None
     d = ekf.x[POS] - e
     r = float(np.linalg.norm(d))
+    u = d / r  # line of sight, tower to receiver
+    mp, pos = ekf.tower_states(m.emitter, m.sigma[0], u)
     rx = ekf.x[CLK] if ekf.pr_rx_clock else 0.0
+    h = u  # d(range)/d(position)
+    if mp is not None:
+        rx += ekf.x[mp]  # the residual and the prediction carry the tower error states too
+    if pos is not None:
+        i, los0 = pos
+        err = ekf.x[i : i + 2]
+        h_pos = los0 - u[:2]  # d(range)/d(told-position error), less the clock's part
+        rx += float(h_pos @ err)
+        h = u - err @ (np.eye(3) - np.outer(u, u))[:2] / r  # the line of sight turns
     idx, new = ekf.clock_offsets(m.emitter, m.value[0] - r - rx)
     H = _row(ekf)
-    H[0, POS] = d / r
+    H[0, POS] = h
     if ekf.pr_rx_clock:
         H[0, CLK] = 1.0
+    if mp is not None:
+        H[0, mp] = 1.0
+    if pos is not None:
+        H[0, i : i + 2] = h_pos
     H[0, idx] = 1.0
     y = m.value[0] - (r + rx + float(np.sum(ekf.x[idx])))
     return y, H, np.diag(np.square(m.sigma)), not new
@@ -783,6 +909,28 @@ MODELS: dict[str, Callable] = {
     "time": _time,
     "pseudorange": _pseudorange,
 }
+
+
+# The calibrated clock model with our clock in the tower ranges and the tower error model
+# (`ekf-calibrated`). Every value is TBC: set to the realistic set's placeholders (ADR-0015), so
+# the filter's model matches the environment we pitch; sensitivity to them is in the PR.
+CALIBRATED: dict = {
+    "clock_model": "calibrated",
+    "pseudorange_receiver_clock": True,
+    "h0": 8e-18,  # s: our clock's white frequency noise, 2 ns/sqrt(s) (realistic set, TBC)
+    "h_2": 2e-23,  # 1/s: our clock's frequency wander; the sim has none (TBC)
+    "tower_h0": 8.9e-19,  # s: tower offset random walk, 0.2 m/sqrt(s) (both sets, TBC)
+    "multipath_ratio": 1.0,  # multipath sigma = reported sigma (realistic set, TBC)
+    "multipath_tau_s": 30.0,  # s (realistic set, TBC)
+    "tower_position_sigma_m": 100.0,  # m per axis (realistic set, TBC)
+}
+
+
+def run_calibrated(
+    measurements: Iterable[Measurement], epoch_ns: int = 100_000_000, origin_llh=None, **config
+) -> Iterator[Estimate]:
+    """`run` with the `CALIBRATED` settings; `config` overrides them."""
+    return run(measurements, epoch_ns, origin_llh, **{**CALIBRATED, **config})
 
 
 def run(
