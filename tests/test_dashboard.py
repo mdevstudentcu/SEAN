@@ -121,6 +121,15 @@ def test_brief_clear_is_the_same_occurrence():
     assert a["count"] == 2 and a["since_s"] == 0.0 and a["onset_s"] == 20.0
 
 
+def test_time_pl_over_its_limit_raises_an_alert():
+    mon = HealthMonitor(50.0, 1.5e-6)
+    est = _est(0.0)
+    est.clock_sigma_s = 1e-6  # time PL 5.33 us
+    s = mon.update(est)
+    assert [c["flag"] for c in s["causes"]] == [health.TIME_OVER]
+    assert s["alerts"][0]["severity"] == health.ALARM
+
+
 def test_low_trust_listed_apart():
     s = HealthMonitor(50.0, 1.5e-6).update(_est(0.0, trust={"gnss": 0.0, "lte": 1.0}))
     assert s["low_trust"] == {"gnss": 0.0} and s["trusted"] == {"lte": 1.0}
