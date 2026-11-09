@@ -365,3 +365,11 @@ def test_cli_writes_a_session_that_replay_reads(tmp_path, capsys):
     assert {t for t, _ in read_session(out / "session.mcap")} == {"/meas/lte"}
     with pytest.raises(SystemExit):
         main(["frontend", "lte", str(cu8), "--out", str(out)])  # never overwrites
+
+
+def test_cli_says_so_when_a_capture_is_too_short(tmp_path):
+    cu8 = write(tmp_path, "short", [TOWER], 0.05, 10.0)  # under one 80 ms search window
+    out = tmp_path / "session-lte"
+    with pytest.raises(SystemExit, match="no LTE cells"):
+        main(["frontend", "lte", str(cu8), "--out", str(out)])
+    assert not out.exists()

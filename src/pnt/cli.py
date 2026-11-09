@@ -426,7 +426,7 @@ def cmd_preflight(args) -> None:
 
 def cmd_frontend_lte(args) -> None:
     """LTE front end (#23): RTL-SDR capture -> /meas/lte records in a new session."""
-    from pnt.frontends.lte import frontend, open_capture
+    from pnt.frontends.lte import Config, frontend, open_capture
 
     cap = open_capture(args.capture, args.sidecar, args.earfcn)
     src = cap.path.parent if (cap.path.parent / session.MCAP_NAME).exists() else None
@@ -440,6 +440,11 @@ def cmd_frontend_lte(args) -> None:
         raise SystemExit(f"{out} already holds data; choose another --out or pass --force")
     result = frontend.process_capture(cap, receiver=args.receiver)
     print(frontend.summary(result, cap))
+    if not result.measurements:
+        raise SystemExit(
+            f"{args.capture}: no LTE cells found in {result.capture_s:.3f} s of samples "
+            f"(one search needs {Config().acq_ms:g} ms); nothing written"
+        )
     frontend.write_session(result, cap, out, _commit(), copy_from=None if args.no_copy else src)
     print(f"wrote {out}")
 
