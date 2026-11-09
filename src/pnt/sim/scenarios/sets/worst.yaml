@@ -18,20 +18,31 @@ sources:
     towers_from: {file: cells-ottawa.csv, carrier: TELUS, tx_mhz: 886.25, min_km: 0.8, count: 3}   # one radio hears one carrier
     sigma_m: 100.0
     told_sigma_m: 30.0
-    clock_rw_m: 0.2
-    init_bias_m: 1000.0
     receiver_clock: true
-    drift_sigma_mps: 0.2
     multipath: {sigma_m: 100.0, tau_s: 120.0}
     dropout: {availability: 0.5, block_s: 30.0}
     told_position_sigma_m: 300.0
+# Tower clocks (ADR-0022, Proposed): each tower's clock is its network builder's clock plus its
+# site's residual (plus a sector residual, unused: one emitter per site here). Each part is a
+# two-state oscillator (offset, drift; models.oscillator). Every value is TBC.
+# - Builder: no shared offset (FDD sites are only frequency-locked, 3GPP TS 36.104 6.5.1), a
+#   shared drift, and OCXO frequency wander (Shamaei, Khalife & Kassas, IEEE TWC 2018).
+# - Site: the per-tower offset and random walk this set used before (init_bias_m, clock_rw_m)
+#   and OCXO frequency wander.
+# - Drift: the 0.2 m/s per tower this set used before, its variance split evenly between
+#   builder and site (0.1414 m/s each). The split is TBC: no source gives a builder's share.
+# - Wander: drift_rw_mps = c sqrt(2 pi^2 h_-2) with h_-2 = 4e-26 (Shamaei et al. 2018).
+# Every tower here is TELUS-built (one carrier), so all of them share the one builder clock.
+tower_clocks:
+  builder: {drift_mps: 0.1414, drift_rw_mps: 2.7e-4}
+  site: {offset_m: 1000.0, drift_mps: 0.1414, offset_rw_m: 0.2, drift_rw_mps: 2.7e-4}
 provenance:
   clock: TBC
   gnss: TBC
   baro: TBC
   lte_noise: TBC
   lte_geometry: literature   # ISED site registry (data/reference/README.md)
-  tower_drift: TBC
+  tower_clocks: TBC   # form: Shamaei et al. 2018; grouping: ADR-0022; sizes unsourced
   multipath: TBC   # compared with MedComNet blocked 10 MHz link-bias p95, a ray-traced Milan dataset (analysis/error_bounds.py), not a source
   dropout: TBC
   tower_position_error: TBC
