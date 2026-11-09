@@ -43,3 +43,8 @@ def test_markdown_table_has_a_header_and_a_row_each():
 def test_command_line_prints_a_table(capsys):
     main(["experiment", "towers", "ottawa-towers", "--runs", "1"])
     assert "| removed |" in capsys.readouterr().out
+
+
+def test_parallel_grid_matches_serial():
+    kw = dict(runs=1, tower_counts=(3, 6), speeds=(4.0,), oscillators=("ocxo",))
+    assert grid("gps-outage", jobs=2, **kw) == grid("gps-outage", jobs=1, **kw)

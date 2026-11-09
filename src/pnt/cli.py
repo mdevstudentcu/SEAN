@@ -316,7 +316,7 @@ def cmd_plot(args) -> None:
 
 def cmd_experiment(args) -> None:
     run = experiments.towers if args.name == "towers" else experiments.grid
-    rows = run(args.scenario, runs=args.runs, estimator=args.estimator)
+    rows = run(args.scenario, runs=args.runs, estimator=args.estimator, jobs=args.jobs)
     commit = _commit()
     print(
         f"{args.name} experiment, scenario {args.scenario}, estimator {args.estimator}, "
@@ -391,6 +391,7 @@ def main(argv=None) -> None:
     s.add_argument("name", choices=["towers", "grid"])
     s.add_argument("scenario")
     s.add_argument("--runs", type=int, default=10)
+    s.add_argument("--jobs", type=int, help="worker processes (default: all cores)")
     s.add_argument("--json")
     add_estimator(s)
     s.set_defaults(fn=cmd_experiment)
