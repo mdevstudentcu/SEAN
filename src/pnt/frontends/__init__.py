@@ -3,7 +3,9 @@
 One subpackage per signal family. Each exposes a function or class that turns raw input (IQ
 file, readsb JSON, decoder output, hub records) into Measurements with honest sigmas.
 
-Planned (see the SoOP shortlist): adsb (readsb + pyModeS), lte (PSS/SSS timing), vor
+Built: lte (PSS/SSS cell search and TOA tracking on RTL-SDR captures, `pnt frontend lte`).
+
+Planned (see the SoOP shortlist): adsb (readsb + pyModeS), vor
 (Voracious bearings), wifi (RSSI scans, ADR-0018), gnss (NMEA from the GPS HAT via gpsd +
 per-satellite SNR as an interference cue), imu/baro (I2C on the Pi, ADR-0018).
 
