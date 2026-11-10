@@ -81,6 +81,23 @@ These states are learned while GNSS is trusted, like the clocks, and roll back w
 Cost: a slow drag that a reflection could explain is absorbed by the multipath states before
 the towers-vs-GNSS test sees it, so that test loses power against slow ramps (PR evidence).
 
+Range noise of a radio's records (#147). A record with `meta.rx_clock` comes from a real front
+end (or the sim's imitation of one), whose sigma comes from timing statistics and can't see
+multipath, so it can be far too small. For such records the noise is learned per emitter from
+the innovations, and the reported sigma is only a lower bound:
+- Learned variance: an exponentially weighted mean (memory `noise_tau_s`, TBC) of each
+  innovation's square less the part the state uncertainty explains, with the reported variance
+  counted as one sample. Innovations the gate rejects count too: otherwise a sigma too small
+  would get every large innovation rejected and never be seen to be too small.
+- Where the model has a multipath state (`multipath_ratio` > 0) the learned variance is split
+  between it and the white noise in the model's own ratio, so a correlated error is not taken as
+  white. Its own uncertainty is added back to the innovation, so the split doesn't feed on itself.
+- `range_sigma_floor_m` (0, off): a fixed least sigma for these records, the simpler alternative.
+  No value has a source yet (TBC).
+Records without `rx_clock` (every sim-shaped record) keep their reported sigma, exactly as
+before. With one to three cells and their clocks the innovations are weak evidence: the estimate
+is noisy and lags (PR evidence, #147).
+
 Calibration gate (calibrated model only). It opens when both hold:
 - GNSS has been trusted (position accepted recently, no exclusion, no time alarm) continuously
   for `calib_gate_s`.
@@ -300,6 +317,8 @@ class EKF:
         gnss_readmit: Callable[[], GnssReadmit] | None = None,  # GnssReadmit (#246, ADR-0050)
         heard_cell_radius_m: float | None = None,  # m: a heard cell's coverage bound (ADR-0050)
         magnetometer: Mapping | None = None,  # MagModel options: use `heading` records (#276)
+        noise_tau_s: float | None = 60.0,  # s: memory of a radio's learned range noise (TBC)
+        range_sigma_floor_m: float = 0.0,  # m: least range sigma of a radio's record; 0: off (TBC)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -407,6 +426,11 @@ class EKF:
         self.heard_cell_radius_m = heard_cell_radius_m
         self._bounded: dict[str, int] = {}  # emitter -> last time its coverage bound was applied
         self.gnss_alt_excluded = False  # last GNSS fix used for horizontal only (ADR-0045)
+        # Range noise of a radio's records (meta.rx_clock): see the module docstring
+        self.noise_tau_ns = None if noise_tau_s is None else noise_tau_s * 1e9
+        self.range_floor_var = range_sigma_floor_m**2
+        self._noise: dict[str, list[float]] = {}  # emitter -> [last t, weight, weighted sum]
+        self._mp_var = 0.0  # the multipath state's variance before the last update
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -886,6 +910,8 @@ class EKF:
                 # ADR-0045: the 3-D gate failed on the height; keep the horizontal if it agrees
                 used = alt_rejected = self._update(key, m.t_ns, y[:2], H[:2], R[:2, :2])
             self.gnss_alt_excluded = alt_rejected  # a re-admitted fix is used whole
+        if m.kind == "pseudorange" and gate and self.noise_tau_ns and "rx_clock" in m.meta:
+            self._learn_noise(m, float(R[0, 0]))  # not first sight: that innovation is zero
         if self.calibrated:
             if key in ("gnss", GNSS_TIME) and (not used or alt_rejected):
                 self._note_trouble(True)  # an alarm precursor: GNSS rejected
@@ -1091,6 +1117,43 @@ class EKF:
             self._emitter_pos[m.emitter] = emitter_enu(m.meta, self.origin_llh)
         return self._emitter_pos[m.emitter]
 
+    # --- range noise of a radio's records -------------------------------------------------------
+    def range_variance(self, m: Measurement) -> float:
+        """Range noise variance of a pseudorange, white and multipath together. A record without
+        `meta.rx_clock` gets its reported sigma squared, as always. A radio's record gets the
+        largest of that, `range_sigma_floor_m` squared and the variance learned for its emitter."""
+        r = m.sigma[0] ** 2
+        if "rx_clock" not in m.meta:
+            return r
+        r = max(r, self.range_floor_var)
+        acc = self._noise.get(m.emitter) if self.noise_tau_ns else None
+        if acc is not None:
+            r = max(r, (m.sigma[0] ** 2 + acc[2]) / (1.0 + acc[1]))  # reported: one sample
+        return r
+
+    def _learn_noise(self, m: Measurement, R: float) -> None:
+        """Add the last innovation to its emitter's learned variance: its square less what the
+        state uncertainty explains (S - R), plus the multipath state's own variance, which is part
+        of the range noise here. Exponentially weighted, memory `noise_tau_s`."""
+        y, S, _ = self._last_innov
+        excess = float(y[0]) ** 2 - (float(S[0, 0]) - R) + self._mp_var
+        acc = self._noise.setdefault(m.emitter, [m.t_ns, 0.0, 0.0])
+        decay = np.exp(-(m.t_ns - acc[0]) / self.noise_tau_ns)
+        acc[:] = [m.t_ns, acc[1] * decay + 1.0, acc[2] * decay + excess]
+
+    def range_noise(self, m: Measurement, mp: int | None) -> float:
+        """R of this pseudorange. For a radio's record with a multipath state `mp`, the variance
+        is split between the two in the model's ratio, and the state's steady-state sigma is set
+        to its share (never below `multipath_ratio` times the reported sigma)."""
+        total = self.range_variance(m)
+        self._mp_var = 0.0
+        if mp is None or "rx_clock" not in m.meta:
+            return total
+        k = self.multipath_ratio**2 / (1.0 + self.multipath_ratio**2)
+        self.multipath_sigma[mp] = max(self.multipath_ratio * m.sigma[0], np.sqrt(k * total))
+        self._mp_var = float(self.P[mp, mp])
+        return max(m.sigma[0] ** 2, (1.0 - k) * total)
+
     # --- output --------------------------------------------------------------------------
     def estimate(self) -> Estimate:
         P3 = self.P[POS, POS]
@@ -1238,7 +1301,7 @@ def _pseudorange(ekf: EKF, m: Measurement):
         H[0, i : i + 2] = h_pos
     H[0, idx] = 1.0
     y = m.value[0] - (r + rx + float(np.sum(ekf.x[idx])))
-    R = np.diag(np.square(m.sigma))
+    R = np.array([[ekf.range_noise(m, mp)]])
     if ekf.arc_settling(m):
         R = R * ARC_SETTLE_FACTOR**2
     return y, H, R, not (new or new_arc)
@@ -1383,6 +1446,9 @@ CALIBRATED: dict = {
     "multipath_tau_s": 30.0,  # s (realistic set, TBC)
     "tower_position_sigma_m": 100.0,  # m per axis (realistic set, TBC)
     "seed_site_drift": True,
+    # s: a radio's learned range noise (#147). Longer than `ekf`'s 60 s, so the estimate spans
+    # several multipath correlation times; both picked on tuning seeds 100-109 (TBC)
+    "noise_tau_s": 120.0,
 }
 
 
