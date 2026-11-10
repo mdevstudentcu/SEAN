@@ -96,6 +96,18 @@ def test_default_sweep_brackets_what_the_scenario_has():
     assert synthetic[TOWERS] == [2, 3, 6, 8]
 
 
+def test_a_count_stays_an_integer_and_a_fractional_count_is_an_error(short):
+    path = "sources.lte.towers_from.count"
+    changed = set_param(short, path, 3.0)
+    assert changed["sources"]["lte"]["towers_from"]["count"] == 3
+    assert isinstance(changed["sources"]["lte"]["towers_from"]["count"], int)
+    generate(changed, seed=0)  # a float count used to fail here, as a slice index
+    with pytest.raises(ValueError, match="count"):
+        set_param(short, path, 2.5)
+    with pytest.raises(ValueError, match="towers"):
+        set_param(short, TOWERS, 2.5)
+
+
 def test_command_line_rejects_a_malformed_param():
     with pytest.raises(SystemExit, match="PATH=v1"):
         main(["experiment", "sweep", "gps-outage", "--param", "sources.lte.sigma_m"])

@@ -207,6 +207,8 @@ def set_param(spec: dict, path: str, value: float) -> dict:
     get_param(spec, path)
     spec = copy.deepcopy(spec)
     if path == TOWERS:
+        if not float(value).is_integer() or value < 1:
+            raise ValueError(f"{TOWERS} is a count of towers, not {value!r}")
         _with_towers(spec, int(value))
         return spec
     # Without a `told_sigma_m` the sim reports `sigma_m` in every record, and the filter sizes
@@ -219,6 +221,11 @@ def set_param(spec: dict, path: str, value: float) -> dict:
     node = spec
     for key in parents:
         node = node[key]
+    old = node.get(leaf)  # absent for a told_sigma_m the spec doesn't name yet
+    if isinstance(old, int) and not isinstance(old, bool):
+        if not float(value).is_integer():
+            raise ValueError(f"{path} is a count, not {value!r}")
+        value = int(value)  # counts (n_emitters, towers_from.count) stay ints
     node[leaf] = value
     return spec
 
