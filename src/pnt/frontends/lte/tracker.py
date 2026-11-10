@@ -4,8 +4,9 @@ Implemented from 3GPP TS 36.211 and textbook estimation theory; no third-party L
 Pipeline, per carrier segment of a capture (`capture.Segment`):
 
 1. **Search** (`search`): FFT cross-correlation with the three PSS Zadoff-Chu roots over a grid of
-   carrier offsets (±`max_ppm`), folded over 5 ms half-frames and summed non-coherently. Peaks
-   above a peak-to-mean threshold are PSS candidates.
+   carrier offsets (±`max_ppm`), folded over 5 ms half-frames and summed non-coherently (or,
+   with `acq_coherent`, coherently in blocks, for cells near a strong one, #131). Peaks above a
+   peak-to-mean threshold are PSS candidates.
 2. **SSS and PCI**: at each candidate, the SSS of every N_ID1 (168) and subframe variant (0 or 5)
    is correlated coherently against the PSS channel phase. The best gives the PCI and which
    half-frame starts the frame. The carrier offset is refined from the SSS-to-PSS phase.
@@ -19,7 +20,9 @@ Pipeline, per carrier segment of a capture (`capture.Segment`):
    the 62 subcarriers is the same estimator in another form. A 2-state Kalman loop (boundary
    offset and its rate) predicts each epoch; its rate is aided by the carrier phase from epoch
    to epoch, because the dongle's LO and sample clock share one TCXO: the carrier offset and
-   the code rate are the same clock (`rx_clock` in the measurement meta).
+   the code rate are the same clock (`rx_clock` in the measurement meta). With
+   `track_coherent`, a cell found too weak for single epochs is tracked in coherent blocks of
+   half-frames instead (`_Track.run_coherent`).
 4. **First path**: an averaged delay profile is checked for an earlier path that is clearly not a
    sidelobe of the tracked one; if found, the loop moves to it.
 5. **Gaps**: dropped USB samples step the receiver clock. A loss of lock (a step beyond the
@@ -85,6 +88,29 @@ class Config:
     sigma_scale: float = 1.5  # reported σ / ranging bound; 1.5 covers the synthetic tests, TBC
     # Threads for the search's FFTs (scipy `workers`; -1 = every core). Same results either way.
     fft_workers: int = 2
+    # --- near-far (#131): off by default, every value below TBC ---
+    # Half-frames summed coherently in the search (1: today's non-coherent fold; 15 is the
+    # whole 80 ms window). The phase step between half-frames is found by an FFT across them,
+    # so no carrier prior is needed, but the channel must hold still over the block: assumed
+    # true for a static receiver (no capture yet says so); a receiver moving at v in multipath
+    # decorrelates in about 9 / (16 π v / λ), 6 ms at 10 m/s (Clarke's model), so not there.
+    # With it on, the SSS check also fits one phase reference across the whole window.
+    acq_coherent: int = 1
+    # PSS candidate gate when acq_coherent > 1. Below the noise: on 100 noise-only 80 ms
+    # windows (acq_coherent 15) the largest coherent peak-to-mean was 5.4. The SSS gate
+    # (`sss_peak_to_mean`) rejects what passes: the largest SSS score of any candidate that was
+    # not a sent cell, over those windows and 100 with one strong cell, was 5.9.
+    acq_coherent_peak_to_mean: float = 5.0
+    # Candidates per root when acq_coherent > 1: a strong cell's PSS sidelobes reach a peak-to-
+    # mean of 39 there and outrank a cell 14 dB down (4th to 14th of its root at -14 to -16 dB),
+    # so a cap of 6 drops it. Each costs one SSS check.
+    acq_coherent_max_cells_per_root: int = 30
+    # Half-frames per coherent block when tracking a weak cell (1: off). A cell whose search
+    # SNR, as a per-epoch post-correlation SNR over 124 elements, is below
+    # `track_coherent_below_db` is tracked by `_Track.run_coherent`.
+    track_coherent: int = 1
+    track_coherent_below_db: float = 14.0
+    track_coherent_snr_db: float = 13.0  # block post-correlation SNR to accept an epoch
 
 
 @dataclass(slots=True)
@@ -264,20 +290,26 @@ def search(x: np.ndarray, c0: int, fs: float, fc: float, cfg: Config) -> list[Fo
     half = math.ceil(f_max / cfg.cfo_step_hz - 0.5)
     bins = np.arange(-half, half + 1) * cfg.cfo_step_hz
     metric = np.empty((3, bins.size, L), np.float32)
+    m = min(max(cfg.acq_coherent, 1), h_count)
+    threshold = cfg.acq_peak_to_mean if m == 1 else cfg.acq_coherent_peak_to_mean
+    cap = cfg.max_cells_per_root if m == 1 else cfg.acq_coherent_max_cells_per_root
     for n_id2 in range(3):
         tf = _pss_spectra(fs, nfft, tuple(bins), n_id2)  # (bins, nfft), conjugated
         corr = sp_fft.ifft(xf[None, :] * tf, axis=1, workers=wk)[:, :n_valid]
-        fold = (corr.real**2 + corr.imag**2).reshape(bins.size, h_count, L).sum(axis=1)
+        if m == 1:
+            fold = (corr.real**2 + corr.imag**2).reshape(bins.size, h_count, L).sum(axis=1)
+        else:
+            fold = _coherent_fold(corr, bins.size, h_count, L, m, wk)
         metric[n_id2] = fold / fold.mean(axis=1, keepdims=True)
     sidelobe_mask = max(3, round(2 * fs / 1e6))  # ±~1 chip
     fetch = lambda idx: x[idx - c0]  # noqa: E731
     found: list[Found] = []
     for n_id2 in range(3):
         mt = metric[n_id2].copy()
-        for _ in range(cfg.max_cells_per_root):
+        for _ in range(cap):
             b, j = np.unravel_index(np.argmax(mt), mt.shape)
             peak = mt[b, j]
-            if peak < cfg.acq_peak_to_mean:
+            if peak < threshold:
                 break
             lo, hi = j - sidelobe_mask, j + sidelobe_mask + 1
             cols = np.arange(lo, hi) % L
@@ -289,6 +321,36 @@ def search(x: np.ndarray, c0: int, fs: float, fc: float, cfg: Config) -> list[Fo
                 cell.pss_metric = float(peak)
                 found.append(cell)
     return _dedupe(found)
+
+
+def _coherent_fold(corr: np.ndarray, n_bins: int, h_count: int, L: int, m: int, workers: int):
+    """Fold of the PSS correlation over blocks of `m` half-frames summed coherently.
+
+    Within a block the cell's correlation turns by a fixed phase step per half-frame (its carrier
+    offset left over after the bin, modulo the 200 Hz half-frame rate). An FFT across the block's
+    half-frames, zero-padded 2x, sums them at every step at once; the best step is kept per delay
+    and the blocks are added in power. Against noise-like interference the peak grows `m` times
+    faster than the mean, which non-coherent folding does not give."""
+    nb = h_count // m
+    c = corr[:, : nb * m * L].reshape(n_bins, nb, m, L)
+    spec = sp_fft.fft(c, n=2 * m, axis=2, workers=workers)
+    pw = spec.real**2 + spec.imag**2
+    return pw.max(axis=2).sum(axis=1) / m
+
+
+def _coherent_reference(sub: np.ndarray, pad: int = 4):
+    """A clean per-row phase reference from rows (half-frames) of a profile near its peak.
+
+    `sub` is (rows, delays). Returns (delay index, model reference per row, phase step per row
+    in cycles): the best common delay and the reference A·exp(j2π step·row) that fits the rows
+    coherently, found by a zero-padded FFT across rows."""
+    rows = sub.shape[0]
+    spec = np.fft.fft(sub, n=pad * rows, axis=0)
+    fi, gi = np.unravel_index(np.argmax(np.abs(spec)), spec.shape)
+    step = fi / (pad * rows)
+    w = np.exp(2j * np.pi * step * np.arange(rows))
+    a = spec[fi, gi] / rows
+    return int(gi), a * w, step
 
 
 @cache
@@ -326,9 +388,15 @@ def _identify(fetch, c0, jf, n_id2, f_bin, h_count, fs, fc, cfg) -> Found | None
     prof = delay_profile(zp, fs, cfg.interp)
     gate = np.r_[0 : 2 * cfg.interp + 1, -2 * cfg.interp : 0]
     sub = prof[:, gate]
-    i = np.argmax(np.abs(sub), axis=1)
-    d = gate[i] / cfg.interp
-    ref = sub[np.arange(sub.shape[0]), i]
+    if cfg.acq_coherent > 1:
+        # Weak cells: one delay for all half-frames and a phase reference fitted across them,
+        # instead of each half-frame's own noisy peak.
+        gi, ref, _ = _coherent_reference(sub)
+        d = np.full(sub.shape[0], gate[gi] / cfg.interp)
+    else:
+        i = np.argmax(np.abs(sub), axis=1)
+        d = gate[i] / cfg.interp
+        ref = sub[np.arange(sub.shape[0]), i]
     ramp = np.exp(2j * np.pi * _K[None, :] * d[:, None] / n_u)
     v = ys * ramp * (np.conj(ref) / np.maximum(np.abs(ref), 1e-30))[:, None]
     table = sig.sss_table(n_id2).reshape(2 * sig.N_ID1_COUNT, sig.N_SYNC)
@@ -460,9 +528,26 @@ class _Track:
     def file_index(self, c: float) -> int:
         return int(self.gaps.to_file(np.int64(math.floor(c)))[0])
 
-    def run(self, cell: CellTrack, n_id1: int, n_id2: int, st: State, c_stop: float) -> State:
+    def weak(self, snr_db: float | None) -> bool:
+        """Whether a cell found at `snr_db` (per resource element) goes to coherent blocks."""
+        if self.cfg.track_coherent <= 1 or snr_db is None or not math.isfinite(snr_db):
+            return False
+        return snr_db + 10 * math.log10(2 * sig.N_SYNC) < self.cfg.track_coherent_below_db
+
+    def run(
+        self,
+        cell: CellTrack,
+        n_id1: int,
+        n_id2: int,
+        st: State,
+        c_stop: float,
+        snr_db: float | None = None,
+    ) -> State:
         """Track `cell` from state `st` (its next epoch is st.k) to corrected index `c_stop`, or
-        until it has been gone for `lost_s`. Appends epochs to `cell.epochs`."""
+        until it has been gone for `lost_s`. Appends epochs to `cell.epochs`. A cell the search
+        found at `snr_db` below the weak-cell limit goes to `run_coherent` instead."""
+        if self.weak(snr_db):
+            return self.run_coherent(cell, n_id1, n_id2, st, c_stop)
         cfg, fs, L, fc = self.cfg, self.fs, self.L, cell.fc
         grid = self.n_u * cfg.interp
         gi = int(round(cfg.gate_samples * cfg.interp))
@@ -595,6 +680,88 @@ class _Track:
                 st = good.copy()
                 k, last, miss = good.k + 1, None, 0
         cell.snr_db = (10 * math.log10(max(snr_ema, 1e-3) / (2 * sig.N_SYNC))
+                       if snr_ema is not None else float("nan"))  # fmt: skip
+        return st
+
+    def run_coherent(
+        self, cell: CellTrack, n_id1: int, n_id2: int, st: State, c_stop: float
+    ) -> State:
+        """Track a weak cell in blocks of `track_coherent` half-frames summed coherently.
+
+        Each block's PSS+SSS products (124 per half-frame) are summed across its half-frames at
+        the phase step an FFT across them finds (the carrier offset left after the loop's,
+        modulo 200 Hz), so the block's post-correlation SNR is `track_coherent` times one
+        epoch's. One Epoch per block, referred to the block's middle half-frame; its σ comes
+        from the block's SNR, so blocks are independent and `emit` weights them as such. Not
+        done here, unlike `run`: carrier aiding and doppler (the phase is not tracked across
+        blocks), the first-path check and re-search after a loss (the next periodic search
+        picks a lost cell up again)."""
+        cfg, fs, L = self.cfg, self.fs, self.L
+        m = cfg.track_coherent
+        grid = self.n_u * cfg.interp
+        gi = int(round(cfg.gate_samples * cfg.interp))
+        gate = np.arange(-gi, gi + 1)
+        detect = 10 ** (cfg.track_coherent_snr_db / 10)
+        alpha = min(0.05 * m, 0.5)  # noise average: about as fast per second as `run`'s
+        noise_ema = snr_ema = None
+        last_seen = cell.n0 + st.k * L + st.theta
+        k = st.k
+        while True:
+            n_b = int(np.clip(0.3 / (3 * math.sqrt(max(st.p11, 0.0)) * L * m + 1e-15), 1, 25))
+            ks = np.arange(k, k + n_b * m)
+            bounds = cell.n0 + ks * L + st.theta + st.nu * (ks - st.k) * L
+            if bounds[0] > c_stop or bounds[0] - last_seen > cfg.lost_s * fs:
+                break
+            k = int(ks[-1]) + 1
+            ok = (self.usable(bounds) & (bounds <= c_stop)).reshape(n_b, m).all(axis=1)
+            if not ok.any():
+                continue
+            rows = np.repeat(ok, m)
+            kb, bb = ks[rows].reshape(-1, m), bounds[rows].reshape(-1, m)
+            f_used = -st.nu * cell.fc
+            prof, noise = self.measure(n_id1, n_id2, bounds[rows], ks[rows], f_used)
+            sub = prof[:, gate % grid].reshape(-1, m, gate.size)
+            amp = np.abs(np.fft.fft(sub, n=4 * m, axis=1))  # (blocks, phase steps, delays)
+            noise_b = noise.reshape(-1, m).mean(axis=1)
+            for r in range(amp.shape[0]):
+                fi, i = np.unravel_index(np.argmax(amp[r]), amp[r].shape)
+                nb_ = float(noise_b[r])
+                noise_ema = nb_ if noise_ema is None else (1 - alpha) * noise_ema + alpha * nb_
+                b = float(amp[r, fi, i])
+                snr_post = b**2 / (2 * sig.N_SYNC * m * noise_ema) - 1.0
+                if i == 0 or i == gate.size - 1 or snr_post < detect:
+                    continue
+                d = gate[i] + float(_parabola(amp[r, fi, i - 1], b, amp[r, fi, i + 1]))
+                d /= cfg.interp
+                k_ref = int(kb[r, m // 2])
+                st.predict(k_ref, L, fs, self.q)
+                # The block's mean offset; the predicted offsets are linear in k, so this is the
+                # offset at the block's mean half-frame (k_ref, within half a half-frame).
+                theta_meas = float(np.mean(bb[r] - cell.n0 - kb[r] * L)) + d
+                sigma = fs / (2 * math.pi * BETA_HZ * math.sqrt(2 * snr_post))
+                r_code = (cfg.sigma_scale * sigma) ** 2
+                if abs(theta_meas - st.theta) > 5 * math.sqrt(st.s(0, r_code)) + 0.25:
+                    continue
+                snr_ema = snr_post if snr_ema is None else 0.8 * snr_ema + 0.2 * snr_post
+                st.update(0, theta_meas, r_code)
+                n_ref = float(np.mean(bb[r]) + 0.5 * (self.sss_off + self.pss_off) + self.n_u / 2)
+                cell.epochs.append(
+                    Epoch(
+                        k=k_ref,
+                        c_ref=cell.n0 + k_ref * L + st.theta,
+                        theta_meas=theta_meas,
+                        nu=st.nu,
+                        sigma=sigma,
+                        snr_post=snr_post / m,  # per half-frame, as `run` stores it
+                        psi=0.0,
+                        n_ref=n_ref,
+                        locked=False,
+                        arc=cell.arc,
+                        n0=cell.n0,
+                    )
+                )
+                last_seen = float(bb[r, 0])
+        cell.snr_db = (10 * math.log10(max(snr_ema, 1e-3) / (2 * sig.N_SYNC * m))
                        if snr_ema is not None else float("nan"))  # fmt: skip
         return st
 

@@ -149,7 +149,7 @@ def _segment(cap: Capture, seg: Segment, gaps: GapMap, cfg: Config, carry, found
                 continue
             key = (seg.earfcn, f.pci)
             cell, st = _start(key, f, fc, L, carry, seg, cfg)
-            st = trk.run(cell, f.n_id1, f.n_id2, st, c_stop)
+            st = trk.run(cell, f.n_id1, f.n_id2, st, c_stop, f.snr_db)
             carry[key] = (cell, st)
             tracked_until[f.pci] = cell.n0 + st.k * L + st.theta
             if cell not in out:
