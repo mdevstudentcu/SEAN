@@ -3,10 +3,12 @@
 The comparison `systems/verification.md` asks for (*Sim validity*, IMU row): the same statistic
 on our sensor sitting still and on the sim's model run for the same length at the same rate.
 
-    python analysis/imu_allan.py data/sessions/<session> [--skip-s S] [--no-sim] [--out DIR]
+    python analysis/imu_allan.py data/sessions/<session> [--skip-s S] [--until-s U] [--no-sim]
+        [--out DIR]
 
 Writes to `results/<session>-allan/` (or --out): `allan.png`, `summary.md`, `summary.json`.
-`--skip-s` drops the first S seconds (warm-up drift); the default keeps everything.
+`--skip-s` drops the first S seconds (warm-up drift) and `--until-s` everything after U seconds
+(someone touched the bench); the default keeps everything.
 """
 
 from __future__ import annotations
@@ -149,12 +151,13 @@ def repo_commit() -> str:
         return "unknown"
 
 
-def markdown(name, meta, tm, real_f, sim_f, statics, peaks, commit, skip_s) -> str:
+def markdown(name, meta, tm, real_f, sim_f, statics, peaks, commit, skip_s, until_s) -> str:
     lines = [
         f"# IMU Allan deviation: {name}",
         "",
         f"Session `{name}` (recorded at commit `{meta.get('commit', '?')}`), analysed at commit "
-        f"`{commit}`. Hardware: {meta.get('hardware')}. First {skip_s:g} s dropped.",
+        f"`{commit}`. Hardware: {meta.get('hardware')}. Window from {skip_s:g} s"
+        f"{'' if until_s is None else f' to {until_s:g} s'} of the session.",
         "",
         f"{tm['samples']} samples over {tm['span_s']:.0f} s at {tm['rate_hz']:.1f} Hz; "
         f"{tm['gaps']} intervals > {GAP_FACTOR}x nominal, longest {tm['longest_gap_s']:.3f} s.",
@@ -201,6 +204,7 @@ def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("session")
     ap.add_argument("--skip-s", type=float, default=0.0, help="drop the first S seconds")
+    ap.add_argument("--until-s", type=float, help="drop everything after U seconds")
     ap.add_argument("--no-sim", action="store_true", help="skip the sim model's curve")
     ap.add_argument("--out", type=Path)
     args = ap.parse_args(argv)
@@ -209,6 +213,8 @@ def main(argv=None) -> None:
     meta = read_meta(args.session)
     t, v = load_imu(args.session)
     keep = t >= t[0] + int(args.skip_s * 1e9)
+    if args.until_s is not None:
+        keep &= t <= t[0] + int(args.until_s * 1e9)
     t, v = t[keep], v[keep]
     tm = timing(t)
     fs = tm["rate_hz"]
@@ -225,12 +231,15 @@ def main(argv=None) -> None:
     out.mkdir(parents=True, exist_ok=True)
     commit = repo_commit()
     caption = (
-        f"Session {name} (recorded at {meta.get('commit', '?')}), analysed at {commit}. "
+        f"Session {name} (recorded at {meta.get('commit', '?')}), {args.skip_s:g} s to "
+        f"{'the end' if args.until_s is None else f'{args.until_s:g} s'}, analysed at {commit}. "
         f"Solid: our MPU6050, still; dashed: the sim's MPU6050 model, same length and rate."
     )
     plot(out / "allan.png", real, sim, caption)
     (out / "summary.md").write_text(
-        markdown(name, meta, tm, real_f, sim_f, statics_out, peaks, commit, args.skip_s)
+        markdown(
+            name, meta, tm, real_f, sim_f, statics_out, peaks, commit, args.skip_s, args.until_s
+        )
     )
     (out / "summary.json").write_text(
         json.dumps(
@@ -239,6 +248,7 @@ def main(argv=None) -> None:
                 "session_commit": meta.get("commit"),
                 "commit": commit,
                 "skip_s": args.skip_s,
+                "until_s": args.until_s,
                 "timing": tm,
                 "static_mean": statics_out.tolist(),
                 "spectral_peak_hz": peaks,
