@@ -1,0 +1,110 @@
+{
+  "commit": "b79b727819f1",
+  "seeds": "0..49",
+  "conditions": {
+    "ekf towers": {
+      "runs": 50,
+      "fault_h_p95_m_median": 19.27646068901298,
+      "fault_h_p95_m_mean": 19.7651402476281,
+      "fault_h_p95_m_worst": 24.907292627350575,
+      "fault_h_max_m_worst": 37.03571515830581,
+      "h_rmse_m_median": 6.66625046342898,
+      "hpl_bound_frac_min": 1.0,
+      "misleading_epochs_total": 0,
+      "h_nees_mean_median": 1.7141303518732753,
+      "p95_ratio_to_towers_median": 1.0,
+      "seeds_better_than_towers": 0
+    },
+    "ekf +Iridium": {
+      "runs": 50,
+      "fault_h_p95_m_median": 7.799726843758879,
+      "fault_h_p95_m_mean": 8.006002108562962,
+      "fault_h_p95_m_worst": 11.680361690592726,
+      "fault_h_max_m_worst": 15.255109020080267,
+      "h_rmse_m_median": 2.9168459730755787,
+      "hpl_bound_frac_min": 1.0,
+      "misleading_epochs_total": 0,
+      "h_nees_mean_median": 1.7436064287570974,
+      "p95_ratio_to_towers_median": 0.4136238869067388,
+      "seeds_better_than_towers": 50
+    },
+    "ekf +Starlink": {
+      "runs": 50,
+      "fault_h_p95_m_median": 4.436013044647353,
+      "fault_h_p95_m_mean": 4.438868348861313,
+      "fault_h_p95_m_worst": 7.769013739345704,
+      "fault_h_max_m_worst": 9.53340375964359,
+      "h_rmse_m_median": 1.7018428099334462,
+      "hpl_bound_frac_min": 1.0,
+      "misleading_epochs_total": 0,
+      "h_nees_mean_median": 1.471722167051987,
+      "p95_ratio_to_towers_median": 0.2169159063299242,
+      "seeds_better_than_towers": 50
+    },
+    "ekf +both": {
+      "runs": 50,
+      "fault_h_p95_m_median": 4.145683725211914,
+      "fault_h_p95_m_mean": 4.330683010447365,
+      "fault_h_p95_m_worst": 6.612724179884117,
+      "fault_h_max_m_worst": 7.718541741582093,
+      "h_rmse_m_median": 1.6175596464737612,
+      "hpl_bound_frac_min": 1.0,
+      "misleading_epochs_total": 0,
+      "h_nees_mean_median": 1.3372506593121707,
+      "p95_ratio_to_towers_median": 0.21775169880229717,
+      "seeds_better_than_towers": 50
+    },
+    "ekf-calibrated towers": {
+      "runs": 50,
+      "fault_h_p95_m_median": 22.850252986968627,
+      "fault_h_p95_m_mean": 23.934689274137572,
+      "fault_h_p95_m_worst": 39.85378537361785,
+      "fault_h_max_m_worst": 56.27564313456462,
+      "h_rmse_m_median": 8.029722331046187,
+      "hpl_bound_frac_min": 1.0,
+      "misleading_epochs_total": 0,
+      "h_nees_mean_median": 1.2153939433292011,
+      "p95_ratio_to_towers_median": 1.0,
+      "seeds_better_than_towers": 0
+    },
+    "ekf-calibrated +Iridium": {
+      "runs": 50,
+      "fault_h_p95_m_median": 12.94519373246553,
+      "fault_h_p95_m_mean": 14.174827006468114,
+      "fault_h_p95_m_worst": 28.594286733352284,
+      "fault_h_max_m_worst": 32.24728053479703,
+      "h_rmse_m_median": 4.9073101919229565,
+      "hpl_bound_frac_min": 1.0,
+      "misleading_epochs_total": 0,
+      "h_nees_mean_median": 1.6443467350561778,
+      "p95_ratio_to_towers_median": 0.5618514251132749,
+      "seeds_better_than_towers": 48
+    },
+    "ekf-calibrated +Starlink": {
+      "runs": 50,
+      "fault_h_p95_m_median": 5.118075064950841,
+      "fault_h_p95_m_mean": 5.403306103104976,
+      "fault_h_p95_m_worst": 9.177206721290442,
+      "fault_h_max_m_worst": 10.75726608078567,
+      "h_rmse_m_median": 2.0166889678856346,
+      "hpl_bound_frac_min": 1.0,
+      "misleading_epochs_total": 0,
+      "h_nees_mean_median": 1.3767956518361384,
+      "p95_ratio_to_towers_median": 0.2200934857643822,
+      "seeds_better_than_towers": 50
+    },
+    "ekf-calibrated +both": {
+      "runs": 50,
+      "fault_h_p95_m_median": 4.809607574041967,
+      "fault_h_p95_m_mean": 4.958637423055738,
+      "fault_h_p95_m_worst": 7.584425287256964,
+      "fault_h_max_m_worst": 8.186634304552388,
+      "h_rmse_m_median": 1.812118303769228,
+      "hpl_bound_frac_min": 1.0,
+      "misleading_epochs_total": 0,
+      "h_nees_mean_median": 1.3011378391129291,
+      "p95_ratio_to_towers_median": 0.20536653602686888,
+      "seeds_better_than_towers": 50
+    }
+  }
+}
