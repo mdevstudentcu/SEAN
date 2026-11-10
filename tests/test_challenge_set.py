@@ -161,6 +161,17 @@ def test_run_lengths_give_both_outage_slices_a_value(leg):
     assert m["recovery_tested"] == 1.0  # GPS is back for the last 60 s
 
 
+SITE_30018 = {"lte:2460:300", "lte:2460:308", "lte:2460:316"}  # eNB 30018's sectors
+
+
+def test_the_tower_clock_step_hits_on_a_seed_where_only_a_sibling_sector_is_heard():
+    """Timing leg, seed 4: the receiver hears 316, not 300. The site steps, so records move."""
+    outage = generate(_short("challenge-timing-outage"), seed=4)
+    step = generate(_short("challenge-timing-outage-tower-clock-step"), seed=4)
+    assert not any(m.emitter == "lte:2460:300" for m in step.measurements)
+    assert step.measurements != outage.measurements
+
+
 @pytest.mark.parametrize("leg", FRONT_END_LEGS)
 def test_tower_faults_hit_a_real_emitter_of_a_front_end_leg(leg):
     outage = generate(_short(f"{leg}-outage"), seed=0)
@@ -171,10 +182,10 @@ def test_tower_faults_hit_a_real_emitter_of_a_front_end_leg(leg):
     for m in step.measurements:
         if m.source == "lte":
             d = m.value[0] - base[(m.t_ns, m.emitter)]
-            hit = m.emitter == "lte:2460:300" and _seconds(m) >= 180.0
+            hit = m.emitter in SITE_30018 and _seconds(m) >= 180.0
             assert d == pytest.approx(300.0 if hit else 0.0, abs=1e-9)
             moved[hit] += 1
-    assert moved[True] > 0  # the stepped cell is heard after the step
+    assert moved[True] > 0  # the stepped site is heard after the step
 
     hold = generate(_short(f"{leg}-outage-tower-holdover"), seed=0)
     lte = [m for m in hold.measurements if m.source == "lte"]
