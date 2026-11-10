@@ -1,6 +1,6 @@
 # Bill of materials
 
-- **Status:** Draft, 2026-11-08; ground reference station adopted 2026-11-09 (ADR-0020)
+- **Status:** Draft, 2026-11-08; ground reference station adopted 2026-11-09 (ADR-0020); first parts received 2026-11-09 evening ([In hand](#in-hand))
 - **Prices:** CAD before tax, as listed on Amazon.ca and PiShop.ca on the date in each section (2026-11-08 unless noted). Delivery dates are what Amazon showed then for Ottawa (K1V); recheck at checkout.
 - Unknowns are `TBD` (no value yet) or `TBC` (proposed, not confirmed).
 
@@ -26,22 +26,39 @@ Every item in this file meets these, and anything added later must too. An item 
 | --- | --- | --- |
 | Must buy: payload radios | SDR A (FlightStick), SDR B (NESDR bundle) | **$123.10** |
 | Must buy: antennas | LTE 2-pack (payload + ground), ADS-B | **$46.44** |
-| Buy only if day-1 tests need the hub (ADR-0018) | Pi Zero 2 W | $69.28 |
+| Pi Zero 2 W hub (ADR-0018) | In hand: nothing to buy | — |
 | Must buy: ground reference station (ADR-0020) | Reference SDR (dongle) + GPS with PPS; its LTE antenna is in the 2-pack above | **$78.34** |
+
+## In hand
+
+Checked 2026-11-09 evening. Everything else in this file is still on order or `TBD`.
+
+| Item | Source | How it was identified | Notes |
+| --- | --- | --- | --- |
+| Raspberry Pi 4B, **1 GB** | HON (kit with case, power supply and SD card; the kit contents are `TBC`) | Team read the board | Payload recorder (ADR-0018). 1 GB, not the 2 GB on Honeywell's list: see ADR-0018 *RAM* |
+| NooElec NESDR SMArt v5, one | Buy (one of the two NESDR orders, section 2 and section 5) | USB descriptors on the laptop: `0bda:2838`, "Nooelec", "NESDR SMArt v5", serial `52453800` | Bundle or dongle-only is `TBC`: the bundle comes with three antennas and a magnetic base. Either way it is the same radio, so the roles (payload SDR B or reference) are assigned when the second one arrives |
+| Adafruit Ultimate GPS HAT | HON | Team | ADR-0014 |
+| GPS active antenna, Adafruit product 960 | HON | Team | The 28 dB, 5 m SMA antenna in section 1 |
+| MPU6050 IMU | HON (sensor kit) | Team | ADR-0014 |
+| **BMP180** barometer | HON (sensor kit) | Team | **Not a BMP280**: see ADR-0014. The payload driver (`pnt.payload.i2c`) reads BMP280s only, so the barometer shows as `absent` until it is extended. Check on the Pi: `i2cdetect -y 1` shows `77`, and register `0xD0` reads `0x55` |
+| Raspberry Pi Zero 2 W | `TBC` (team) | Team | The ADR-0018 hub fallback; nothing to buy |
+| VL53L1X ToF breakout | HON | Team | Still not used (*Not using*) |
+
+**Not in hand yet:** the FlightStick (SDR A), the second NESDR, the SDR antennas (unless this NESDR is the bundle), the NEO-6M, the LoRa HAT (expected 2026-11-10 `TBC`, see *Open decisions*), and the drone parts.
 
 ## 1. Payload: compute, timing and sensors
 
 | Item | Qty | Role | Source | Price | Status / notes |
 | --- | --- | --- | --- | --- | --- |
-| Raspberry Pi 4B (payload) | 1 | Records SDR IQ, GPS, sensors; streams to laptop | Team (owned) | — | ADR-0018. SDRs on the USB 2 ports (USB 3 noise, RSK-06); 5 V 3 A supply, heatsink or fan; USB current `TBC` |
+| Raspberry Pi 4B, 1 GB (payload) | 1 | Records SDR IQ, GPS, sensors; streams to laptop | HON, **in hand** | — | ADR-0018. SDRs on the USB 2 ports (USB 3 noise, RSK-06); 5 V 3 A supply, heatsink or fan; USB current `TBC` |
 | Raspberry Pi 3B+ | 1 | Not on the payload; runs the ground reference station (section 5) | Team (owned) | — | ADR-0018, ADR-0020 |
 | microSD card, ≥ 64 GB, A2 (or a USB SSD) | 1 | OS + session logs. Raw IQ from one SDR at 2.4 MS/s is ~17 GB/h; both SDRs ~35 GB/h | Team `TBC` | — | Confirm size and speed |
-| Raspberry Pi Zero 2 W | 0–1 | Fallback sensor hub if day-1 tests fail on the 4B: IMU, baro, PPS edge, Wi-Fi scans (ADR-0018) | Team `TBC`, else Buy: Amazon.ca | $69.28, overnight, **1 left** | PiShop.ca: out of stock (both variants). Plugs into a 4B USB 2 port (data port) |
-| Adafruit Ultimate GPS HAT | 1 | GPS fix, PPS on GPIO4, truth outdoors | HON | — | ADR-0014 |
-| GPS active antenna, 28 dB, 5 m, SMA | 1 | Puts the GPS antenna on a mast away from SDR/USB noise (RSK-06) | HON | — | |
+| Raspberry Pi Zero 2 W | 0–1 | Fallback sensor hub if day-1 tests fail on the 4B: IMU, baro, PPS edge, Wi-Fi scans (ADR-0018) | **In hand** (2026-11-09) | — | Plugs into a 4B USB 2 port (data port) |
+| Adafruit Ultimate GPS HAT | 1 | GPS fix, PPS on GPIO4, truth outdoors | HON, **in hand** | — | ADR-0014 |
+| GPS active antenna, 28 dB, 5 m, SMA | 1 | Puts the GPS antenna on a mast away from SDR/USB noise (RSK-06) | HON, **in hand** | — | Adafruit product 960 |
 | SMA to u.FL adapter cable | 1 | Antenna → HAT | HON | — | |
 | CR1220 coin cell | 1 | Keeps the HAT's RTC alive (faster fix) | Buy: any pharmacy, same day | ~$5 `TBC` | Optional: only if cold starts are too slow on day 1 |
-| MPU6050 IMU, BMP280 barometer, jumpers | 1 kit | IMU + baro on the Pi 4B's I2C (the Zero's, if the hub is used) | HON (Sensor Kit v4.0) | — | ADR-0014 |
+| MPU6050 IMU, **BMP180** barometer, jumpers | 1 kit | IMU + baro on the Pi 4B's I2C (the Zero's, if the hub is used) | HON (Sensor Kit v4.0), **in hand** | — | ADR-0014. The kit's barometer is a BMP180, not a BMP280 |
 | Pi camera | 1 | Optional video log | Team | — | |
 | Heatsink + 5 V fan | 1 | Pi cooling under SDR load | HON | — | |
 
@@ -148,11 +165,13 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 | Airspy Mini | Budget |
 | Flamingo FM band-stop filter ($46) | Skipped; VOR is 16.8 km away. Revisit only if the RF survey shows FM overload |
 | LoRa HAT 915 MHz (HON) | A 22 dBm transmitter ~20 MHz above the 850 MHz LTE downlink would desensitize the unfiltered SDRs; Canadian certification unconfirmed |
-| VL53L1X ToF (HON) | Optional indoor height truth only; drone already has the MTF-01 rangefinder |
+| VL53L1X ToF (HON, in hand) | Optional indoor height truth only; drone already has the MTF-01 rangefinder |
 | L-band patch antenna (Iridium) | LEO layer is simulated (ADR-0013, mentor Q5) |
 | DIY antennas (ADS-B and LTE ground planes, VOR dipole), SMA pigtails, copper wire, PCB plates | Nobody free to build them this week; antennas are bought (section 3). [`antennas.md`](antennas.md) is the fallback |
 
 ## Open decisions
+
+- **LoRa HAT (915 MHz): expected from Honeywell 2026-11-10 (`TBC`), but it is under *Not using*** (it would desensitize the SDRs, and its Canadian certification is unconfirmed). Receiving it changes nothing on its own. Using it on the payload or the ground station needs a decision (an ADR) first.
 
 - **Flight-controller firmware: decided, INAV (ADR-0028).** Which MAVLink messages INAV sends to the recorder is `TBC`.
 - **RC transmitter and receiver with a kill switch: not in hand.** Without them the drone doesn't fly (ADR-0028, `safety.md`). Buy in time for rule 1.

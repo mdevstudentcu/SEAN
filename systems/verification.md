@@ -22,7 +22,7 @@ How each simulated model aligns to reality. Status: `placeholder` (datasheet/lit
 | Model | Parameters | Current source | Real check | Status |
 | --- | --- | --- | --- | --- |
 | GNSS position | σ, outage/attack behaviour | literature | Static + walk sessions with the GPS HAT | placeholder |
-| Barometer (BMP280) | σ, offset, drift | datasheet + TBC (`sim/sensors.py`, `BMP280`) | Static session | placeholder |
+| Barometer (BMP180 in hand; the sim model is still named `BMP280`, ADR-0014) | σ, offset, drift | datasheet + TBC (`sim/sensors.py`, `BMP280`), for the wrong part | Static session with the BMP180 | placeholder |
 | IMU (MPU6050) | noise, residual bias, bias instability, scale, range, vibration | noise: datasheet; rest literature/TBC (`sim/sensors.py`, `MPU6050`) | Static Allan variance | placeholder |
 | LTE pseudorange | σ, receiver clock, tower clock drift, lingering error, dropouts, told-vs-true tower position and noise | literature + TBC | LTE timing spike (fixed spot, 1 h) | placeholder |
 | LTE tower clocks, shared (#77, ADR-0022 Proposed) | each tower = builder + site + sector clock, each a two-state oscillator (offset, drift, white and random-walk frequency noise); builder from the filed carrier; on in `realistic` and `worst` only | form: literature (Shamaei, Khalife & Kassas 2018; 3GPP TS 36.104); sizes and the builder/site split TBC | Static capture of two or more sites per builder: is there a common term within a builder? | placeholder |

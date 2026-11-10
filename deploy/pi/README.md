@@ -12,8 +12,8 @@ What `setup.sh` does (idempotent; `just pi-deploy` runs it after copying the rep
 
 `setup.sh` makes no keys. Each host makes its own CurveZMQ key pair for the stream, and the hosts exchange public keys ([`RUNBOOK.md`](RUNBOOK.md#keys-once-per-host), ADR-0026).
 
-Checks after a reboot: `sudo ppstest /dev/pps0` (one line per second), `gpsmon` (fix + per-satellite SNR), `chronyc sources -v` (PPS selected, offset in µs), `rtl_test -t` (both dongles), `i2cdetect -y 1` (MPU6050 at 0x68, BMP280 at 0x76 or 0x77).
+Checks after a reboot: `sudo ppstest /dev/pps0` (one line per second), `gpsmon` (fix + per-satellite SNR), `chronyc sources -v` (PPS selected, offset in µs), `rtl_test -t` (both dongles), `i2cdetect -y 1` (MPU6050 at 0x68, BMP180 at 0x77; a BMP280 would be 0x76 or 0x77).
 
-The MPU6050 and BMP280 go on the Pi's I2C bus (GPIO2/GPIO3, through the HAT's prototyping area). Only if the day-1 test brings back the Pi Zero 2 W hub (ADR-0018): wire the HAT's PPS pin (GPIO4) to the Zero's PPS GPIO (`TBC`) with a common ground, and plug the Zero's data port into a Pi USB 2 port.
+The MPU6050 and BMP180 (ADR-0014) go on the Pi's I2C bus (GPIO2/GPIO3, through the HAT's prototyping area). Only if the day-1 test brings back the Pi Zero 2 W hub (ADR-0018): wire the HAT's PPS pin (GPIO4) to the Zero's PPS GPIO (`TBC`) with a common ground, and plug the Zero's data port into a Pi USB 2 port.
 
 Plug both SDRs into the **USB 2 ports** (black). USB 3 ports radiate near GPS L1 and 2.4 GHz: leave them empty, or use one only for a shielded recording SSD kept away from the GPS antenna. Space the SDRs out with short extensions and ferrites (RSK-06). The 4B needs a 5 V 3 A supply and a heatsink or fan.

@@ -1,7 +1,7 @@
 # ADR-0018: The payload is a Pi 4B recorder; a Pi Zero 2 W hub only if day-1 tests need it
 
 - **Status:** Proposed
-- **Date:** 2026-11-08, amended 2026-11-09 (the recorder changed from a Pi 3B+ to a Pi 4B: we have both)
+- **Date:** 2026-11-08, amended 2026-11-09 (the recorder changed from a Pi 3B+ to a Pi 4B: we have both), and again 2026-11-09 (our Pi 4B has 1 GB of RAM)
 - **Deciders:** team
 - **Traces to:** REQ-03, REQ-08, REQ-09, RSK-05, RSK-06; supersedes ADR-0005; settles sim plan D6
 
@@ -9,13 +9,13 @@
 
 ADR-0005 assumed an ESP32-S3 sensor hub feeding a Pi 4B. We have no ESP32-S3. The first version of this ADR flew a Pi 3B+ because it was thought to be the only board available. We have both a Pi 4B and a Pi 3B+.
 
-The payload records two RTL-SDRs at up to 2.4 MS/s each: 4.8 MB/s each, 9.6 MB/s together, about 35 GB/h. It also reads the MPU6050 and BMP280 (ADR-0014), timestamps the GPS PPS edge, scans Wi-Fi with BSSIDs hashed at capture (ADR-0011), and streams to the laptop over Wi-Fi (ADR-0009).
+The payload records two RTL-SDRs at up to 2.4 MS/s each: 4.8 MB/s each, 9.6 MB/s together, about 35 GB/h. It also reads the MPU6050 and BMP180 (ADR-0014), timestamps the GPS PPS edge, scans Wi-Fi with BSSIDs hashed at capture (ADR-0011), and streams to the laptop over Wi-Fi (ADR-0009).
 
 | | Pi 3B+ | Pi 4B |
 | --- | --- | --- |
 | USB | All four ports and Ethernet share one USB 2.0 link (480 Mb/s) | USB controller on its own PCIe lane; Ethernet separate |
 | CPU | 4× Cortex-A53, 1.4 GHz | 4× Cortex-A72, 1.5–1.8 GHz |
-| RAM | 1 GB | 2–8 GB |
+| RAM | 1 GB | 1 GB on ours (Honeywell, received 2026-11-09); the model is sold with 1–8 GB |
 | Recording | SD card, or a USB SSD on the shared bus | Faster SD, or a USB 3 SSD with its own bandwidth |
 | Power | Lower | Higher; needs a 5 V 3 A supply and cooling |
 | Noise | — | USB 3 ports radiate near GPS L1 and 2.4 GHz (RSK-06) |
@@ -26,7 +26,7 @@ The payload records two RTL-SDRs at up to 2.4 MS/s each: 4.8 MB/s each, 9.6 MB/s
 | --- | --- | --- |
 | Pi 4B, sensors on its own I2C (no hub) | One board and one clock: PPS, IMU and SDR timestamps share the recorder's PPS-disciplined clock; fewest parts | IMU sampled from Linux user space, so jitter is higher than a microcontroller's (`TBD` on day 1); Wi-Fi scans compete with the streaming link on the onboard radio |
 | Pi 4B with a Pi Zero 2 W hub | Keeps sensor timing off the recorder; the Zero's radio can scan Wi-Fi while the 4B's radio streams | Two clocks to align (PPS wired to both); extra part, cable and power |
-| Pi 3B+ with a Pi Zero 2 W hub (first version of this ADR) | Lower power | Shared USB 2 bus with Ethernet for two SDRs plus the hub; slower cores and 1 GB of RAM for buffering IQ |
+| Pi 3B+ with a Pi Zero 2 W hub (first version of this ADR) | Lower power | Shared USB 2 bus with Ethernet for two SDRs plus the hub; slower cores |
 | Pico 2W hub (Honeywell supplies) | PIO timestamps PPS edges in hardware | New firmware in C or MicroPython this week, with its own MAVLink build |
 
 ## Decision
@@ -34,13 +34,17 @@ The payload records two RTL-SDRs at up to 2.4 MS/s each: 4.8 MB/s each, 9.6 MB/s
 The payload recorder is the **Raspberry Pi 4B** (recorder and streamer, ADR-0002).
 
 - **SDRs:** both go on the 4B's **USB 2 ports** (the black ones). The USB 3 ports stay empty unless a recording SSD needs one. That SSD is shielded and kept away from the GPS antenna (RSK-06).
-- **Sensors:** by default the MPU6050 and BMP280 are on the 4B's I2C bus and the PPS is on its GPIO4, with **no hub**.
+- **Sensors:** by default the MPU6050 and BMP180 are on the 4B's I2C bus and the PPS is on its GPIO4, with **no hub**.
 - **Hub fallback:** a day-1 test with both SDRs recording measures IMU sample jitter, CPU load, dropped SDR samples and PPS offset (RSK-05). If any fails its threshold (`TBD`), the Pi Zero 2 W hub from the first version of this ADR comes back. It speaks the existing `pnt.xml` MAVLink dialect over USB (ADR-0005's protocol, unchanged).
 - **The Pi 3B+** is not on the payload. It runs the ground reference station (ADR-0020).
 
 ## Consequences
 
 - **Recording:** a fast A2 microSD card or a USB SSD. The 2 h static capture with both SDRs is about 70 GB, so capacity is planned per session (`TBC`). At 1.92 MS/s it is 3.84 MB/s per SDR.
+- **RAM (amended 2026-11-09):** our 4B has 1 GB, the same as the 3B+, so RAM no longer favours it. The decision stands on the USB link and the faster cores.
+  - The recorder pipes each `rtl_sdr` straight to disk and keeps only per-buffer timestamps in memory, so it does not buffer IQ in RAM.
+  - The recorder's health log already writes `mem_avail_mb` once a second; its minimum during the two-SDR recording is the number to check. `pnt day1` does not summarise it yet, and its threshold is `TBD` with the others.
+  - Running the estimator or the dashboard on the Pi is not planned (ADR-0002); 1 GB would make that harder.
 - **Power and heat:**
   - The 4B draws more and throttles when hot, so it needs a heatsink or fan in the payload box and a 5 V 3 A supply.
   - The USB current for two SDRs (plus the Zero, if used) is measured with the DPS-150 (`TBC`).

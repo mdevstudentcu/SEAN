@@ -28,7 +28,7 @@ flowchart LR
   subgraph PAY["Payload: Pi 4B, receive-only (ADR-0001, ADR-0018)"]
     SDR["2 x RTL-SDR<br/>LTE PSS/SSS IQ"]
     GPS["GPS HAT<br/>NMEA + PPS"]
-    SENS["MPU6050 IMU<br/>BMP280 baro"]
+    SENS["MPU6050 IMU<br/>BMP180 baro"]
     REC["Recorder<br/>raw IQ + MCAP session"]
     SDR --> REC
     GPS --> REC

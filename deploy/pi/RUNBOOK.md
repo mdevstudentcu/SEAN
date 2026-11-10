@@ -7,7 +7,7 @@ A checklist to follow with the Pi in hand. Commands run **on the Pi in `~/pnt`**
 ## A. Set up (once per SD card)
 
 1. Flash Raspberry Pi OS Bookworm Lite 64-bit: hostname `pnt`, user `pi`, Wi-Fi and SSH on.
-2. Plug in: GPS HAT with its antenna at a window or outdoors; MPU6050 and BMP280 on I2C (SDA GPIO2, SCL GPIO3, 3V3, GND); both SDRs on the **black USB 2 ports** with antennas, spaced apart; Pi camera. Power from the DPS-150 at 5.1 V (current limit 3 A) so the current can be read.
+2. Plug in: GPS HAT with its antenna at a window or outdoors; MPU6050 and BMP180 on I2C (SDA GPIO2, SCL GPIO3, 3V3, GND); both SDRs on the **black USB 2 ports** with antennas, spaced apart; Pi camera. Power from the DPS-150 at 5.1 V (current limit 3 A) so the current can be read.
 3. *Laptop:* `just pi-deploy` (copies the repo and the commit stamp, runs `deploy/pi/setup.sh`). Then `ssh pi@pnt.local sudo reboot` once.
 4. Check, after 10–15 min with a fix so chrony can lock:
 
@@ -17,7 +17,7 @@ A checklist to follow with the Pi in hand. Commands run **on the Pi in `~/pnt`**
    | `chronyc sources -v` | `#* PPS` (selected), offset a few µs or less |
    | `gpsmon` (q) | 3D fix, satellites with SNR |
    | `rtl_test -t` | both dongles listed (`0:` and `1:`); note which index is which |
-   | `i2cdetect -y 1` | `68` (MPU6050) and `76` or `77` (BMP280) |
+   | `i2cdetect -y 1` | `68` (MPU6050) and `77` (BMP180). Until `pnt.payload.i2c` reads BMP180s, `pnt record` lists the barometer as `absent` (ADR-0014) |
    | `.venv/bin/pnt record --help` | the help text (the Python install works) |
    | `.venv/bin/python -c "import zmq; print(zmq.has('curve'))"` | `True`. If `False`, this libzmq cannot authenticate the stream: record with `--no-stream`, and raise it in #89 (ADR-0026 is reopened) |
 
