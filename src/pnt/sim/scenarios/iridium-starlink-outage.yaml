@@ -1,0 +1,41 @@
+# ottawa-towers with both simulated LEO layers on: iridium-outage's Iridium block, then
+# starlink-outage's Starlink block (P13, #97). Both record as source `leo`; the satellite names
+# keep their emitters apart. Every LEO value is TBC (see those two scenarios).
+description: GPS outage with real towers and simulated Iridium and Starlink Doppler.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: loop, radius_m: 150, speed_mps: 8, altitude_m: 30}
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    towers_from: {file: cells-ottawa.csv, carrier: TELUS, tx_mhz: 886.25, min_km: 0.8, count: 6}
+    sigma_m: 20.0
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+  leo:
+    model: leo_doppler
+    rate_hz: 1
+    tle_file: tle-iridium-20261108.txt
+    sigma_mps: 1.0
+    elevation_mask_deg: 8.2
+  starlink:
+    model: leo_doppler
+    source: leo
+    rate_hz: 1
+    tle_file: tle-starlink-20261110.txt
+    sigma_mps: 1.0
+    elevation_mask_deg: 25.0
+    pass_availability: 0.5
+    carrier_hz: 11.325e+9
+provenance:
+  leo_orbits: literature   # published orbit elements, data/reference/README.md
+  leo_noise: TBC
+  elevation_mask: TBC
+  pass_availability: TBC
+  carrier: TBC
+faults:
+  - {type: outage, source: gnss, start_s: 120, end_s: 240}

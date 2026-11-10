@@ -1,0 +1,36 @@
+# ottawa-towers with a simulated Starlink Doppler layer on (P13, #97). Compare with ottawa-towers
+# (layer off) and iridium-outage (Iridium instead). Sim only: Starlink's downlink is Ku-band
+# (10.7-12.7 GHz), which an RTL-SDR cannot receive; a real receiver needs an LNB and downconverter
+# (as in the Kassas-group Starlink Doppler papers) that our hardware does not have. Every value in
+# the leo block is TBC, and the filter is told each satellite's exact position and velocity.
+description: GPS outage with real towers and simulated Starlink Doppler from real orbits.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: loop, radius_m: 150, speed_mps: 8, altitude_m: 30}
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    towers_from: {file: cells-ottawa.csv, carrier: TELUS, tx_mhz: 886.25, min_km: 0.8, count: 6}
+    sigma_m: 20.0
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+  leo:
+    model: leo_doppler
+    rate_hz: 1
+    tle_file: tle-starlink-20261110.txt
+    sigma_mps: 1.0            # TBC: the Iridium layer's, so the two layers differ in geometry only
+    elevation_mask_deg: 25.0  # TBC: the user-terminal minimum elevation in SpaceX's FCC filings
+    pass_availability: 0.5    # TBC: spot beams; the share of satellites above the mask we hear
+    carrier_hz: 11.325e+9     # TBC: one Ku downlink channel centre; only converts sigma to Hz
+provenance:
+  leo_orbits: literature   # published orbit elements, data/reference/README.md
+  leo_noise: TBC
+  elevation_mask: TBC
+  pass_availability: TBC
+  carrier: TBC
+faults:
+  - {type: outage, source: gnss, start_s: 120, end_s: 240}
