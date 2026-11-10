@@ -68,6 +68,7 @@ Code: [`src/pnt/nav/`](../src/pnt/nav/). The registry is `pnt.nav.ESTIMATORS`.
 | `ekf` | Position, velocity, receiver clock (offset, drift), and one block per tower clock | The main filter. Tower clocks are `independent` by default, or `calibrated` ([ADR-0022](adr/0022-tower-clock-model.md)): offset and drift per site under a shared builder term, learned only while GNSS is trusted and checked by independent evidence, and rolled back when GNSS is flagged |
 | `ekf-base` | `ekf` differenced against the ground reference station | Tower clocks cancel in the difference ([ADR-0020](adr/0020-ground-reference-station.md)); falls back to `ekf` when the base is lost or excluded |
 | `ekf-mhss` | `ekf` with a solution-separation monitor | HPL and exclusion from the fault hypotheses below (#82) |
+| `ekf-mhss-beacon` | `ekf-mhss` that may also use a located jammer's received power as a low-trust coarse range | Sim only (ADR-0025, #93): promotion gate, weight cap and its own `hostile:` hypothesis; the PL is not allowed to shrink because of it |
 
 In flight on other branches: IMU propagation (stage 2, #12) and further calibrated-clock work. The barometer carries the vertical (ASM-05).
 
@@ -86,9 +87,9 @@ Code: [`src/pnt/integrity/`](../src/pnt/integrity/) and the checks inside [`ekf.
 | Source layer | A whole sensor type (LTE, barometer) wrong | MHSS layer subset |
 | GNSS common mode | GNSS plus every GNSS-derived or unclassified source | MHSS GNSS-free subset; spoof detector; time gate |
 | Reference station | Base moved, base clock step, base link lost | Base check inside `ekf-base` (`base_excluded`, #107). Not an MHSS hypothesis: `ekf-mhss` does not use the base. Forged base records are planned and not detected on `main` (#89) |
-| Hostile emitter | A located jammer used as a beacon | **Planned, not built:** its own hypothesis behind a promotion gate, sim only ([ADR-0025](adr/0025-hostile-emitter-beacon.md), #93) |
+| Hostile emitter | A located jammer used as a beacon: moved, power changed, or lying | `ekf-mhss-beacon` only, sim only: MHSS `hostile:<emitter>` subset behind the beacon's promotion gate and weight cap (`nav/hostile.py`, [ADR-0025](adr/0025-hostile-emitter-beacon.md), #93) |
 
-On `main`: the tower site, network builder, source layer, GNSS common mode and reference station rows, within their limits in [`threat-model.md`](threat-model.md) (no scenario yet faults a whole builder or plants a rogue cell). Planned: rejecting forged records (#89) and the hostile emitter (#93).
+On `main`: the tower site, network builder, source layer, GNSS common mode and reference station rows, within their limits in [`threat-model.md`](threat-model.md) (no scenario yet faults a whole builder or plants a rogue cell). Planned: rejecting forged records (#89). The hostile emitter row is sim only and off in every other estimator.
 
 **Detectors and outputs:**
 - **Spoof detector** (#83, #102): calibrated towers that disagree with the GNSS-steered position refute GNSS (`spoof_suspected`, `gnss_excluded`) and roll the tower clocks back.
@@ -115,7 +116,7 @@ On `main`: the tower site, network builder, source layer, GNSS common mode and r
 | Operator panel | **Not built** (#25, #90) | — |
 | Ground reference station | Simulated; hardware on the BOM, assembly is #84 | Simulated |
 | Ground-link authentication (CurveZMQ, MAVLink signing) | **Not built** (#89) | — |
-| Hostile-emitter hypothesis | **Not built** (#93) | — |
+| Hostile-emitter hypothesis | Code on `main` (`ekf-mhss-beacon`, #93); the jammer's received power is simulated (`sim/hostile.py`) | Simulation only. No real jammer can be used (ADR-0025) |
 | Real sessions | **None recorded yet** | — |
 | Tower positions | Real (ISED registry). The sim uses the 2024 extract (`data/reference/cells-ottawa.csv`); the 2026 extract with PCI per sector is #110 | Registry; staleness and PCI collisions stay association fault modes (ADR-0023) |
 | Tower noise, clocks, multipath, dropouts | Literature or `TBC` | `placeholder` in *Sim validity* |

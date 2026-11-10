@@ -48,3 +48,14 @@ In simulation only, a located jammer may be promoted to a low-trust coarse range
 - **Reopen if:**
   - in sim, a honeypot jammer gets through the gate and moves the solution beyond the cap
   - the guardrails cost more availability than the beacon adds
+
+## As built in sim (#93)
+
+The guardrails' `TBD` values are proposed as `TBC` in code, to be confirmed with this ADR:
+
+- **Observable:** the GNSS front end's in-band received power from the jammer, an existing ICD kind (`gnss`/`rssi`, emitter `jammer:sim<i>`, `meta.hostile`), simulated by `sim/hostile.py` on the log-distance path-loss model. The jammer's told position comes with the record; locating it is not built.
+- **Estimator:** `ekf-mhss-beacon` only (`nav/hostile.py`); every other estimator ignores these records.
+- **Guardrail 1:** P_hostile = 1e-2 (`mhss.Params.p_hostile`).
+- **Guardrail 2:** 30 s window, at least 20 records, mean NIS within its 99.9 % bound, power known to 1 dB and our horizontal position to 30 m. Demoted on one 6-σ innovation, three in a row over the 99.9 % gate, or 10 s unheard.
+- **Guardrail 3:** one σ of deception moves the solution by at most 10 % of the alert limit per update; the HPL never falls below the all-but-hostile solution's fault-free bound plus its separation.
+- **Guardrail 4:** power random walk 0.05 dB/√s.

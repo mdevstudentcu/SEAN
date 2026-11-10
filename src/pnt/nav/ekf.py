@@ -143,6 +143,11 @@ time can't confirm GNSS; differences between towers, their geometry, can refute 
 
 GNSS position and GNSS time are tracked separately for health, so rejecting one is never hidden
 by accepting the other at the same instant.
+
+Hostile beacon (`hostile`, off by default, #93, ADR-0025 Proposed): a located jammer's received
+power (`rssi` records with `meta.hostile`) as a low-trust coarse range, behind a promotion gate
+and a weight cap (`nav/hostile.py`). Off, those records are dropped before any prediction, so the
+output is exactly as without them. Its health key is `hostile:<emitter>`, never `gnss`.
 """
 
 from __future__ import annotations
@@ -156,6 +161,7 @@ from pnt.core.frames import emitter_enu
 from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.protection import hpl, vpl
 from pnt.nav.baseline import CHI2_999
+from pnt.nav.hostile import BeaconParams, Beacons
 from pnt.nav.imu import ImuMotion
 
 C = 299_792_458.0
@@ -235,12 +241,14 @@ class EKF:
         site_drift_floor: float = 0.1,  # m/s: least drift sigma of a seeded new site (TBC)
         motion: str = "cv",  # or "imu" (stage 2, nav/imu.py)
         imu: Mapping | None = None,  # ImuMotion options when motion="imu"
+        hostile: Mapping | None = None,  # BeaconParams options: use hostile beacons (#93)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
         if motion not in MOTIONS:
             raise ValueError(f"motion must be one of {MOTIONS}, not {motion!r}")
         self.imu = ImuMotion(**(imu or {})) if motion == "imu" else None
+        self.hostile = None if hostile is None else Beacons(BeaconParams(**hostile), alert_limit_m)
         self.n_core = N_CORE  # states before the first clock block (IMU states included)
         self.origin_llh = origin_llh
         self.q_accel, self.q_emitter = q_accel, q_emitter
@@ -514,6 +522,8 @@ class EKF:
             self.calibrating = self.calibration_allowed()
             self._learned |= self.calibrating
         self._tower_process(F, Q, dt, self.calibrating)
+        if self.hostile is not None:
+            self.hostile.process_noise(Q, dt)
         self.x = F @ self.x
         if nav is not None:
             self.x[nav[0]] = nav[1]  # the nonlinear mean of position, velocity and attitude
@@ -645,12 +655,16 @@ class EKF:
         model = MODELS.get(m.kind)
         if model is None:
             return  # not modelled yet
+        if m.kind == "rssi" and (self.hostile is None or not m.meta.get("hostile")):
+            return  # only a hostile beacon's power is modelled, and only when asked for
         self.predict(m.t_ns)
         out = model(self, m)
         if out is None:
             return
         y, H, R, gate = out
         key = GNSS_TIME if (m.source, m.kind) == ("gnss", "time") else m.source
+        if m.kind == "rssi":
+            key = f"hostile:{m.emitter}"  # shown apart from GNSS (ADR-0025 guardrail 5)
         if self.spoof_alarm and key == "gnss":
             self._excluded_gnss(key, m.t_ns, y, H, R)
             return
@@ -828,6 +842,8 @@ class EKF:
             flags.append("time_spoof_suspected")  # GNSS time disagrees with our clock model
         if self.spoof_alarm:
             flags.append("spoof_suspected")  # the towers refute GNSS (#83)
+        if self.hostile is not None:
+            flags += self.hostile.flags(self.t_ns)
         h = hpl(P3)
         status = "unsafe" if h > self.alert_limit_m else ("degraded" if flags else "nominal")
         trust = {
@@ -996,6 +1012,9 @@ def _doppler(ekf: EKF, m: Measurement):
                 rate += ekf.x[i]
                 H[0, i] = 1.0
     return m.value[0] - rate, H, np.diag(np.square(m.sigma)), True
+def _rssi(ekf: EKF, m: Measurement):
+    """A hostile beacon's received power (`nav/hostile.py`); `process` passes only those."""
+    return ekf.hostile.model(ekf, m)
 
 
 MODELS: dict[str, Callable] = {
@@ -1004,6 +1023,7 @@ MODELS: dict[str, Callable] = {
     "time": _time,
     "pseudorange": _pseudorange,
     "doppler": _doppler,
+    "rssi": _rssi,
 }
 
 
