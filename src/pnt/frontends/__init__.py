@@ -3,11 +3,12 @@
 One subpackage per signal family. Each exposes a function or class that turns raw input (IQ
 file, readsb JSON, decoder output, hub records) into Measurements with honest sigmas.
 
-Built: lte (PSS/SSS cell search and TOA tracking on RTL-SDR captures, `pnt frontend lte`).
+Built: lte (PSS/SSS cell search and TOA tracking on RTL-SDR captures, `pnt frontend lte`),
+gnss (gpsd reports -> fixes and `gnss_health` from per-satellite SNR, `pnt frontend gnss`,
+ADR-0031).
 
 Planned (see the SoOP shortlist): adsb (readsb + pyModeS), vor
-(Voracious bearings), wifi (RSSI scans, ADR-0018), gnss (NMEA from the GPS HAT via gpsd +
-per-satellite SNR as an interference cue), imu/baro (I2C on the Pi, ADR-0018).
+(Voracious bearings), wifi (RSSI scans, ADR-0018), imu/baro (I2C on the Pi, ADR-0018).
 
 Rule: decode only fields meant for everyone; never communication content (ADR-0011).
 """
