@@ -1,8 +1,9 @@
 """Whole-table audit of the LTE cell lookup (#124): does it ever pick the wrong site?
 
 Every row of `lte-cells-ottawa.csv` goes through the public `CellTable.associate`, from Carleton
-and from a grid of receivers used as session origins. Prints a markdown summary; `--out` also
-writes a figure.
+and from a grid of receivers used as session origins, then with the receiver away from the
+origin under several lookup settings (#138). Prints a markdown summary; `--out` also writes a
+figure.
 
     python analysis/lte_table_audit.py --out /tmp/lte-table-audit.png
 
@@ -28,6 +29,7 @@ from pnt.nav.cells import (
     MATCHED,
     MAX_RANGE_KM,
     OUT_OF_RANGE,
+    TRAVEL_KM,
     UNKNOWN,
     Cell,
     CellTable,
@@ -44,6 +46,19 @@ HEARING_KM = (2.0, 3.0, 5.0)  # TBC: link range is not measured yet (#87)
 MAX_RANGES_KM = (2.0, 3.0, 5.0, 10.0)  # TBC: 10 is today's MAX_RANGE_KM
 HOLDOUT_KM = (6.0, 8.0)  # TBC: where the table is pretended to stop
 EDGE_RINGS_KM = ((0.0, 3.0), (3.0, 5.0), (5.0, 7.0), (7.0, 8.0))  # TBC
+# Receiver away from the origin (#138): origins every ORIGIN_STEP_KM on the grid, receivers on the
+# grid ring AWAY_KM (+-0.5) from each. All TBC.
+ORIGIN_STEP_KM = 2.0
+AWAY_KM = (2.0, 5.0, 8.0, 13.0)  # 13: the distance in #138's reproduction
+# Lookup settings compared: (label, max_range_km, travel_km). travel 0 is the lookup before #138;
+# "range 20" widens the match range instead, which also matches a lone eNB up to 20 km away.
+SETTINGS = (
+    ("before #138: range 10, travel 0", MAX_RANGE_KM, 0.0),
+    ("travel 2", MAX_RANGE_KM, 2.0),
+    ("travel 5", MAX_RANGE_KM, 5.0),
+    ("travel 10", MAX_RANGE_KM, 10.0),
+    ("range 20, travel 0", 2 * MAX_RANGE_KM, 0.0),
+)
 
 
 @dataclass(frozen=True)
@@ -500,12 +515,165 @@ def edge_section(a: Audit, g: dict, holdouts: dict[float, dict]) -> str:
     text += (
         "\n\n**What this audit cannot see:** cells beyond 10 km and any unfiled, moved or "
         "retired cell; whether a filed PCI or EARFCN is what the tower broadcasts; which cells "
-        "are really audible (hearing is a disk, no terrain, beam or power); a cell moving out "
-        "of range as the vehicle leaves the session origin, since each receiver here is the "
-        "origin. The holdout's PCI plan is denser than the real edge's may be, so its rate is an "
+        "are really audible (hearing is a disk, no terrain, beam or power). Here each receiver "
+        "is the origin; *Receiver away from the origin* below covers a receiver that has moved "
+        "from it. The holdout's PCI plan is denser than the real edge's may be, so its rate is an "
         "indication for the 10 km edge, not a measurement of it."
     )
     return text
+
+
+def away(a: Audit) -> dict:
+    """The fate of every heard (receiver, row) pair when the receiver is AWAY_KM from the session
+    origin, for each of SETTINGS. A lookup result depends only on the origin, so it is computed
+    once per (origin, cell) and shared by that origin's receivers."""
+    keys = sorted({(r.cell.earfcn, r.cell.pci) for r in a.rows})
+    key_of = {k: i for i, k in enumerate(keys)}
+    row_key = np.array([key_of[r.cell.earfcn, r.cell.pci] for r in a.rows])
+    row_enb = np.array([r.cell.enb_id for r in a.rows])
+    row_en = np.column_stack(horizontal_enu_km(a.lat, a.lon, CARLETON))
+    rx = receivers(GRID_EXTENT_KM)
+    rx_en = np.array([horizontal_enu_km(np.array([o[0]]), np.array([o[1]]), CARLETON)[:, 0]
+                      for o, _ in rx])  # fmt: skip
+    rx_to_row = np.hypot(*(rx_en[:, None, :] - row_en[None, :, :]).transpose(2, 0, 1))
+    step = int(round(ORIGIN_STEP_KM / GRID_STEP_KM))
+    n = int(GRID_EXTENT_KM / GRID_STEP_KM)
+    on_step = np.all(np.round(rx_en / GRID_STEP_KM + n) % step == 0, axis=1)
+    origins = np.flatnonzero(on_step).tolist()  # every ORIGIN_STEP_KM on the grid
+    codes = [MATCHED, WRONG, COLLISION, OUT_OF_RANGE, UNKNOWN]
+    stats: dict[tuple, Counter] = defaultdict(Counter)
+    worst: dict[tuple, float] = defaultdict(float)
+    for o in origins:
+        origin = rx[o][0]
+        o_to_rx = np.hypot(*(rx_en - rx_en[o]).T)
+        for label, max_range, travel in SETTINGS:
+            status = np.empty(len(keys), int)
+            got_en = np.full((len(keys), 2), np.nan)
+            got_enb = np.full(len(keys), -1)
+            for k, (earfcn, pci) in enumerate(keys):
+                s, cell = a.table.associate(earfcn, pci, origin, max_range, travel)
+                status[k] = codes.index(s)
+                if cell is not None:
+                    got_enb[k] = cell.enb_id
+                    got_en[k] = horizontal_enu_km(np.array([cell.lat]), np.array([cell.lon]),
+                                                  CARLETON)[:, 0]  # fmt: skip
+            fate = status[row_key].copy()
+            fate[(fate == 0) & (got_enb[row_key] != row_enb)] = codes.index(WRONG)
+            err = np.hypot(*(got_en[row_key] - row_en).T)
+            for d in AWAY_KM:
+                for r in np.flatnonzero(np.abs(o_to_rx - d) <= 0.5 * GRID_STEP_KM):
+                    for hear in HEARING_KM:
+                        heard = rx_to_row[r] <= hear
+                        counts = np.bincount(fate[heard], minlength=len(codes))
+                        key = (d, hear, label)
+                        stats[key].update(dict(zip(codes, counts.tolist(), strict=True)))
+                        stats[key]["receivers"] += 1
+                        wrong = heard & (fate == 1)
+                        if wrong.any():
+                            worst[key] = max(worst[key], float(err[wrong].max()))
+    return {"stats": stats, "worst": worst, "origins": len(origins)}
+
+
+def holdout_settings(a: Audit, stop_km: float) -> dict[tuple[float, str], Counter]:
+    """`holdout` for each of SETTINGS: (hearing, label) -> fates of heard cells beyond the cut."""
+    from_carleton = np.hypot(*horizontal_enu_km(a.lat, a.lon, CARLETON))
+    kept = CellTable(r.cell for r, d in zip(a.rows, from_carleton, strict=True) if d <= stop_km)
+    stats: dict[tuple[float, str], Counter] = defaultdict(Counter)
+    for origin, _ in receivers(stop_km):
+        d = np.hypot(*horizontal_enu_km(a.lat, a.lon, origin))
+        for j in np.flatnonzero((d <= max(HEARING_KM)) & (from_carleton > stop_km)):
+            row = a.rows[j].cell
+            for label, max_range, travel in SETTINGS:
+                status, cell = kept.associate(row.earfcn, row.pci, origin, max_range, travel)
+                status = WRONG if status == MATCHED else status  # its own eNB was cut
+                for hear in HEARING_KM:
+                    if d[j] <= hear:
+                        stats[hear, label][status] += 1
+    return stats
+
+
+def _setting(label: str, max_range: float, travel: float) -> str:
+    default = (max_range, travel) == (MAX_RANGE_KM, TRAVEL_KM)
+    return label + (" (default)" if default else "")
+
+
+def away_section(w: dict, holdouts: dict[float, dict]) -> str:
+    lines = []
+    for d in AWAY_KM:
+        for hear in HEARING_KM:
+            for label, max_range, travel in SETTINGS:
+                s = w["stats"][d, hear, label]
+                n = sum(s[k] for k in (MATCHED, WRONG, COLLISION, OUT_OF_RANGE, UNKNOWN))
+                worst = w["worst"].get((d, hear, label))
+                lines.append(
+                    [
+                        f"{d:g}",
+                        f"{hear:g}",
+                        _setting(label, max_range, travel),
+                        s["receivers"],
+                        n,
+                        pct(s[MATCHED], n),
+                        pct(s[COLLISION], n),
+                        pct(s[OUT_OF_RANGE], n),
+                        f"**{pct(s[WRONG], n)}** ({s[WRONG]})",
+                        f"{worst:.1f}" if worst else "-",
+                    ]
+                )
+    h_lines = []
+    for stop, h in holdouts.items():
+        for hear in HEARING_KM:
+            for label, max_range, travel in SETTINGS:
+                s = h[hear, label]
+                n = sum(s.values())
+                h_lines.append(
+                    [
+                        f"{stop:g}",
+                        f"{hear:g}",
+                        _setting(label, max_range, travel),
+                        n,
+                        pct(s[OUT_OF_RANGE] + s[UNKNOWN], n),
+                        pct(s[COLLISION], n),
+                        f"**{pct(s[WRONG], n)}** ({s[WRONG]})",
+                    ]
+                )
+    return (
+        "## Receiver away from the origin\n\n"
+        f"Origins every {ORIGIN_STEP_KM:g} km on the grid ({w['origins']}), receivers on the grid "
+        f"points about the given distance (+-{0.5 * GRID_STEP_KM:g} km) from each, all within "
+        f"{GRID_EXTENT_KM:g} km of Carleton. Lookup settings: `max_range_km` (range) and "
+        "`travel_km` (travel, how far the receiver may be from the origin; collisions only). "
+        "Heard = within the hearing range (TBC), all in the table. Percentages are of heard "
+        "(receiver, sector) pairs.\n\n"
+        + table_md(
+            [
+                "receiver km from origin",
+                "hearing km",
+                "lookup",
+                "(origin, receiver) pairs",
+                "heard",
+                "right eNB %",
+                "collision %",
+                "out of range %",
+                "WRONG eNB % (n)",
+                "worst site error km",
+            ],
+            lines,
+        )
+        + "\n\n**The same settings on the holdout** (as above: the table cut short, receivers "
+        "inside the cut, the origin at the receiver). Every match here is to a wrong eNB.\n\n"
+        + table_md(
+            [
+                "table cut km",
+                "hearing km",
+                "lookup",
+                "heard beyond cut",
+                "left out (unknown or out of range) %",
+                "collision %",
+                "WRONG eNB % (n)",
+            ],
+            h_lines,
+        )
+    )
 
 
 def flags_section(a: Audit, c: dict, order: list[tuple[int, str]]) -> str:
@@ -640,6 +808,7 @@ def main() -> None:
         CellTable.load(),
     )
     print(f"# LTE cell table audit, commit {commit}\n")
+    print(f"Lookup defaults: `max_range_km` {MAX_RANGE_KM:g}, `travel_km` {TRAVEL_KM:g}.\n")
     print(f"{len(rows)} sectors, {len({r.cell.enb_id for r in rows})} eNBs, "
           f"{len({r.cell.earfcn for r in rows})} EARFCNs, "
           f"{len({r.carrier for r in rows})} carriers (EARFCN + licensee). "
@@ -653,6 +822,8 @@ def main() -> None:
     print(grid_section(g), "\n")
     holdouts = {stop: holdout(audit, stop) for stop in HOLDOUT_KM}
     print(edge_section(audit, g, holdouts), "\n")
+    holdouts_by_setting = {stop: holdout_settings(audit, stop) for stop in HOLDOUT_KM}
+    print(away_section(away(audit), holdouts_by_setting), "\n")
     print(flags_section(audit, c, order))
     if args.out:
         figure(args.out, g, holdouts, geo, order, commit)
