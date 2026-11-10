@@ -18,6 +18,7 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
 - `lte_table_audit.py`: every row of the Ottawa cell table through the lookup, from Carleton and a receiver grid: wrong-tower matches, usable geometry, flags (registry only, no radio)
 - `lte_real_geometry.py`: the UC-01 circuit on real tower positions, with records shaped as the front end writes them, and wrong tower tables (sim over real positions, not real signals)
 - `lte_link_dense.py`: synthetic baseband with every registered cell at a link-budget power: how many cells the front end keeps, and why (synthetic only, TBC link budget)
+- `imu_allan.py <session>`: Allan deviation of a static IMU session beside the sim's MPU6050 model, same length and rate (ADR-0015). Writes `results/<session>-allan/`: `allan.png`, and `summary.md`/`summary.json` with each axis's noise density (spectrum, with the Allan slope as a check), Allan floor, static mean and largest spectral peak. Run on a session the Pi recorded still for hours (`deploy/pi/RUNBOOK.md` G)
 - Planned: timing holdover from real sessions. No real session exists yet; `summary.md` keeps a marked placeholder for them
 
 ## Viewing a run in Foxglove
