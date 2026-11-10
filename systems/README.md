@@ -18,7 +18,7 @@ The source of truth for what we are building and why. When code or another doc d
 | [`threat-model.md`](threat-model.md) | Attacks ranked per use case, mapped to scenarios and detections, with the gaps |
 | [`research.md`](research.md) | Summary of our research with cited references, and the novelty check against full papers |
 | [`architecture.md`](architecture.md) | D1 draft: use cases and key requirements, the architecture as built, how the sim aligns to reality, what is real vs simulated |
-| [`roadmap.md`](roadmap.md) | D3 draft: from hackathon to a certifiable product |
+| [`roadmap.md`](roadmap.md) | D3 draft: what the week showed, what fixes it, and the phases from hackathon to a product |
 | [`results.md`](results.md) | The evidence in tables, each number with its kind (sim, synthetic, registry, real) and source |
 | [`sim-plan.md`](sim-plan.md) | What the simulation work will build, in what order, and what is still undecided |
 | [`tower-identity.md`](tower-identity.md) | Explainer: how we know which tower we hear and where it is (ISED register, EARFCN + PCI, timing not strength, clocks learned under GPS, unknown towers) |
