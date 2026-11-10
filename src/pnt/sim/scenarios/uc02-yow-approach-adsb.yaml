@@ -1,0 +1,71 @@
+# UC-02 with ADS-B traffic (#91, P6): a straight-in approach to YOW runway 32 from 20 km out, with
+# five aircraft around us, and no fault. The baseline for the ADS-B warning's false alerts; the
+# -jammed and -spoofed variants add a jammer or a spoofer on final. REQ-04, UC-02.
+# Geometry: the uc02-yow-approach centreline (its 10 km and 5 km points are on it), extended to
+# 20 km. The threshold is APPROXIMATE (see uc02-yow-approach). The traffic is SYNTHETIC: tracks,
+# spacing and avionics quality are placeholders, not a recorded traffic sample.
+description: Approach to YOW 32 from 20 km with five ADS-B aircraft around; no fault.
+duration_s: 280
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]
+trajectory:
+  type: waypoints
+  vehicle: fixedwing
+  closed: false
+  speed_mps: 70
+  points_llh:   # 20, 15, 10, 5 and 0 km from the threshold on course 320, 3-degree glide path
+    - [45.184525, -75.505728, 1215.1]
+    - [45.219036, -75.546516, 934.0]
+    - [45.253536, -75.587358, 656.7]
+    - [45.288024, -75.628252, 383.4]
+    - [45.3225, -75.6692, 114.0]
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    n_emitters: 6
+    ring_radius_m: [800, 3000]   # SYNTHETIC geometry until data/reference/ has real sites
+    sigma_m: 20.0                # TBC (RSK-02)
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+  adsb:
+    model: adsb
+    rate_hz: 1                   # decoded positions per aircraft, TBC (#22)
+    dip_rate_per_h: 6.0          # TBC, no source: nuisance quality dips per aircraft-hour
+    dip_s: [2.0, 20.0]           # TBC
+    aircraft:
+      # Arrivals ahead of us on the same final, 3 NM and 6 NM in trail (79 s and 159 s at 70 m/s)
+      - icao: c0a001
+        speed_mps: 70
+        start_s: -79.4
+        points_llh: &final
+          - [45.184525, -75.505728, 1215.1]
+          - [45.219036, -75.546516, 934.0]
+          - [45.253536, -75.587358, 656.7]
+          - [45.288024, -75.628252, 383.4]
+          - [45.3225, -75.6692, 114.0]
+      - icao: c0a002
+        speed_mps: 70
+        start_s: -158.7
+        points_llh: *final
+      # An overflight east to west at 3,000 m, 3 km north of the jammer's place in -jammed
+      - icao: c0a003
+        speed_mps: 220
+        start_s: -30.0
+        points_llh: [[45.302898, -75.309282, 3000.0], [45.303278, -75.946484, 3000.0]]
+      # A departure from runway 32, climbing out to the north-west (away from the jammer)
+      - icao: c0a004
+        speed_mps: 80
+        start_s: 30.0
+        points_llh: [[45.322501, -75.6692, 114.0], [45.425836, -75.792313, 2500.0]]
+      # Light aircraft with legacy avionics: always NACp 6, NIC 5 (never "good")
+      - icao: c0a005
+        speed_mps: 60
+        start_s: -20.0
+        legacy: true
+        nacp: 6
+        nic: 5
+        points_llh: [[45.297477, -75.887202, 1000.0], [45.4774, -75.88781, 1000.0]]
+faults: []

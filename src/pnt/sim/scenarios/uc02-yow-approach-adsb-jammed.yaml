@@ -1,0 +1,10 @@
+# UC-02 with ADS-B traffic and a jammer on final (#91, P6). The jammer is 6 km out, 800 m right
+# of the centreline: GNSS degrades within 6 km of it and is lost within 2 km, for us and for the
+# aircraft around us. We reach the 6 km ring at about 115 s; the arrival 3 NM ahead about 79 s
+# earlier. Radii and strength are placeholders (TBC), the same for us and the traffic.
+# REQ-04, UC-02.
+extends: uc02-yow-approach-adsb
+description: Approach to YOW 32 with ADS-B traffic; a jammer 6 km out degrades GNSS within 6 km.
+faults:
+  - {type: jamming_zone, source: gnss, center_llh: [45.2765, -75.627882, 103.7], radius_m: 2000,
+     onset_m: 6000, max_sigma_scale: 50}

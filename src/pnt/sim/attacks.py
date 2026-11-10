@@ -12,6 +12,8 @@ Attacks (`type` in a scenario's `faults:` list):
 - time_spoof: receiver time offset steps/ramps, position untouched (timing attack)
 - meaconing: position and time lag by delay_s (record-and-rebroadcast)
 - jamming_zone: accuracy degrades near a fixed place, lost inside it (e.g. in-car jammer)
+- spoof_zone: position moved by offset_enu_m within radius_m of a fixed place, quality untouched
+  (a spoofer at a fixed place)
 - gps_no_fix: position and time stop but the receiver keeps reporting health
 - gps_low_sats: few satellites reported while the position stays good (false-alarm check)
 - baro_drift: the barometer drifts at rate_mps (sensor degradation)
@@ -313,6 +315,26 @@ def jamming_zone(meas, f, ctx, start, end):
     return [m for m in out if m is not None], [
         (start, f"jamming zone at ({c}): lost within {r_in:.0f} m, degraded within {r_on:.0f} m")
     ]
+
+
+@attack("spoof_zone")
+def spoof_zone(meas, f, ctx, start, end):
+    """A spoofer at a fixed place: within radius_m of it the position is moved by offset_enu_m,
+    and the reported sigma is left alone (spoofing keeps the quality indicators high). The
+    aircraft around us see the same zone (`pnt.sim.adsb`)."""
+    center = llh_to_enu(f["center_llh"], ctx.origin_llh)
+    off = np.asarray(f["offset_enu_m"], dtype=float)
+    idx = [i for i, m in enumerate(meas) if _active(m, f, start, end) and m.kind == "position_enu"]
+    out = list(meas)
+    if idx:
+        t = np.array([(meas[i].t_ns - ctx.t0_ns) / 1e9 for i in idx])
+        dist = np.linalg.norm(ctx.truth_pos(t)[:, :2] - center[:2], axis=1)
+        for i, d in zip(idx, dist, strict=True):
+            if d < f["radius_m"]:
+                out[i] = _replace(meas[i], value=tuple(np.add(meas[i].value, off)))
+    c = ", ".join(f"{x:.4f}" for x in f["center_llh"][:2])
+    moved = f"moved {np.linalg.norm(off):.0f} m within {f['radius_m']} m"
+    return out, [(start, f"spoof zone at ({c}): {moved}")]
 
 
 # Holdover classes of a tower's timing reference, as the frequency offset it has when it loses
