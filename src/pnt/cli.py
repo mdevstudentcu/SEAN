@@ -499,6 +499,23 @@ def cmd_frontend_lte(args) -> None:
     print(f"wrote {out}")
 
 
+def cmd_frontend_gnss(args) -> None:
+    """GNSS front end (#22): a session's gpsd SKY events -> /meas/gnss gnss_health records."""
+    from pnt.frontends import gnss
+
+    src = session.mcap_path(args.session).parent
+    out = Path(args.out) if args.out else _unique(src.with_name(f"{src.name}-gnss"))
+    if _holds_data(out) and not args.force:
+        raise SystemExit(f"{out} already holds data; choose another --out or pass --force")
+    if out.resolve() == src.resolve():
+        raise SystemExit("--out must be a new folder: a front end never rewrites its input")
+    given = {"ref": args.ref_cn0, "low": args.low_cn0, "k": args.top_k}
+    params = {k: v for k, v in given.items() if v is not None}
+    new = gnss.derive_session(src, out, _commit(), **params)
+    print(gnss.summary(new))
+    print(f"wrote {out}")
+
+
 def _key_dir(args) -> Path:
     from pnt.io import linkauth
 
@@ -877,6 +894,14 @@ def main(argv=None) -> None:
     s.add_argument("--receiver", choices=["payload", "reference"], default="payload")
     s.add_argument("--no-copy", action="store_true", help="don't copy the capture's session")
     s.set_defaults(fn=cmd_frontend_lte)
+    s = fe.add_parser("gnss", help="a session's gpsd SKY reports -> gnss_health (ADR-0031)")
+    s.add_argument("session", help="session folder or its session.mcap")
+    s.add_argument("--out", help="new session folder (default: <session>-gnss)")
+    s.add_argument("--force", action="store_true", help="overwrite an existing --out")
+    s.add_argument("--ref-cn0", type=float, help="open-sky C/N0, dB-Hz (default: ADR-0031)")
+    s.add_argument("--low-cn0", type=float, help="C/N0 at loss, dB-Hz (default: ADR-0031)")
+    s.add_argument("--top-k", type=int, help="strongest satellites averaged (default: ADR-0031)")
+    s.set_defaults(fn=cmd_frontend_gnss)
 
     s = sub.add_parser("record", help="capture a real session on the Pi (payload or base)")
     s.add_argument("--out", help="default: data/sessions/<date>-<platform>-<place>")

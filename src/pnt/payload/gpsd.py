@@ -7,8 +7,9 @@ gpsd speaks JSON lines on TCP port 2947. We ask for TPV (fixes), SKY (satellites
   95 % error estimate (`epx`, `epy`, `epv`) over 1.96. gpsd derives those from DOP and an
   assumed range error, since the MediaTek chip reports none: `TBC` against a surveyed point.
 - `velocity_enu` from speed, track and climb of a 3D fix, sigma from `eps`/`epc` the same way.
-- No `gnss_health`: the chip has no jamming indicator, and how to make one from per-satellite
-  SNR (ADR-0014) is an open question. SKY goes to `/events` as `gnss_sky`.
+- No `gnss_health` here: the chip has no jamming indicator. SKY goes to `/events` as
+  `gnss_sky`, and the ground front end (`pnt frontend gnss`) makes `gnss_health` from its
+  per-satellite SNR (ADR-0031).
 - PPS: `/events` `pps` with `offset_ns` = host clock minus GPS at the edge (RSK-05).
 """
 
