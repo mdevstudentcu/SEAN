@@ -1386,7 +1386,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.26" },
     { name = "pymavlink", marker = "extra == 'ground'", specifier = ">=2.4.41" },
     { name = "pymavlink", marker = "extra == 'payload'", specifier = ">=2.4.41" },
-    { name = "pymodes", marker = "extra == 'ground'", specifier = ">=2.18" },
+    { name = "pymodes", marker = "extra == 'ground'", specifier = ">=3.6" },
     { name = "pyserial", marker = "extra == 'payload'", specifier = ">=3.5" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.6" },

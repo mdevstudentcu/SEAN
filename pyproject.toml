@@ -19,7 +19,7 @@ ground = [
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "pymavlink>=2.4.41",
-    "pyModeS>=2.18",
+    "pyModeS>=3.6",  # pnt.frontends.adsb uses the 3.x PipeDecoder API (tested on 3.6.1)
     "matplotlib>=3.8",
     "sgp4>=2.23",
 ]
