@@ -156,40 +156,41 @@ def main(argv=None) -> None:
     out = Path(args.out)
     (out.parent / f"{out.stem}-map-seed0.json").write_text(runs[0]["_map_json"] + "\n")
 
-    fig, (ax, bx) = plt.subplots(1, 2, figsize=(12, 4.8), dpi=150, width_ratios=(3, 2))
+    fig, (ax, bx) = plt.subplots(1, 2, figsize=(13, 6.0), dpi=150, width_ratios=(3, 2))
     # categorical slots 1-3
     colors = {NO_AID: "#eb6834", SIM_PRIOR: "#1baf7a", age_case(ages[0]): "#2a78d6"}
+    short = {NO_AID: "no aid", SIM_PRIOR: "no aid, sim prior", age_case(ages[0]): "map, age 0"}
     for name, color in colors.items():
         err = np.stack([r[name][1][:, 1] for r in runs])
         t = runs[0][name][1][:, 0]
-        ax.plot(t, np.median(err, axis=0), color=color, lw=2, label=f"{name}: median")
+        ax.plot(t, np.median(err, axis=0), color=color, lw=2, label=f"{short[name]}: median")
         ax.plot(t, np.percentile(err, 95, axis=0), color=color, lw=1.2, ls="--",
-                label=f"{name}: 95th percentile")  # fmt: skip
+                label=f"{short[name]}: p95")  # fmt: skip
     for y, label in ((T1_M, f"T1 {T1_M:.0f} m (TBC)"), (ALERT_LIMIT_M, "alert limit 50 m (TBC)")):
         ax.axhline(y, color="#52514e", lw=1, ls=":")
-        ax.text(2, y * 1.08, label, color="#52514e", fontsize=8)
+        ax.text(T1_S, y * 1.08, label, color="#52514e", fontsize=8, ha="right")
     ax.axvline(FALLBACK_S, color="#52514e", lw=0.8, ls="-.")
     ax.set_yscale("log")
     ax.set_xlabel("time since the user lost GPS (s)")
     ax.set_ylabel("ground user's horizontal error (m)")
     ax.set_title("error after GPS loss (map handed off 10 s before)", fontsize=10)
-    ax.legend(fontsize=8, frameon=False, loc="lower right")
+    ax.legend(fontsize=8, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.14), ncol=3)
 
     for key, ls, label in (
         ("p95_120", "-", f"0-{FALLBACK_S} s"),
         ("p95_300", "--", f"0-{T1_S} s"),
     ):
         bx.plot(ages, [stats[age_case(a)][key] for a in ages], color="#2a78d6", lw=2, ls=ls,
-                marker="o", label=f"map, p95 {label}")  # fmt: skip
+                marker="o", label=f"map, {label}")  # fmt: skip
         for name in (NO_AID, SIM_PRIOR):
             bx.axhline(stats[name][key], color=colors[name], lw=1.5, ls=ls,
-                       label=f"{name}, p95 {label}")  # fmt: skip
+                       label=f"{short[name]}, {label}")  # fmt: skip
     bx.axhline(T1_M, color="#52514e", lw=1, ls=":")
     bx.set_xlabel("map age at hand-off (s)")
     bx.set_ylabel("p95 horizontal error, pooled over seeds (m)")
     bx.set_title("how long the map stays useful", fontsize=10)
     bx.set_ylim(bottom=0)
-    bx.legend(fontsize=8, frameon=False)
+    bx.legend(fontsize=8, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.14), ncol=2)
     for a in (ax, bx):
         a.grid(True, which="major", color="#e4e3df", lw=0.6)
         for side in ("top", "right"):
