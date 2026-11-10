@@ -21,7 +21,16 @@ def _seconds(m):
 
 def test_the_environments_exist():
     # realistic-with-base: realistic plus a ground reference station (ADR-0020, issue #80)
-    assert set_names() == ["easy", "realistic", "realistic-with-base", "worst"]
+    # challenge-*: the challenge benchmark set, one leg per use case (ADR-0030, issue #136)
+    assert set_names() == [
+        "challenge-approach",
+        "challenge-drone",
+        "challenge-timing",
+        "easy",
+        "realistic",
+        "realistic-with-base",
+        "worst",
+    ]
 
 
 def test_a_set_name_expands_to_every_attack():
