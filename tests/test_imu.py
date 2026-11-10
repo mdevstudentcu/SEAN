@@ -1,7 +1,9 @@
 """The IMU motion model (issue #12, stage 2): `EKF(motion="imu")`, nav/imu.py."""
 
+import dataclasses
 import math
 
+import msgspec
 import numpy as np
 import pytest
 
@@ -232,8 +234,7 @@ def test_alignment_recovers_a_known_heading_on_a_turn(start_s):
     tracks the truth and only the alignment itself is under test.
 
     Regression guard, not a requirement: measured under 1 deg of heading and 0.3 deg of tilt.
-    With 1 m GNSS the constant-velocity filter's velocity lags the turn and heading is off by 9
-    to 18 deg, with a reported sigma of 3 deg (the floor): a known limit, not asserted here."""
+    With 1 m GNSS see `test_heading_sigma_bounds_the_error_on_a_hard_turn_issue_119`."""
     meas, k = session(TURN, 30.0, gnss_until_s=30.0, start_s=start_s, gnss_sigma=0.01)
     f = ekf.EKF(motion="imu")
     for m in meas:
@@ -244,6 +245,88 @@ def test_alignment_recovers_a_known_heading_on_a_turn(start_s):
     d = f.imu.R @ k.rot[round((f.imu.aligned_at - T0_NS) / 1e7)].T
     assert abs(math.degrees(math.atan2(d[1, 0], d[0, 0]))) < 5.0
     assert math.degrees(math.acos(min(d[2, 2], 1.0))) < 1.0
+
+
+HOVER = {"type": "loop", "radius_m": 1.0, "speed_mps": 0.0, "altitude_m": 30}
+
+
+def heading_at_alignment(traj, seed, gnss_sigma=1.0, start_s=0.0, gyro=1.0, spoof=None):
+    """(heading error, reported heading 1-sigma) in degrees when the filter aligns within 60 s of
+    GNSS, or None if it never does. `gyro` scales the gyro's noise and biases, in the sim and in
+    what the filter is told alike; `spoof(t_s)` is added to every GNSS fix."""
+    sim = dataclasses.replace(
+        MPU6050_SIM,
+        gyro_noise_dps_rthz=gyro * MPU6050_SIM.gyro_noise_dps_rthz,
+        gyro_bias_dps=gyro * MPU6050_SIM.gyro_bias_dps,
+        gyro_instability_dph=gyro * MPU6050_SIM.gyro_instability_dph,
+    )
+    told = dataclasses.replace(
+        MPU6050,
+        gyro_noise=gyro * MPU6050.gyro_noise,
+        gyro_bias=gyro * MPU6050.gyro_bias,
+        gyro_bias_rw=gyro * MPU6050.gyro_bias_rw,
+    )
+    meas, k = session(traj, 60.0, 60.0, seed, params=sim, start_s=start_s, gnss_sigma=gnss_sigma)
+    if spoof is not None:
+        meas = [
+            msgspec.structs.replace(m, value=tuple(np.add(m.value, spoof((m.t_ns - T0_NS) / 1e9))))
+            if m.source == "gnss"
+            else m
+            for m in meas
+        ]
+    f = ekf.EKF(motion="imu", imu={"spec": told})
+    for m in meas:
+        f.process(m)
+        if f.imu.R is not None:
+            break
+    if f.imu.aligned_at is None:
+        return None
+    d = f.imu.R @ k.rot[round((f.imu.aligned_at - T0_NS) / 1e7)].T
+    sigma = math.sqrt(f.P[f.imu.att.start + 2, f.imu.att.start + 2])
+    assert sigma == pytest.approx(f.imu.yaw_sigma)
+    return math.degrees(math.atan2(d[1, 0], d[0, 0])), math.degrees(sigma)
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+@pytest.mark.parametrize("start_s", [0.0, 8.0, 16.0])
+def test_heading_sigma_bounds_the_error_on_a_hard_turn_issue_119(start_s, seed):
+    """1 m GNSS on a 14 deg-tilt turn. The constant-velocity filter's velocity lags the turn;
+    before #119 that biased heading by -6 to -22 deg while the filter reported 3 deg."""
+    err, sigma = heading_at_alignment(TURN, seed, start_s=start_s)
+    assert abs(err) <= 3.0 * sigma
+    # Regression guards, not requirements: measured under 9 deg of error and 10.5 to 11.2 deg
+    # of sigma on these runs, so the bound is not met by a sigma too wide to use
+    assert abs(err) < 12.0
+    assert sigma < 15.0
+
+
+@pytest.mark.parametrize("gyro", [1.0, 3.0, 10.0])
+def test_hover_never_aligns_issue_119(gyro):
+    """Heading is unobservable in a hover, however noisy the gyro: alignment is refused."""
+    for seed in range(3):
+        assert heading_at_alignment(HOVER, seed, gyro=gyro) is None
+
+
+SPOOFS = {  # added to every GNSS fix during the alignment window (m, ENU)
+    "jump 30 m at 4 s": lambda t: (30.0 * (t >= 4.0), 0.0, 0.0),
+    "ramp 2 m/s from 3 s": lambda t: (2.0 * max(t - 3.0, 0.0), 0.0, 0.0),
+    "accelerating 0.5 m/s^2 east": lambda t: (0.25 * max(t - 3.0, 0.0) ** 2, 0.0, 0.0),
+    "accelerating 0.5 m/s^2 north": lambda t: (0.0, 0.25 * max(t - 3.0, 0.0) ** 2, 0.0),
+}
+
+
+@pytest.mark.parametrize("spoof", SPOOFS, ids=list(SPOOFS))
+@pytest.mark.parametrize(
+    ("traj", "gnss_sigma"), [(TURN, 1.0), (CIRCUIT, 2.5)], ids=["turn", "uc01"]
+)
+def test_heading_sigma_bounds_the_error_with_gnss_spoofed_during_alignment_issue_119(
+    spoof, traj, gnss_sigma
+):
+    """On the hard turn and on the gentle UC-01 circuit, where heading is barely observable in
+    one window (sigma tens of degrees). Seeds 0-2: every one aligns."""
+    for seed in range(3):
+        err, sigma = heading_at_alignment(traj, seed, gnss_sigma, spoof=SPOOFS[spoof])
+        assert abs(err) <= 3.0 * sigma, seed
 
 
 def test_worse_grade_spec_scales_every_term():

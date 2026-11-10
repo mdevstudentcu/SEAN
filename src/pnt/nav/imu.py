@@ -39,17 +39,32 @@ Alignment. The MPU6050 has no magnetometer, so heading must come from motion. Un
 EKF runs its constant-velocity model, while GNSS steers it. Over `align_window_s` with GNSS in
 use and the filter's velocity within `align_vel_sigma`, the gyro-integrated specific force (in
 the body frame at the start of the window) is fitted to the filter's velocity change minus
-gravity (a Wahba problem, solved by SVD, both sides centred so an error in the starting velocity
-drops out). A window that GNSS leaves or an IMU gap breaks starts over. Then the attitude error
-gets `tilt_sigma_deg` for roll and pitch, the biases their priors, and the IMU takes over.
+gravity, one pair a second (a Wahba problem, solved by SVD, both sides centred so an error in the
+starting velocity drops out). A window that GNSS leaves or an IMU gap breaks starts over. Then
+the attitude error gets `tilt_sigma_deg` for roll and pitch, the biases their priors, and the IMU
+takes over.
+
+Velocity lag (#119). In a turn the constant-velocity filter's velocity lags the truth, and a
+lagged velocity looks to the fit like a heading error (6 to 22 deg on a 14 deg-tilt turn with
+1 m GNSS). At steady state that filter's velocity lags by K_p / K_v = 2 P_pv / P_vv, read from
+its covariance, so each velocity change is paired with the specific force that much earlier
+(at most `max_lag_s`). `lag_error` of that correction, times the turn rate, stays in the
+heading 1-sigma.
 
 Heading is weak on a multirotor. Its thrust, and so its specific force, is along its own z axis
-whatever its heading, so heading shows only through how the tilt changes, and a drone in a
-gentle turn tilts a few degrees. The heading 1-sigma after alignment is the tilt error the
-window can carry (gyro bias over the window, velocity noise over g times the window) over the
-largest tilt change in it, between `min_yaw_sigma_deg` and `max_yaw_sigma_deg`; in a steady
-circle that is tens of degrees. The attitude noise `ImuSpec.gyro_extra` keeps the filter from
-learning more heading than the linearised model really has (tuning, see `ImuSpec`).
+whatever its heading, so heading shows only through how the tilt changes: in the horizontal
+spread of the velocity changes, and a drone in a gentle turn tilts a few degrees. The heading
+1-sigma after alignment (#119) is the error of one velocity change over that spread (root mean
+square, m/s), plus gyro bias over half the window, plus the lag term, from `min_yaw_sigma_deg`
+up. The error of one velocity change is the larger of what the fit left over and what the
+filter's velocity sigma and the gyro bias allow; both are smooth over a window, so they are not
+averaged down over its pairs. The spread is taken from the specific force side, less what gyro
+bias alone puts there (the tilt error it grows, times g, over the window), so a noisier gyro
+cannot make heading look better known. When nothing is left (hover, a straight line) heading is
+unobservable, and when the 1-sigma is over `max_yaw_sigma_deg`, alignment is refused and a new
+window starts (`refused` counts them). Holding the constant-velocity model is honest; a heading
+from noise is not. The attitude noise `ImuSpec.gyro_extra` keeps the filter from learning more
+heading than the linearised model really has (tuning, see `ImuSpec`).
 """
 
 from __future__ import annotations
@@ -151,7 +166,9 @@ class ImuMotion:
         align_vel_sigma: float = 2.0,  # m/s: the filter's velocity must be this good first (TBC)
         tilt_sigma_deg: float = 2.0,  # roll/pitch 1-sigma after alignment (TBC)
         min_yaw_sigma_deg: float = 3.0,  # floor on heading 1-sigma after alignment (TBC)
-        max_yaw_sigma_deg: float = 180.0,  # cap on heading 1-sigma: half a turn
+        max_yaw_sigma_deg: float = 180.0,  # alignment refused above this heading 1-sigma (TBC)
+        max_lag_s: float = 3.0,  # s: longest velocity lag the fit corrects (TBC)
+        lag_error: float = 0.5,  # fraction of the lag correction counted as heading error (TBC)
     ):
         self.spec = spec
         self.max_hold_ns = int(max_hold_s * 1e9)
@@ -160,8 +177,11 @@ class ImuMotion:
         self.align_vel_sigma = align_vel_sigma
         self.tilt_sigma, self.min_yaw_sigma = tilt_sigma_deg * DEG, min_yaw_sigma_deg * DEG
         self.max_yaw_sigma = max_yaw_sigma_deg * DEG
+        self.max_lag_s, self.lag_error = max_lag_s, lag_error
         self.R: np.ndarray | None = None  # body-to-ENU attitude; None until aligned
         self.aligned_at: int | None = None
+        self.yaw_sigma: float | None = None  # rad: heading 1-sigma given at alignment
+        self.refused = 0  # full windows whose heading was unobservable or too uncertain
         self.att = self.ba = self.bg = slice(0, 0)
         self.nav: np.ndarray | None = None  # state indices: position, velocity, dθ, b_a, b_g
         self.buf: deque[tuple[int, np.ndarray, np.ndarray]] = deque()
@@ -320,8 +340,8 @@ class ImuMotion:
     # --- alignment -----------------------------------------------------------------------
     def _align(self, ekf: EKF, t_ns: int, segs) -> None:
         """One step of the in-flight alignment (module docstring). At the filter's current time,
-        record a (gyro-integrated specific force, velocity change minus gravity) pair, then
-        integrate the samples up to t_ns."""
+        record the gyro-integrated specific force and the velocity change minus gravity, then
+        integrate the samples up to t_ns. Once the window is full, fit and align, or refuse."""
         steering = ekf.t_ns - ekf.last_used.get("gnss", NEVER) <= ekf.gnss_timeout_ns and (
             ekf.last_rejected.get("gnss", NEVER) <= ekf.last_used.get("gnss", NEVER)
         )
@@ -333,13 +353,16 @@ class ImuMotion:
             return
         if al is None:
             al = self._al = {"t0": ekf.t_ns, "v0": v.copy(), "C": np.eye(3), "S": np.zeros(3)}
-            al["u"], al["w"], al["z"], al["t"] = [], [], [], ekf.t_ns
-        elif ekf.t_ns - al["t"] >= 1_000_000_000:
-            al["u"].append(al["S"].copy())
-            al["z"].append(al["C"][:, 2].copy())  # body z axis, in the window's first body frame
-            al["w"].append(v - al["v0"] - GRAVITY * ((ekf.t_ns - al["t0"]) / 1e9))
-            al["t"] = ekf.t_ns
+            al["t"], al["u"], al["w"], al["yaw"] = [], [], [], []
         C, S = al["C"], al["S"]
+        # Turn about the body z axis since the window began, unwrapped (lag term of the fit)
+        yaw = math.atan2(C[1, 0], C[0, 0])
+        if al["yaw"]:
+            yaw = al["yaw"][-1] + (yaw - al["yaw"][-1] + math.pi) % (2 * math.pi) - math.pi
+        al["yaw"].append(yaw)
+        al["t"].append(ekf.t_ns)
+        al["u"].append(S.copy())
+        al["w"].append(v - al["v0"] - GRAVITY * ((ekf.t_ns - al["t0"]) / 1e9))
         for h, f, w in segs:
             if f is None:  # an IMU gap breaks the window
                 self._al = None
@@ -347,27 +370,69 @@ class ImuMotion:
             S += C @ f * h
             C = C @ rotation(w * h)
         al["C"] = C
-        span = al["t"] - al["t0"]
-        if span < self.align_window_ns:
+        if al["t"][-1] - al["t0"] < self.align_window_ns:
             return
-        z = np.array(al["z"])
-        swing = float(np.arccos(np.clip(np.min(z @ z.T), -1.0, 1.0)))  # largest tilt change
-        u, w = np.array(al["u"]), np.array(al["w"])
-        # Centred: an error in the starting velocity shifts every pair alike and drops out
-        R0 = wahba(u - u.mean(axis=0), w - w.mean(axis=0))
+        self._al = None
+        fit = self._fit(ekf, al, sd_v)
+        if fit is None:  # heading unobservable or too uncertain: refuse, start a new window
+            self.refused += 1
+            return
+        R0, yaw = fit
         self.R = R0 @ C
         self.aligned_at = t_ns
-        self._al = None
-        # Heading 1-sigma: the tilt error the window can carry (gyro bias over the window, and
-        # velocity noise over g times the window) over the tilt change that carries heading
-        s = self.spec
-        T = span / 1e9
-        yaw = (s.gyro_bias * T + sd_v / (G * T)) / max(swing, 1e-6)
-        yaw = min(max(yaw, self.min_yaw_sigma), self.max_yaw_sigma)
+        self.yaw_sigma = yaw
         # The IMU states start from their priors, uncorrelated with the rest
+        s = self.spec
         k = np.r_[np.arange(self.att.start, self.bg.stop)]
         ekf.x[k] = 0.0
         ekf.P[k, :] = 0.0
         ekf.P[:, k] = 0.0
         sig = [self.tilt_sigma, self.tilt_sigma, yaw, *[s.accel_bias] * 3, *[s.gyro_bias] * 3]
         ekf.P[k, k] = np.square(sig)
+
+    def _lag(self, ekf: EKF) -> float:
+        """How far (s) the constant-velocity filter's velocity lags the truth: for a filter at
+        steady state, twice the position-velocity covariance over the velocity variance (module
+        docstring), mean of east and north, between 0 and `max_lag_s`."""
+        p, v = self.nav[0:2], self.nav[3:5]
+        tau = np.mean(2.0 * ekf.P[p, v] / np.maximum(ekf.P[v, v], 1e-12))
+        return float(np.clip(tau, 0.0, self.max_lag_s))
+
+    def _fit(self, ekf: EKF, al: dict, sd_v: float) -> tuple[np.ndarray, float] | None:
+        """(R0, heading 1-sigma) from a full window, or None if heading is unobservable or its
+        1-sigma is above `max_yaw_sigma_deg`. See the module docstring."""
+        t = (np.array(al["t"]) - al["t0"]) / 1e9
+        T = float(t[-1])
+        tau = self._lag(ekf)
+        tj = np.arange(0.0, T - tau + 1e-9, 1.0)  # one pair a second
+        if len(tj) < 4:
+            return None
+        U, W = np.array(al["u"]), np.array(al["w"])
+        u = np.column_stack([np.interp(tj, t, U[:, i]) for i in range(3)])
+        w = np.column_stack([np.interp(tj + tau, t, W[:, i]) for i in range(3)])
+        # Centred: an error in the starting velocity shifts every pair alike and drops out
+        uc, wc = u - u.mean(axis=0), w - w.mean(axis=0)
+        R0 = wahba(uc, wc)
+        n = len(tj)
+        s = self.spec
+        a = uc @ R0.T  # the specific force side, in ENU
+        # What the gyro bias alone can put into one velocity change (m/s): a tilt error growing
+        # as bias times time, carrying g, over the window
+        drift = G * s.gyro_bias * T**2 / 2
+        # Heading shows only in the horizontal spread of the velocity changes (mean square).
+        # Less what the gyro bias alone could give: none left means heading is unobservable
+        spread = float(np.mean(np.sum(np.square(a[:, :2]), axis=1))) - drift**2
+        if spread <= 0.0:
+            return None
+        # Error of one velocity change (m/s, per axis): the larger of what the fit left over and
+        # what the filter's velocity and the gyro bias allow. Both are smooth over the window,
+        # so they are not averaged down over the pairs
+        var_fit = float(np.sum(np.square(wc - a))) / max(3 * (n - 1) - 3, 1)
+        var_w = max(var_fit, sd_v**2 + drift**2)
+        dt, dyaw = np.diff(t), np.diff(al["yaw"])
+        rate = math.sqrt(float(np.sum(np.square(dyaw[dt > 0]) / dt[dt > 0])) / T)  # rms, rad/s
+        yaw = math.sqrt(
+            var_w / spread + (s.gyro_bias * T / 2) ** 2 + (self.lag_error * tau * rate) ** 2
+        )
+        yaw = max(yaw, self.min_yaw_sigma)
+        return None if yaw > self.max_yaw_sigma else (R0, yaw)
