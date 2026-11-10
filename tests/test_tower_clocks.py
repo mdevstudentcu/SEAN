@@ -37,8 +37,9 @@ def _drift(clock: np.ndarray, duration_s: float = 60.0) -> float:
 
 def test_default_is_unchanged():
     """No `tower_clocks:` keeps the per-tower clock: these are main's values (3949f4c). The
-    realistic, worst and challenge sets model shared clocks (ADR-0022, amended by ADR-0030)."""
-    shared = ("realistic-", "worst-", "challenge-")
+    realistic, worst and challenge sets model shared clocks (ADR-0022, amended by ADR-0030), and
+    so does the P12 hand-off scenario, which copies the realistic set's world (#96)."""
+    shared = ("realistic-", "worst-", "challenge-", "p12-")
     base = [n for n in scenario_names() if not n.startswith(shared)]
     assert not any(load(n).get("tower_clocks") for n in base)
     run = generate(load("gps-outage"), seed=0)
