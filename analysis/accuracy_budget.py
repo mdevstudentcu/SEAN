@@ -875,7 +875,7 @@ def _target(ax, x_end) -> None:
 def fig_terms(budgets: dict, imu_line: dict, caption: str):
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, len(budgets), figsize=(12, 4.8), dpi=150, sharey=True)
+    fig, axes = plt.subplots(1, len(budgets), figsize=(16, 4.8), dpi=150, sharey=True)
     for ax, (title, b) in zip(np.atleast_1d(axes), budgets.items(), strict=True):
         t = b["t"]
         for (name, r), col in zip(b["terms"].items(), TERM_COLORS, strict=False):
@@ -932,7 +932,7 @@ def fig_overlay(pred: dict, meas: dict, caption: str):
 def fig_handover(fine: dict, sweep: dict, caption: str):
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, 4, figsize=(14, 4.2), dpi=150, sharey=True)
+    fig, axes = plt.subplots(1, 4, figsize=(16.5, 4.4), dpi=150, sharey=True)
     panels = [(e, s) for e in ENVIRONMENTS for _, s in TARGETS.values()]
     for ax, (envn, h) in zip(axes, panels, strict=True):
         for est in ESTIMATORS:
@@ -957,7 +957,7 @@ def fig_handover(fine: dict, sweep: dict, caption: str):
         _target(ax, 300)
         ax.set_yscale("log")
         ax.set_ylim(3, 20000)
-        ax.set(xlabel="GPS good before loss (s)", title=f"{envn}: worst in the first {h:g} s")
+        ax.set(xlabel="GPS good before loss (s)", title=f"{envn}: worst of first {h:g} s")
         _style(ax)
     axes[0].set_ylabel("95 % horizontal error (m)")
     axes[-1].legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
@@ -1034,13 +1034,12 @@ def main(argv=None) -> None:
         "uc01-realistic: the UC-01 circuit in sets/realistic.yaml. GPS lost for good after the "
         "calibration time; IMU set to our measured MPU6050. analysis/accuracy_budget.py"
     )
-    # 1: terms (ekf-calibrated models every term) with the IMU-alone line
-    tb = {
-        f"{e}, ekf-calibrated, 120 s of GPS": budget[(e, "ekf-calibrated", 120.0)]
-        for e in ENVIRONMENTS
-    }
+    # 1: terms, for the estimator closest to T1 on uc01 (ekf), the one that learns drifts
+    # (ekf-calibrated), and the only one that models the realistic set's receiver clock
+    panels = [("uc01", "ekf"), ("uc01", "ekf-calibrated"), ("uc01-realistic", "ekf-calibrated")]
+    tb = {f"{e}, {est}, 120 s of GPS": budget[(e, est, 120.0)] for e, est in panels}
     imu_line = {}
-    for (title, b), e in zip(tb.items(), ENVIRONMENTS, strict=True):
+    for (title, b), (e, _) in zip(tb.items(), panels, strict=True):
         v0 = gps_velocity_sigma(env_from_spec(spec_for(e, 120.0)))
         imu_line[title] = Z95_2D * imu_sigma(b["t"], v0, b["turn_accel"])
     fig = fig_terms(tb, imu_line, cap)
