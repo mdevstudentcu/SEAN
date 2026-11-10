@@ -4,7 +4,7 @@ How each requirement is shown to be met. The **Result** column between the marke
 
 | Req | Method | Evidence | Scenario / test |
 | --- | --- | --- | --- |
-| REQ-01 | A, T | Error vs time after GPS loss; Monte Carlo 95th percentile | `sim/scenarios/gps-outage.yaml`; replay of real sessions |
+| REQ-01 | A, T | Error vs time after GPS loss; Monte Carlo 95th percentile; accuracy budget per error term ([`accuracy-budget.md`](accuracy-budget.md)) | `sim/scenarios/gps-outage.yaml`; replay of real sessions |
 | REQ-02 | A, T | Stanford plot (HPL vs true error) | All scenarios |
 | REQ-03 | T | Clock error vs PPS truth during holdover | Real session with PPS logged but hidden from the filter; `time-spoof.yaml` |
 | REQ-04 | A, T | Detection time and false-alarm rate | `spoof-ramp`, `spoof-jump`, `meaconing`, `time-spoof`, `jamming-zone` scenarios (attack library, `src/pnt/sim/attacks.py`); `nominal` for false alarms |
