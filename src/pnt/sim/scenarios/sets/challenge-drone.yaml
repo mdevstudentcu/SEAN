@@ -1,0 +1,105 @@
+# Challenge benchmark, UC-01 leg (#126, #136, ADR-0030 Proposed): the drone circuit over Carleton
+# with LTE records shaped as the front end writes them (#135). Every value is TBC (ADR-0015).
+# - Circuit, speed and origin: uc01-drone-circuit.yaml.
+# - LTE: Rogers EARFCN 2460 (the scan list's first carrier, #87) from lte-cells-ottawa.csv, heard
+#   by the link budget with the front end's near-far floor (#135's defaults, from PR #133's dense
+#   check). A dongle clock of its own, apart from the payload's `clock:`.
+# - Error sizes: the realistic set's (noise, multipath, dropout, table position error, tower
+#   clocks, GNSS, baro, IMU, payload clock).
+# - Run: 60 s of GPS, then a 600 s outage, then 60 s of GPS again, so the T1 slice (300 s) and
+#   the T3 slice (600 s) both have values (metrics.py `outage_*`).
+# This environment has its own attack menu: the shared one's timings don't fit a 600 s outage,
+# and its tower faults name synthetic towers (`lte:sim1`) that front-end records never carry.
+description: UC-01 drone circuit on front-end LTE records, 600 s GPS outage (challenge set).
+shared_attacks: false
+duration_s: 720   # TBC: 60 s GPS (as #126 and the shared long-outage), 600 s outage, 60 s GPS
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory:   # uc01-drone-circuit.yaml
+  type: waypoints
+  vehicle: multirotor
+  closed: true
+  speed_mps: 8
+  corner_radius_m: 40
+  points: [[0, 0, 40], [250, 50, 40], [300, 300, 45], [0, 350, 40], [-200, 150, 40]]
+clock: {drift_ppb: 20, rw_ns: 2.0}   # the realistic set's payload clock, TBC
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5, time_sigma_ns: 20, health: true}   # realistic set, TBC
+  baro: {rate_hz: 10, sigma_m: 0.5}   # realistic set, TBC
+  imu: {rate_hz: 100}   # MPU6050 (ADR-0014, sim/sensors.py); rate TBC until the Pi 4B day-1 test (ADR-0018)
+  lte:
+    model: pseudorange
+    record_shape: front_end
+    rate_hz: 1
+    cells_from: {file: lte-cells-ottawa.csv, earfcn: 2460}
+    hearing: {model: link_budget}   # TBC: every LinkBudget default (sim/lte_front_end.py, #135)
+    dongle: {}   # TBC: every Dongle default (rtl0, 0.4 ppm; sim/lte_front_end.py, #135)
+    sigma_m: 50.0   # TBC: the realistic set's true range noise
+    # TBC: what the front end reports, not the true noise. Its sigma comes from timing statistics
+    # and can't see multipath (#118, #130). 2.0 m is the range noise PR #133's dense check
+    # measured on tracked cells (commit 2444589, synthetic baseband, no multipath): per-cell
+    # medians 1.5 to 3.8 m where more than one cell was tracked, p50 1.9 m (5 equal cells) and
+    # 2.3 m (5 km from every tower); 0.1 m for the lone strong cell at Carleton. It may make the
+    # filter overconfident (ADR-0030, open question).
+    told_sigma_m: 2.0
+    multipath: {sigma_m: 50.0, tau_s: 30.0}   # TBC: the realistic set's, per eNB here
+    dropout: {availability: 0.75, block_s: 30.0}   # TBC: the realistic set's, per eNB here
+    told_position_sigma_m: 100.0   # TBC: the realistic set's, per eNB here
+# Tower clocks in the realistic set's form and sizes (ADR-0022, Proposed; amended by ADR-0030 so
+# the challenge sets may share clocks). Every value is TBC; sources as in sets/realistic.yaml.
+# Here the builder is Rogers (every sector on EARFCN 2460) and a site is a registered eNB.
+tower_clocks:
+  builder: {drift_mps: 0.0354, drift_rw_mps: 2.7e-4}
+  site: {offset_m: 1000.0, drift_mps: 0.0354, offset_rw_m: 0.2, drift_rw_mps: 2.7e-4}
+provenance:
+  clock: TBC
+  gnss: TBC
+  baro: TBC
+  imu: TBC   # MPU6050: noise datasheet, the rest literature (sim/sensors.py)
+  lte_noise: TBC
+  lte_reported_sigma: TBC   # PR #133's dense check, synthetic baseband (above)
+  lte_geometry: literature   # ISED site registry via lte-cells-ottawa.csv (data/reference/README.md)
+  lte_hearing: TBC   # link budget unsourced; near-far floor measured on synthetic baseband (#133)
+  dongle_clock: TBC
+  tower_clocks: TBC   # form: Shamaei et al. 2018; grouping: ADR-0022; sizes unsourced
+  multipath: TBC
+  dropout: TBC
+  tower_position_error: TBC
+# The menu (ADR-0030). Start times are TBC: GNSS attacks start at 150 s as on the shared menu,
+# so T4 detection times compare with the other sets; faults of other sources start 120 s into
+# the outage (180 s), once the filter has settled without GPS, so that their effect and any alert
+# are measured apart from the GPS loss.
+attacks:
+  nominal: []
+  # The 600 s outage. GPS returns at 660 s, so this entry also covers recovery after the outage.
+  outage:
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+  spoof-ramp:   # T4: 2 m/s position ramp
+    - {type: spoof_ramp, source: gnss, start_s: 150, rate_mps: 2.0, direction_deg: 45}
+  spoof-jump:
+    - {type: spoof_jump, source: gnss, start_s: 150, offset_enu_m: [300, 0, 0]}
+  time-spoof:   # T4: 50 ns/s time ramp
+    - {type: time_spoof, source: gnss, start_s: 150, rate_ns_per_s: 50}
+  meaconing:
+    - {type: meaconing, source: gnss, start_s: 150, delay_s: 5.0}
+  # The shared menu's jammer: the circuit's first leg passes 14 m from it, so each lap loses GPS
+  # within 60 m and degrades within 250 m
+  jamming-zone:
+    - {type: jamming_zone, source: gnss, center_llh: [45.3876, -75.694085, 70.0], radius_m: 60, onset_m: 250}
+  # A tower clock jumps 300 m (1 us) while GPS is out. lte:2460:300 is the cell heard most on
+  # this circuit (eNB 30018, 286 m from the origin; the strongest cell at Carleton in PR #133)
+  outage-tower-clock-step:
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+    - {type: tower_clock_step, source: lte, emitter: "lte:2460:300", start_s: 180, offset_m: 300.0}
+  # Every tower's timing goes into holdover (OCXO grade, attacks.HOLDOVER_GRADES) 120 s into the
+  # outage, as if the wide-area jamming reached the towers then (TBC)
+  outage-tower-holdover:
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+    - {type: tower_holdover, source: lte, start_s: 180}
+  # The IMU's start-up calibration is lost (datasheet offsets, attacks.IMU_*_STEP_*) while GPS is out
+  outage-imu-bias:
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+    - {type: imu_degradation, start_s: 180, mode: bias}
+  outage-baro-drift:   # the shared menu's 0.2 m/s drift, while GPS is out
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+    - {type: baro_drift, source: baro, start_s: 180, rate_mps: 0.2}
