@@ -21,6 +21,23 @@ Everything here is defensive. Attacks exist only as software fault injection in 
 - **Timing users fail with GNSS.** The January 2016 GPS UTC error pushed telecom timing into holdover at many sites [RNT 2016]. Tower time is GNSS-disciplined, so towers can follow a time spoof (ADR-0024).
 - **No published attack targets a SoOP navigation receiver.** Rogue and overshadowed cells are demonstrated only against phones [research.md §1]. Tower attacks are therefore rated L in likelihood here, and kept because they are cheap to simulate and judges will ask.
 
+## Location jumps first (study, 2026-11-10)
+
+Our Honeywell mentors' answer on which attacks to start with (2026-11-10): "I would begin with location jumps". `analysis/jump_study.py` jumps GNSS position by 5 to 1000 m at t = 150 s and holds it to the end of the 360 s run, towards eight directions, 50 seeds per size, for `ekf`, `ekf-calibrated`, `ekf-imu` and `ekf-mhss`. It runs in two environments: the `realistic` set's error model on the `uc01-drone-circuit` route (`realistic-uc01`), and `uc01-drone-circuit` as committed (synthetic towers). The evidence is sim only, with every model `placeholder` in `verification.md`. The numbers are in [`summary.md`](../analysis/pr-evidence/shrikar-feat-t4-jump-study/summary.md), run at commit `f17475e`.
+
+- **Detection is fast and clean.** The GNSS innovation gate flags a jump of 20 m or more in at least 98 % of runs, 1.1 s after it (the 1 s alarm hold), for all four estimators in both environments. A 15 m jump is caught in 30 to 86 % of runs, and 5 to 10 m jumps in at most 8 %. No estimator raised a false alarm in 50 clean runs (5.0 h) in either environment, so the 95 % upper bound is 0.6 per hour.
+- **Missed jumps are harmless on their own.** A jump the gate misses is absorbed. In every run that missed it, for every estimator in both environments, the worst error stayed within 24 m. Detecting is not always enough for `ekf-imu`, though: with the realistic set, 2 of 50 runs at 15 and 20 m detected the jump and then diverged to 81 to 178 m. Both raised an alert and had no hazardous epoch.
+- **Detection is not protection: an excluded jump is accepted again.** Once GNSS is excluded, the filter coasts and its covariance grows. When the gate has widened past the jump, the filter accepts the spoofed position with GNSS's small covariance, and HPL drops back to about 7 m. Every epoch after that is hazardously misleading.
+  - A 50 m jump is re-accepted in 47 to 50 of 50 runs for `ekf` and `ekf-calibrated` in both environments: a median 6 s after the jump with the realistic set, and 9 to 33 s on uc01.
+  - With the realistic set the towers do not hold the coast: they are rejected (the `receiver_clock` caveat in `sets/realistic.yaml`). Jumps of 50 to 300 m are therefore re-accepted in 46 to 50 of 50 runs. For `ekf`, a 1000 m jump that stays out leaves a coast whose worst error reaches a median 2.1 km.
+  - On uc01's synthetic towers, `ekf` keeps jumps of 100 m or more out (worst error 41 m), and `ekf-calibrated` keeps out jumps from 300 m (1 run of 50 re-accepted at 300 m).
+- **The dangerous band is "detected, then re-accepted", not "too small to detect".** No estimator misses a jump that also breaks the 50 m alert limit. These are the jump sizes that were caught, then accepted again, with hazardous epochs:
+  - `realistic-uc01`: `ekf` 50 to 1000 m, `ekf-calibrated` 50 to 1000 m (3 of 50 runs at 1000 m), `ekf-imu` 30 to 1000 m (1 run at 30 m)
+  - `uc01`: `ekf` 50 m, `ekf-calibrated` 50 to 300 m (1 run at 300 m), `ekf-imu` 20 to 50 m (2 runs at 20 m)
+- **`ekf-mhss` has no hazardous epoch at any jump size, because it is not available.** Its HPL is over the 50 m alert limit in every pre-jump epoch with the realistic set, and in 68 % of them on uc01. It protects by declaring itself unusable.
+- **A jump that hides in the noise and then drifts beats every detector.** The variant is a 5 or 10 m jump, then a drift of 0.5 or 2 m/s in the same direction (the 2 m/s drift is T4's ramp). Every estimator detected it in at most 24 % of runs and followed it to 110 to 430 m. Every run of `ekf` and `ekf-calibrated`, and 46 to 50 of 50 runs of `ekf-imu`, had hazardous epochs. `ekf-mhss` again had none, only because it was unavailable.
+- **T4 states no jump target.** A proposed one (`TBC`) goes with the target changes proposed in ADR-0034. This file does not set it.
+
 ## Ranked attacks per use case
 
 ### UC-01: drone on an urban corridor (Ottawa, below 120 m)
@@ -32,7 +49,7 @@ Everything here is defensive. Attacks exist only as software fault injection in 
 | 3 | Ground reference station fault (moved, clock step, link lost) | M | M | A new single point of failure that every differenced reading inherits (ADR-0020). Likelihood M while it is a hobby-grade box on a mast |
 | 4 | Slow position spoof that drags the drone off course (carry-off) | L | H | Silent; aimed at drones in UC-01's own threat list. Needs a deliberate, illegal transmitter. A filter-aware drift beats per-epoch gates [Shen 2020] |
 | 5 | Forged records on a ground link | L | H | Skips every radio check (ADR-0026). Needs access to the local network |
-| 6 | Crude position takeover (jump) | L | M | Same transmitter as the slow position spoof but obvious; a GNSS gate catches it |
+| 6 | Crude position takeover (jump) | L | H | Same transmitter as the slow position spoof. The GNSS gate catches a jump of 20 m or more within 1.1 s, then accepts it again once the filter's coast has grown past it: hazardously misleading (jump study above). Impact was M before the study; the new rating is TBC |
 | 7 | Rogue or overshadowed cell posing as a tower | L | M | Demonstrated on phones only; registry and clock checks should catch most (ADR-0023) |
 
 ### UC-02: crewed approach into YOW
@@ -62,7 +79,7 @@ Detections are flags on the `Estimate`; responses are what the estimator does. "
 | --- | --- | --- | --- |
 | Local jamming | `jamming-zone`, `gps-outage`, `uc01-drone-circuit`, `uc02-yow-approach`, `*-outage`, `*-long-outage`, `*-gps-no-fix` | GNSS loss is self-evident (`gnss_unavailable`). The filter coasts on towers, barometer and clocks; the HPL grows, and MHSS (#82, #108) bounds it with tower-site and builder hypotheses. Time keeps its own protection level (P5) | On main |
 | Slow position spoof | `spoof-ramp`, `*-spoof-ramp` | Spoof detector (#102): calibrated towers refute the GNSS-steered position, raising `spoof_suspected` and `gnss_excluded`, and the tower clocks roll back. MHSS GNSS common-mode hypothesis (#82, #108) excludes GNSS on a failed separation test or a held GNSS alarm | Detector on main, opt-in (`clock_model="calibrated"`); MHSS on main as `ekf-mhss` |
-| Position jump, GNSS returning | `spoof-jump`, `*-spoof-jump`, `*-gps-return` | GNSS innovation gate (`gnss_excluded`); spoof detector; MHSS exclusion | On main |
+| Position jump, GNSS returning | `spoof-jump`, `*-spoof-jump`, `*-gps-return` | GNSS innovation gate (`gnss_excluded`); spoof detector; MHSS exclusion | Detection on main: 20 m or more within 1.1 s (jump study). Exclusion does not hold: the jump is accepted again (Gaps) |
 | Time spoof | `time-spoof`, `*-time-spoof` | Time gate: GNSS time tested against our clock model (`time_spoof_suspected`); GNSS time is then not used. Towers hold no evidence about GNSS time in `ekf` or `ekf-mhss`; tower refutation is planned (ADR-0024). Time protection level for what is left | On main |
 | Meaconing | `meaconing`, `*-meaconing` | Time gate (the delay appears as a clock step); spoof detector when the delay moves position against the towers | On main |
 | Tower clock jump | `*-tower-clock-step`, `realistic-with-base-long-outage-tower-clock-step` | MHSS site hypothesis (#82, #108); with the base, it cancels in the difference and the base flags `tower_fault` | On main |
@@ -79,6 +96,8 @@ Top attacks with no scenario, or no detection we can show. These are open work, 
 
 | Attack | Use case (rank) | Gap |
 | --- | --- | --- |
+| Position jump accepted again after exclusion | UC-01 (6), UC-02 (3) | **No latch on exclusion.** The gate excludes a jump at once, but nothing keeps it out. When the coasting covariance has grown past the jump, the gate accepts it: a 50 m jump in 47 to 50 of 50 runs for `ekf` and `ekf-calibrated` (jump study). How to hold an exclusion until independent evidence clears it is a design decision, not taken here |
+| Jump then drift (a jump inside the noise, then a ramp) | UC-01 (4, 6) | **No detection.** A 5 to 10 m jump followed by a 0.5 or 2 m/s drift is detected in at most 24 % of runs by any estimator and leaves errors of 110 to 430 m (jump study). Not in `_attacks.yaml`: the study composes `spoof_jump` and `spoof_ramp` |
 | Jam then spoof | UC-02 (4) | **No scenario.** Every scenario has one fault type for GNSS; an outage followed by a spoof on return is not in `_attacks.yaml` |
 | Wide-area time spoof that also moves the towers | UC-03 (4) | **No scenario.** `time-spoof` moves only our GNSS time; the sim's tower clocks never follow GNSS. **No detection** from towers by design (ADR-0024); only our own oscillator in holdover can refute it, and only briefly |
 | Network builder's timing fault (holdover, captured grandmaster) | UC-01 (2), UC-03 (4) | **No fault type.** The realistic sets model a shared builder clock, but no attack steps or ramps it. MHSS has the builder hypothesis; nothing exercises it |
