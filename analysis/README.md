@@ -14,6 +14,7 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
   - `stanford.png`: HPL against error pooled over `--stanford` (default the `realistic` set) (REQ-02)
   - `ablation.png`: fault-window p95 with all SoOP removed and with each other aid removed (REQ-06)
   - `holdover.png`: clock error and time protection level after GPS loss (REQ-03), when the estimator has a clock
+- `accuracy_budget.py`: the UC-01 accuracy budget (REQ-01, T1): each error term after GPS loss from first principles, against the filters run on the same scenarios, and how long GPS must be good first. Writes `results/accuracy-budget/`; the write-up is `systems/accuracy-budget.md` (sim only)
 - `rf_survey.py <site>=<power.csv> ...`: the RF survey (#20). Per site, each band's power above the noise floor from an `rtl_power` sweep, as `deploy/pi/rf_survey.sh` records it: `results/rf-survey/summary.md` and `spectrum-<site>.png`. Power only, uncalibrated dB
 - `lte_link_synthetic.py`: synthetic baseband through the LTE front end, cell lookup and `ekf`, with and without the dongle clock state (synthetic only)
 - `lte_table_audit.py`: every row of the Ottawa cell table through the lookup, from Carleton and a receiver grid: wrong-tower matches, usable geometry, flags (registry only, no radio)
