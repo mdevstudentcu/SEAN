@@ -1,7 +1,7 @@
 # ADR-0018: The payload is a Pi 4B recorder; a Pi Zero 2 W hub only if day-1 tests need it
 
 - **Status:** Proposed
-- **Date:** 2026-11-08, amended 2026-11-09 (the recorder changed from a Pi 3B+ to a Pi 4B: we have both), and again 2026-11-09 (our Pi 4B has 1 GB of RAM)
+- **Date:** 2026-11-08, amended 2026-11-09 (the recorder changed from a Pi 3B+ to a Pi 4B: we have both), again 2026-11-09 (our Pi 4B has 1 GB of RAM), and 2026-11-10 (the payload runs on a 4 GB Pi 4B; the 1 GB one is the spare)
 - **Deciders:** team
 - **Traces to:** REQ-03, REQ-08, REQ-09, RSK-05, RSK-06; supersedes ADR-0005; settles sim plan D6
 
@@ -15,7 +15,7 @@ The payload records two RTL-SDRs at up to 2.4 MS/s each: 4.8 MB/s each, 9.6 MB/s
 | --- | --- | --- |
 | USB | All four ports and Ethernet share one USB 2.0 link (480 Mb/s) | USB controller on its own PCIe lane; Ethernet separate |
 | CPU | 4× Cortex-A53, 1.4 GHz | 4× Cortex-A72, 1.5–1.8 GHz |
-| RAM | 1 GB | 1 GB on ours (Honeywell, received 2026-11-09); the model is sold with 1–8 GB |
+| RAM | 1 GB | 4 GB on the payload Pi (from 2026-11-10); 1 GB on the Honeywell spare. The model is sold with 1–8 GB |
 | Recording | SD card, or a USB SSD on the shared bus | Faster SD, or a USB 3 SSD with its own bandwidth |
 | Power | Lower | Higher; needs a 5 V 3 A supply and cooling |
 | Noise | — | USB 3 ports radiate near GPS L1 and 2.4 GHz (RSK-06) |
@@ -45,6 +45,8 @@ The payload recorder is the **Raspberry Pi 4B** (recorder and streamer, ADR-0002
   - The recorder pipes each `rtl_sdr` straight to disk and keeps only per-buffer timestamps in memory, so it does not buffer IQ in RAM.
   - The recorder's health log already writes `mem_avail_mb` once a second; its minimum during the two-SDR recording is the number to check. `pnt day1` reports it as *Min available memory (MB)*; its threshold is `TBD` with the others.
   - Running the estimator or the dashboard on the Pi is not planned (ADR-0002); 1 GB would make that harder.
+- **RAM (amended 2026-11-10):** the payload Pi is now a different Pi 4 Model B (Rev 1.5) with 4 GB (3789 MB total in `free -m`; source `TBC`). Honeywell's 1 GB Pi 4B is the spare. The decision is unchanged. The memory checks above still apply, because the spare may fly if the payload Pi fails.
+  - Bench session `20261110-0301-static-bench` (commit `25ce8ba`, IMU only, no SDR): *Min available memory* 3577 MB, CPU 0.3 % mean, 43.8 °C max, no throttling. The two-SDR figure is still `TBD` (day-1 test).
 - **Power and heat:**
   - The 4B draws more and throttles when hot, so it needs a heatsink or fan in the payload box and a 5 V 3 A supply.
   - The USB current for two SDRs (plus the Zero, if used) is measured with the DPS-150 (`TBC`).
