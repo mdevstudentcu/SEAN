@@ -17,7 +17,7 @@ import yaml
 from pnt.core.frames import enu_to_llh, llh_to_enu
 from pnt.core.measurement import Measurement, Truth
 from pnt.core.time import s_to_ns, utc_to_gps_ns
-from pnt.sim import attacks, models, sensors, trajectory
+from pnt.sim import attacks, lte_front_end, models, sensors, trajectory
 
 SCENARIO_DIR = Path(__file__).parent / "scenarios"
 SET_DIR = SCENARIO_DIR / "sets"
@@ -65,6 +65,9 @@ class SimRun:
     tower_clocks: dict[str, np.ndarray] = field(default_factory=dict)
     # The reference station as the session records it (ICD-session `reference`), or None
     reference: dict | None = None
+    # Truth for debugging: each dongle's clock (m) at the truth times, by `meta.rx_clock`, when a
+    # source has `record_shape: front_end`
+    rx_clocks: dict[str, np.ndarray] = field(default_factory=dict)
 
 
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
@@ -200,6 +203,7 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
 
     meas: list[Measurement] = []
     emitters: dict[str, list[float]] = {}
+    rx_clocks: dict[str, np.ndarray] = {}
     ref = _Reference(spec, seed, t_truth) if spec.get("reference") else None
     for source, cfg in spec.get("sources", {}).items():
         cfg = dict(cfg)
@@ -207,7 +211,25 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
         ts_ns = T0_NS + np.round(ts * 1e9).astype(np.int64)
         pos, _ = trajectory.make(traj, ts)
         model = cfg.pop("model", source)
-        if model == "gnss":
+        if model == "pseudorange" and _record_shape(cfg) == "front_end":
+            if ref is not None and source in ref.sources:
+                raise ValueError("the reference station can't hear front-end records yet")
+            recs, found, rx = lte_front_end.records(
+                cfg,
+                source=source,
+                cells_file=_cells_file(cfg),
+                ts=ts,
+                ts_ns=ts_ns,
+                pos=pos,
+                t_truth=t_truth,
+                origin_llh=spec["origin_llh"],
+                seed=seed,
+                tower_clocks=tower_clk,
+            )
+            meas += recs
+            emitters.update(found)
+            rx_clocks.update(rx)
+        elif model == "gnss":
             clock_s = np.interp(ts, t_truth, clock_t) if "clock" in spec else None
             meas += models.gnss(ts_ns, pos, rng, clock_s=clock_s, **cfg)
         elif model == "baro":
@@ -284,7 +306,26 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     meas, events = attacks.apply(meas, spec.get("faults", []), ctx)
     meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter, m.receiver))
     meta = None if ref is None else ref.meta()
-    return SimRun(spec["name"], spec, seed, truth, meas, events, emitters, tower_clk, meta)
+    return SimRun(
+        spec["name"], spec, seed, truth, meas, events, emitters, tower_clk, meta, rx_clocks
+    )
+
+
+def _record_shape(cfg: dict) -> str:
+    """Pop a pseudorange source's `record_shape`: `sim` (default: records carrying their tower's
+    position, `models.pseudoranges`) or `front_end` (as `pnt.frontends.lte` writes them, #134)."""
+    shape = cfg.pop("record_shape", "sim")
+    if shape not in ("sim", "front_end"):
+        raise ValueError(f"record_shape is sim or front_end, not {shape!r}")
+    return shape
+
+
+def _cells_file(cfg: dict) -> Path:
+    """The cell table a front-end source names (`cells_from: {file, earfcn}`, no defaults)."""
+    cells_from = cfg.get("cells_from") or {}
+    if set(cells_from) != {"file", "earfcn"}:
+        raise ValueError(f"cells_from needs file and earfcn, not {sorted(cells_from)}")
+    return REFERENCE_DIR / cells_from["file"]
 
 
 def _imu(traj: dict, ts: np.ndarray, ts_ns: np.ndarray, rng, cfg: dict) -> list[Measurement]:
@@ -310,6 +351,10 @@ def tower_groups(spec: dict, seed: int = 0) -> tuple[dict[str, str], dict[str, s
     - Site: towers of one builder within SAME_SITE_M of each other, across sources, are one
       site, named after its first emitter. Synthetic towers are a site each. The sim has no
       PCI, so sectors can't be grouped by PCI // 3: each emitter is one sector.
+    - Front-end records (`record_shape: front_end`): every sector of the table's carrier is
+      grouped by its registered eNB, named `enb:<id>` as `pnt.nav.cells` names it, with the
+      builder of its licensee. A sector whose PCI another eNB also uses is keyed
+      `<emitter>@<site>`, a name no record carries, so that each still has its own clock.
     """
     rng = np.random.default_rng([seed, _GROUP_STREAM])
     sites: dict[str, str] = {}
@@ -317,6 +362,11 @@ def tower_groups(spec: dict, seed: int = 0) -> tuple[dict[str, str], dict[str, s
     placed: list[tuple[str, str, dict]] = []  # (site, builder, {lat, lon}) of placed sites
     for source, cfg in spec.get("sources", {}).items():
         if cfg.get("model", source) != "pseudorange":
+            continue
+        if cfg.get("record_shape") == "front_end":
+            for s in lte_front_end.sectors(_cells_file(cfg), int(cfg["cells_from"]["earfcn"])):
+                sites[s.key] = s.site
+                builders.setdefault(s.site, builder_of(s.licensee))
             continue
         llh, carriers = cfg.get("emitters_llh"), None
         if "towers_from" in cfg:
