@@ -1,4 +1,4 @@
-"""ADS-B interference early warning (#91, P6, ADR-0031): aircraft around us report their own GNSS
+"""ADS-B interference early warning (#91, P6, ADR-0032): aircraft around us report their own GNSS
 quality, and it degrades before ours does when a jammer is ahead.
 
 Reads `adsb_report` measurements (ICD-measurement: e, n, u, NACp, NIC) and keeps one track per
@@ -19,7 +19,7 @@ Two kinds of evidence, each about one aircraft:
 Only aircraft within `region_m` of our position count, and evidence lasts `memory_s` after the
 aircraft last showed it. The warning is on while at least `min_aircraft` aircraft show a quality
 drop, or any aircraft a confirmed jump. While it is on, the integrity monitor raises its GNSS
-common-mode prior (`pnt.integrity.mhss`, ADR-0031).
+common-mode prior (`pnt.integrity.mhss`, ADR-0032).
 
 All thresholds are TBC: none is set by a requirement, and the sim's traffic is synthetic.
 """
@@ -74,7 +74,7 @@ class _Track:
 
 
 @dataclass
-class Warning:
+class AdsbWarning:
     on: bool
     dropped: list[str] = field(default_factory=list)  # aircraft with a quality drop
     jumped: list[str] = field(default_factory=list)  # aircraft with a confirmed track jump
@@ -137,7 +137,7 @@ class AdsbMonitor:
             tr.ve, tr.vn, tr.has_vel = (e - tr.e) / dt, (n - tr.n) / dt, True
         tr.t_s, tr.e, tr.n = t, e, n
 
-    def warning(self, t_ns: int, own_en: tuple[float, float] | None = None) -> Warning:
+    def warning(self, t_ns: int, own_en: tuple[float, float] | None = None) -> AdsbWarning:
         """The warning at t_ns for a receiver at `own_en` (ENU m; None: every aircraft counts)."""
         p = self.p
         t = t_ns / 1e9
@@ -150,4 +150,4 @@ class AdsbMonitor:
                 dropped.append(icao)
             if tr.jump_last is not None and t - tr.jump_last <= p.memory_s:
                 jumped.append(icao)
-        return Warning(len(dropped) >= p.min_aircraft or bool(jumped), dropped, jumped)
+        return AdsbWarning(len(dropped) >= p.min_aircraft or bool(jumped), dropped, jumped)
