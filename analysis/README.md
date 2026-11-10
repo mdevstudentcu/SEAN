@@ -28,6 +28,7 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
 - `vor_quality.py <voracious>.jsonl ...`: whether Voracious locked onto a VOR (idents, 30 Hz and 9960 Hz SNR, radial spread), before its radials are used
 - `pnt compare <simulated> <real> --source lte [--first-s S] [--out fig.png]`: the same residual statistics (size, lag-1 persistence, availability) and histogram from any two sessions (ADR-0015, #30). A channel is one emitter in one tracking arc, its trend removed. Without `/truth`, a static session (`platform: static`) is its own reference, so a real LTE capture with no GPS can be compared
 - `pnt replay <session> --inject <scenario or .yaml> [--seed N] [--out folder]`: a scenario's faults applied to a recording, fault times from its first measurement; `--out` saves the injected session for `pnt compare` or `pnt viz`. `inject/` holds fault files sized for real captures
+- `jump_refusal.py --seeds 50 --jobs 2`: a GNSS position jump refused instead of followed (#184), sim. `ekf` and `ekf-calibrated` with and without the jump guard, paired, on the challenge drone and timing legs and the many-tower drone case: whether the output follows the jump, error and HPL after it, re-admission after it ends, false alarms, and the alternative re-admission rules. Writes `results/jump-refusal/`: `summary.md`, `runs.json`, `curves.json` and `error_after_jump.png`
 - Planned: timing holdover from real sessions. No real session exists yet; `summary.md` keeps a marked placeholder for them
 
 ## Viewing a run in Foxglove
