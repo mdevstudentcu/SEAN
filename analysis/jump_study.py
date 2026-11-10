@@ -454,8 +454,9 @@ def main(argv=None) -> None:
     if args.rows:
         data = json.loads(Path(args.rows).read_text())
     else:
+        commit = _commit()  # the code that runs, not whatever is checked out when it ends
         rows = [r for rs in _map(run_case, tasks(args.runs), args.jobs) for r in rs]
-        data = {"commit": _commit(), "runs": args.runs, "rows": rows}
+        data = {"commit": commit, "runs": args.runs, "rows": rows}
         (out / "rows.json").write_text(json.dumps(data))
     summary = summarize(data["rows"])
     (out / "summary.md").write_text(markdown(summary, data))
