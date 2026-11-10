@@ -141,7 +141,7 @@ def test_steady_jammer_is_promoted_after_the_window_and_shown_apart_from_gnss():
     assert min(flagged) >= t_promoted
 
 
-def test_power_step_demotes_at_once_and_forgets_the_power():
+def test_large_power_step_demotes_at_once():
     step = {"type": "hostile_power", "start_s": 60, "step_db": 30.0}
     _, _, f = _run_ekf(_spec(faults=[step]), hostile={})
     b = f.hostile.by_emitter["jammer:sim0"]
