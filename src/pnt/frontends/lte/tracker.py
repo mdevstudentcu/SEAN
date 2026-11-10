@@ -83,6 +83,8 @@ class Config:
     lost_s: float = 2.0  # give a cell up after this long without it
     output_period_s: float = 0.1  # 10 Hz
     sigma_scale: float = 1.5  # reported σ / ranging bound; 1.5 covers the synthetic tests, TBC
+    # Threads for the search's FFTs (scipy `workers`; -1 = every core). Same results either way.
+    fft_workers: int = 2
 
 
 @dataclass(slots=True)
@@ -256,14 +258,15 @@ def search(x: np.ndarray, c0: int, fs: float, fc: float, cfg: Config) -> list[Fo
         return []
     n_valid = h_count * L
     nfft = sp_fft.next_fast_len(x.size + n_u)
-    xf = sp_fft.fft(x.astype(np.complex64), nfft, workers=-1)
+    wk = cfg.fft_workers
+    xf = sp_fft.fft(x.astype(np.complex64), nfft, workers=wk)
     f_max = cfg.max_ppm * 1e-6 * fc
     half = math.ceil(f_max / cfg.cfo_step_hz - 0.5)
     bins = np.arange(-half, half + 1) * cfg.cfo_step_hz
     metric = np.empty((3, bins.size, L), np.float32)
     for n_id2 in range(3):
         tf = _pss_spectra(fs, nfft, tuple(bins), n_id2)  # (bins, nfft), conjugated
-        corr = sp_fft.ifft(xf[None, :] * tf, axis=1, workers=-1)[:, :n_valid]
+        corr = sp_fft.ifft(xf[None, :] * tf, axis=1, workers=wk)[:, :n_valid]
         fold = (corr.real**2 + corr.imag**2).reshape(bins.size, h_count, L).sum(axis=1)
         metric[n_id2] = fold / fold.mean(axis=1, keepdims=True)
     sidelobe_mask = max(3, round(2 * fs / 1e6))  # ±~1 chip
