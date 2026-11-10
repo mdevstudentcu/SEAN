@@ -166,3 +166,14 @@ def test_budget_reads_the_scenario_and_the_filter():
     assert cal.rx_in_ranges and cal.calibrated and cal.pos_sigma == 100.0
     assert not plain.rx_in_ranges and not plain.calibrated and plain.mp_sigma == 0.0
     assert ab.filter_model("ekf-imu", env).motion == "imu"
+
+
+def test_a_target_holds_over_its_whole_window():
+    # "<= 25 m for >= 300 s" fails if any second in the window is over, even if +300 s is not
+    curve = np.full(301, 20.0)
+    curve[150] = 30.0
+    assert ab.worst_in(curve, 300) == 30.0 and ab.worst_in(curve, 120) == 20.0
+    curves = {30.0: curve, 60.0: np.full(301, 24.0), 120.0: np.full(301, 10.0)}
+    assert ab.min_tcal(curves, 300, 25.0) == 60.0
+    assert ab.min_tcal(curves, 120, 25.0) == 30.0
+    assert ab.min_tcal({30.0: curve}, 300, 5.0) is None
