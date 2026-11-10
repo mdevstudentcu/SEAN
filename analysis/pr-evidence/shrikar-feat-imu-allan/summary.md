@@ -1,18 +1,18 @@
-# IMU Allan deviation: 20261110-0306-overnight-partial
+# IMU Allan deviation: 20261110-0306-static-bench-overnight
 
-Session `20261110-0306-overnight-partial` (recorded at commit `25ce8ba`), analysed at commit `1ba349e`. Hardware: ['host', 'mpu6050']. First 0 s dropped.
+Session `20261110-0306-static-bench-overnight` (recorded at commit `25ce8ba`), analysed at commit `c434876-dirty`. Hardware: ['host', 'mpu6050']. Window from 1800 s to 18000 s of the session.
 
-56550 samples over 565 s at 100.0 Hz; 0 intervals > 1.5x nominal, longest 0.013 s.
+1620000 samples over 16200 s at 100.0 Hz; 1 intervals > 1.5x nominal, longest 0.018 s.
 
 | Sensor | Axis | Noise density | Allan check (slope) | Sim model | Floor | at τ (s) | Floor reached | Static mean | Spectral peak (Hz) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| accel | x | 291 ug/sqrt(Hz) | 373 (-0.47) | 400 | 145 ug (sim 52.2) | 4.33 | yes | -0.08993 m/s² | 4.27 |
-| accel | y | 207 ug/sqrt(Hz) | 299 (-0.50) | 400 | 105 ug (sim 50.1) | 8.73 | yes | 1.896 m/s² | 5.54 |
-| accel | z | 357 ug/sqrt(Hz) | 362 (-0.50) | 400 | 68.3 ug (sim 52.9) | 17.6 | yes | 8.86 m/s² | 4.59 |
-| gyro | x | 0.026 deg/s/sqrt(Hz) | 0.0363 (-0.65) | 0.005 | 7.7 deg/h (sim 6.78) | 56.6 | no | -3.739 deg/s | 5.54 |
-| gyro | y | 0.0521 deg/s/sqrt(Hz) | 0.173 (-0.39) | 0.005 | 5.33 deg/h (sim 5.84) | 56.6 | no | 0.8524 deg/s | 4.59 |
-| gyro | z | 0.0143 deg/s/sqrt(Hz) | 0.0645 (-0.38) | 0.005 | 4.61 deg/h (sim 7.14) | 56.6 | no | 1.005 deg/s | 5.54 |
+| accel | x | 214 ug/sqrt(Hz) | 227 (-0.49) | 400 | 119 ug (sim 37) | 4.02 | yes | -0.5642 m/s² | 1.64 |
+| accel | y | 198 ug/sqrt(Hz) | 208 (-0.50) | 400 | 64.7 ug (sim 33.8) | 12.8 | yes | 2 m/s² | 6.81 |
+| accel | z | 309 ug/sqrt(Hz) | 324 (-0.50) | 400 | 94.5 ug (sim 27.6) | 10.1 | yes | 8.842 m/s² | 4.59 |
+| gyro | x | 0.00492 deg/s/sqrt(Hz) | 0.00549 (-0.50) | 0.005 | 5.54 deg/h (sim 5.47) | 20.2 | yes | -3.723 deg/s | 42.11 |
+| gyro | y | 0.00534 deg/s/sqrt(Hz) | 0.00813 (-0.50) | 0.005 | 3.73 deg/h (sim 6.35) | 102 | yes | 0.8509 deg/s | 4.66 |
+| gyro | z | 0.0049 deg/s/sqrt(Hz) | 0.00571 (-0.50) | 0.005 | 4.7 deg/h (sim 6.44) | 50.9 | yes | 1.002 deg/s | 6.81 |
 
-Mean |accel| 9.0607 m/s² against g = 9.80665 (-7.6 %): scale and bias together; a single static pose cannot separate them.
+Mean |accel| 9.0825 m/s² against g = 9.80665 (-7.4 %): scale and bias together; a single static pose cannot separate them.
 
 Noise density is the median spectrum in 10-30 Hz, in the sim's convention (`pnt.sim.sensors`: sigma = N·sqrt(fs/2)), so it can replace the `ImuParams` value. *Allan check* is the same density from the curve's slope -1/2 stretch (its slope in brackets); a vibration (see the spectral peak) bends the curve and makes it disagree. *Floor reached: no* means the curve was still falling at the longest τ: the record is too short to see the bias instability.
