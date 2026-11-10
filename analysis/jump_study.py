@@ -234,6 +234,7 @@ def summarize(rows: list[dict]) -> list[dict]:
                 follow_med_s=_nan(np.median, [r["follow_s"] for r in rs]),
                 worst_med_m=_nan(np.median, [r["worst_m"] for r in rs]),
                 worst_max_m=_nan(np.max, [r["worst_m"] for r in rs]),
+                missed_worst_m=_nan(np.max, [r["worst_m"] for r in rs if r["detected"] == 0]),
                 hmi_runs=sum(r["hazardous"] > 0 for r in rs),
                 hazardous=sum(r["hazardous"] for r in rs),
                 avail_pre=_nan(np.mean, [r["avail_pre"] for r in rs]),
@@ -270,13 +271,14 @@ def smallest_reliable(summary: list[dict], env: str, est: str, p: float = RELIAB
 
 def bands(summary: list[dict], env: str, est: str, p: float = RELIABLE_P) -> dict:
     """Jump sizes that are dangerous, two ways:
-    - undetected: detected in fewer than `p` of runs, yet some run's error passes the alert limit
+    - undetected: detected in fewer than `p` of runs, and a run that missed it has an error over
+      the alert limit
     - hazardous: some run has a hazardously misleading epoch (detected or not)"""
     jumps = [s for s in summary if (s["env"], s["estimator"], s["kind"]) == (env, est, "jump")]
     jumps.sort(key=lambda s: s["size_m"])
     return {
         "undetected": [
-            s["size_m"] for s in jumps if s["p_detect"] < p and s["worst_max_m"] > ALERT_LIMIT_M
+            s["size_m"] for s in jumps if s["p_detect"] < p and s["missed_worst_m"] > ALERT_LIMIT_M
         ],
         "hazardous": [s["size_m"] for s in jumps if s["hmi_runs"] > 0],
     }
@@ -335,6 +337,7 @@ def markdown(summary: list[dict], meta: dict) -> str:
         ("follow_med_s", "follows after med s", "{:.1f}"),
         ("worst_med_m", "worst err med m", "{:.0f}"),
         ("worst_max_m", "worst err max m", "{:.0f}"),
+        ("missed_worst_m", "worst err when missed m", "{:.0f}"),
         ("hmi_runs", "runs with HMI", "{}"),
         ("hazardous", "HMI epochs", "{}"),
         ("avail_pre", "available before jump", "{:.2f}"),
