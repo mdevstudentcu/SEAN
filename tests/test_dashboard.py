@@ -48,23 +48,41 @@ def _est(t_s: float, flags=(), status="nominal", hpl=5.0, trust=None) -> Estimat
     )
 
 
+# One example per parameterised flag: a new parameterised flag fails the test below until it is
+# given an example here, and with it a sentence in `describe`
+FLAG_EXAMPLES = {
+    "mhss_alarm": "gnss-cm",
+    "mhss_excluded": "gnss-cm",
+    "tower_fault": "lte:sim1:+316",
+}
+
+
 def _raised_flags() -> set[str]:
     """Every flag string the estimators and monitors append, read from the source."""
     found = set()
     for path in [*SRC.glob("nav/*.py"), *SRC.glob("integrity/*.py")]:
         text = path.read_text()
         found |= set(re.findall(r'flags\.append\("([a-z_]+)"\)', text))
-        found |= {f"{p}:gnss-cm" for p in re.findall(r'flags\.append\(f"([a-z_]+):\{', text)}
+        for p in re.findall(r'flags\.append\(f"([a-z_]+):\{', text):
+            found.add(f"{p}:{FLAG_EXAMPLES.get(p, 'no-example')}")
     return found
 
 
 def test_every_raised_flag_has_a_sentence():
     flags = _raised_flags()
     # the flags on main when this was written, so a broken grep can't pass vacuously
-    assert {"gnss_excluded", "spoof_suspected", "base_excluded", "tower_fault"} <= flags
-    assert {"mhss_alarm:gnss-cm", "mhss_excluded:gnss-cm"} <= flags
+    assert {"gnss_excluded", "spoof_suspected", "base_excluded"} <= flags
+    assert {"mhss_alarm:gnss-cm", "mhss_excluded:gnss-cm", "tower_fault:lte:sim1:+316"} <= flags
+    assert not any(f.endswith(":no-example") for f in flags), flags
     for f in flags:
         assert not describe(f)[1].startswith("Unrecognised"), f
+
+
+def test_tower_fault_names_the_tower_and_the_jump():
+    sev, text = describe("tower_fault:lte:sim1:+316")
+    assert sev == health.WARNING
+    assert "Tower LTE sim1" in text and "+316 m (+1.05 µs)" in text
+    assert "Tower LTE sim1" in describe("tower_fault:lte:sim1")[1]  # no size: still named
 
 
 def test_unknown_flag_is_shown_raw():

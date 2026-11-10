@@ -58,6 +58,8 @@ def test_a_tower_clock_step_cancels_in_the_difference():
     assert based.last_used["lte"] > step + 100 * 10**9
     assert alone.last_rejected["lte"] > step + 100 * 10**9
     assert "lte:sim1" in based.tower_fault_t  # the base's own view flags the tower
+    # the jump it reports, against the scenario's 300 m: a regression guard, not a target
+    assert abs(based.tower_jump_m["lte:sim1"] - 300.0) < 50.0
     assert based.base_fault_t is None
 
 
@@ -67,6 +69,13 @@ def test_a_moved_base_is_excluded_and_a_stepped_base_clock_too():
         assert f.base_fault_t is not None and f.base_fault_t >= T0_NS + 150 * 10**9
         flags = _flags(name, seed=0)
         assert any("base_excluded" in fl for _, fl in flags)
+
+
+def test_tower_fault_flag_names_the_tower_and_its_jump():
+    epochs = _flags("realistic-with-base-long-outage-tower-clock-step", seed=0)
+    flags = {f for _, fl in epochs for f in fl}
+    named = [f for f in flags if f.startswith("tower_fault")]
+    assert named and all(f.startswith("tower_fault:lte:sim1:+") for f in named), flags
 
 
 def test_no_base_fault_on_a_clean_run():

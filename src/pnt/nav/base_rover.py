@@ -18,7 +18,8 @@ Three things can go wrong, and each has its own answer:
   the base's last view of that tower's clock, coasted forward with a growing variance (the tower
   clock monitor below). A tower the base has never heard uses `ekf`'s own single-receiver model.
 - **One tower's clock jumps** (a tower fault): it cancels in the difference. The monitor sees it
-  as one tower jumping alone, restarts that tower's clock and flags `tower_fault`.
+  as one tower jumping alone, restarts that tower's clock and flags
+  `tower_fault:<emitter>:<jump m>` (which tower, and how far its clock jumped).
 - **The base itself is wrong** (moved, a wrong survey, a clock step: ADR-0020's base fault
   hypothesis): its readings disagree with its surveyed position across several towers at once,
   or two towers seem to jump within a few seconds of each other. The filter flags
@@ -120,6 +121,7 @@ class BaseRoverEKF(EKF):
         self.snapshots: deque = deque()  # (t_ns, monitor copy), for rolling back on a base fault
         self.base_fault_t: int | None = None
         self.tower_fault_t: dict[str, int] = {}
+        self.tower_jump_m: dict[str, float] = {}  # the latest jump seen per tower (m, signed)
         self.sd_bias_sigma_m, self.sd_bias_tau_s = sd_bias_sigma_m, sd_bias_tau_s
         self.sd_bias_idx: dict[str, int] = {}
         self.sd_bias_sigma: dict[int, float] = {}  # state index -> its steady-state sigma
@@ -288,6 +290,10 @@ class BaseRoverEKF(EKF):
         ]
         if one_tower and not recent:
             self.tower_fault_t[worst] = t
+            # The jump: the latest reading against what the monitor expected before the window
+            # (the window mean would dilute it with readings from before the jump)
+            h = self.history[worst]
+            self.tower_jump_m[worst] = float(h[-1][1] - h[0][4])
             self.monitor.pop(worst, None)
             self.history.pop(worst, None)
             return
@@ -305,8 +311,9 @@ class BaseRoverEKF(EKF):
         flags = list(est.flags)
         if self.base_fault_t is not None:
             flags.append("base_excluded")
-        if any(self.t_ns - ts <= self.gnss_timeout_ns for ts in self.tower_fault_t.values()):
-            flags.append("tower_fault")
+        for e, ts in self.tower_fault_t.items():
+            if self.t_ns - ts <= self.gnss_timeout_ns:
+                flags.append(f"tower_fault:{e}:{self.tower_jump_m[e]:+.0f}")
         status = est.status
         if status == "nominal" and flags:
             status = "degraded"

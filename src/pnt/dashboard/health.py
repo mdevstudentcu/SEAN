@@ -32,7 +32,7 @@ _RANK = {CAUTION: 0, WARNING: 1, ALARM: 2}
 
 # Every flag raised on main (grep `flags.append` in src/pnt/nav and src/pnt/integrity):
 #   ekf / baseline: gnss_unavailable, gnss_excluded, time_spoof_suspected, spoof_suspected (#102)
-#   ekf-base (#107): base_excluded, tower_fault
+#   ekf-base (#107): base_excluded, tower_fault:<emitter>:<jump m> (in `describe`)
 #   ekf-mhss (#108): mhss_alarm:<hypothesis>, mhss_excluded:<hypothesis> (in `describe`)
 FLAGS: dict[str, tuple[str, str]] = {
     "gnss_unavailable": (
@@ -57,7 +57,7 @@ FLAGS: dict[str, tuple[str, str]] = {
         "Reference station excluded: its readings disagree with its surveyed position (moved, or "
         "its clock stepped). Coasting on the tower clocks it measured before.",
     ),
-    "tower_fault": (
+    "tower_fault": (  # the unparameterised form, as estimates logged before #90 carry it
         WARNING,
         "A tower's clock jumped on its own: that tower's clock estimate was restarted.",
     ),
@@ -94,6 +94,7 @@ CLEAR_HOLD_S = 2.0
 # 95 % radius of a circular 2-D Gaussian in sigmas (sqrt of chi-square 2 dof at 0.95). Applied
 # to the major-axis sigma it is a conservative ANP for an elliptical error.
 K_ANP95 = 2.4477
+C_M_PER_US = 299.792458  # light travel in one microsecond (m): a clock jump in time units
 
 
 def hypothesis_words(h: str) -> str:
@@ -120,6 +121,8 @@ def describe(flag: str) -> tuple[str, str]:
     if flag in FLAGS:
         return FLAGS[flag]
     kind, _, h = flag.partition(":")
+    if kind == "tower_fault" and h:
+        return WARNING, _tower_fault_words(h)
     if kind == "mhss_alarm" and h:
         return (
             ALARM,
@@ -133,6 +136,21 @@ def describe(flag: str) -> tuple[str, str]:
             "others. Navigating without it.",
         )
     return CAUTION, f"Unrecognised flag: {flag}"
+
+
+def _tower_fault_words(detail: str) -> str:
+    """`<emitter>:<jump m>` (pnt.nav.base_rover) in words."""
+    emitter, _, jump = detail.rpartition(":")
+    try:
+        m = float(jump)
+    except ValueError:
+        emitter, m = detail, None
+    size = "" if m is None else f" {m:+.0f} m ({m / C_M_PER_US:+.2f} µs)"
+    return (
+        f"Tower {_emitter_words(emitter)}: its clock jumped{size} on its own, seen by the "
+        "reference station. It cancels in the difference, so position is unaffected; that "
+        "tower's clock estimate was restarted."
+    )
 
 
 def anp95_m(pos_cov) -> float:
