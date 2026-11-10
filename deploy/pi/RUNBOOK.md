@@ -17,7 +17,7 @@ A checklist to follow with the Pi in hand. Commands run **on the Pi in `~/pnt`**
    | `chronyc sources -v` | `#* PPS` (selected), offset a few µs or less |
    | `gpsmon` (q) | 3D fix, satellites with SNR |
    | `rtl_test -t` | both dongles listed (`0:` and `1:`); note which index is which |
-   | `i2cdetect -y 1` | `68` (MPU6050) and `77` (BMP180). Until `pnt.payload.i2c` reads BMP180s, `pnt record` lists the barometer as `absent` (ADR-0014) |
+   | `i2cdetect -y 1` | `68` (MPU6050) and `77` (BMP180, ADR-0014). `pnt record` then lists `bmp180` under captured |
    | `.venv/bin/pnt record --help` | the help text (the Python install works) |
    | `.venv/bin/python -c "import zmq; print(zmq.has('curve'))"` | `True`. If `False`, this libzmq cannot authenticate the stream: record with `--no-stream`, and raise it in #89 (ADR-0026 is reopened) |
 

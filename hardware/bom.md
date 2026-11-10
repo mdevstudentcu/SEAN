@@ -40,7 +40,7 @@ Checked 2026-11-09 evening. Everything else in this file is still on order or `T
 | Adafruit Ultimate GPS HAT | HON | Team | ADR-0014 |
 | GPS active antenna, Adafruit product 960 | HON | Team | The 28 dB, 5 m SMA antenna in section 1 |
 | MPU6050 IMU | HON (sensor kit) | Team | ADR-0014 |
-| **BMP180** barometer | HON (sensor kit) | Team | **Not a BMP280**: see ADR-0014. The payload driver (`pnt.payload.i2c`) reads BMP280s only, so the barometer shows as `absent` until it is extended. Check on the Pi: `i2cdetect -y 1` shows `77`, and register `0xD0` reads `0x55` |
+| **BMP180** barometer | HON (sensor kit) | Team | **Not a BMP280**: see ADR-0014. `pnt.payload.i2c` finds either part and names it in `meta.yaml`. Check on the Pi: `i2cdetect -y 1` shows `77`, and register `0xD0` reads `0x55` |
 | Raspberry Pi Zero 2 W | `TBC` (team) | Team | The ADR-0018 hub fallback; nothing to buy |
 | VL53L1X ToF breakout | HON | Team | Still not used (*Not using*) |
 

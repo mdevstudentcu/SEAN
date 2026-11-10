@@ -43,7 +43,7 @@ The payload recorder is the **Raspberry Pi 4B** (recorder and streamer, ADR-0002
 - **Recording:** a fast A2 microSD card or a USB SSD. The 2 h static capture with both SDRs is about 70 GB, so capacity is planned per session (`TBC`). At 1.92 MS/s it is 3.84 MB/s per SDR.
 - **RAM (amended 2026-11-09):** our 4B has 1 GB, the same as the 3B+, so RAM no longer favours it. The decision stands on the USB link and the faster cores.
   - The recorder pipes each `rtl_sdr` straight to disk and keeps only per-buffer timestamps in memory, so it does not buffer IQ in RAM.
-  - The recorder's health log already writes `mem_avail_mb` once a second; its minimum during the two-SDR recording is the number to check. `pnt day1` does not summarise it yet, and its threshold is `TBD` with the others.
+  - The recorder's health log already writes `mem_avail_mb` once a second; its minimum during the two-SDR recording is the number to check. `pnt day1` reports it as *Min available memory (MB)*; its threshold is `TBD` with the others.
   - Running the estimator or the dashboard on the Pi is not planned (ADR-0002); 1 GB would make that harder.
 - **Power and heat:**
   - The 4B draws more and throttles when hot, so it needs a heatsink or fan in the payload box and a 5 V 3 A supply.
