@@ -1,0 +1,10 @@
+# UC-02 with ADS-B traffic and a spoofer on final (#91, P6). Within 3 km of a place 6 km out,
+# 800 m right of the centreline, every GNSS position (ours and the traffic's) is moved 850 m
+# north-east and keeps its quality. We enter at about 159 s; the arrival 3 NM ahead about 79 s
+# earlier, as a jump in its track with NACp unchanged. Radius and offset are placeholders (TBC).
+# REQ-04, UC-02.
+extends: uc02-yow-approach-adsb
+description: Approach to YOW 32 with ADS-B traffic; a spoofer 6 km out moves GNSS by 850 m.
+faults:
+  - {type: spoof_zone, source: gnss, center_llh: [45.2765, -75.627882, 103.7], radius_m: 3000,
+     offset_enu_m: [600.0, 600.0, 0.0]}

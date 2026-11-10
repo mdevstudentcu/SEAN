@@ -17,7 +17,7 @@ import yaml
 from pnt.core.frames import enu_to_llh, llh_to_enu
 from pnt.core.measurement import Measurement, Truth
 from pnt.core.time import s_to_ns, utc_to_gps_ns
-from pnt.sim import attacks, hostile, lte_front_end, models, sensors, trajectory
+from pnt.sim import adsb, attacks, hostile, lte_front_end, models, sensors, trajectory
 
 SCENARIO_DIR = Path(__file__).parent / "scenarios"
 SET_DIR = SCENARIO_DIR / "sets"
@@ -52,6 +52,10 @@ _GROUP_STREAM, _TOWER_CLOCK_STREAM = 220, 221
 _IMU_STREAM = 222
 # The hostile beacon's own random stream (`jammer_power`, #93), for the same reason
 _HOSTILE_STREAM = 223
+# ADS-B traffic's own stream (#91), for the same reason
+_ADSB_STREAM = 0xAD5B
+# The faults that reach the aircraft around us as well as our receiver (`pnt.sim.adsb`)
+GNSS_ZONES = ("jamming_zone", "spoof_zone")
 
 
 @dataclass
@@ -305,6 +309,16 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
             for i, e in enumerate(em):
                 emitters[f"{source}:sim{i}"] = [float(x) for x in e]
             meas += models.bearings(ts_ns, pos, rng, source, em, emitters_llh=em_llh, **cfg)
+        elif model == "adsb":
+            zones = [
+                f
+                for f in spec.get("faults", [])
+                if f["type"] in GNSS_ZONES and f.get("source", "gnss") == "gnss"
+            ]
+            rng_adsb = np.random.default_rng([seed, _ADSB_STREAM])
+            meas += adsb.reports(
+                ts, T0_NS, rng_adsb, spec["origin_llh"], zones=zones, source=source, **cfg
+            )
         elif model == "leo_doppler":
             from pnt.sim import leo  # needs sgp4 (ground extra)
 
