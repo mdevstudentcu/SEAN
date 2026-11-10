@@ -31,15 +31,16 @@ Every item in this file meets these, and anything added later must too. An item 
 
 ## In hand
 
-Checked 2026-11-09 evening. Everything else in this file is still on order or `TBD`.
+Checked 2026-11-09 evening, updated 2026-11-10. Everything else in this file is still on order or `TBD`.
 
 | Item | Source | How it was identified | Notes |
 | --- | --- | --- | --- |
-| Raspberry Pi 4B, **1 GB** | HON (kit with case, power supply and SD card; the kit contents are `TBC`) | Team read the board | Payload recorder (ADR-0018). 1 GB, not the 2 GB on Honeywell's list: see ADR-0018 *RAM* |
+| Raspberry Pi 4 Model B Rev 1.5, **4 GB** | `TBC` | `/proc/cpuinfo` and `free -m` on the Pi | **Payload recorder** from 2026-11-10 (ADR-0018 *RAM*). Raspberry Pi OS Trixie on a 32 GB SD card; it would not boot from a USB drive |
+| Raspberry Pi 4B, **1 GB** | HON (kit with case, power supply and SD card; the kit contents are `TBC`) | Team read the board | **Spare** from 2026-11-10. 1 GB, not the 2 GB on Honeywell's list: see ADR-0018 *RAM* |
 | NooElec NESDR SMArt v5, one | Buy (one of the two NESDR orders, section 2 and section 5) | USB descriptors on the laptop: `0bda:2838`, "Nooelec", "NESDR SMArt v5", serial `52453800` | Bundle or dongle-only is `TBC`: the bundle comes with three antennas and a magnetic base. Either way it is the same radio, so the roles (payload SDR B or reference) are assigned when the second one arrives |
 | Adafruit Ultimate GPS HAT | HON | Team | ADR-0014 |
 | GPS active antenna, Adafruit product 960 | HON | Team | The 28 dB, 5 m SMA antenna in section 1 |
-| MPU6050 IMU | HON (sensor kit) | Team | ADR-0014 |
+| MPU6050 IMU | HON (sensor kit) | Team; on the payload Pi at `0x68` (`i2cdetect`, 2026-11-10) | ADR-0014. Records at 100 Hz: session `20261110-0301-static-bench`, commit `25ce8ba` |
 | **BMP180** barometer | HON (sensor kit) | Team | **Not a BMP280**: see ADR-0014. `pnt.payload.i2c` finds either part and names it in `meta.yaml`. Check on the Pi: `i2cdetect -y 1` shows `77`, and register `0xD0` reads `0x55` |
 | Raspberry Pi Zero 2 W | `TBC` (team) | Team | The ADR-0018 hub fallback; nothing to buy |
 | VL53L1X ToF breakout | HON | Team | Still not used (*Not using*) |
@@ -50,9 +51,9 @@ Checked 2026-11-09 evening. Everything else in this file is still on order or `T
 
 | Item | Qty | Role | Source | Price | Status / notes |
 | --- | --- | --- | --- | --- | --- |
-| Raspberry Pi 4B, 1 GB (payload) | 1 | Records SDR IQ, GPS, sensors; streams to laptop | HON, **in hand** | — | ADR-0018. SDRs on the USB 2 ports (USB 3 noise, RSK-06); 5 V 3 A supply, heatsink or fan; USB current `TBC` |
+| Raspberry Pi 4B, 4 GB (payload) | 1 | Records SDR IQ, GPS, sensors; streams to laptop | `TBC`, **in hand** (Honeywell's 1 GB is the spare) | — | ADR-0018. SDRs on the USB 2 ports (USB 3 noise, RSK-06); 5 V 3 A supply, heatsink or fan; USB current `TBC` |
 | Raspberry Pi 3B+ | 1 | Not on the payload; runs the ground reference station (section 5) | Team (owned) | — | ADR-0018, ADR-0020 |
-| microSD card, ≥ 64 GB, A2 (or a USB SSD) | 1 | OS + session logs. Raw IQ from one SDR at 2.4 MS/s is ~17 GB/h; both SDRs ~35 GB/h | Team `TBC` | — | Confirm size and speed |
+| microSD card, ≥ 64 GB, A2 (or a USB SSD) | 1 | OS + session logs. Raw IQ from one SDR at 2.4 MS/s is ~17 GB/h; both SDRs ~35 GB/h | Team `TBC` | — | Confirm size and speed. The payload Pi boots from a 32 GB card today, 23 GB free (2026-11-10): about 40 min of both SDRs at 35 GB/h |
 | Raspberry Pi Zero 2 W | 0–1 | Fallback sensor hub if day-1 tests fail on the 4B: IMU, baro, PPS edge, Wi-Fi scans (ADR-0018) | **In hand** (2026-11-09) | — | Plugs into a 4B USB 2 port (data port) |
 | Adafruit Ultimate GPS HAT | 1 | GPS fix, PPS on GPIO4, truth outdoors | HON, **in hand** | — | ADR-0014 |
 | GPS active antenna, 28 dB, 5 m, SMA | 1 | Puts the GPS antenna on a mast away from SDR/USB noise (RSK-06) | HON, **in hand** | — | Adafruit product 960 |
