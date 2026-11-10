@@ -81,7 +81,7 @@ def test_from_carleton_every_sector_resolves_to_its_own_enb_or_to_none(rows, tab
             assert (got.enb_id, got.lat, got.lon) == (c.enb_id, c.lat, c.lon)
 
 
-def test_the_status_follows_how_many_enbs_in_range_share_the_cell(rows, table):
+def test_the_status_follows_the_enbs_in_range_and_in_the_table(rows, table):
     for origin in receivers():
         dist = {c: km(c, origin) for c in rows}
         by_key: dict[tuple[int, int], list[Cell]] = defaultdict(list)
@@ -93,28 +93,26 @@ def test_the_status_follows_how_many_enbs_in_range_share_the_cell(rows, table):
                 status, got = table.associate(earfcn, pci, origin, max_range)
                 if not near:
                     assert status == OUT_OF_RANGE
-                elif len(near) > 1:
+                elif len({c.enb_id for c in cells}) > 1:
                     assert status == COLLISION
                 else:
                     assert status == MATCHED and got.enb_id in near
 
 
-def test_a_cell_heard_within_max_range_never_resolves_to_another_enb(rows, table):
+def test_a_cell_in_the_table_never_resolves_to_another_enb_wherever_it_is_heard(rows, table):
+    # #138: the receiver need not be at the origin, so a cell beyond max_range can be heard
     for origin in receivers():
         for max_range in RANGES_KM:
             for c in rows:
-                if km(c, origin) > max_range:
-                    continue
                 status, got = table.associate(c.earfcn, c.pci, origin, max_range)
-                assert status == COLLISION or got.enb_id == c.enb_id, (c, origin, max_range)
+                assert status != MATCHED or got.enb_id == c.enb_id, (c, origin, max_range)
 
 
-def test_a_cell_heard_beyond_max_range_resolves_to_an_enb_that_reuses_its_pci(rows, table):
+def test_a_cell_heard_beyond_max_range_is_a_collision_not_the_near_enb_issue_138(rows, table):
     near, far = reused_pair(rows)
     origin = (near.lat, near.lon, CARLETON[2])
     max_range = km(far, origin) / 2  # the far eNB is heard, but lies beyond the range
-    status, got = table.associate(far.earfcn, far.pci, origin, max_range)
-    assert status == MATCHED and got.enb_id == near.enb_id != far.enb_id
+    assert table.associate(far.earfcn, far.pci, origin, max_range) == (COLLISION, None)
 
 
 def test_a_cell_missing_from_the_table_resolves_to_an_enb_that_reuses_its_pci(rows):

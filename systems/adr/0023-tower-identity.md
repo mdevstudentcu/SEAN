@@ -55,6 +55,7 @@ The pipeline:
   - a rogue cell copying a real PCI
 
   They are detected through residuals and through clock consistency against the learned clock (ADR-0022). An excluded cell drops back to mapper status. Rogue cells exist only as software fault injection in `sim/` (ADR-0001).
+- **Step 3, link range (2026-11-10, #138):** the lookup (`pnt.nav.cells`) runs before the estimator and does not know where the receiver is. An (EARFCN, PCI) used by more than one eNB anywhere in the table is a collision, not only when both are in range of the session origin: a receiver that has travelled from the origin can hear the far one. Link range from the origin (`MAX_RANGE_KM`, `TBC`) only rules out a cell whose one eNB is beyond it. Ranging from the receiver's current estimate was not chosen: the estimate is what a spoof or a wrong match corrupts. From Carleton nothing changes, since the whole table is within 10 km of it.
 - **Roadmap:** a wideband SIB1 survey with a receive-only SDR at ≥ 7.68 MS/s. Its decoder would run as a separate process and needs owner sign-off for the dependency and its licence.
 - **Reopen if:**
   - the scan shows PCI collisions on one EARFCN common enough to break matching

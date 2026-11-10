@@ -101,9 +101,10 @@ def test_a_pci_on_two_enbs_in_range_is_left_out():
     assert t.associate(5, 1, ORIGIN) == (COLLISION, None)
 
 
-def test_a_collision_with_a_far_enb_still_matches_the_near_one():
+def test_a_pci_also_on_an_enb_beyond_the_range_is_left_out_issue_138():
+    # A receiver that has left the origin may be hearing the far one
     near, far = Cell(5, 1, 10, 45.39, -75.69, 30.0), Cell(5, 1, 11, 46.5, -75.69, 30.0)
-    assert CellTable([near, far]).associate(5, 1, ORIGIN) == (MATCHED, near)
+    assert CellTable([near, far]).associate(5, 1, ORIGIN) == (COLLISION, None)
 
 
 def test_a_cell_beyond_the_range_is_left_out():

@@ -8,7 +8,7 @@ from collections import Counter
 import numpy as np
 import pytest
 
-from pnt.core.frames import llh_to_enu
+from pnt.core.frames import enu_to_llh, llh_to_enu
 from pnt.frontends.lte import capture, process_file, synth
 from pnt.nav import cells
 from pnt.nav.cells import COLLISION, MATCHED, CellTable
@@ -317,3 +317,28 @@ def test_sim_and_lookup_agree_on_which_pcis_collide():
             assert status == MATCHED and cell.enb_id == s.enb_id
             got = llh_to_enu([cell.lat, cell.lon, origin[2] + cell.height_agl_m], origin)
             assert np.allclose(got, lte_front_end.table_enu([s], origin)[0])
+
+
+def test_a_receiver_far_from_the_origin_is_never_given_another_enbs_position_issue_138():
+    """#138's case: origin 4 km west of Carleton, the circuit 9 km east of the origin, hearing
+    3 km. Ranging from the origin, the lookup matched 156 of these records (60 s, seed 0) to an
+    eNB in range on the same PCI while a far one was heard, up to 14 km from it."""
+    s = spec(60.0)
+    s["origin_llh"] = [*enu_to_llh([-4000.0, 0.0, 0.0], s["origin_llh"])[:2], s["origin_llh"][2]]
+    s["trajectory"]["points"] = [[e + 9000.0, n, u] for e, n, u in s["trajectory"]["points"]]
+    run = generate(s, seed=0)
+    secs = _sectors()
+    told = lte_front_end.table_enu(secs, s["origin_llh"])  # no table error: told is true
+    truth = {x.t_ns: np.array(x.pos_enu) for x in run.truth}
+
+    def heard(m) -> int:  # the range model hears the nearest sector on a PCI
+        on_pci = [i for i, x in enumerate(secs) if x.emitter == m.emitter]
+        return min(on_pci, key=lambda i: np.linalg.norm(told[i] - truth[m.t_ns]))
+
+    lte = lte_of(run)
+    far = cells.MAX_RANGE_KM * 1e3
+    # The test means something only if a far eNB on a reused PCI is heard
+    assert any(secs[heard(m)].collides and np.hypot(*told[heard(m)][:2]) > far for m in lte)
+    out = list(cells.attach(lte, s["origin_llh"]))
+    assert out
+    assert all(m.meta["site"] == secs[heard(m)].site for m in out)

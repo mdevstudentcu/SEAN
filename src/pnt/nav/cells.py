@@ -6,8 +6,13 @@ table and adds `meta.emitter_llh` and `meta.site`. Records that already carry a 
 simulator's) pass through untouched.
 
 - **Association is a hypothesis.** An (EARFCN, PCI) maps to a registered eNB only if exactly one
-  eNB within range has it. Unknown cells and collisions are left out and counted, never guessed:
-  a wrong tower position is worse than one tower fewer. The mapper for those cells is not built.
+  eNB in the whole table has it, and that eNB is within range of the origin. The lookup runs
+  before the estimator and does not know where the receiver is: a receiver that has travelled
+  from the origin can hear an eNB beyond the range, so any registered eNB on the PCI could be
+  the one heard (#138). Unknown cells, collisions and cells out of range are left out and
+  counted, never guessed: a wrong tower position is worse than one tower fewer. The mapper for
+  those cells is not built. An eNB missing from the table can still be matched to one in it
+  that reuses its PCI; the lookup cannot see that case.
 - **Site:** the eNB. Sectors of one eNB share a clock (ADR-0022).
 - **Height:** the table has antenna height above ground and no ground elevation, so the height
   is the session origin's plus the antenna's (flat ground, TBC). At kilometre ranges a 20 m
@@ -91,7 +96,10 @@ class CellTable:
         origin_llh: Sequence[float],
         max_range_km: float = MAX_RANGE_KM,
     ) -> tuple[str, Cell | None]:
-        """(status, cell). The cell is the nearest sector of the one eNB in range, when matched."""
+        """(status, cell). The cell is the nearest sector of the table's one eNB on this
+        (EARFCN, PCI), when matched. OUT_OF_RANGE: no eNB on it within `max_range_km` of the
+        origin. COLLISION: some are, and more than one eNB in the table uses it, wherever the
+        others are, since the receiver need not be at the origin (#138)."""
         cells = self._cells.get((earfcn, pci))
         if not cells:
             return UNKNOWN, None
@@ -102,7 +110,7 @@ class CellTable:
                 ranged.append((d, c))
         if not ranged:
             return OUT_OF_RANGE, None
-        if len({c.enb_id for _, c in ranged}) > 1:
+        if len({c.enb_id for c in cells}) > 1:
             return COLLISION, None
         return MATCHED, min(ranged, key=lambda item: item[0])[1]
 
