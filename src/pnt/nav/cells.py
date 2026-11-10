@@ -6,8 +6,19 @@ table and adds `meta.emitter_llh` and `meta.site`. Records that already carry a 
 simulator's) pass through untouched.
 
 - **Association is a hypothesis.** An (EARFCN, PCI) maps to a registered eNB only if exactly one
-  eNB within range has it. Unknown cells and collisions are left out and counted, never guessed:
-  a wrong tower position is worse than one tower fewer. The mapper for those cells is not built.
+  eNB that the receiver could hear has it. Unknown cells and collisions are left out and counted,
+  never guessed: a wrong tower position is worse than one tower fewer. The mapper for those cells
+  is not built.
+- **Which eNBs could be heard:** the lookup knows the session origin, not where the receiver is
+  now. A receiver up to `travel_km` from the origin hears up to `max_range_km` from itself, so
+  every registered eNB within their sum of the origin could be the one heard: two or more of
+  them on one (EARFCN, PCI) is a collision (#138). Ranging from the origin alone matched a near
+  eNB when a far one on the same PCI was heard. A match still needs the eNB within
+  `max_range_km` of the origin, as before: the margin only ever turns a match into a collision,
+  so a cell missing from the table is never matched to an eNB further away than before.
+- **Cells missing from the table** can't be caught here: a heard cell that the table lacks still
+  matches a registered eNB that reuses its PCI (the table's edge, unfiled or moved cells). The
+  filter has to catch those through its residuals (ADR-0023).
 - **Site:** the eNB. Sectors of one eNB share a clock (ADR-0022).
 - **Height:** the table has antenna height above ground and no ground elevation, so the height
   is the session origin's plus the antenna's (flat ground, TBC). At kilometre ranges a 20 m
@@ -34,6 +45,11 @@ from pnt.core.measurement import Measurement
 
 CELL_TABLE = Path(__file__).resolve().parents[3] / "data" / "reference" / "lte-cells-ottawa.csv"
 MAX_RANGE_KM = 10.0  # the table's own radius; narrow it once a capture shows real link range (TBC)
+# How far the receiver may be from the session origin, for collisions only (TBC: systems/ sets no
+# mission extent). No registered eNB is matched in place of another while hearing range plus the
+# receiver's distance from the origin is within MAX_RANGE_KM + TRAVEL_KM. One table radius; from
+# Carleton it changes nothing, as every row is within 9.85 km (analysis/lte_table_audit.py).
+TRAVEL_KM = 10.0
 MATCHED, UNKNOWN, COLLISION, OUT_OF_RANGE = "matched", "unknown", "collision", "out_of_range"
 
 log = logging.getLogger(__name__)
@@ -90,20 +106,25 @@ class CellTable:
         pci: int,
         origin_llh: Sequence[float],
         max_range_km: float = MAX_RANGE_KM,
+        travel_km: float = TRAVEL_KM,
     ) -> tuple[str, Cell | None]:
-        """(status, cell). The cell is the nearest sector of the one eNB in range, when matched."""
+        """(status, cell); see the module docstring. A collision if two or more eNBs are within
+        `max_range_km` + `travel_km` of the origin; else matched if one is within `max_range_km`,
+        and the cell is its nearest sector."""
         cells = self._cells.get((earfcn, pci))
         if not cells:
             return UNKNOWN, None
+        reach = (max_range_km + travel_km) * 1e3
         ranged = []
         for c in cells:
             d = float(np.linalg.norm(llh_to_enu([c.lat, c.lon, origin_llh[2]], origin_llh)[:2]))
-            if d <= max_range_km * 1e3:
+            if d <= reach:
                 ranged.append((d, c))
-        if not ranged:
-            return OUT_OF_RANGE, None
         if len({c.enb_id for _, c in ranged}) > 1:
             return COLLISION, None
+        ranged = [(d, c) for d, c in ranged if d <= max_range_km * 1e3]
+        if not ranged:
+            return OUT_OF_RANGE, None
         return MATCHED, min(ranged, key=lambda item: item[0])[1]
 
 

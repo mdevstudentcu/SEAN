@@ -106,6 +106,17 @@ def test_a_collision_with_a_far_enb_still_matches_the_near_one():
     assert CellTable([near, far]).associate(5, 1, ORIGIN) == (MATCHED, near)
 
 
+def test_an_enb_beyond_range_sharing_a_pci_with_one_in_range_is_not_matched_as_the_near_one():
+    """#138: a receiver that has moved 12 km from the origin can hear the far eNB."""
+    near, far = Cell(5, 1, 10, 45.39, -75.69, 30.0), Cell(5, 1, 11, 45.50, -75.69, 30.0)
+    assert CellTable([near, far]).associate(5, 1, ORIGIN) == (COLLISION, None)
+
+
+def test_a_lone_enb_beyond_the_range_is_still_left_out_by_the_travel_margin():
+    t = CellTable([Cell(5, 1, 11, 45.50, -75.69, 30.0)])  # 12 km away: within range plus travel
+    assert t.associate(5, 1, ORIGIN) == (OUT_OF_RANGE, None)
+
+
 def test_a_cell_beyond_the_range_is_left_out():
     t = CellTable([Cell(5, 1, 10, 46.5, -75.69, 30.0)])
     assert t.associate(5, 1, ORIGIN) == (OUT_OF_RANGE, None)
