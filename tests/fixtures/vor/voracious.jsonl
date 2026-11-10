@@ -1,0 +1,9 @@
+{"timestamp": 1762539961.05835, "radial_deg": 115.31, "frequency_mhz": 116.0, "signal_quality": {"clipping_ratio": "<1.82e-7", "snr_30hz_db": 36.89, "snr_9960hz_db": 15.7, "lock_quality": "9.72e-2", "radial_variance": "1.00e0"}, "ident": "ARL"}
+{"timestamp": 1794321003.0, "radial_deg": 319.71, "frequency_mhz": 113.0, "signal_quality": {"clipping_ratio": "<1.00e-7", "snr_30hz_db": 31.2, "snr_9960hz_db": 14.1, "lock_quality": "8.10e-1", "radial_variance": "2.30e-2"}, "ident": "TST"}
+{"timestamp": 1794321006.0, "radial_deg": 320.15, "frequency_mhz": 113.0, "signal_quality": {"clipping_ratio": "<1.00e-7", "snr_30hz_db": 30.8, "snr_9960hz_db": 13.9, "lock_quality": "7.90e-1", "radial_variance": "2.70e-2"}, "ident": "TST"}
+{"timestamp": 1794321009.0, "radial_deg": 319.88, "frequency_mhz": 113.0, "signal_quality": {"clipping_ratio": "<1.00e-7", "snr_30hz_db": 31.5, "snr_9960hz_db": 14.4, "lock_quality": "8.30e-1", "radial_variance": "2.10e-2"}, "ident": "TST"}
+{"timestamp": 1794321012.0, "radial_deg": 320.02, "frequency_mhz": 113.0, "signal_quality": {"clipping_ratio": "<1.00e-7", "snr_30hz_db": 29.9, "snr_9960hz_db": 12.8, "lock_quality": "7.60e-1", "radial_variance": "3.00e-2"}, "ident": ""}
+{"timestamp": 1794321015.0, "radial_deg": 57.40, "frequency_mhz": 113.0, "signal_quality": {"clipping_ratio": "<1.00e-7", "snr_30hz_db": 12.0, "snr_9960hz_db": 6.1, "lock_quality": "2.00e-1", "radial_variance": "4.00e-1"}, "ident": "QQQ"}
+{"timestamp": 1794321018.0, "radial_deg": 58.10, "frequency_mhz": 115.5, "signal_quality": {"clipping_ratio": "<1.00e-7", "snr_30hz_db": 27.4, "snr_9960hz_db": 11.6, "lock_quality": "7.20e-1", "radial_variance": "3.50e-2"}, "ident": "QQQ"}
+not json
+{"timestamp": 1794321021.0, "frequency_mhz": 115.5, "ident": "QQQ"}
