@@ -956,11 +956,54 @@ def _pseudorange(ekf: EKF, m: Measurement):
     return y, H, np.diag(np.square(m.sigma)), not new
 
 
+def _doppler(ekf: EKF, m: Measurement):
+    """Range rate (m/s, ICD `doppler`): the rate of the emitter-to-receiver range, plus the clock
+    drifts that the matching pseudorange carries.
+
+    - Geometry: u . (v - v_e), with u the line of sight from emitter to receiver and v_e the
+      emitter's velocity (`meta.emitter_vel_enu`, a satellite's; zero if absent). Its position is
+      read from each record, since a moving emitter's changes.
+    - Our clock: the drift of the radio's own block (`meta.rx_clock`), or of `c*dt` when
+      `pseudorange_receiver_clock` is on, as in `_pseudorange`.
+    - The emitter's clock: its site's drift, when the calibrated model has one learned (a tower
+      seen in pseudoranges). A satellite's is not modelled; its records carry none.
+    Gated as every update is (`CHI2_999`, one degree of freedom)."""
+    moving = "emitter_vel_enu" in m.meta
+    e = emitter_enu(m.meta, ekf.origin_llh) if moving else ekf._emitter(m)
+    if e is None:
+        return None
+    v_e = np.asarray(m.meta["emitter_vel_enu"], float) if moving else np.zeros(3)
+    d = ekf.x[POS] - e
+    r = float(np.linalg.norm(d))
+    u = d / r
+    name = m.meta.get("rx_clock")
+    rx = None  # index of our clock's drift; a new radio's block is added before H is sized
+    if name is not None or ekf.pr_rx_clock:
+        rx = (CLK if name is None else ekf.rx_clock_block(name)) + 1
+    dv = ekf.x[VEL] - v_e
+    rate = float(u @ dv)
+    H = _row(ekf)
+    H[0, VEL] = u
+    H[0, POS] = (dv - rate * u) / r  # the line of sight turns as the receiver moves
+    if rx is not None:
+        rate += ekf.x[rx]
+        H[0, rx] = 1.0
+    if ekf.calibrated:
+        site = ekf.sites.get(m.emitter, m.emitter)
+        for key in (f"builder:{ekf.builders.get(site)}", f"site:{site}"):
+            if key in ekf.clock_idx:
+                i = ekf.clock_idx[key] + 1
+                rate += ekf.x[i]
+                H[0, i] = 1.0
+    return m.value[0] - rate, H, np.diag(np.square(m.sigma)), True
+
+
 MODELS: dict[str, Callable] = {
     "position_enu": _position,
     "altitude": _altitude,
     "time": _time,
     "pseudorange": _pseudorange,
+    "doppler": _doppler,
 }
 
 

@@ -1,6 +1,6 @@
 # ottawa-towers with the simulated Iridium layer on (ADR-0013, mentor Q5). Compare with
-# ottawa-towers for layer on and off. The baseline filter ignores Doppler until #13, so the two
-# only differ once a filter uses it. The Doppler sigma and elevation mask are TBC bounds.
+# ottawa-towers for layer on and off. The ekf filters use the Doppler (#13); the baseline filter
+# ignores it, so for the baseline the two are alike. The Doppler sigma and elevation mask are TBC.
 description: GPS outage with real towers and simulated Iridium Doppler from real orbits.
 duration_s: 360
 dt_s: 0.1
