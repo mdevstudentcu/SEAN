@@ -34,6 +34,8 @@ How each simulated model aligns to reality. Status: `placeholder` (datasheet/lit
 | Attacks (spoof, jam) | injected in software | — | Same attacks injected into real sessions | placeholder |
 | Ray-traced blockage (Sionna) | excess delay, blocked segments | ray trace with assumed heights and materials (ADR-0016) | LTE sessions along the traced route | placeholder |
 
+- **Challenge benchmark set** ([ADR-0030](adr/0030-challenge-benchmark-set.md), Proposed): `challenge-drone`, `challenge-timing` and `challenge-approach`, every value `placeholder`. The drone and timing legs use front-end-shaped LTE records; the approach leg is synthetic geometry. All three also use the shared tower clocks above, which ADR-0030 extends beyond `realistic` and `worst`.
+
 ## Integrity monitor: solution separation (#82)
 
 How estimator `ekf-mhss` computes its HPL (REQ-02) and excludes faults (REQ-04). Code: `src/pnt/integrity/mhss.py` and `dependency.py`; the default `ekf` output is unchanged.
