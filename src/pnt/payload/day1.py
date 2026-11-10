@@ -1,6 +1,7 @@
 """Day-1 checks on the Pi 4B (#88, #17): numbers only, from a named session.
 
-- `report(session)`: IMU sample jitter, CPU load and temperature, dropped SDR samples, PPS offset
+- `report(session)`: IMU sample jitter, CPU load and temperature, free memory (the board has
+  1 GB, ADR-0018), dropped SDR samples, PPS offset
   and chrony statistics, from what `pnt record` captured; USB current is typed in from the
   DPS-150. ADR-0018's thresholds are `TBD`, so this reports values and makes no pass/fail call.
 - `pps_check()`: `ppstest` and `chronyc` run and parsed (#17, RSK-05).
@@ -129,6 +130,9 @@ def report(path: str | Path, usb_current_a: float | None = None) -> dict:
             "disk_free_gb_min": min(
                 (h["disk_free_gb"] for h in health if "disk_free_gb" in h), default=None
             ),
+            "mem_avail_mb_min": min(
+                (h["mem_avail_mb"] for h in health if "mem_avail_mb" in h), default=None
+            ),
         },
         "queue_dropped": status[-1].get("queue_dropped") if status else None,
         "usb_current_a": usb_current_a if usb_current_a is not None else "TBD (DPS-150)",
@@ -181,6 +185,7 @@ def to_markdown(r: dict) -> str:
         row("Max SoC temperature (°C)", r["cpu"]["temp_c_max"]),
         row("Throttled flags", ", ".join(r["cpu"]["throttled"]) or None),
         row("Min free disk (GB)", r["cpu"]["disk_free_gb_min"]),
+        row("Min available memory (MB)", r["cpu"].get("mem_avail_mb_min")),
         row("Records dropped (queue)", r["queue_dropped"]),
         row("USB current (A)", r["usb_current_a"]),
         row("libzmq CURVE", (r["system"] or {}).get("zmq_curve")),
