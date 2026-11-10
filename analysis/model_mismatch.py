@@ -31,7 +31,6 @@ from __future__ import annotations
 import argparse
 import copy
 import json
-import math
 from pathlib import Path
 
 import numpy as np
@@ -104,7 +103,11 @@ def inject(measurements: list, cfg: dict, seed: int) -> list:
     """`measurements` with multipath added to every LTE pseudorange, per (receiver, emitter)."""
     rng = np.random.default_rng([INJECT_STREAM, seed])
     keys = sorted(
-        {(m.receiver, m.emitter) for m in measurements if m.source == "lte" and m.kind == "pseudorange"}
+        {
+            (m.receiver, m.emitter)
+            for m in measurements
+            if m.source == "lte" and m.kind == "pseudorange"
+        }
     )
     add: dict[tuple[str, str, int], float] = {}
     for key in keys:
@@ -134,12 +137,14 @@ def _estimator(name: str, config: dict | None):
     return name
 
 
-def case_metrics(spec: dict, inj: dict | None, seed: int, config: dict | None) -> dict:
+def case_metrics(
+    spec: dict, inj: dict | None, seed: int, config: dict | None, estimators=ESTIMATORS
+) -> dict:
     """Every estimator's metrics on one generated run: the same draws for each (paired)."""
     run = generate(spec, seed=seed)
     meas = inject(run.measurements, inj, seed) if inj else run.measurements
     out = {}
-    for name in ESTIMATORS:
+    for name in estimators:
         est = estimate(
             _estimator(name, config),
             meas,
@@ -166,18 +171,19 @@ def study(
     config: dict | None = None,
     cases=CASES,
     jobs: int | None = 1,
+    estimators=ESTIMATORS,
 ) -> list[dict]:
     """One row per (case, estimator). Counts are per run (mean over seeds); `hpl_bound_worst` is
     the worst run's fraction of epochs with HPL >= error. Every case runs the same seeds."""
     base = load(scenario)
     worlds = [world(base, c[3]) for c in cases]
     seeds = list(seeds)
-    tasks = [(spec, inj, s, config) for spec, inj in worlds for s in seeds]
+    tasks = [(spec, inj, s, config, tuple(estimators)) for spec, inj in worlds for s in seeds]
     results = _map(case_metrics, tasks, jobs)
     rows = []
     for i, (family, label, factor, _) in enumerate(cases):
         runs = results[i * len(seeds) : (i + 1) * len(seeds)]
-        for name in ESTIMATORS:
+        for name in estimators:
             s = summarize([r[name] for r in runs])
             rows.append(
                 {"family": family, "case": label, "factor": factor, "estimator": name}
@@ -197,7 +203,8 @@ def markdown(rows: list[dict]) -> str:
     for r in rows:
         by_case.setdefault(r["case"], {})[r["estimator"]] = r
     for case, pair in by_case.items():
-        a, b = pair["ekf"], pair["ekf-calibrated"]
+        b = pair["ekf-calibrated"]
+        a = pair.get("ekf", {k: float("nan") for k in b})
         cell = {
             "fault_p95_m": lambda v: f"{v:.0f}",
             "hpl_bound_worst": lambda v: f"{100 * v:.1f} %",
@@ -213,12 +220,14 @@ def markdown(rows: list[dict]) -> str:
 
 # Categorical slots 1 and 2 and recessive ink, as in analysis/figures.py
 BLUE, ORANGE, INK, GRID = "#2a78d6", "#eb6834", "#52514e", "#e4e3df"
-COLORS = {"ekf": BLUE, "ekf-calibrated": ORANGE}
+AQUA = "#1baf7a"  # categorical slot 3
+SLOTS = (BLUE, ORANGE, AQUA)  # one per series, in order
 
 
 def plot(data: dict, out: Path) -> None:
-    """Two rows (fault-window p95, worst-run HPL bound rate) by one column per case; each panel
-    has ekf and ekf-calibrated side by side, the committed world as a reference line."""
+    """One row per metric (fault-window p95, worst-run HPL bound rate, NEES) by one column per
+    case, one bar per series (the rows' `estimator`, at most three) side by side, and each series
+    in the committed world as a dotted reference line."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -226,33 +235,37 @@ def plot(data: dict, out: Path) -> None:
 
     rows = data["rows"]
     cases = list(dict.fromkeys(r["case"] for r in rows))
+    names = list(dict.fromkeys(r["estimator"] for r in rows))
+    if len(names) > len(SLOTS):
+        raise ValueError(f"at most {len(SLOTS)} series, not {len(names)}")
     get = {(r["case"], r["estimator"]): r for r in rows}
-    fig, axes = plt.subplots(2, 1, figsize=(11, 6.4), dpi=130, sharex=True)
-    x = np.arange(len(cases))
-    w = 0.38
-    metrics = (
-        ("fault_p95_m", "fault-window p95\nhoriz. error (m, log)", True),
-        ("hpl_bound_worst", "worst run: epochs\nwith HPL >= error (%)", False),
+    metrics = (  # key, axis label, plotted multiple, log axis, honest line
+        ("fault_p95_m", "fault-window p95\nhoriz. error (m, log)", 1.0, True, None),
+        ("hpl_bound_worst", "worst run: epochs\nwith HPL >= error (%)", 100.0, False, 100.0),
+        ("nees", "horizontal NEES\n(2 if honest, log)", 1.0, True, 2.0),
     )
-    for ax, (key, label, log) in zip(axes, metrics, strict=True):
-        for j, name in enumerate(ESTIMATORS):
-            ys = [get[(c, name)][key] * (1 if log else 100) for c in cases]
-            ax.bar(x + (j - 0.5) * w, ys, w * 0.92, color=COLORS[name], label=name)
-            ref = get[(cases[0], name)][key] * (1 if log else 100)
-            ax.axhline(ref, color=COLORS[name], lw=1, ls=":", zorder=0)
+    fig, axes = plt.subplots(len(metrics), 1, figsize=(11, 8.6), dpi=130, sharex=True)
+    x = np.arange(len(cases))
+    w = 0.8 / len(names)
+    for ax, (key, label, k, log, honest) in zip(axes, metrics, strict=True):
+        for j, (name, color) in enumerate(zip(names, SLOTS, strict=False)):
+            ys = [get[(c, name)][key] * k for c in cases]
+            ax.bar(x + (j - (len(names) - 1) / 2) * w, ys, w * 0.92, color=color, label=name)
+            ax.axhline(get[(cases[0], name)][key] * k, color=color, lw=1, ls=":", zorder=0)
         if log:
             ax.set_yscale("log")
         else:
             ax.set_ylim(0, 105)
-            ax.axhline(100, color=INK, lw=0.8)
+        if honest is not None:
+            ax.axhline(honest, color=INK, lw=0.8)
         ax.set_ylabel(label, fontsize=8)
         ax.grid(True, axis="y", which="major", color=GRID, lw=0.6)
         ax.set_axisbelow(True)
         ax.tick_params(labelsize=8)
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
-    axes[1].set_xticks(x, [c.replace("multipath ", "multipath\n") for c in cases], fontsize=8)
-    for t in axes[1].get_xticklabels():
+    axes[-1].set_xticks(x, [c.replace("multipath ", "multipath\n") for c in cases], fontsize=8)
+    for t in axes[-1].get_xticklabels():
         t.set_rotation(30)
         t.set_ha("right")
     axes[0].legend(fontsize=8, frameon=False, ncol=2, loc="upper left")
@@ -269,11 +282,12 @@ def plot(data: dict, out: Path) -> None:
     fig.text(
         0.01,
         0.005,
-        "Dotted lines: each estimator as committed. Filter values stay fixed in every case.",
+        "Dotted lines: each series in the committed world. The filters keep their values in "
+        "every case; only the simulated world changes.",
         fontsize=7,
         color=INK,
     )
-    fig.tight_layout(rect=(0, 0.02, 1, 0.96))
+    fig.tight_layout(rect=(0, 0.02, 1, 0.97))
     fig.savefig(out)
     print(f"wrote {out}")
 
@@ -286,6 +300,7 @@ def main(argv=None) -> None:
     p.add_argument("--config", help="JSON overrides of ekf-calibrated's CALIBRATED values")
     p.add_argument("--cases", help="comma-separated substrings: run only matching cases")
     p.add_argument("--jobs", type=int, default=1)
+    p.add_argument("--calibrated-only", action="store_true", help="skip ekf (tuning runs)")
     p.add_argument("--json", help="write results here (or read them, without --runs)")
     p.add_argument("--out", help="figure path")
     args = p.parse_args(argv)
@@ -300,7 +315,8 @@ def main(argv=None) -> None:
             cases = tuple(c for c in CASES if any(k in c[1] for k in keys))
         config = json.loads(args.config) if args.config else None
         seeds = list(range(args.seed_start, args.seed_start + args.runs))
-        rows = study(args.scenario, seeds, config, cases, args.jobs)
+        names = ("ekf-calibrated",) if args.calibrated_only else ESTIMATORS
+        rows = study(args.scenario, seeds, config, cases, args.jobs, names)
         data = {
             "scenario": args.scenario,
             "seeds": seeds,
