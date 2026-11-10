@@ -1,6 +1,6 @@
 # ADR-0034: Targets after the mentors' answers to Q1–Q4
 
-- **Status:** Proposed
+- **Status:** T1 Accepted (team, 2026-11-10); T3–T5 Proposed
 - **Date:** 2026-11-10
 - **Deciders:** team
 - **Traces to:** REQ-01, REQ-02, REQ-03, REQ-04, T1–T5 (`plan.md`), mentor answers of 2026-11-10 (`mentor-qa.md`)
@@ -20,17 +20,17 @@ Our T1 (95 % ≤ 25 m for ≥ 300 s) is stricter than the mentors' figure on bot
 
 | Option | Pros | Cons |
 | --- | --- | --- |
-| A. Mentors' figure as the threshold (must meet), ours as the objective (aim for) | Meets the customer's number first; keeps the stricter goal visible; the usual threshold/objective pairing in aerospace requirements | Two numbers per target to report |
-| B. Keep only our stricter T1 | One number | Fails "the requirement" where the customer's figure is met; hides that we meet what they asked |
-| C. Only the mentors' figure | Simplest | Drops a stricter goal our sim already reaches, and the 50 m alert limit becomes the accuracy too |
+| A. Mentors' figure as the requirement, ours as a stretch objective | Meets the customer's number first | Aims low: our sim already reaches the stricter goal on the base scenarios, and the 50 m figure equals the alert limit |
+| B. Our stricter T1 as the requirement, the mentors' figure as the declared fallback | Aims for the better result; the fallback is the customer's own number, so dropping to it is defensible; the switch is recorded, not silent | If the realistic sets miss 25 m, results must say so and invoke the fallback |
+| C. Only the mentors' figure | Simplest | Drops a stricter goal, and the 50 m alert limit becomes the accuracy too |
 
 ## Decision
 
-Option A. Each target names the mentors' answer where there is one:
+Option B (team, 2026-11-10). We aim for our stricter goal; the mentors' figure is the fallback if the evidence shows we cannot meet it:
 
-| Target | Threshold (must) | Objective (aim) |
+| Target | Requirement | Fallback |
 | --- | --- | --- |
-| T1, UC-01 drone | 95 % horizontal error ≤ 50 m for ≥ 120 s after GPS loss (mentors) | ≤ 25 m for ≥ 300 s (ours, `TBC`) |
+| T1, UC-01 drone | 95 % horizontal error ≤ 25 m for ≥ 300 s after GPS loss (ours, `TBC`) | ≤ 50 m for ≥ 120 s (mentors' "OK-ish" figure) |
 | T2, UC-02 approach | Alert limit 556 m (RNP 0.3), unchanged (ours, `TBC`) | — |
 | T3, UC-03 timing | ≤ 1.5 µs after 10 min, 1-σ bounding ≥ 68 % (ours, `TBC`); the accuracy budget states the calibration time it needs before GPS loss (handover, Q3) | — |
 | T4, spoofing | Location jumps first (mentors): a jump target from the jump study, `TBD`; the ramp targets stay (ours, `TBC`) | — |
@@ -38,7 +38,7 @@ Option A. Each target names the mentors' answer where there is one:
 
 ## Consequences
 
-- T1 is reported against both numbers. "Explain the calculations" becomes a deliverable: an accuracy budget per error term with its source, growing with time since GPS loss, checked against Monte Carlo.
+- T1 is reported against both numbers. Falling back to the mentors' figure is a recorded decision (an amendment here naming the evidence), never a silent change. "Explain the calculations" becomes a deliverable: an accuracy budget per error term with its source, growing with time since GPS loss, checked against Monte Carlo.
 - Q2 means we show confidence several ways, not only an HPL: the 1-σ and 95 % error ellipse, the MHSS protection level against the alert limit, consistency (NEES/NIS), per-source trust and status, and time to alert. Each needs a figure or a panel element.
 - Q3 adds the handover to the budget: how long GPS must be available before loss for the tower clocks and IMU biases to be learned well enough for T1.
 - Q4 orders the attack work: location jumps first (`threat-model.md`).

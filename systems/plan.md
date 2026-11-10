@@ -67,11 +67,11 @@ Existing issues that still apply:
 
 ## Proposed targets
 
-These are in [`requirements.md`](requirements.md). The mentors answered Q1–Q4 on 2026-11-10 ([`mentor-qa.md`](mentor-qa.md)); ADR-0034 (Proposed) adds their figures as thresholds:
+These are in [`requirements.md`](requirements.md). The mentors answered Q1–Q4 on 2026-11-10 ([`mentor-qa.md`](mentor-qa.md)); ADR-0034 keeps our stricter T1 and holds their figure as the fallback:
 
 | Target | Use case | Value |
 | --- | --- | --- |
-| T1 | UC-01 drone | Threshold (mentors): 95 % horizontal error ≤ 50 m for ≥ 120 s after GPS loss, with the accuracy budget explained. Objective: ≤ 25 m for ≥ 300 s. Alert limit 50 m |
+| T1 | UC-01 drone | 95 % horizontal error ≤ 25 m for ≥ 300 s after GPS loss, with the accuracy budget explained; fallback (mentors): ≤ 50 m for ≥ 120 s. Alert limit 50 m |
 | T2 | UC-02 approach | Horizontal alert limit 556 m (RNP 0.3) in the terminal phase |
 | T3 | UC-03 timing | Time error ≤ 1.5 µs after 10 min without GPS; reported 1-σ bounds it in ≥ 68 % of epochs |
 | T4 | Spoofing | Location jumps first (mentors): jump target `TBD` from a jump study. 2 m/s position ramp detected within 30 s; 50 ns/s time ramp within 60 s; ≤ 1 false alarm per hour |

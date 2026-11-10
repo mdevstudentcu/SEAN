@@ -8,11 +8,11 @@ Source: Honeywell kickoff deck, Challenge 2 (overview, instructions, deliverable
 
 ## Requirements
 
-Targets marked `TBD` are open questions for our Honeywell mentors (see the end of this file). Values marked `TBC` are our proposals (T1–T5 in [`plan.md`](plan.md)); the mentors answered Q1–Q4 on 2026-11-10 and ADR-0034 (Proposed) folds their answers in. Use cases are defined in [`use-cases.md`](use-cases.md); mentor answers so far are in [`mentor-qa.md`](mentor-qa.md).
+Targets marked `TBD` are open questions for our Honeywell mentors (see the end of this file). Values marked `TBC` are our proposals (T1–T5 in [`plan.md`](plan.md)); the mentors answered Q1–Q4 on 2026-11-10 and ADR-0034 folds their answers in: we keep our stricter T1 and hold theirs as the fallback. Use cases are defined in [`use-cases.md`](use-cases.md); mentor answers so far are in [`mentor-qa.md`](mentor-qa.md).
 
 | ID | Requirement | Success measure | Verif. | Use cases | Status |
 | --- | --- | --- | --- | --- | --- |
-| REQ-01 | **Navigation continuity.** After GPS is lost, the system keeps providing horizontal position. Horizontal error (95th percentile) ≤ 50 m for ≥ 120 s after GPS loss (UC-01 threshold, mentors 2026-11-10), objective ≤ 25 m for ≥ 300 s (`TBC`, ADR-0034); within RNP 0.3 (556 m) in the terminal phase (UC-02) (`TBC`) | A, T | UC-01, UC-02 | Draft |
+| REQ-01 | **Navigation continuity.** After GPS is lost, the system keeps providing horizontal position. Horizontal error (95th percentile) ≤ 25 m for ≥ 300 s after GPS loss (UC-01, `TBC`; fallback ≤ 50 m for ≥ 120 s, the mentors' figure of 2026-11-10, ADR-0034); within RNP 0.3 (556 m) in the terminal phase (UC-02) (`TBC`) | A, T | UC-01, UC-02 | Draft |
 | REQ-02 | **Position confidence.** Every position estimate carries a horizontal protection level (HPL). | HPL bounds the true error in ≥ 99.9 % of epochs, with no hazardously misleading epochs on the fault scenarios; alert limit 50 m (UC-01), 556 m (UC-02) (`TBC`); shown as a Stanford plot | A, T | UC-01, UC-02 | Draft |
 | REQ-03 | **Timing continuity and confidence.** The system keeps time after GPS loss and reports its uncertainty. | Time error ≤ 1.5 µs after 10 min without GPS; reported 1-σ bounds it in ≥ 68 % of epochs (`TBC`) | T | UC-03 | Draft |
 | REQ-04 | **Spoofing and fault detection.** The system detects GPS that disagrees with independent sources and stops trusting it. | Detects a 2 m/s position spoof ramp within 30 s and a 50 ns/s time ramp within 60 s; false alarms ≤ 1 per hour on nominal runs (`TBC`) | A, T | all | Draft |
