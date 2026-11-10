@@ -20,6 +20,7 @@ The source of truth for what we are building and why. When code or another doc d
 | [`architecture.md`](architecture.md) | D1 draft: use cases and key requirements, the architecture as built, how the sim aligns to reality, what is real vs simulated |
 | [`roadmap.md`](roadmap.md) | D3 draft: what the week showed, what fixes it, and the phases from hackathon to a product |
 | [`results.md`](results.md) | The evidence in tables, each number with its kind (sim, synthetic, registry, real) and source |
+| [`deck.md`](deck.md) | The 5-minute deck: headline, bullets, figure and speaker notes per slide, and likely judge questions |
 | [`sim-plan.md`](sim-plan.md) | What the simulation work will build, in what order, and what is still undecided |
 | [`tower-identity.md`](tower-identity.md) | Explainer: how we know which tower we hear and where it is (ISED register, EARFCN + PCI, timing not strength, clocks learned under GPS, unknown towers) |
 
