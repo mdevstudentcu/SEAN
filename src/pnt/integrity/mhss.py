@@ -70,6 +70,11 @@ Per epoch, horizontal only, for the all-in-view solution x0 (covariance P0) and 
 - Not covered: two faults at once in different groups (e.g. GNSS and one site: 6e-6 with these
   priors), and the vertical (VPL stays the filter's).
 
+ADS-B early warning (#91, ADR-0031): `adsb_report` records go to `pnt.integrity.adsb`, never
+to a filter. While it warns (aircraft around us report degraded GNSS quality, or a spoofed track),
+the `gnss-cm` prior is `p_gnss_cm_warned` instead of `p_gnss_cm`, and the estimate is flagged
+`adsb_interference` or `adsb_spoofed_aircraft`.
+
 All priors and budgets are `TBC`; see `Params`.
 """
 
@@ -82,6 +87,7 @@ from dataclasses import dataclass, field
 import msgspec
 
 from pnt.core.measurement import Estimate, Measurement
+from pnt.integrity import adsb
 from pnt.integrity.dependency import GNSS_DERIVED, tag_of
 
 GNSS_CM = "gnss-cm"
@@ -117,6 +123,11 @@ class Params:
     #   unsourced; ten times p_gnss_cm, because the adversary chooses when it fails. The HPL
     #   floor in `estimate` (guardrail 3) does not depend on it.
     p_hostile: float = 1e-2
+    # p_gnss_cm_warned: the same prior while ADS-B traffic around us shows GNSS interference or
+    #   spoofing (ADR-0031). TBC: interference reported nearby is taken as a 1-in-10 chance that
+    #   our GNSS is or soon will be faulted; no measured rate backs it
+    p_gnss_cm_warned: float = 1e-1
+    adsb: adsb.Params = field(default_factory=adsb.Params)
     # Integrity budget per epoch, horizontal. 1e-7 matches K_H = 5.33 in protection.py (TBC by
     # REQ-02).
     phmi: float = 1e-7
@@ -159,6 +170,7 @@ class Report:
     tests: dict[str, float] = field(default_factory=dict)  # q_k; > 1 fails
     excluded: str | None = None  # the output is the subset without this hypothesis
     alarmed: str | None = None  # this hypothesis failed, but the subset without it can't serve
+    adsb: adsb.Warning | None = None  # the ADS-B early warning at this epoch
 
 
 def _h(f) -> tuple[float, float, float, float, float]:
@@ -261,6 +273,7 @@ class MHSS:
         self.window_ns = int(self.p.gnss_window_s * 1e9)
         self.alarm_since: int | None = None
         self.fail_since: dict[str, int] = {}
+        self.adsb = adsb.AdsbMonitor(self.p.adsb)
         self.report = Report()
 
     # --- grouping -----------------------------------------------------------------------
@@ -298,6 +311,9 @@ class MHSS:
 
     # --- measurements ------------------------------------------------------------------------
     def process(self, m: Measurement) -> None:
+        if m.kind == adsb.KIND:  # evidence about GNSS around us, never a measurement of ours
+            self.adsb.update(m)
+            return
         if self.main.x is None:
             return
         if m.meta.get("hostile") and getattr(self.main, "hostile", None) is None:
@@ -326,6 +342,7 @@ class MHSS:
         n = max(len(self.hyps), 1)
         c_fa = _k(p.p_fa / n)
         aided_ns = int(p.aided_s * 1e9)
+        warn = self.adsb.warning(t, h0[:2])
 
         rows: list[_Row] = []
         for h in self.hyps.values():
@@ -346,7 +363,8 @@ class MHSS:
             _, sep, sd = tests[i]
             s_k = math.sqrt(_max_eig(*hs[i][2:]))
             f = h.filters[i]
-            rows.append(_Row(h.name, h.prior, h.test[i], f, s_k, sep, sd, *hs[i][:2]))
+            prior = p.p_gnss_cm_warned if warn.on and h.name == GNSS_CM else h.prior
+            rows.append(_Row(h.name, prior, h.test[i], f, s_k, sep, sd, *hs[i][:2]))
 
         # GNSS alarm from the main filter: its flags on main, or `spoof_alarm` once #102 adds it
         alarm = bool(p.alarm_flags & set(est.flags)) or bool(
@@ -410,10 +428,10 @@ class MHSS:
 
         self.report = Report(
             t_ns=t, hpl_m=hpl, tests={r.name: r.q for r in rows}, excluded=excluded,
-            alarmed=alarmed,
+            alarmed=alarmed, adsb=warn,
         )  # fmt: skip
         self._reseed(t, excluded or alarmed)
-        return self._output(est, out_f, hpl, excluded, alarmed)
+        return self._output(est, out_f, hpl, excluded, alarmed, warn)
 
     def _aided(self, f, since_ns: int) -> bool:
         """Whether a sub-filter used a horizontal measurement since `since_ns`."""
@@ -444,9 +462,13 @@ class MHSS:
                             h.next_seed_ns[j] = max(h.next_seed_ns[j], t + self.window_ns // 2)
                     break
 
-    def _output(self, est: Estimate, f, hpl: float, excluded, alarmed) -> Estimate:
+    def _output(self, est: Estimate, f, hpl: float, excluded, alarmed, warn) -> Estimate:
         flags = list(est.flags)
         trust = dict(est.trust)
+        if len(warn.dropped) >= self.p.adsb.min_aircraft:
+            flags.append("adsb_interference")
+        if warn.jumped:
+            flags.append("adsb_spoofed_aircraft")
         if alarmed is not None:
             flags.append(f"mhss_alarm:{alarmed}")
         if excluded is not None:

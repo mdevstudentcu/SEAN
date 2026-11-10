@@ -52,6 +52,17 @@ FLAGS: dict[str, tuple[str, str]] = {
         ALARM,
         "GPS time spoofing suspected: GPS time disagrees with our clock model, so it is not used.",
     ),
+    # ekf-mhss with ADS-B traffic (#91, pnt.integrity.adsb)
+    "adsb_interference": (
+        CAUTION,
+        "GPS interference nearby: aircraft around us report degraded GPS quality. Our GPS fault "
+        "risk is raised, so the protection level is wider; expect to lose GPS.",
+    ),
+    "adsb_spoofed_aircraft": (
+        WARNING,
+        "GPS spoofing nearby: an aircraft's reported track jumped while it kept high quality. Our "
+        "GPS fault risk is raised, so the protection level is wider; watch for a GPS spoof.",
+    ),
     "base_excluded": (
         WARNING,
         "Reference station excluded: its readings disagree with its surveyed position (moved, or "
