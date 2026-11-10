@@ -129,7 +129,12 @@ def load(path: str | Path, position: tuple[float, float, float] | None) -> Sessi
     t0 = min(ms[0].t_ns for ms in series.values())
     t1 = max(ms[-1].t_ns for ms in series.values())
     out = []
-    for (clock, emitter), ms in sorted(series.items()):
+
+    def order(item):  # by dongle, EARFCN, PCI (numerically), not by the emitter string
+        (clock, _), ms = item
+        return clock, ms[0].meta.get("earfcn") or 0, ms[0].meta.get("pci", -1)
+
+    for (clock, emitter), ms in sorted(series.items(), key=order):
         ms.sort(key=lambda m: m.t_ns)
         md = ms[0].meta
         out.append(
