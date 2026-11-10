@@ -28,8 +28,8 @@ def test_white_noise_matches_the_datasheet_density():
                              "accel_instability_ug": 1e-9, "gyro_lsb_dps": 1e-12,
                              "accel_lsb_g": 1e-12})  # fmt: skip
     t, accel, gyro = _static(300.0, p)
-    expect_g = 0.005 * DEG * np.sqrt(FS / 2)
-    expect_a = 400e-6 * G * np.sqrt(FS / 2)
+    expect_g = MPU6050.gyro_noise_dps_rthz * DEG * np.sqrt(FS / 2)
+    expect_a = MPU6050.accel_noise_ug_rthz * 1e-6 * G * np.sqrt(FS / 2)
     assert np.std(gyro[:, 0]) == pytest.approx(expect_g, rel=0.02)
     assert np.std(accel[:, 0]) == pytest.approx(expect_a, rel=0.02)
     # Allan deviation of white noise falls as 1/sqrt(tau)
