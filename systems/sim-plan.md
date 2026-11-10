@@ -107,7 +107,7 @@ The [AERPAW LTE recordings](https://ieee-dataport.org/documents/lte-iq-measureme
 | --- | --- | --- |
 | D1 | Where the Foxglove map data lives | A `pnt viz <session>` step writes a companion `viz.mcap` (LocationFix/GeoJSON, converted with `pnt.core.frames`) beside the session. Foxglove opens both together; `session.md` stays unchanged, so no `icd` PR |
 | D2 | Sionna RT | Gated stretch spike only (see *Sionna RT spike*): after phases 1 to 3, 4-hour timebox, owner go-ahead and an ADR first |
-| D3 | What `gnss_health` jam indicator means on real hardware | The sim already emits it, but the GPS HAT has no jamming flag (ADR-0014). Decide its real-data meaning with #22 |
+| D3 | What `gnss_health` jam indicator means on real hardware | Proposed in [ADR-0031](adr/0031-gnss-jam-indicator.md): the C/N0 drop of the strongest satellites, from the recorded SKY reports (#22) |
 | D4 | Owners for #25 (dashboard), #29 (threat model), #11 and #15 | Team to assign |
 | D5 | New issues for phase 1 and the tower experiment | Open them once this plan is agreed |
 | D6 | Which board flies | Decided: Pi 4B recorder, sensors on it directly, Pi Zero 2 W hub only if day-1 tests need it (ADR-0018). The rehearsal must show that both radios fit at their planned sample rate on the chosen board; if not, decide between one radio and a lower sample rate |
