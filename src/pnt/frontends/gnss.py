@@ -19,6 +19,11 @@ Two inputs, both in gpsd's JSON protocol (https://gpsd.io/gpsd_json.html):
   It cannot tell jamming from blockage: both lower C/N0.
 - `n_sats`: satellites used in the fix. `hdop`: gpsd's, or `NO_FIX_HDOP` when it gives none.
 
+gpsd's SKY `satellites` list is optional (https://gpsd.io/gpsd_json.html). A SKY report without
+one says nothing about C/N0, so it gives no record: in a log, the list is absent; in a recorded
+event, `n_seen` is 0 while `hdop` is given (`has_skyview`). An empty list with no DOPs is a sky
+with nothing in it, and gives indicator 1. If gpsd sends no SKY at all, there is no record.
+
 The MediaTek receiver on the GPS HAT reports C/N0 per satellite in NMEA GSV, which gpsd passes
 on as `ss` (dB-Hz); it has no jamming flag of its own (ADR-0014). Only broadcast navigation
 fields are read (ADR-0011).
@@ -62,6 +67,12 @@ def jam_indicator(
     return min(1.0, max(0.0, (ref - s) / (ref - low)))
 
 
+def has_skyview(sky: dict) -> bool:
+    """False for a recorded `gnss_sky` event made from a SKY report with DOPs but no satellite
+    list: it carries no C/N0 to judge."""
+    return bool(sky.get("n_seen")) or sky.get("hdop") is None
+
+
 def health(t_ns: int, sky: dict, receiver: str = "payload", **params) -> Measurement:
     """One `gnss_health` record from a `gnss_sky` event (`pnt.payload.gpsd.sky_event`).
 
@@ -92,7 +103,7 @@ def from_gpsd_json(
 
     TPV becomes fixes as on the payload, skipping repeated reports of one fix. A SKY report is
     stamped with its own `time`, or else with the last TPV's (gpsd sends SKY after the TPV of
-    the same epoch); one before any TPV is skipped."""
+    the same epoch); one before any TPV, or with no satellite list, is skipped."""
     out: list[Measurement] = []
     last_tpv_t: int | None = None
     last_tpv: str | None = None
@@ -108,7 +119,7 @@ def from_gpsd_json(
             last_tpv = msg["time"]
             last_tpv_t = gpsd.parse_time(msg["time"])
             out += gpsd.tpv_measurements(msg, origin_llh)
-        elif cls == "SKY":
+        elif cls == "SKY" and "satellites" in msg:
             t = gpsd.parse_time(msg["time"]) if msg.get("time") else last_tpv_t
             if t is not None:
                 out.append(health(t, gpsd.sky_event(msg), **params))
@@ -138,7 +149,7 @@ def derive_session(src: Path, out: Path, commit: str, **params) -> list[Measurem
     new = [
         health(d["t_ns"], d, receiver=receiver, **params)
         for topic, d in events
-        if topic == "/events" and d.get("text") == "gnss_sky" and "t_ns" in d
+        if topic == "/events" and d.get("text") == "gnss_sky" and "t_ns" in d and has_skyview(d)
     ]
     src_meta = session.read_meta(src)
     note = f"GNSS health front end on {src.name} at {commit}"
