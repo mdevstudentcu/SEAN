@@ -52,6 +52,8 @@ ESTIMATORS = {
     "ekf-guard": configured(ekf.run, jump_guard=JumpGuard),
     "ekf-imu-guard": configured(ekf.run, motion="imu", jump_guard=JumpGuard),
     "ekf-calibrated-guard": configured(ekf.run_calibrated, jump_guard=JumpGuard),
+    # P11 (#95, ADR-0032): ekf with a residual map learned while GNSS is trusted
+    "ekf-map": configured(ekf.run, residual_map={}),
 }
 
 log = logging.getLogger(__name__)

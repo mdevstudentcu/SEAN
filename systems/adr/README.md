@@ -35,6 +35,7 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0029](0029-tethered-hover-wifi-control.md) | Tethered indoor hover may be flown from a gamepad through an ESP32 Wi-Fi bridge | Accepted |
 | [0030](0030-challenge-benchmark-set.md) | A challenge benchmark set: one leg per use case, on records shaped like real ones | Proposed |
 | [0031](0031-gnss-jam-indicator.md) | The GNSS jam indicator is the C/N0 drop of the strongest satellites | Proposed |
+| [0032](0032-residual-map.md) | Learn a per-place residual map of each tower while GPS is trusted | Proposed |
 | [0033](0033-adsb-raises-gnss-prior.md) | ADS-B interference evidence raises the GNSS fault prior | Proposed |
 | [0034](0034-targets-after-mentor-answers.md) | Targets after the mentors' answers: our stricter T1, their figure as the fallback | T1 Accepted; T3–T5 Proposed |
 | [0036](0036-lte-measured-error-model.md) | The LTE error model is split into white and correlated parts, sized from real captures | Proposed |

@@ -154,6 +154,11 @@ gate rejects a jumped GNSS fix only until the coasting covariance has grown enou
 With it, a fix that jumps away from both the GNSS stream's own track and the filter, while GNSS
 steers the position, is refused, with the fixes after it, until the stream steps back. Until it
 latches it changes nothing, so a run without such a jump is unchanged.
+
+Residual map (`residual_map`, off by default, #95, ADR-0032 Proposed): each emitter's
+pseudorange error per place, learned from accepted innovations while GNSS is trusted and
+subtracted from later readings in the same grid cell, with its variance added to the noise
+(`nav/residual_map.py`). Off, the output is exactly as before.
 """
 
 from __future__ import annotations
@@ -170,6 +175,7 @@ from pnt.integrity.protection import hpl, vpl
 from pnt.nav.baseline import CHI2_999
 from pnt.nav.hostile import BeaconParams, Beacons
 from pnt.nav.imu import ImuMotion
+from pnt.nav.residual_map import MapParams, ResidualMap
 
 C = 299_792_458.0
 GNSS_TIME = "gnss:time"  # health key for GNSS time, separate from GNSS position ("gnss")
@@ -250,6 +256,7 @@ class EKF:
         imu: Mapping | None = None,  # ImuMotion options when motion="imu"
         hostile: Mapping | None = None,  # BeaconParams options: use hostile beacons (#93)
         jump_guard: Callable[[], JumpGuard] | None = None,  # JumpGuard: refuse GNSS jumps (#184)
+        residual_map: Mapping | None = None,  # MapParams options: learn a residual map (#95)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -257,6 +264,7 @@ class EKF:
             raise ValueError(f"motion must be one of {MOTIONS}, not {motion!r}")
         self.imu = ImuMotion(**(imu or {})) if motion == "imu" else None
         self.hostile = None if hostile is None else Beacons(BeaconParams(**hostile), alert_limit_m)
+        self.rmap = None if residual_map is None else ResidualMap(MapParams(**residual_map))
         self.n_core = N_CORE  # states before the first clock block (IMU states included)
         self.origin_llh = origin_llh
         self.q_accel, self.q_emitter = q_accel, q_emitter
@@ -675,6 +683,11 @@ class EKF:
         if out is None:
             return
         y, H, R, gate = out
+        mapped = self.rmap is not None and m.kind == "pseudorange"
+        if mapped:  # the error this emitter showed here while GNSS was trusted (#95)
+            at = self.x[:2].copy()
+            corr, var = self.rmap.correction(m.emitter, at, m.sigma[0])
+            y, R = y - corr, R + var
         key = GNSS_TIME if (m.source, m.kind) == ("gnss", "time") else m.source
         if m.kind == "rssi":
             key = f"hostile:{m.emitter}"  # shown apart from GNSS (ADR-0025 guardrail 5)
@@ -689,6 +702,8 @@ class EKF:
             self.last_rejected[key] = m.t_ns
         else:  # "readmit": GNSS is back on its own pre-jump track, so the gate is skipped
             used = self._update(key, m.t_ns, y, H, R, gate and verdict == "gate")
+        if mapped and used and gate and self.gnss_trusted():
+            self.rmap.learn(m.emitter, at, float(y) + corr)  # before the map's correction
         if self.calibrated:
             if key in ("gnss", GNSS_TIME) and not used:
                 self._note_trouble(True)  # an alarm precursor: GNSS rejected
