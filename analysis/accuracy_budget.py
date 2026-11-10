@@ -85,8 +85,10 @@ ENVIRONMENTS = ("uc01", "uc01-realistic")
 TCALS = (30.0, 60.0, 120.0, 300.0)  # s of good GPS before it is lost (Monte Carlo)
 TCAL_FINE = tuple(float(t) for t in range(30, 301, 15))  # budget only
 HORIZON_S = 300  # T1 asks for >= 300 s (systems/plan.md)
-TARGET_M, TARGET_S = 50.0, 120.0  # mentors 2026-11-10: <= 50 m for ~2 min "OK-ish" (TBC)
-T1_M = 25.0  # T1 (TBC): 95 % <= 25 m for >= 300 s
+# What the budget is judged against, first to last (TBC):
+# - T1, our goal (ADR-0034, Proposed): 95 % horizontal error <= 25 m for >= 300 s after GPS loss
+# - the fallback, the mentors' figure (2026-11-10): <= 50 m for ~2 min, "OK-ish"
+TARGETS = {"T1": (25.0, 300.0), "fallback": (50.0, 120.0)}
 REPORT_AT = (30, 60, 120, 300)
 
 # Categorical slots (dataviz reference palette), fixed order: one per estimator; ink for the rest
@@ -864,10 +866,10 @@ def _style(ax) -> None:
 
 
 def _target(ax, x_end) -> None:
-    ax.axhline(TARGET_M, color=INK, lw=1, ls="-.")
-    ax.text(
-        x_end, TARGET_M * 1.08, f"{TARGET_M:g} m (mentors, TBC)", color=INK, fontsize=7, ha="right"
-    )
+    for (name, (m, s)), ls in zip(TARGETS.items(), (":", "-."), strict=True):
+        ax.axhline(m, color=INK, lw=1, ls=ls)
+        label = f"{name}: {m:g} m for {s:g} s (TBC)"
+        ax.text(x_end, m * 1.08, label, color=INK, fontsize=7, ha="right")
 
 
 def fig_terms(budgets: dict, imu_line: dict, caption: str):
@@ -888,7 +890,8 @@ def fig_terms(budgets: dict, imu_line: dict, caption: str):
             t[1:], imu_line[title][1:], color=INK, lw=1.2, ls=":", label="IMU alone (no towers)"
         )
         _target(ax, t[-1])
-        ax.axvline(TARGET_S, color=GRID, lw=1)
+        for _, s in TARGETS.values():
+            ax.axvline(s, color=GRID, lw=1)
         ax.set_yscale("log")
         ax.set_ylim(0.3, 3000)
         ax.set(xlabel="time since GPS loss (s)", title=title)
@@ -913,7 +916,8 @@ def fig_overlay(pred: dict, meas: dict, caption: str):
             ax.plot(t, p, color=COLORS[est], lw=WIDTHS[est], label=f"{est}: budget")
             ax.plot(t, m, color=COLORS[est], lw=1.2, ls="--", label=f"{est}: Monte Carlo p95")
         _target(ax, t[-1])
-        ax.axvline(TARGET_S, color=GRID, lw=1)
+        for _, s in TARGETS.values():
+            ax.axvline(s, color=GRID, lw=1)
         ax.set_yscale("log")
         ax.set_ylim(1, 20000)
         ax.set(xlabel="time since GPS loss (s)", title=f"{envn}, GPS good for 120 s first")
@@ -929,20 +933,20 @@ def fig_handover(fine: dict, sweep: dict, caption: str):
     import matplotlib.pyplot as plt
 
     fig, axes = plt.subplots(1, 4, figsize=(14, 4.2), dpi=150, sharey=True)
-    panels = [(e, h) for e in ENVIRONMENTS for h in (TARGET_S, HORIZON_S)]
+    panels = [(e, s) for e in ENVIRONMENTS for _, s in TARGETS.values()]
     for ax, (envn, h) in zip(axes, panels, strict=True):
         for est in ESTIMATORS:
             x = np.array(TCAL_FINE)
             ax.plot(
                 x,
-                [fine[envn][est][tc][int(h)] for tc in TCAL_FINE],
+                [worst_in(fine[envn][est][tc], h) for tc in TCAL_FINE],
                 color=COLORS[est],
                 lw=WIDTHS[est],
                 label=f"{est}: budget",
             )
             ax.plot(
                 TCALS,
-                [sweep[envn][est][tc][int(h)] for tc in TCALS],
+                [worst_in(sweep[envn][est][tc], h) for tc in TCALS],
                 "o",
                 ms=8,
                 mfc="none",
@@ -953,7 +957,7 @@ def fig_handover(fine: dict, sweep: dict, caption: str):
         _target(ax, 300)
         ax.set_yscale("log")
         ax.set_ylim(3, 20000)
-        ax.set(xlabel="GPS good before loss (s)", title=f"{envn}: +{h:g} s after loss")
+        ax.set(xlabel="GPS good before loss (s)", title=f"{envn}: worst in the first {h:g} s")
         _style(ax)
     axes[0].set_ylabel("95 % horizontal error (m)")
     axes[-1].legend(fontsize=7, frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0))
@@ -969,12 +973,18 @@ def _budget_seeds(environment: str, runs: int) -> list[int]:
     return [0] if real else list(range(runs))
 
 
-def min_tcal(curve: dict, horizon_s: float, limit: float) -> float | None:
-    """Least calibration time whose 95 % error at `horizon_s` is within `limit`, with every
-    longer one also within it; None if none is."""
+def worst_in(curve: np.ndarray, window_s: float) -> float:
+    """The largest 95 % error in the first `window_s` s after GPS loss: a target "<= X m for
+    >= T s" holds only if the whole window is within X."""
+    return float(np.max(curve[: int(window_s) + 1]))
+
+
+def min_tcal(curves: dict, window_s: float, limit: float) -> float | None:
+    """Least calibration time that meets `limit` over the first `window_s` s, with every longer
+    one meeting it too; None if none does."""
     ok = None
-    for tc in sorted(curve, reverse=True):
-        if curve[tc][int(horizon_s)] <= limit:
+    for tc in sorted(curves, reverse=True):
+        if worst_in(curves[tc], window_s) <= limit:
             ok = tc
         else:
             break
@@ -1039,7 +1049,7 @@ def main(argv=None) -> None:
     pred = {e: {est: budget[(e, est, 120.0)]["total"] for est in ESTIMATORS} for e in ENVIRONMENTS}
     meas = {e: {est: p95[(e, est, 120.0)] for est in ESTIMATORS} for e in ENVIRONMENTS}
     fig_overlay(pred, meas, cap).savefig(args.out / "budget_vs_monte_carlo.png")
-    # 3: handover: error at +120 s and +300 s against calibration time
+    # 3: handover: worst 95 % error over each target's window against calibration time
     fine = {
         e: {est: {tc: budget[(e, est, tc)]["total"] for tc in tcals} for est in ESTIMATORS}
         for e in ENVIRONMENTS
@@ -1056,47 +1066,63 @@ def main(argv=None) -> None:
         "seeds": [0, args.runs - 1],
         "imu": {"values": IMU_MEASURED, "session": IMU_SESSION},
         "terms": {e: terms(e) for e in ENVIRONMENTS},
-        "table_at_120": {},
+        "targets": {k: {"m": m, "s": t} for k, (m, t) in TARGETS.items()},
+        "table": {},
         "curves": {},
-        "min_tcal_for_50m_at_120s": {},
+        "min_tcal": {},
         "imu_alone_r95": {
             str(t): float(next(iter(imu_line.values()))[t]) for t in (10, 20, 30, 60, 120)
         },
     }
     for e in ENVIRONMENTS:
-        b = budget[(e, "ekf-calibrated", 120.0)]
-        summary["table_at_120"][e] = {
-            name: {
-                "r95_m": float(b["terms"][name][120]),
-                "per_axis_sigma_m": float(b["per_axis"][name][120]),
+        for est in ESTIMATORS:
+            b = budget[(e, est, 120.0)]
+            summary["table"][f"{e}/{est}"] = {
+                str(t): {
+                    name: {
+                        "r95_m": float(b["terms"][name][t]),
+                        "per_axis_sigma_m": float(b["per_axis"][name][t]),
+                    }
+                    for name in b["terms"]
+                }
+                | {
+                    "total, every tower heard": float(b["all_heard"][t]),
+                    "total with dropouts": float(b["total"][t]),
+                    "coasting share": float(b["coast_share"][t]),
+                }
+                for t in (120, 300)
+            } | {
+                "white window s": b["white_window_s"],
+                "velocity sigma m/s": b["velocity_sigma_mps"],
             }
-            for name in b["terms"]
-        } | {
-            "total, every tower heard": {"r95_m": float(b["all_heard"][120])},
-            "total with dropouts": {
-                "r95_m": float(b["total"][120]),
-                "coasting_share": float(b["coast_share"][120]),
-            },
-            "white window s": b["white_window_s"],
-            "velocity sigma m/s": b["velocity_sigma_mps"],
-        }
         for est in ESTIMATORS:
             for tc in tcals:
                 row = {
                     "budget": {str(t): float(budget[(e, est, tc)]["total"][t]) for t in REPORT_AT}
                 }
+                row["budget_worst_in"] = {
+                    k: worst_in(budget[(e, est, tc)]["total"], t) for k, (_, t) in TARGETS.items()
+                }
                 if tc in TCALS:
                     row["mc_p95"] = {str(t): float(p95[(e, est, tc)][t]) for t in REPORT_AT}
-                    row["mc_worst"] = {str(t): float(worst[(e, est, tc)][t]) for t in REPORT_AT}
+                    row["mc_worst_run"] = {
+                        str(t): float(worst[(e, est, tc)][t]) for t in REPORT_AT
+                    }
+                    row["mc_p95_worst_in"] = {
+                        k: worst_in(p95[(e, est, tc)], t) for k, (_, t) in TARGETS.items()
+                    }
                 summary["curves"][f"{e}/{est}/{tc:g}"] = row
-            summary["min_tcal_for_50m_at_120s"][f"{e}/{est}"] = {
-                "budget": min_tcal(fine[e][est], TARGET_S, TARGET_M),
-                "mc": min_tcal(sweep[e][est], TARGET_S, TARGET_M),
+            summary["min_tcal"][f"{e}/{est}"] = {
+                k: {
+                    "budget": min_tcal(fine[e][est], t, m),
+                    "mc": min_tcal(sweep[e][est], t, m),
+                }
+                for k, (m, t) in TARGETS.items()
             }
     (args.out / "summary.json").write_text(json.dumps(summary, indent=1))
     print(
         json.dumps(
-            {k: summary[k] for k in ("commit", "min_tcal_for_50m_at_120s", "imu_alone_r95")},
+            {k: summary[k] for k in ("commit", "min_tcal", "imu_alone_r95")},
             indent=1,
         )
     )
