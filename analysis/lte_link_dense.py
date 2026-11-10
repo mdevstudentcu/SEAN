@@ -179,6 +179,9 @@ class Knobs:
     data_db: float = 0.0  # level of the non-sync symbols against PSS/SSS (0: fully loaded cells)
     drop_strongest: int = 0  # leave out the k strongest cells: what is left if they were cancelled
     config: tuple[tuple[str, int | float], ...] = ()  # front-end `Config` fields overridden
+    # Distinct QPSK frames the synthesiser cycles (its default 8 repeats the data every 80 ms,
+    # so interference integrated over longer than that adds up coherently, unlike real traffic)
+    filler_frames: int = 8
 
 
 @dataclass(frozen=True)
@@ -260,6 +263,18 @@ class _NoAdcCapture(capture.Capture):
 
     def gather(self, idx: np.ndarray) -> np.ndarray:
         return self.x[np.asarray(idx, dtype=np.int64)]
+
+
+@contextmanager
+def filler_frames(n: int):
+    """Let the synthesiser cycle `n` distinct data frames instead of its 8 (nothing in `src/`
+    changes). More frames draw more random numbers, so the signals differ from the default."""
+    original = synth._FILLER_FRAMES
+    synth._FILLER_FRAMES = n
+    try:
+        yield
+    finally:
+        synth._FILLER_FRAMES = original
 
 
 @contextmanager
@@ -345,7 +360,7 @@ def run_case(
     powers = [powers[i] for i in keep]
     budget_snr = [budget_snr[i] for i in keep]
     snr_arg = ref_snr if k_.noise else None
-    with data_level(k_.data_db):
+    with filler_frames(k_.filler_frames), data_level(k_.data_db):
         x = synth.synthesize(
             towers, duration, fs=FS, fc=FC, clock_ppm=PPM, snr_db=snr_arg, seed=seed
         )
@@ -789,6 +804,24 @@ def _build_case(spec: str, sectors: list[Sector], spots: dict[str, np.ndarray]) 
     return Case(f"{spot} {float(radius):g} km", tuple(float(v) for v in rx), secs)
 
 
+def _parse_config(spec: str) -> tuple[tuple[str, int | float], ...]:
+    """`name=value,...` into `Knobs.config` pairs; ints stay ints."""
+    out = []
+    for item in filter(None, spec.split(",")):
+        name, value = item.split("=")
+        if name not in Config.__dataclass_fields__:
+            raise SystemExit(f"--config: no Config field {name!r}")
+        out.append((name, int(value) if value.lstrip("-").isdigit() else float(value)))
+    return tuple(out)
+
+
+def _with_config(case: Case, base: tuple, filler: int = 8) -> Case:
+    """`case` with `base` Config fields under its own (its own win) and `filler` data frames."""
+    merged = {**dict(base), **dict(case.knobs.config)}
+    knobs = replace(case.knobs, config=tuple(merged.items()), filler_frames=filler)
+    return replace(case, knobs=knobs)
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--seeds", type=int, default=3)
@@ -804,6 +837,18 @@ def main() -> None:
     p.add_argument("--path-loss-exponent", type=float, default=Budget.path_loss_exponent)
     p.add_argument("--tx-offset-db", type=float, default=Budget.tx_offset_db)
     p.add_argument("--workers", type=int, default=2)
+    p.add_argument(
+        "--config",
+        default="",
+        help="front-end `Config` fields for every case, e.g. acq_coherent=15,track_coherent=8; "
+        "a factor's own fields win",
+    )
+    p.add_argument(
+        "--filler-frames",
+        type=int,
+        default=8,
+        help="distinct data frames in the synthesiser, every case (default 8)",
+    )
     p.add_argument("--out")
     a = p.parse_args()
     b = Budget(path_loss_exponent=a.path_loss_exponent, tx_offset_db=a.tx_offset_db)
@@ -814,6 +859,9 @@ def main() -> None:
                  tuple(pick_equal_power(5, sectors)), equal_power_snr_db=a.snr)  # fmt: skip
     chain = [equal] + [_build_case(c, sectors, spots) for c in a.cases.split(",")]
     factor_bases = [_build_case(c, sectors, spots) for c in a.factor_cases.split(",")]
+    base_cfg = _parse_config(a.config)
+    chain = [_with_config(c, base_cfg, a.filler_frames) for c in chain]
+    factor_bases = [_with_config(c, base_cfg, a.filler_frames) for c in factor_bases]
     jobs = []
     if "chain" in parts:
         jobs += [(c, s, b, a.duration, a.gps_off, True) for c in chain for s in range(a.seeds)]
@@ -821,10 +869,20 @@ def main() -> None:
     if "factors" in parts:
         for base in factor_bases:
             for label, knobs in FACTORS:
-                c = replace(base, name=f"{base.name} / {label}", knobs=knobs)
+                c = replace(
+                    base,
+                    name=f"{base.name} / {label}",
+                    knobs=_with_config(
+                        replace(base, knobs=knobs), base_cfg, a.filler_frames
+                    ).knobs,
+                )
                 jobs += [(c, s, b, a.factor_duration, a.factor_duration, False)
                          for s in range(a.seeds)]  # fmt: skip
-    ladder = ladder_cases(sectors, b) if "ladder" in parts else []
+    ladder = (
+        [_with_config(c, base_cfg, a.filler_frames) for c in ladder_cases(sectors, b)]
+        if "ladder" in parts
+        else []
+    )
     jobs += [(c, s, b, a.factor_duration, a.factor_duration, False) for c in ladder
              for s in range(a.seeds)]  # fmt: skip
     commit = subprocess.run(
@@ -842,6 +900,10 @@ def main() -> None:
 
     print("## Dense baseband check of the LTE chain (#124)\n")
     print(f"Commit `{commit}`. Evidence kind: **synthetic baseband, TBC link budget**.\n")
+    if base_cfg:
+        print(f"Front-end `Config` overrides for every case: {dict(base_cfg)}.\n")
+    if a.filler_frames != 8:
+        print(f"Synthesiser data frames: {a.filler_frames} (default 8).\n")
     print(f"Settings: seeds 0..{a.seeds - 1}; chain {a.duration:g} s capture at "
           f"{FS / 1e6:g} MS/s, GPS off at {a.gps_off:g} s; factors and ladder "
           f"{a.factor_duration:g} s; EARFCN "
