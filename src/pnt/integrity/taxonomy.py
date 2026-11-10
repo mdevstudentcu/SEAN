@@ -32,6 +32,8 @@ TAXONOMY: dict[str, FaultClass] = {
     ),
     "spoof_ramp": FaultClass("position spoof", (POSITION,), "position push (ds4, ds6)"),
     "spoof_jump": FaultClass("position spoof", (POSITION,), "none (crude takeover)"),
+    # A spoofer at a fixed place (#91): a jump on entering its circle, like spoof_jump
+    "spoof_zone": FaultClass("position spoof", (POSITION,), "none (crude takeover)", spatial=True),
     "time_spoof": FaultClass("time spoof", (TIME,), "time push (ds2, ds3, ds5)"),
     "meaconing": FaultClass("meaconing / replay", (POSITION, TIME), "none (record and replay)"),
     "gps_no_fix": FaultClass("receiver fault", (POSITION, TIME), "none"),
