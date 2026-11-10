@@ -22,7 +22,9 @@ While GPS is trusted our position is known to a few metres, so a pseudorange inn
 
 ## Decision
 
-Option B, opt-in as `ekf-map` (`residual_map=` on the EKF): per emitter and 25 m cell, the running mean of accepted innovations while `gnss_trusted()`, subtracted from later readings in that cell once it has 2 of them, with max(sample variance, reported σ²) / n added to the noise. Cell size and count are `TBC`.
+Option B, opt-in as `ekf-map` (`residual_map=` on the EKF): per emitter and 25 m cell, the running mean of accepted innovations while `gnss_trusted()`, used once the cell has 2 of them. Each cell's mean is shrunk towards zero by the emitter's own spread of place errors (empirical Bayes: τ² = variance of its cell means less their noise variance v, needing 5 cells; estimate k·mean with variance k·v, k = τ²/(τ² + v)), so an emitter with no place error gets no correction and no added noise. Cell size, counts and the shrinkage form are `TBC`.
+
+Shrinkage is part of the decision because without it the map made `gps-outage` (no place error) worse: fault-window p95 19.9 m → 22.2 m over 50 paired runs (commit a4b2718). The numbers with it are in the PR for #95.
 
 ## Consequences
 

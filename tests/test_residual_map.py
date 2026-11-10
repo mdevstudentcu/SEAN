@@ -45,19 +45,44 @@ def test_place_error_leaves_every_other_record_as_it_was():
     assert any(a.value != b.value for a, b in zip(with_field, without, strict=True))
 
 
-def test_map_cell_mean_and_variance():
-    m = ResidualMap(MapParams(cell_m=10.0, min_samples=2))
-    m.learn("lte:a", (3.0, 4.0), 30.0)
-    assert m.correction("lte:a", (5.0, 5.0), 20.0) == (0.0, 0.0)  # one sample: not used yet
-    m.learn("lte:a", (9.0, 1.0), 50.0)
-    mean, var = m.correction("lte:a", (0.0, 9.9), 20.0)
-    assert mean == pytest.approx(40.0)
-    assert var == pytest.approx(max(200.0, 400.0) / 2)  # sample variance 200 under sigma^2
-    m.learn("lte:a", (1.0, 1.0), 130.0)
-    _, var = m.correction("lte:a", (1.0, 1.0), 20.0)
-    assert var == pytest.approx(np.var([30.0, 50.0, 130.0], ddof=1) / 3)
-    assert m.correction("lte:a", (11.0, 1.0), 20.0) == (0.0, 0.0)  # next cell
-    assert m.correction("lte:b", (1.0, 1.0), 20.0) == (0.0, 0.0)  # other emitter
+def _learn_cells(m, emitter, means, n=2, spread=0.0):
+    """Cells 0, 1, ... along east, each with readings mean -/+ spread (n even)."""
+    for i, mu in enumerate(means):
+        for j in range(n):
+            m.learn(emitter, (i * 10.0 + 1.0, 1.0), mu + (spread if j % 2 else -spread))
+
+
+def test_map_shrinks_each_cell_by_the_emitter_spread():
+    m = ResidualMap(MapParams(cell_m=10.0, min_samples=2, min_cells=5))
+    sigma = 20.0
+    means = [-60.0, -20.0, 0.0, 40.0, 80.0]
+    _learn_cells(m, "lte:a", means[:4])
+    assert m.correction("lte:a", (1.0, 1.0), sigma) == (0.0, 0.0)  # 4 cells: spread unknown
+    m.learn("lte:a", (41.0, 1.0), 80.0)
+    assert m.correction("lte:a", (41.0, 1.0), sigma) == (0.0, 0.0)  # one reading: not used
+    m.learn("lte:a", (41.0, 1.0), 80.0)
+    v = sigma**2 / 2  # each cell: two equal readings, so the reported noise sets it
+    tau2 = np.var(means, ddof=1) - v
+    k = tau2 / (tau2 + v)
+    corr, var = m.correction("lte:a", (31.0, 9.0), sigma)
+    assert corr == pytest.approx(k * 40.0)
+    assert var == pytest.approx(k * v)
+    assert m.correction("lte:a", (51.0, 1.0), sigma) == (0.0, 0.0)  # a cell never visited
+    assert m.correction("lte:b", (1.0, 1.0), sigma) == (0.0, 0.0)  # another emitter
+    # a sample variance above the reported noise sets the cell's noise
+    m2 = ResidualMap(MapParams(cell_m=10.0, min_samples=2, min_cells=5))
+    _learn_cells(m2, "lte:a", means, spread=30.0)
+    v2 = (2 * 30.0**2) / 2  # sample variance 1800 over 2 readings
+    tau2 = np.var(means, ddof=1) - v2
+    assert m2.correction("lte:a", (31.0, 1.0), sigma)[1] == pytest.approx(tau2 / (tau2 + v2) * v2)
+
+
+def test_map_corrects_nothing_where_cells_differ_only_by_noise():
+    """No place error: cell means spread no more than their noise, so tau^2 = 0."""
+    m = ResidualMap(MapParams(cell_m=10.0, min_samples=2, min_cells=5))
+    _learn_cells(m, "lte:a", [-10.0, 5.0, 0.0, 8.0, -4.0])  # spread well under 20/sqrt(2)
+    assert m.spread("lte:a", 20.0) == 0.0
+    assert m.correction("lte:a", (1.0, 1.0), 20.0) == (0.0, 0.0)
 
 
 def test_learns_only_while_gnss_is_trusted():
