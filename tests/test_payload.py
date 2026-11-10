@@ -36,7 +36,7 @@ from pnt.io.mcap_log import (
 from pnt.payload import day1, recorder, wifi
 from pnt.payload.devices import TRACKING_FIELDS, FlightController, Health, parse_chrony_csv
 from pnt.payload.gpsd import Gpsd, tpv_measurements
-from pnt.payload.i2c import Bmp280, Mpu6050, bmp280_compensate
+from pnt.payload.i2c import Bmp280, Mpu6050, bmp180_compensate, bmp280_compensate
 from pnt.payload.recorder import Recorder
 from pnt.payload.sdr import RtlSdr, estimate_t0, find_gaps
 from pnt.payload.streamer import Streamer
@@ -341,8 +341,10 @@ def test_day1_report_from_the_recorded_session(recorded, tmp_path):
     assert r["sdr"][0]["gaps"] == 1
     assert r["pps"]["edges"] >= 2 and r["pps"]["offset_us"]["mean"] == pytest.approx(1.234)
     assert r["usb_current_a"] == 1.23
+    assert r["cpu"]["mem_avail_mb_min"] > 0  # the host's MemAvailable, read by Health
     md = day1.to_markdown(r)
     assert "USB current (A) | 1.23" in md and "IMU jitter" in md
+    assert f"Min available memory (MB) | {r['cpu']['mem_avail_mb_min']}" in md
     out = tmp_path / "r.day1.md"
     main(["day1", str(recorded["folder"]), "--out", str(out)])
     assert out.exists() and out.with_suffix(".json").exists()
@@ -382,6 +384,55 @@ def test_a_stall_that_catches_up_is_not_a_drop():
 def test_bmp280_compensation_matches_the_datasheet_example():
     temp, p = bmp280_compensate(519888, 415148, BMP_CAL)
     assert temp == pytest.approx(25.08, abs=0.01) and p == pytest.approx(100653.27, abs=0.01)
+
+
+# BMP180 datasheet section 3.5 worked example: AC1..MD, then UT and UP at oss 0
+BMP180_CAL = (408, -72, -14383, 32741, 32757, 23153, 6190, 4, -32768, -8711, 2868)
+
+
+def test_bmp180_compensation_matches_the_datasheet_example():
+    temp, p = bmp180_compensate(27898, 23843, BMP180_CAL, oss=0)
+    assert temp == 15.0 and p == 69964.0
+
+
+class FakeBmp180(FakeI2C):
+    """A BMP180 at 0x77 (no BMP280): 0xF6 holds the result of the last conversion started."""
+
+    UT, UP = 27898, 23843 << 3  # UP at oss 3 is about 8x the oss 0 count
+
+    def __init__(self):
+        super().__init__()
+        for reg in (0xD0, 0x88, 0xF7):
+            del self.regs[(0x76, reg)]
+        self.regs[(0x77, 0xD0)] = b"\x55"
+        self.regs[(0x77, 0xAA)] = struct.pack(">hhhHHHhhhhh", *BMP180_CAL)
+
+    def read(self, addr, reg, n):
+        if (addr, reg) == (0x77, 0xF6):
+            start = [w for w in self.writes if w[:2] == (0x77, 0xF4)][-1][2][0]
+            if start == 0x2E:
+                return self.UT.to_bytes(2, "big")
+            return (self.UP << (8 - Bmp280.BMP180_OSS)).to_bytes(3, "big")
+        return super().read(addr, reg, n)
+
+
+def test_bmp180_is_found_at_0x77_and_read_with_two_conversions():
+    bus, slept, clock = FakeBmp180(), [], iter([1_000, 27_000])
+    baro = Bmp280(bus=bus, sleep=slept.append, clock=lambda: next(clock))
+    assert baro.probe() is None and baro.addr == 0x77 and baro.hardware == "bmp180"
+    baro.configure()
+    assert baro.cal == BMP180_CAL
+    t, temp, p = baro.read()
+    assert [w[2] for w in bus.writes] == [b"\x2e", b"\xf4"]  # temperature, then pressure oss 3
+    assert slept == list(Bmp280.BMP180_WAIT_S)
+    assert t == 14_000  # middle of the pressure conversion
+    assert (temp, p) == bmp180_compensate(FakeBmp180.UT, FakeBmp180.UP, BMP180_CAL, oss=3)
+    assert 15.0 == temp and 30_000 < p < 110_000
+
+
+def test_bmp280_is_still_preferred_and_named_bmp280():
+    baro = Bmp280(bus=FakeI2C())
+    assert baro.probe() is None and baro.addr == 0x76 and baro.hardware == "bmp280"
 
 
 def test_mpu6050_scaling():

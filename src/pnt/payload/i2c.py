@@ -1,4 +1,4 @@
-"""MPU6050 IMU and BMP280 barometer on the Pi's I2C bus (ADR-0014, ADR-0018).
+"""MPU6050 IMU and BMP280 or BMP180 barometer on the Pi's I2C bus (ADR-0014, ADR-0018).
 
 Read through Linux `/dev/i2c-N` with the standard library only (no new dependency). Both
 sensors are sampled from user space, so each sample is stamped with the host clock at the read
@@ -197,13 +197,48 @@ def bmp280_compensate(adc_t: int, adc_p: int, cal: tuple) -> tuple[float, float]
     return temp, p + (v1 + v2 + p7) / 16.0
 
 
+def bmp180_compensate(ut: int, up: int, cal: tuple, oss: int) -> tuple[float, float]:
+    """Bosch BMP180 datasheet section 3.5 (integer): temperature degC, pressure Pa.
+
+    The datasheet's divisions by powers of two are arithmetic shifts, so they floor (`//`);
+    its worked example (T 150 = 15.0 degC, p 69964 Pa) only comes out with flooring."""
+    ac1, ac2, ac3, ac4, ac5, ac6, b1, b2, _mb, mc, md = cal
+    x1 = (ut - ac6) * ac5 >> 15
+    if x1 + md == 0:
+        return float("nan"), float("nan")
+    x2 = (mc << 11) // (x1 + md)
+    b5 = x1 + x2
+    temp = ((b5 + 8) >> 4) / 10.0
+    b6 = b5 - 4000
+    x1 = (b2 * (b6 * b6 >> 12)) >> 11
+    x2 = ac2 * b6 >> 11
+    x3 = x1 + x2
+    b3 = (((ac1 * 4 + x3) << oss) + 2) // 4
+    x1 = ac3 * b6 >> 13
+    x2 = (b1 * (b6 * b6 >> 12)) >> 16
+    x3 = ((x1 + x2) + 2) >> 2
+    b4 = (ac4 * ((x3 + 32768) & 0xFFFFFFFF)) >> 15
+    b7 = ((up - b3) & 0xFFFFFFFF) * (50000 >> oss)
+    if b4 == 0:
+        return temp, float("nan")
+    pa = (b7 * 2) // b4 if b7 < 0x80000000 else (b7 // b4) * 2
+    x1 = (pa >> 8) * (pa >> 8)
+    x1 = (x1 * 3038) >> 16
+    x2 = (-7357 * pa) >> 16
+    return temp, float(pa + ((x1 + x2 + 3791) >> 4))
+
+
 def pressure_altitude_m(p_pa: float) -> float:
     """International standard atmosphere height for pressure p (only differences are used)."""
     return 44330.0 * (1.0 - (p_pa / 101325.0) ** (1 / 5.255))
 
 
 class Bmp280:
-    """`baro` `altitude` records: height above the session origin.
+    """`baro` `altitude` records: height above the session origin, from a BMP280 or a BMP180.
+
+    The probe finds which chip answers and sets `hardware` to match. The BMP280 runs in its
+    normal (free-running) mode; the BMP180 has none, so each sample starts a temperature and
+    then a pressure conversion (oversampling `BMP180_OSS`) and waits for each (ADR-0014).
 
     Referenced to the first GNSS fix it sees (height of that fix above the origin, against the
     pressure at that moment), as the sim's model assumes (`pnt.sim.sensors.BMP280`). Until then
@@ -211,9 +246,12 @@ class Bmp280:
     record keeps the raw pressure in `meta`, so it can be re-referenced later."""
 
     name = "baro"
-    hardware = "bmp280"
+    hardware = "bmp280"  # "bmp180" once the probe finds one
     CHIP_ID = 0xD0
     IDS = (0x58,)  # BMP280 (a BME280 answers 0x60 and also works)
+    BMP180_ID = 0x55  # same register; the BMP180 is only ever at 0x77
+    BMP180_OSS = 3  # ultra high resolution: 25.5 ms per pressure conversion (datasheet, max)
+    BMP180_WAIT_S = (0.0045, 0.0255)  # temperature, pressure (oss 3) conversion times, max
 
     def __init__(
         self,
@@ -222,9 +260,10 @@ class Bmp280:
         rate_hz: float = 10.0,
         start_up_m: float | None = None,
         clock=now_gps_ns,
+        sleep=time.sleep,
     ):
         self.bus = bus if bus is not None else LinuxI2C(1)
-        self.addr, self.rate_hz, self.clock = addr, rate_hz, clock
+        self.addr, self.rate_hz, self.clock, self.sleep = addr, rate_hz, clock, sleep
         self.start_up_m = start_up_m
         self.ref: tuple[float, float] | None = None  # (pressure altitude, up above origin)
         self.samples = 0
@@ -243,12 +282,40 @@ class Bmp280:
             if chip in (*self.IDS, 0x60):
                 self.addr = addr
                 return None
-        return "no BMP280 at 0x76 or 0x77"
+            if chip == self.BMP180_ID:
+                self.addr, self.hardware = addr, "bmp180"
+                return None
+        return "no BMP280 or BMP180 at 0x76 or 0x77"
 
     def configure(self) -> None:
+        if self.hardware == "bmp180":  # 11 big-endian words, AC1..MD
+            self.cal = struct.unpack(">hhhHHHhhhhh", self.bus.read(self.addr, 0xAA, 22))
+            return
         self.cal = struct.unpack("<HhhHhhhhhhhh", self.bus.read(self.addr, 0x88, 24))
         self.bus.write(self.addr, 0xF5, b"\x10")  # standby 0.5 ms, IIR filter x16
         self.bus.write(self.addr, 0xF4, b"\x57")  # temp x2, pressure x16, normal mode
+
+    def read(self) -> tuple[int, float, float]:
+        """One sample: (stamp in GPS ns, temperature degC, pressure Pa). Raises OSError."""
+        if self.hardware != "bmp180":
+            t = self.clock()
+            d = self.bus.read(self.addr, 0xF7, 6)
+            adc_p = (d[0] << 12) | (d[1] << 4) | (d[2] >> 4)
+            adc_t = (d[3] << 12) | (d[4] << 4) | (d[5] >> 4)
+            return (t, *bmp280_compensate(adc_t, adc_p, self.cal))
+        oss = self.BMP180_OSS
+        self.bus.write(self.addr, 0xF4, b"\x2e")  # start a temperature conversion
+        self.sleep(self.BMP180_WAIT_S[0])
+        d = self.bus.read(self.addr, 0xF6, 2)
+        ut = (d[0] << 8) | d[1]
+        t0 = self.clock()
+        self.bus.write(self.addr, 0xF4, bytes([0x34 | (oss << 6)]))  # start a pressure one
+        self.sleep(self.BMP180_WAIT_S[1])
+        d = self.bus.read(self.addr, 0xF6, 3)
+        t1 = self.clock()
+        up = ((d[0] << 16) | (d[1] << 8) | d[2]) >> (8 - oss)
+        # stamped at the middle of the pressure conversion, the part of the sample that matters
+        return ((t0 + t1) // 2, *bmp180_compensate(ut, up, self.cal, oss))
 
     def status(self) -> dict:
         return {"samples": self.samples, "errors": self.errors, "referenced": self.ref is not None}
@@ -257,17 +324,13 @@ class Bmp280:
         self.configure()
         while not ctx.stop.is_set():
             self.timer.wait()
-            t = self.clock()
             try:
-                d = self.bus.read(self.addr, 0xF7, 6)
+                t, temp, p = self.read()
             except OSError as exc:
                 self.errors += 1
                 if self.errors % 100 == 1:
-                    ctx.event(t, "baro read error", error=repr(exc), errors=self.errors)
+                    ctx.event(self.clock(), "baro read error", error=repr(exc), errors=self.errors)
                 continue
-            adc_p = (d[0] << 12) | (d[1] << 4) | (d[2] >> 4)
-            adc_t = (d[3] << 12) | (d[4] << 4) | (d[5] >> 4)
-            temp, p = bmp280_compensate(adc_t, adc_p, self.cal)
             h = pressure_altitude_m(p)
             if self.ref is None:
                 fix = ctx.last_fix
