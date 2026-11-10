@@ -39,7 +39,7 @@ void setup() {
   pinMode(PIN_PPS, INPUT);
   attachInterrupt(digitalPinToInterrupt(PIN_PPS), onPps, RISING);
   // GPS NMEA goes to the Pi (GPS HAT, ADR-0014): the hub only timestamps PPS edges, and the Pi
-  // labels each edge with GPS week/TOW. PNT_GNSS_RAW_NMEA is unused (ICD follow-up).
+  // labels each edge with GPS week/TOW.
   // TODO: MPU6050 on I2C (400 kHz) at up to 1 kHz -> PNT_IMU_RAW
   // TODO: BMP280 on I2C -> PNT_BARO
   // TODO: Wi-Fi scan loop -> PNT_WIFI_AP, BSSID = first 8 bytes of SHA-256(salt || bssid) (ADR-0011)

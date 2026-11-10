@@ -46,10 +46,5 @@
       <field type="float" name="rtt_sigma_ns"></field>
       <field type="uint8_t" name="n_frames"></field>
     </message>
-    <message id="61006" name="PNT_GNSS_RAW_NMEA">
-      <description>A raw NMEA sentence from the payload GPS, forwarded for logging.</description>
-      <field type="uint64_t" name="time_us">Hub monotonic time of the first byte.</field>
-      <field type="char[96]" name="sentence"></field>
-    </message>
   </messages>
 </mavlink>

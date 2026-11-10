@@ -367,7 +367,6 @@ MAVLINK_MSG_ID_PNT_IMU_RAW = 61002
 MAVLINK_MSG_ID_PNT_BARO = 61003
 MAVLINK_MSG_ID_PNT_WIFI_AP = 61004
 MAVLINK_MSG_ID_PNT_FTM_RANGE = 61005
-MAVLINK_MSG_ID_PNT_GNSS_RAW_NMEA = 61006
 
 
 class MAVLink_pnt_hub_status_message(MAVLink_message):
@@ -617,46 +616,6 @@ class MAVLink_pnt_ftm_range_message(MAVLink_message):
 setattr(MAVLink_pnt_ftm_range_message, "name", mavlink_msg_deprecated_name_property())
 
 
-class MAVLink_pnt_gnss_raw_nmea_message(MAVLink_message):
-    """
-    A raw NMEA sentence from the payload GPS, forwarded for logging.
-    """
-
-    id = MAVLINK_MSG_ID_PNT_GNSS_RAW_NMEA
-    msgname = "PNT_GNSS_RAW_NMEA"
-    fieldnames = ["time_us", "sentence"]
-    ordered_fieldnames = ["time_us", "sentence"]
-    fieldtypes = ["uint64_t", "char"]
-    fielddisplays_by_name: Dict[str, str] = {}
-    fieldenums_by_name: Dict[str, str] = {}
-    fieldunits_by_name: Dict[str, str] = {}
-    native_format = bytearray(b"<Qc")
-    orders = [0, 1]
-    lengths = [1, 1]
-    array_lengths = [0, 96]
-    crc_extra = 219
-    unpacker = struct.Struct("<Q96s")
-    instance_field = None
-    instance_offset = -1
-
-    def __init__(self, time_us: int, sentence: bytes):
-        MAVLink_message.__init__(self, MAVLink_pnt_gnss_raw_nmea_message.id, MAVLink_pnt_gnss_raw_nmea_message.msgname)
-        self._fieldnames = MAVLink_pnt_gnss_raw_nmea_message.fieldnames
-        self._instance_field = MAVLink_pnt_gnss_raw_nmea_message.instance_field
-        self._instance_offset = MAVLink_pnt_gnss_raw_nmea_message.instance_offset
-        self.time_us = time_us
-        self._sentence_raw = sentence
-        self.sentence = sentence.split(b"\x00", 1)[0].decode("ascii", errors="replace")
-
-    def pack(self, mav: "MAVLink", force_mavlink1: bool = False) -> bytes:
-        return self._pack(mav, self.crc_extra, self.unpacker.pack(self.time_us, self._sentence_raw), force_mavlink1=force_mavlink1)
-
-
-# Define name on the class for backwards compatibility (it is now msgname).
-# Done with setattr to hide the class variable from mypy.
-setattr(MAVLink_pnt_gnss_raw_nmea_message, "name", mavlink_msg_deprecated_name_property())
-
-
 mavlink_map: Dict[int, Type[MAVLink_message]] = {
     MAVLINK_MSG_ID_PNT_HUB_STATUS: MAVLink_pnt_hub_status_message,
     MAVLINK_MSG_ID_PNT_PPS: MAVLink_pnt_pps_message,
@@ -664,7 +623,6 @@ mavlink_map: Dict[int, Type[MAVLink_message]] = {
     MAVLINK_MSG_ID_PNT_BARO: MAVLink_pnt_baro_message,
     MAVLINK_MSG_ID_PNT_WIFI_AP: MAVLink_pnt_wifi_ap_message,
     MAVLINK_MSG_ID_PNT_FTM_RANGE: MAVLink_pnt_ftm_range_message,
-    MAVLINK_MSG_ID_PNT_GNSS_RAW_NMEA: MAVLink_pnt_gnss_raw_nmea_message,
 }
 
 
@@ -1206,23 +1164,3 @@ class MAVLink(object):
 
         """
         self.send(self.pnt_ftm_range_encode(time_us, bssid_hash, range_m, rtt_sigma_ns, n_frames), force_mavlink1=force_mavlink1)
-
-    def pnt_gnss_raw_nmea_encode(self, time_us: int, sentence: bytes) -> MAVLink_pnt_gnss_raw_nmea_message:
-        """
-        A raw NMEA sentence from the payload GPS, forwarded for logging.
-
-        time_us                   : Hub monotonic time of the first byte. (type:uint64_t)
-        sentence                  :  (type:char)
-
-        """
-        return MAVLink_pnt_gnss_raw_nmea_message(time_us, sentence)
-
-    def pnt_gnss_raw_nmea_send(self, time_us: int, sentence: bytes, force_mavlink1: bool = False) -> None:
-        """
-        A raw NMEA sentence from the payload GPS, forwarded for logging.
-
-        time_us                   : Hub monotonic time of the first byte. (type:uint64_t)
-        sentence                  :  (type:char)
-
-        """
-        self.send(self.pnt_gnss_raw_nmea_encode(time_us, sentence), force_mavlink1=force_mavlink1)

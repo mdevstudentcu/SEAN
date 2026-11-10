@@ -22,7 +22,7 @@ Use the GPS HAT on the payload Pi (NMEA on `/dev/serial0`, PPS on GPIO4, read by
 
 ## Consequences
 
-- GPS data now enters through the Pi, not the ESP32. The hub only timestamps the PPS edge (a wire from the HAT's PPS pin) and the Pi labels each edge with GPS time. `PNT_GNSS_RAW_NMEA` in `pnt.xml` becomes unused: remove it in an ICD PR.
+- GPS data now enters through the Pi, not the ESP32. The hub only timestamps the PPS edge (a wire from the HAT's PPS pin) and the Pi labels each edge with GPS time. `PNT_GNSS_RAW_NMEA` was removed from `pnt.xml` (#24).
 - Interference cues come from per-satellite SNR in the NMEA GSV sentences instead of a receiver jamming flag.
 - **Barometer (amended 2026-11-09):** the kit's barometer is a BMP180. It has a different register map and compensation from the BMP280 and answers chip ID `0x55`, at I2C address `0x77` only.
   - `pnt.payload.i2c` probes for either part and records which one it found (`bmp180` or `bmp280` in `meta.yaml`).
