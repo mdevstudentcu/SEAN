@@ -4,7 +4,7 @@
 - **Traces to:** REQ-01, T1 in [`plan.md`](plan.md), UC-01. The mentors asked for this on 2026-11-10: "You will need to explain the calculations that lead to this accuracy", and "handover timing … must remain within the overall timing/accuracy budget".
 - **Judged against:** T1 first, our goal: 95 % horizontal error ≤ 25 m for ≥ 300 s after GPS loss. Then the fallback, the mentors' figure: ≤ 50 m for ~2 min (taken as 120 s). Both `TBC` (ADR-0034, Proposed). A target holds only if the whole window is within it.
 - **Script:** [`analysis/accuracy_budget.py`](../analysis/accuracy_budget.py) computes every number here. Tests: [`tests/test_accuracy_budget.py`](../tests/test_accuracy_budget.py).
-- **Kind of evidence:** analysis and sim. Every tower and clock value is a `placeholder` in the *Sim validity* table of [`verification.md`](verification.md), so none of this is a real-world result.
+- **Kind of evidence:** analysis and sim. Every tower and clock value is a `placeholder` in the *Sim validity* table of [`verification.md`](verification.md), so none of this is a real-world result. Numbers from commit `10956d6` (clean tree), seeds 0–49 (REQ-10).
 
 ## Result
 
@@ -15,14 +15,12 @@ Worst 95 % error over each target's window (sim, seeds 0–49, GPS good for 120 
 | `uc01` | `ekf` | **Missed by 2 m.** Budget 23 m, Monte Carlo 27 m | Met: 23 m, 27 m | Range noise after handover (20 m per reading): 19 m of the 21 m budget |
 | `uc01` | `ekf-imu` | Borderline. Budget 15 m, Monte Carlo 25 m | Met: 14 m, 25 m | Range noise after handover: 13 m of 14 m |
 | `uc01` | `ekf-calibrated` | **Missed.** Budget 53 m, Monte Carlo 40 m | Met: 32 m, 33 m | Range noise during calibration, left in the learned tower drifts and multiplied by t: 47 m alone at +300 s |
-| `uc01-realistic` | `ekf-calibrated` | **Missed by 10–20×.** Budget 501 m, Monte Carlo 713 m | Missed: 324 m, 425 m | Multipath (50 m, 30 s, `TBC`): 215 m alone at +120 s, 360 m at +300 s. Four more terms are each over 25 m on their own |
+| `uc01-realistic` | `ekf-calibrated` | **Missed by 20–30×.** Budget 501 m, Monte Carlo 713 m | Missed: 324 m, 425 m | Multipath (50 m, 30 s, `TBC`): 215 m alone at +120 s, 360 m at +300 s. Four more terms are each over 25 m on their own |
 | `uc01-realistic` | `ekf`, `ekf-imu` | **Missed by km.** Budget 7.2 km, Monte Carlo 4.2 / 10.5 km | Missed: 3.6 km; 2.5 / 4.1 km | Receiver clock: they do not model our clock in the tower ranges, so its 20 ppb drift (6 m/s) goes into the position: 1.1 km alone at +120 s |
 
 - **T1 is not met anywhere in the Monte Carlo.** On the committed UC-01 scenario `ekf` and `ekf-imu` are within 0–7 m of it; the realistic set misses it by an order of magnitude or more.
 - **The fallback is met on `uc01`** by all three estimators with 120 s of GPS first, and by none in the realistic set.
 - **The IMU alone holds ≤ 25 m for 31 s and ≤ 50 m for 43 s** after GPS loss. It bridges tower dropouts; it cannot carry a 2 min outage.
-
-
 
 ## The two scenarios
 
@@ -153,10 +151,10 @@ All values in metres. Figure: `analysis/results/accuracy-budget/budget_vs_monte_
 
 Where they agree and where they do not:
 - **`uc01`, `ekf`: within 30 %** at every time. The budget's worst over 300 s is 23 m against the Monte Carlo's 27 m: the Monte Carlo 95th percentile over 50 seeds moves by a few metres from second to second, and the budget is a smooth curve.
-- **`uc01`, `ekf-calibrated`: the budget is high late** (53 m against 35 m at +300 s). The filter keeps refining its tower drifts from the redundant towers after handover; the budget holds them (approximation 1). Its dependence on calibration time matches (below).
-- **`uc01`, `ekf-imu`: the budget is low** (15 m against 25 m worst over 300 s). The budget lets the IMU filter average noise over 7 s; its weak heading on a multirotor (`nav/imu.py`) means it averages less. Not modelled.
-- **`uc01-realistic`, `ekf-calibrated`: within a factor 1.6**, the budget low after +60 s. Its largest term, multipath, is the one the filter tracks with a model of the same size and memory, so the fix weights matter most there; the budget's snapshot fix is simpler than the filter's.
-- **`uc01-realistic`, `ekf` and `ekf-imu`: the same size, a different shape.** The budget says the unmodelled 6 m/s clock drift drags the position by km; the Monte Carlo starts lower (the filter carries the GPS position and rejects towers at its 99.9 % gate) and ends as large or larger. Neither is usable.
+- **`uc01`, `ekf-calibrated`: the budget is high late** (53 m against 35 m at +300 s). The likely cause, not checked: the filter keeps refining its tower drifts from the redundant towers after handover, and the budget holds them (approximation 1). Its dependence on calibration time matches (below).
+- **`uc01`, `ekf-imu`: the budget is low** (15 m against 25 m worst over 300 s). The budget lets the IMU filter average noise over 7 s. A likely cause, not checked: its weak heading on a multirotor (`nav/imu.py`) means it averages less.
+- **`uc01-realistic`, `ekf-calibrated`: within a factor 1.6**, the budget low after +60 s (425 m against 278 m at +120 s). Not explained yet.
+- **`uc01-realistic`, `ekf` and `ekf-imu`: the same size, a different shape.** The budget says the unmodelled 6 m/s clock drift drags the position by km; the Monte Carlo starts lower (the filter carries the GPS position for a while; the budget does not model its 99.9 % innovation gate) and ends as large or larger. Neither is usable.
 - **Right after handover the budget is high** for every estimator: in the realistic set it starts at 90 m where the Monte Carlo starts at 3 m (figure). The filter still carries the GPS position for a few seconds; the budget's fix stands alone (approximation 2). By +30 s they agree (199 m against 190 m).
 
 ## Handover: how long GPS must be good first
@@ -190,13 +188,13 @@ Figure: `analysis/results/accuracy-budget/handover.png`.
 | `uc01` | `ekf-calibrated` | not met with ≤ 300 s (budget 28 m, Monte Carlo 35 m at 300 s) | budget 60 s, Monte Carlo 120 s |
 | `uc01-realistic` | all three | not met | not met |
 
-So on the committed UC-01 scenario, 30 s of GPS is enough for the fallback with `ekf`, and 120 s with `ekf-calibrated`. T1 is not met by any filter with up to 300 s of GPS; `ekf-imu` is on its edge from 30 s.
+So on the committed UC-01 scenario, 30 s of GPS is enough for the fallback with `ekf` and `ekf-imu`, and 120 s with `ekf-calibrated`. T1 is not met by any filter with up to 300 s of GPS; `ekf-imu` is on its edge from 30 s.
 
 ## Approximations
 
 - After handover the tower clocks are held, not re-learned. The filter does refine them a little from the one redundant tower; the budget ignores that (conservative).
 - Each fix stands alone, apart from the noise averaging. Right after handover the filter still carries the GPS position for a few seconds; the budget does not (pessimistic for the first 10–30 s).
-- The filter's 99.9 % innovation gate is not modelled. Where the budget predicts km of clock error (`ekf`, `ekf-imu` in the realistic set) the gate will reject towers; the budget gets the size of the failure, not its shape.
+- The filter's 99.9 % innovation gate is not modelled. Where the budget predicts km of clock error (`ekf`, `ekf-imu` in the realistic set) the gate may reject towers (not checked); the budget gets the size of the failure, not its shape.
 - GPS position error during calibration, altitude and the lever arm are ignored. The network builder's shared clock is counted per tower (conservative: a common part would partly go into the clock column).
 - Dropouts during calibration count as lost readings on average, not block by block.
 - The IMU filter's averaging uses its own assumed noise, including its `gyro_extra` attitude noise (tuning, `nav/imu.py`), not the measured sensor.
