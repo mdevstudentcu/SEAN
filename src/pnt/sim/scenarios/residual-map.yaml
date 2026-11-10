@@ -1,0 +1,14 @@
+# gps-outage with a tower error that depends on where the drone is (`place_error`, #95): the
+# same street gives the same reflection every lap. The loop repeats every 118 s, so the first lap
+# (GPS trusted) passes every place the outage lap does. Compare estimators ekf and ekf-map
+# (residual map learned while GPS is trusted, ADR-0032). The field has its own random stream:
+# every other record is gps-outage's.
+extends: gps-outage
+description: GPS outage with a place-dependent tower error, repeated every lap.
+sources:
+  lte:
+    place_error:
+      sigma_m: 20.0   # TBC: same size as the white noise. The campus ray trace (ADR-0016) shows 40-45 m on one tower over a 400 m arc
+      corr_m: 50.0    # TBC: building scale
+provenance:
+  place_error: TBC   # form: what a ray tracer gives (ADR-0016); sizes not measured

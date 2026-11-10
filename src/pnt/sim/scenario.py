@@ -56,6 +56,8 @@ _HOSTILE_STREAM = 223
 _ADSB_STREAM = 0xAD5B
 # The faults that reach the aircraft around us as well as our receiver (`pnt.sim.adsb`)
 GNSS_ZONES = ("jamming_zone", "spoof_zone")
+# The place-dependent tower error's own random stream (`place_error`, #95), for the same reason
+_PLACE_STREAM = 224
 
 
 @dataclass
@@ -273,6 +275,11 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
                 if em_llh is None:
                     raise ValueError("ray_table needs real tower positions (towers_from)")
                 cfg["ray_table"] = load_ray_table(cfg["ray_table"], em_llh, spec["duration_s"])
+            if "place_error" in cfg:  # {sigma_m, corr_m}: same place, same error (#95)
+                rng_place = np.random.default_rng([seed, _PLACE_STREAM, *source.encode()])
+                cfg["place_error_m"] = models.place_error(
+                    rng_place, len(em), pos, **cfg.pop("place_error")
+                )
             told_em, em_llh = _told_positions(
                 cfg.pop("told_position_sigma_m", 0.0), em, em_llh, spec, rng
             )

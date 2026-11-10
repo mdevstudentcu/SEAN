@@ -99,6 +99,7 @@ def pseudoranges(
     ray_table: dict | None = None,
     max_excess_m: float = 300.0,
     tower_clock_m: np.ndarray | None = None,
+    place_error_m: np.ndarray | None = None,
     receiver: str = "payload",
     tower_clocks_out: list | None = None,
     **_,
@@ -117,6 +118,8 @@ def pseudoranges(
     - dropout: {availability, block_s}, each tower heard or lost in random blocks of time.
     - told_emitters / told_sigma_m: what the filter is told, when that differs from the truth.
       `emitters` and `sigma_m` always describe the truth.
+    - place_error_m: (towers x samples, m) an error that depends only on where the receiver is
+      (`place_error`), added as given.
     - ray_table: {tower index: (times, excess delay m, NaN if no path)}, from a ray tracer. Adds
       the excess delay of the nearest sample in time, and loses the tower with no path or beyond
       max_excess_m (TBC).
@@ -154,6 +157,8 @@ def pseudoranges(
         if multipath:
             rho = rho + _gauss_markov(rng, dt, multipath["sigma_m"], multipath["tau_s"])
         keep = _available(rng, t_s, dropout) if dropout else np.ones(len(ts_ns), bool)
+        if place_error_m is not None:
+            rho = rho + place_error_m[i]
         if ray_table is not None:
             times, excess = ray_table[i]
             at = excess[np.searchsorted((times[1:] + times[:-1]) / 2, t_s)]
@@ -268,6 +273,28 @@ def oscillator(
     drift = y0 + np.cumsum(w_drift)
     drift_before = np.concatenate([[y0], drift[:-1]])
     return x0 + np.cumsum(drift_before * dt + w_offset)
+
+
+# Random Fourier features per tower for `place_error`. Numerical, not a model value: enough
+# that the field's covariance is close to its target (Rahimi & Recht, NeurIPS 2007).
+PLACE_ERROR_WAVES = 256
+
+
+def place_error(rng, n_towers: int, pos: np.ndarray, sigma_m: float, corr_m: float) -> np.ndarray:
+    """A pseudorange error that depends only on where the receiver is (towers x samples, m).
+
+    Reflections and blocked direct paths repeat every time the receiver passes the same place
+    (what a ray tracer gives, ADR-0016), unlike `multipath`, which is a process in time. Each
+    tower gets its own zero-mean Gaussian random field over horizontal position, with standard
+    deviation `sigma_m` and squared-exponential correlation of length `corr_m`
+    (sigma^2 exp(-d^2 / 2 corr^2)), drawn as random Fourier features. Same place, same error."""
+    k = PLACE_ERROR_WAVES
+    out = np.empty((n_towers, len(pos)))
+    for i in range(n_towers):
+        w = rng.normal(0.0, 1.0 / corr_m, (k, 2))
+        b = rng.uniform(0.0, 2.0 * np.pi, k)
+        out[i] = sigma_m * np.sqrt(2.0 / k) * np.cos(pos[:, :2] @ w.T + b).sum(axis=1)
+    return out
 
 
 def _gauss_markov(rng, dt: np.ndarray, sigma: float, tau_s: float) -> np.ndarray:
