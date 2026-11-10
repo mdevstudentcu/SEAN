@@ -302,7 +302,7 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
                 rng,
                 spec["origin_llh"],
                 REFERENCE_DIR / cfg.pop("tle_file"),
-                source=source,
+                source=cfg.pop("source", source),  # two LEO layers in one run are both `leo`
                 clock_s=clock_s,
                 **cfg,
             )
