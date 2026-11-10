@@ -12,6 +12,7 @@ The source of truth for what we are building and why. When code or another doc d
 | [`risks.md`](risks.md) | Ranked risks (`RSK-nn`) with mitigations |
 | [`safety.md`](safety.md) | RF/spectrum, legal, flight, privacy and cybersecurity considerations |
 | [`verification.md`](verification.md) | Requirement → method → test → result, and how the sim aligns to reality |
+| [`accuracy-budget.md`](accuracy-budget.md) | UC-01 accuracy budget: each error term after GPS loss, how it grows, and how long GPS must be good first (REQ-01, T1) |
 | [`quality.md`](quality.md) | What every change must show before it is called ready: evidence per claim, verdicts |
 | [`mentor-qa.md`](mentor-qa.md) | Answers from our Honeywell mentors, dated |
 | [`threat-model.md`](threat-model.md) | Attacks ranked per use case, mapped to scenarios and detections, with the gaps |

@@ -46,6 +46,7 @@ Existing issues that still apply:
 - **Dashboard:** v0 (#25)
 - **Analysis:** results (#27), threat model (#29), sim-to-real (#30)
 - **Estimator:** stage 2, the IMU (#12)
+- **Accuracy budget (REQ-01, T1):** each error term after GPS loss and the handover, checked against Monte Carlo: [`accuracy-budget.md`](accuracy-budget.md)
 
 ## Demo
 
