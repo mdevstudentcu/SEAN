@@ -35,6 +35,23 @@ empty: re-acquisition after a gap, which may start a new arc in the front end, i
 (TBC); the lookup aligns values across the frame ambiguity either way. Only pseudoranges are made,
 not the front end's dopplers.
 
+Carrier hopping (#173): `cells_from.earfcn` may list several carriers, with a `hop:` block
+(`Hop`). One dongle, one clock, dwells on each carrier in the list's order in turn, from t = 0.
+- Record epochs follow the dwells (`dwell_schedule`): none in the first `reacquire_s` of each
+  dwell (retune, settling, a search window), then one at the start of what is left and more at
+  `rate_hz` while the dwell lasts. A dwell shorter than 1 / `rate_hz` still gets one record, so
+  dwells under 1 s at 1 Hz make more records per second than one carrier does.
+- At an epoch only the dwelled carrier's sectors are on air: hearing, the near-far floor, the
+  one-cell-per-PCI rule and `snr_db` are all within that carrier.
+- Every sector of every carrier is drawn as before: site clocks per registered eNB across its
+  carriers (ADR-0022; `scenario.tower_groups`), multipath, dropout and table position error per
+  eNB, so the sectors of one eNB share them on every carrier.
+- `arc` stays 0 across dwells. The front end carries a cell across a retune (`frontend._start`)
+  and continues its arc when the re-found timing is within 3 sigma + 2 samples of the loop's
+  prediction, which at dwell cycles of seconds it should be (TBC, no capture has hopped).
+- With one carrier there is no retune: `hop:` changes nothing and the records are the
+  single-EARFCN form's.
+
 Every value is TBC (ADR-0015).
 """
 
@@ -68,8 +85,10 @@ KEYS = frozenset(
         "multipath",
         "dropout",
         "told_position_sigma_m",
+        "hop",
     }
 )
+_NEEDS_HOP = "several carriers need a hop: block (one dongle hears one carrier at a time)"
 
 
 @dataclass(frozen=True)
@@ -184,6 +203,71 @@ def sectors(path: Path, earfcn: int) -> tuple[Sector, ...]:
     return tuple(out)
 
 
+def carriers(cells_from: dict) -> tuple[int, ...]:
+    """The EARFCNs a front-end source names (`cells_from.earfcn`: one, or a list to hop)."""
+    earfcn = cells_from["earfcn"]
+    out = tuple(int(e) for e in earfcn) if isinstance(earfcn, list | tuple) else (int(earfcn),)
+    if not out or len(set(out)) != len(out):
+        raise ValueError(f"cells_from.earfcn needs distinct carriers, not {earfcn!r}")
+    return out
+
+
+def sectors_of(path: Path, earfcns: tuple[int, ...]) -> tuple[Sector, ...]:
+    """Every sector of each carrier in turn (`sectors`), in the order the carriers are listed."""
+    return tuple(s for e in earfcns for s in sectors(path, e))
+
+
+@dataclass(frozen=True)
+class Hop:
+    """One dongle dwelling on each carrier of `cells_from.earfcn` in turn (#173). No defaults:
+    the scenario states both (TBC)."""
+
+    dwell_s: float  # time on one carrier, its dead time included
+    reacquire_s: float  # dead time at the start of each dwell: retune, settling, a search
+
+
+@dataclass(frozen=True)
+class Schedule:
+    """Record epochs of a hopping dongle (`dwell_schedule`)."""
+
+    ts: np.ndarray  # record epochs (s)
+    carrier: np.ndarray  # index into the carrier list dwelled on at each epoch
+    n_epochs: int  # the front end's 5 ms epochs per record
+
+
+def _hop(cfg: dict | None) -> Hop:
+    if not isinstance(cfg, dict) or set(cfg) != {"dwell_s", "reacquire_s"}:
+        raise ValueError(f"hop needs dwell_s and reacquire_s, not {cfg!r}")
+    hop = Hop(float(cfg["dwell_s"]), float(cfg["reacquire_s"]))
+    if not 0.0 <= hop.reacquire_s < hop.dwell_s:
+        raise ValueError(f"hop needs 0 <= reacquire_s < dwell_s, not {cfg!r}")
+    return hop
+
+
+def dwell_schedule(cfg: dict, duration_s: float, rate_hz: float) -> Schedule | None:
+    """Record epochs for a front-end source that hops (module docstring), or None when it hears
+    one carrier: then the epochs are the source's own `rate_hz` grid, as without `hop:`."""
+    n = len(carriers(cfg["cells_from"]))
+    if "hop" not in cfg:
+        if n > 1:
+            raise ValueError(_NEEDS_HOP)
+        return None
+    hop = _hop(cfg["hop"])
+    if n == 1:
+        return None
+    ts, on = [], []
+    for k in range(int(np.ceil(duration_s / hop.dwell_s))):
+        start = k * hop.dwell_s
+        end = min(start + hop.dwell_s, duration_s)
+        offsets = np.arange(0.0, hop.dwell_s - hop.reacquire_s, 1.0 / rate_hz)
+        t = start + hop.reacquire_s + offsets
+        t = t[t < end]
+        ts.append(t)
+        on.append(np.full(len(t), k % n))
+    usable = min(1.0 / rate_hz, hop.dwell_s - hop.reacquire_s)
+    return Schedule(np.concatenate(ts), np.concatenate(on).astype(int), round(usable / EPOCH_S))
+
+
 def table_enu(secs, origin_llh) -> np.ndarray:
     """Sector positions (ENU m) as the lookup places them: the origin's height plus the antenna's
     above ground (`pnt.nav.cells.attach`)."""
@@ -288,9 +372,11 @@ def records(
     origin_llh,
     seed: int,
     tower_clocks: dict[str, np.ndarray],
+    schedule: Schedule | None = None,
 ) -> tuple[list[Measurement], dict[str, list[float]], dict[str, np.ndarray]]:
     """One dongle's records of the heard sectors at times `ts` (s; `ts_ns` as GPS ns), receiver
-    at `pos`. `tower_clocks` holds each sector's clock (m) at `t_truth`, by `Sector.key`.
+    at `pos`. `tower_clocks` holds each sector's clock (m) at `t_truth`, by `Sector.key`. A
+    source that hops passes its `dwell_schedule`, whose epochs `ts` must be.
 
     Returns (records, emitters, rx_clocks): `emitters` maps each emitter ID that one eNB alone
     uses to its true position (ENU m); `rx_clocks` maps the dongle's name to its clock (m) at
@@ -304,7 +390,14 @@ def records(
         raise ValueError(f"front-end records are LTE: name the source lte, not {source!r}")
     if not tower_clocks:
         raise ValueError("record_shape front_end needs a `tower_clocks:` block")
-    secs = sectors(cells_file, int(cfg["cells_from"]["earfcn"]))
+    earfcns = carriers(cfg["cells_from"])
+    secs = sectors_of(cells_file, earfcns)
+    if len(earfcns) > 1 and "hop" not in cfg:
+        raise ValueError(_NEEDS_HOP)
+    if (schedule is not None) != (len(earfcns) > 1):
+        raise ValueError("a source that hops needs its dwell_schedule, and only such a source")
+    if schedule is not None and not np.array_equal(schedule.ts, ts):
+        raise ValueError("ts must be the dwell schedule's epochs")
     hearing = _hearing(cfg.get("hearing"))
     dongle = _dongle(cfg.get("dongle"))
     sigma_m = float(cfg["sigma_m"])
@@ -343,6 +436,10 @@ def records(
         for j in range(len(enbs)):
             on_air[j] = models._available(rng_do, ts, cfg["dropout"])
     on_air = on_air[of_enb].T  # (epoch, sector)
+    if schedule is not None:  # only the dwelled carrier is on air for the dongle
+        of_carrier = np.array([earfcns.index(s.earfcn) for s in secs])
+        on_air = on_air & (schedule.carrier[:, None] == of_carrier[None, :])
+    pcis = [s.earfcn * 1024 + s.pci for s in secs]  # one cell per PCI within each carrier
 
     distance = np.linalg.norm(pos[None, :, :] - true_enu[:, None, :], axis=2)  # (sector, epoch)
     if isinstance(hearing, LinkBudget):
@@ -351,16 +448,18 @@ def records(
         lin = np.where(on_air, 10 ** (power / 10), 0.0)
         others = lin.sum(axis=1, keepdims=True) - lin + 10 ** (hearing.noise_dbm() / 10)
         snr_db = power - 10 * np.log10(others)  # against noise and every other sector on air
-        heard = one_per_pci(heard, power, [s.pci for s in secs])
+        heard = one_per_pci(heard, power, pcis)
     else:
         heard = heard_by_range(true_enu, pos, hearing) & on_air
         snr_db = None  # no power model
-        heard = one_per_pci(heard, -distance.T, [s.pci for s in secs])
+        heard = one_per_pci(heard, -distance.T, pcis)
 
     clean = distance + site_clock + rx  # what the carrier sees: geometry and clocks
     rate = np.gradient(clean, ts, axis=1) if n_t > 1 else np.zeros_like(clean)
     value = np.mod(clean + noise + multipath[of_enb], AMBIGUITY_M)
     n_epochs = round((float(np.median(dt[1:])) if n_t > 1 else 1.0) / EPOCH_S)  # per record
+    if schedule is not None:
+        n_epochs = schedule.n_epochs
 
     out: list[Measurement] = []
     for i, s in enumerate(secs):
