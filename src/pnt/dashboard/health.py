@@ -57,6 +57,12 @@ FLAGS: dict[str, tuple[str, str]] = {
         "Reference station excluded: its readings disagree with its surveyed position (moved, or "
         "its clock stepped). Coasting on the tower clocks it measured before.",
     ),
+    # ekf-mhss-beacon (#93, ADR-0025): a located jammer used as a low-trust coarse range
+    "hostile_beacon": (
+        CAUTION,
+        "Using a located jammer as a low-trust beacon: its received power gives a coarse range, "
+        "capped in weight, and it never narrows the protection level.",
+    ),
     "tower_fault": (  # the unparameterised form, as estimates logged before #90 carry it
         WARNING,
         "A tower's clock jumped on its own: that tower's clock estimate was restarted.",

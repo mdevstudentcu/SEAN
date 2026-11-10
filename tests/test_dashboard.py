@@ -63,6 +63,7 @@ def _raised_flags() -> set[str]:
     for path in [*SRC.glob("nav/*.py"), *SRC.glob("integrity/*.py")]:
         text = path.read_text()
         found |= set(re.findall(r'flags\.append\("([a-z_]+)"\)', text))
+        found |= set(re.findall(r'^FLAG = "([a-z_]+)"', text, re.M))  # raised through a constant
         for p in re.findall(r'flags\.append\(f"([a-z_]+):\{', text):
             found.add(f"{p}:{FLAG_EXAMPLES.get(p, 'no-example')}")
     return found
@@ -72,6 +73,7 @@ def test_every_raised_flag_has_a_sentence():
     flags = _raised_flags()
     # the flags on main when this was written, so a broken grep can't pass vacuously
     assert {"gnss_excluded", "spoof_suspected", "base_excluded"} <= flags
+    assert "hostile_beacon" in flags  # raised through `nav.hostile.FLAG`, not a literal
     assert {"mhss_alarm:gnss-cm", "mhss_excluded:gnss-cm", "tower_fault:lte:sim1:+316"} <= flags
     assert not any(f.endswith(":no-example") for f in flags), flags
     for f in flags:
