@@ -8,6 +8,7 @@ Every parameter is labelled with where it comes from (ADR-0015):
 - `datasheet`: InvenSense MPU-6000/6050 Product Specification rev 3.4; Bosch BMP280 datasheet
 - `literature`: typical values for this class of part, not this unit
 - `TBC`: a placeholder until we record our own sensor sitting still (Allan variance)
+- `measured`: from our own MPU6050 sitting still (`analysis/imu_allan.py`), with the session
 
 White noise from a noise density N (unit/sqrt(Hz)) sampled at fs: sigma = N * sqrt(fs / 2), i.e.
 an ideal anti-alias filter at Nyquist. Bias instability is a first-order Gauss-Markov process.
@@ -44,13 +45,15 @@ class ImuParams:
 
 
 # MPU6050 at +/-500 deg/s and +/-8 g (what ArduPilot-style drones configure).
+# Measured values: our unit still on the bench overnight (ADR-0015, analysis/imu_allan.py).
+_STATIC = "20261110-0306-static-bench-overnight, 1800-18000 s"
 MPU6050 = ImuParams(
     gyro_noise_dps_rthz=0.005,
-    accel_noise_ug_rthz=400.0,
+    accel_noise_ug_rthz=240.0,
     gyro_bias_dps=0.05,
     accel_bias_mg=5.0,
-    gyro_instability_dph=20.0,
-    accel_instability_ug=100.0,
+    gyro_instability_dph=16.0,
+    accel_instability_ug=280.0,
     instability_tau_s=100.0,
     scale_error=0.01,
     gyro_range_dps=500.0,
@@ -58,13 +61,18 @@ MPU6050 = ImuParams(
     gyro_lsb_dps=1 / 65.5,
     accel_lsb_g=1 / 4096,
     provenance={
-        "gyro_noise_dps_rthz": "datasheet (rate noise spectral density)",
-        "accel_noise_ug_rthz": "datasheet (power spectral density)",
+        "gyro_noise_dps_rthz": f"measured ({_STATIC}): 0.0049-0.0053 per axis; datasheet 0.005",
+        "accel_noise_ug_rthz": f"measured ({_STATIC}): 198-309 per axis, mean 240; datasheet 400",
         "gyro_bias_dps": "TBC: residual after start-up calibration; raw ZRO is +/-20 deg/s",
         "accel_bias_mg": "TBC: residual after calibration; raw zero-g offset is +/-50-80 mg",
-        "gyro_instability_dph": "literature, TBC until our Allan variance",
-        "accel_instability_ug": "literature, TBC until our Allan variance",
-        "instability_tau_s": "TBC",
+        "gyro_instability_dph": (
+            f"measured ({_STATIC}): Allan floor 3.7-5.5 deg/h, 0.78x the sim's at 20 deg/h"
+        ),
+        "accel_instability_ug": (
+            f"measured ({_STATIC}): Allan floor 65-119 ug, 2.85x the sim's at 100 ug; the real "
+            "accel also drifts at tau > 100 s, which Gauss-Markov does not make"
+        ),
+        "instability_tau_s": "TBC: the measured floors sit at tau 20-100 s (gyro), 4-13 s (accel)",
         "scale_error": "TBC: raw sensitivity tolerance is +/-3 %",
         "ranges_and_lsb": "datasheet, at the +/-500 deg/s and +/-8 g settings",
     },
