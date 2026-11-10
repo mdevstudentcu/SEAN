@@ -101,7 +101,7 @@ def set_names() -> list[str]:
 
 
 def attack_names() -> list[str]:
-    """The attack menu every environment shares."""
+    """The shared attack menu (`_attacks.yaml`): every environment's, unless it opts out."""
     return list(_read(ATTACK_MENU))
 
 
@@ -110,8 +110,18 @@ def _own_attacks(environment: str) -> dict:
     return _environment(environment).get("attacks") or {}
 
 
+def _shares_menu(environment: str) -> bool:
+    """Whether the shared menu applies. `shared_attacks: false` makes the environment's own
+    `attacks:` its whole menu, for environments whose timing the shared entries don't fit."""
+    shared = _environment(environment).get("shared_attacks", True)
+    if not isinstance(shared, bool):
+        raise ValueError(f"shared_attacks is true or false, not {shared!r}")
+    return shared
+
+
 def _menu(environment: str) -> dict:
-    return {**_read(ATTACK_MENU), **_own_attacks(environment)}
+    shared = _read(ATTACK_MENU) if _shares_menu(environment) else {}
+    return {**shared, **_own_attacks(environment)}
 
 
 def _merge(parent: dict, child: dict) -> dict:
@@ -141,7 +151,8 @@ def expand(name: str) -> list[str]:
     """Every scenario a name stands for: a whole environment, or just itself."""
     if name not in set_names():
         return [name]
-    return [f"{name}-{a}" for a in [*attack_names(), *_own_attacks(name)]]
+    shared = attack_names() if _shares_menu(name) else []
+    return [f"{name}-{a}" for a in [*shared, *_own_attacks(name)]]
 
 
 def scenario_names() -> list[str]:
@@ -163,6 +174,7 @@ def _compose(name: str) -> dict | None:
         raise FileNotFoundError(f"no attack named {attack_name!r} for environment {environment!r}")
     spec = _environment(environment)
     spec.pop("attacks", None)
+    spec.pop("shared_attacks", None)
     spec.update(name=name, faults=menu[attack_name] or [])
     return spec
 
