@@ -440,8 +440,9 @@ def edge_section(a: Audit, g: dict, holdouts: dict[float, dict]) -> str:
     text = (
         "## Table edge\n\n"
         f"The table stops at {TABLE_RADIUS_KM:g} km. A receiver near the edge can hear cells that "
-        "are not in it, and the lookup cannot tell: such a cell is left out only if no table row "
-        "in range reuses its (EARFCN, PCI). Sectors unseen is the outside area times the "
+        "are not in it, and the lookup cannot tell: such a cell is matched to a wrong eNB when "
+        "exactly one eNB in the table reuses its (EARFCN, PCI) and that eNB is in range. "
+        "Sectors unseen is the outside area times the "
         f"table's density in its outer ring, 8-10 km ({density:.1f} sectors/km², `TBC`): an "
         "extrapolation, not a count.\n\n"
         + table_md(
