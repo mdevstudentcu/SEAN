@@ -228,17 +228,24 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     ref = _Reference(spec, seed, t_truth) if spec.get("reference") else None
     for source, cfg in spec.get("sources", {}).items():
         cfg = dict(cfg)
-        ts = _times(dur, cfg.pop("rate_hz"))
+        rate_hz = cfg.pop("rate_hz")
+        ts = _times(dur, rate_hz)
         ts_ns = T0_NS + np.round(ts * 1e9).astype(np.int64)
         pos, _ = trajectory.make(traj, ts)
         model = cfg.pop("model", source)
         if model == "pseudorange" and _record_shape(cfg) == "front_end":
             if ref is not None and source in ref.sources:
                 raise ValueError("the reference station can't hear front-end records yet")
+            cells_file = _cells_file(cfg)
+            schedule = lte_front_end.dwell_schedule(cfg, dur, rate_hz)
+            if schedule is not None:  # a dongle hopping carriers: epochs follow its dwells
+                ts = schedule.ts
+                ts_ns = T0_NS + np.round(ts * 1e9).astype(np.int64)
+                pos, _ = trajectory.make(traj, ts)
             recs, found, rx = lte_front_end.records(
                 cfg,
                 source=source,
-                cells_file=_cells_file(cfg),
+                cells_file=cells_file,
                 ts=ts,
                 ts_ns=ts_ns,
                 pos=pos,
@@ -246,6 +253,7 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
                 origin_llh=spec["origin_llh"],
                 seed=seed,
                 tower_clocks=tower_clk,
+                schedule=schedule,
             )
             meas += recs
             emitters.update(found)
@@ -375,7 +383,8 @@ def _record_shape(cfg: dict) -> str:
 
 
 def _cells_file(cfg: dict) -> Path:
-    """The cell table a front-end source names (`cells_from: {file, earfcn}`, no defaults)."""
+    """The cell table a front-end source names (`cells_from: {file, earfcn}`, no defaults;
+    `earfcn` may be a list of carriers to hop, `lte_front_end.Hop`)."""
     cells_from = cfg.get("cells_from") or {}
     if set(cells_from) != {"file", "earfcn"}:
         raise ValueError(f"cells_from needs file and earfcn, not {sorted(cells_from)}")
@@ -405,10 +414,12 @@ def tower_groups(spec: dict, seed: int = 0) -> tuple[dict[str, str], dict[str, s
     - Site: towers of one builder within SAME_SITE_M of each other, across sources, are one
       site, named after its first emitter. Synthetic towers are a site each. The sim has no
       PCI, so sectors can't be grouped by PCI // 3: each emitter is one sector.
-    - Front-end records (`record_shape: front_end`): every sector of the table's carrier is
-      grouped by its registered eNB, named `enb:<id>` as `pnt.nav.cells` names it, with the
-      builder of its licensee. A sector whose PCI another eNB also uses is keyed
-      `<emitter>@<site>`, a name no record carries, so that each still has its own clock.
+    - Front-end records (`record_shape: front_end`): every sector of the table's carrier (each
+      carrier, for a source that hops) is grouped by its registered eNB, named `enb:<id>` as
+      `pnt.nav.cells` names it, with the builder of its licensee. An eNB on several carriers is
+      one site; co-located eNBs with different IDs are different sites. A sector whose PCI
+      another eNB also uses is keyed `<emitter>@<site>`, a name no record carries, so that each
+      still has its own clock.
     """
     rng = np.random.default_rng([seed, _GROUP_STREAM])
     sites: dict[str, str] = {}
@@ -418,7 +429,9 @@ def tower_groups(spec: dict, seed: int = 0) -> tuple[dict[str, str], dict[str, s
         if cfg.get("model", source) != "pseudorange":
             continue
         if cfg.get("record_shape") == "front_end":
-            for s in lte_front_end.sectors(_cells_file(cfg), int(cfg["cells_from"]["earfcn"])):
+            cells_file = _cells_file(cfg)
+            earfcns = lte_front_end.carriers(cfg["cells_from"])
+            for s in lte_front_end.sectors_of(cells_file, earfcns):
                 sites[s.key] = s.site
                 builders.setdefault(s.site, builder_of(s.licensee))
             continue
