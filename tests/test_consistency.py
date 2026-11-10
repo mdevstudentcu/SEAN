@@ -9,6 +9,7 @@ whose stated noise is wrong by a factor of 2, and every run uses a fixed seed (R
 """
 
 from collections import defaultdict
+from functools import cache
 
 import msgspec
 import numpy as np
@@ -35,6 +36,7 @@ def _misstate_noise(measurements, scale):
     ]
 
 
+@cache  # deterministic; each misstated-noise test asks for the same run twice
 def _stats(scenario, sigma_scale=1.0):
     """Mean horizontal NEES and per-source mean NIS per dimension, over SEEDS."""
     spec = load(scenario)

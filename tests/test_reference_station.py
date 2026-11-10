@@ -93,6 +93,9 @@ def test_the_station_ranges_from_where_it_stands_and_shares_the_tower_clocks():
 
 def test_the_survey_error_follows_sigma():
     spec = load("realistic-with-base-nominal")
+    # The told position is the reference station's first draw from its own stream, so 1 s of
+    # scenario gives the same value as the full run, about 15x faster
+    spec.update(duration_s=1.0, faults=[])
     base = llh_to_enu(spec["reference"]["position_llh"], spec["origin_llh"])
     told = [
         llh_to_enu(generate(spec, seed=s).reference["position_llh"], spec["origin_llh"])
