@@ -15,6 +15,9 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
   - `ablation.png`: fault-window p95 with all SoOP removed and with each other aid removed (REQ-06)
   - `holdover.png`: clock error and time protection level after GPS loss (REQ-03), when the estimator has a clock
 - `lte_link_synthetic.py`: synthetic baseband through the LTE front end, cell lookup and `ekf`, with and without the dongle clock state (synthetic only)
+- `lte_table_audit.py`: every row of the Ottawa cell table through the lookup, from Carleton and a receiver grid: wrong-tower matches, usable geometry, flags (registry only, no radio)
+- `lte_real_geometry.py`: the UC-01 circuit on real tower positions, with records shaped as the front end writes them, and wrong tower tables (sim over real positions, not real signals)
+- `lte_link_dense.py`: synthetic baseband with every registered cell at a link-budget power: how many cells the front end keeps, and why (synthetic only, TBC link budget)
 - Planned: timing holdover from real sessions. No real session exists yet; `summary.md` keeps a marked placeholder for them
 
 ## Viewing a run in Foxglove
