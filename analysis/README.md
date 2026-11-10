@@ -19,6 +19,7 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
 - `lte_real_geometry.py`: the UC-01 circuit on real tower positions, with records shaped as the front end writes them, and wrong tower tables (sim over real positions, not real signals)
 - `lte_link_dense.py`: synthetic baseband with every registered cell at a link-budget power: how many cells the front end keeps, and why (synthetic only, TBC link budget)
 - `imu_allan.py <session>`: Allan deviation of a static IMU session beside the sim's MPU6050 model, same length and rate (ADR-0015). Writes `results/<session>-allan/`: `allan.png`, and `summary.md`/`summary.json` with each axis's noise density (spectrum, with the Allan slope as a check), Allan floor, static mean and largest spectral peak. Run on a session the Pi recorded still for hours (`deploy/pi/RUNBOOK.md` G)
+- `model_mismatch.py`: `ekf` and `ekf-calibrated` paired while the simulated world departs from `ekf-calibrated`'s values (multipath size, correlation time and form, tower clock wander, told tower positions): fault-window p95, worst-run HPL bound rate, NEES, misleading and time-misleading epochs (#118). Reported on seeds 0-49; a change to `CALIBRATED` is tuned on seeds 1000-1049 (sim, placeholder models)
 - Planned: timing holdover from real sessions. No real session exists yet; `summary.md` keeps a marked placeholder for them
 
 ## Viewing a run in Foxglove
