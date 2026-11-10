@@ -1,0 +1,15 @@
+# seconds  AVR frame (readsb raw output form)
+# The airborne position pair of 40621D from J. Sun, "The 1090 Megahertz Riddle", 2nd ed.,
+# https://mode-s.org/1090mhz/ (worked answer from the even frame: 52.2572 N, 3.91937 E, 38000 ft),
+# sent four times: pyModeS reports a new track only after three positions agree.
+# Two hand-made replies to ground interrogations (DF4, DF11) sit in between: never decoded.
+0.0 *8D40621D58C382D690C8AC2863A7;
+0.5 *8D40621D58C386435CC412692AD6;
+0.7 *20001838CA3804;
+1.0 *8D40621D58C382D690C8AC2863A7;
+1.5 *8D40621D58C386435CC412692AD6;
+1.7 *5D40621D7C8F0B;
+2.0 *8D40621D58C382D690C8AC2863A7;
+2.5 *8D40621D58C386435CC412692AD6;
+3.0 *8D40621D58C382D690C8AC2863A7;
+3.5 *8D40621D58C386435CC412692AD6;
