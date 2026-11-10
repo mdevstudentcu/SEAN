@@ -148,6 +148,11 @@ Hostile beacon (`hostile`, off by default, #93, ADR-0025 Proposed): a located ja
 power (`rssi` records with `meta.hostile`) as a low-trust coarse range, behind a promotion gate
 and a weight cap (`nav/hostile.py`). Off, those records are dropped before any prediction, so the
 output is exactly as without them. Its health key is `hostile:<emitter>`, never `gnss`.
+Jump guard (#184, `pnt.integrity.jump_guard`; `jump_guard=None` turns it off). Without it the
+gate rejects a jumped GNSS fix only until the coasting covariance has grown enough to accept it.
+With it, a fix that jumps away from both the GNSS stream's own track and the filter, while GNSS
+steers the position, is refused, with the fixes after it, until the stream steps back. Until it
+latches it changes nothing, so a run without such a jump is unchanged.
 """
 
 from __future__ import annotations
@@ -159,6 +164,7 @@ import numpy as np
 
 from pnt.core.frames import emitter_enu
 from pnt.core.measurement import Estimate, Measurement
+from pnt.integrity.jump_guard import JumpGuard
 from pnt.integrity.protection import hpl, vpl
 from pnt.nav.baseline import CHI2_999
 from pnt.nav.hostile import BeaconParams, Beacons
@@ -242,6 +248,7 @@ class EKF:
         motion: str = "cv",  # or "imu" (stage 2, nav/imu.py)
         imu: Mapping | None = None,  # ImuMotion options when motion="imu"
         hostile: Mapping | None = None,  # BeaconParams options: use hostile beacons (#93)
+        jump_guard: Callable[[], JumpGuard] | None = JumpGuard,  # refuse GNSS jumps; None: off
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -323,6 +330,7 @@ class EKF:
         self.multipath_sigma: dict[int, float] = {}  # state -> steady-state sigma (m)
         self.position_idx: dict[str, tuple] = {}  # site -> (told-position error state, los0)
         self.bearing_bias_idx: dict[str, int] = {}  # station -> its constant bearing bias state
+        self.jump = jump_guard() if jump_guard is not None else None  # #184, integrity/jump_guard
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -672,7 +680,14 @@ class EKF:
         if self.spoof_alarm and key == "gnss":
             self._excluded_gnss(key, m.t_ns, y, H, R)
             return
-        used = self._update(key, m.t_ns, y, H, R, gate)
+        verdict = "gate"  # or, for a GNSS position jump (#184): "refuse" or "readmit"
+        if key == "gnss" and self.jump is not None:
+            verdict = self.jump.verdict(self, m.t_ns, y, H, R)
+        if verdict == "refuse":  # a detected jump not yet undone: as a gate rejection
+            used = False
+            self.last_rejected[key] = m.t_ns
+        else:  # "readmit": GNSS is back on its own pre-jump track, so the gate is skipped
+            used = self._update(key, m.t_ns, y, H, R, gate and verdict == "gate")
         if self.calibrated:
             if key in ("gnss", GNSS_TIME) and not used:
                 self._note_trouble(True)  # an alarm precursor: GNSS rejected
