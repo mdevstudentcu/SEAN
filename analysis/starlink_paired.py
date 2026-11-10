@@ -198,11 +198,11 @@ def plot_visibility(vis: dict, path: Path) -> None:
     ax.plot(t, vis["iridium"][: len(t)], color="#eb6834", lw=1.8, label="Iridium above 8.2°")
     ax.set_xlabel("time (s) from 2026-11-12 18:00 UTC, Carleton")
     ax.set_ylabel("satellites with a Doppler record")
-    ax.set_ylim(0, 1.35 * max(vis["above"]))
+    ax.set_ylim(0, 1.45 * max(vis["above"]))
     ax.grid(True, color="0.9", lw=0.6)
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
-    ax.legend(frameon=False, fontsize=8, loc="upper center", ncol=3)
+    ax.legend(frameon=False, fontsize=7.5, loc="upper right", ncol=2)
     sky = fig.add_subplot(1, 2, 2, projection="polar")
     sky.set_theta_zero_location("N")
     sky.set_theta_direction(-1)
@@ -213,9 +213,11 @@ def plot_visibility(vis: dict, path: Path) -> None:
     ring = np.linspace(0, 2 * np.pi, 200)
     sky.plot(ring, np.full_like(ring, 90 - vis["mask_deg"]), color="0.5", lw=0.8, ls="--")
     sky.set_rmax(90)
-    sky.set_yticks([30, 60], labels=["60°", "30°"], fontsize=7)
+    sky.set_yticks([30, 60], labels=[])  # rings at 60 and 30 deg elevation
     sky.set_title(
-        f"{len(vis['tracks'])} heard Starlink passes, seed 0 (dot: end; dashed: mask)", fontsize=9
+        f"{len(vis['tracks'])} heard Starlink passes, seed 0 (dot: end; dashed: mask)\n"
+        "zenith at centre, rings at 60° and 30°",
+        fontsize=9,
     )
     fig.tight_layout()
     fig.savefig(path, dpi=140)
