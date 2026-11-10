@@ -70,7 +70,7 @@ Per epoch, horizontal only, for the all-in-view solution x0 (covariance P0) and 
 - Not covered: two faults at once in different groups (e.g. GNSS and one site: 6e-6 with these
   priors), and the vertical (VPL stays the filter's).
 
-ADS-B early warning (#91, ADR-0031): `adsb_report` records go to `pnt.integrity.adsb`, never
+ADS-B early warning (#91, ADR-0032): `adsb_report` records go to `pnt.integrity.adsb`, never
 to a filter. While it warns (aircraft around us report degraded GNSS quality, or a spoofed track),
 the `gnss-cm` prior is `p_gnss_cm_warned` instead of `p_gnss_cm`, and the estimate is flagged
 `adsb_interference` or `adsb_spoofed_aircraft`.
@@ -124,7 +124,7 @@ class Params:
     #   floor in `estimate` (guardrail 3) does not depend on it.
     p_hostile: float = 1e-2
     # p_gnss_cm_warned: the same prior while ADS-B traffic around us shows GNSS interference or
-    #   spoofing (ADR-0031). TBC: interference reported nearby is taken as a 1-in-10 chance that
+    #   spoofing (ADR-0032). TBC: interference reported nearby is taken as a 1-in-10 chance that
     #   our GNSS is or soon will be faulted; no measured rate backs it
     p_gnss_cm_warned: float = 1e-1
     adsb: adsb.Params = field(default_factory=adsb.Params)
@@ -170,7 +170,7 @@ class Report:
     tests: dict[str, float] = field(default_factory=dict)  # q_k; > 1 fails
     excluded: str | None = None  # the output is the subset without this hypothesis
     alarmed: str | None = None  # this hypothesis failed, but the subset without it can't serve
-    adsb: adsb.Warning | None = None  # the ADS-B early warning at this epoch
+    adsb: adsb.AdsbWarning | None = None  # the ADS-B early warning at this epoch
 
 
 def _h(f) -> tuple[float, float, float, float, float]:
