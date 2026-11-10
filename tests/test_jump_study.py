@@ -100,9 +100,10 @@ def test_jump_response_scales_by_the_drifting_offset():
     assert r["follow_s"] == 0.0
 
 
-def _summary(p_detect, worst, hmi):
+def _summary(p_detect, worst, hmi, missed=None):
     rows = [{"env": "e", "estimator": "ekf", "kind": "clean", "size_m": None, "rate_mps": 0.0}]
-    for z, p, w, h in zip(js.SIZES_M[:4], p_detect, worst, hmi, strict=True):
+    missed = worst if missed is None else missed
+    for z, p, w, h, m in zip(js.SIZES_M[:4], p_detect, worst, hmi, missed, strict=True):
         rows.append(
             {
                 "env": "e",
@@ -112,6 +113,7 @@ def _summary(p_detect, worst, hmi):
                 "rate_mps": 0.0,
                 "p_detect": p,
                 "worst_max_m": w,
+                "missed_worst_m": m,
                 "hmi_runs": h,
             }
         )
@@ -130,3 +132,6 @@ def test_bands_split_undetected_harm_from_hazardous_epochs():
     b = js.bands(s, "e", "ekf")
     assert b["undetected"] == [15]  # missed in over 5 % of runs and over 50 m in one
     assert b["hazardous"] == [15, 20]
+    # Over 50 m only in runs that caught the jump: not an undetected harm
+    s = _summary([0.0, 0.96, 0.9, 1.0], [8, 12, 60, 25], [0, 0, 0, 0], missed=[8, 12, 20, 25])
+    assert js.bands(s, "e", "ekf")["undetected"] == []
