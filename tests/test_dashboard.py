@@ -15,7 +15,7 @@ import pytest
 
 from pnt.core.measurement import Estimate
 from pnt.dashboard import health
-from pnt.dashboard.feed import frames, paced, sim_feed
+from pnt.dashboard.feed import frames, live_feed, paced, sim_feed
 from pnt.dashboard.health import HealthMonitor, describe, time_to_limit_s
 
 SRC = Path(__file__).resolve().parents[1] / "src" / "pnt"
@@ -267,6 +267,46 @@ def test_frames_from_sim_are_json_and_raise_the_outage(tmp_path):
     keys = {a["key"] for a in out[-1]["health"]["alerts"]}
     assert "gnss_unavailable" in keys  # latched from the outage, still shown after it ends
     assert all(f["err_h_m"] is not None for f in out)
+
+
+def test_live_stream_gives_the_panel_what_the_sim_does(tmp_path):
+    # ADR-0004: the same run, streamed over ZeroMQ as the payload does (loopback), gives the panel
+    # the same frames as the sim feed, less the truth
+    pytest.importorskip("zmq")
+    from pnt.payload.streamer import Streamer
+    from pnt.sources.live import LiveSource
+
+    sim = sim_feed(_small(tmp_path), seed=0, estimator="ekf", preflight=False)
+    records = list(sim.measurements)
+    streamer = Streamer("tcp://127.0.0.1:*")
+    live = LiveSource(streamer.endpoint, idle_timeout_s=1.5)
+    live.connect()
+    assert streamer.wait_for_subscriber(5.0)
+    for m in records:
+        streamer.send(m)
+    feed = live_feed(live, "loopback", "ekf", sim.origin_llh)
+    got = list(frames(feed, HealthMonitor(50.0, 1.5e-6)))
+    streamer.close()
+    want = list(frames(sim_feed(_small(tmp_path), seed=0, estimator="ekf", preflight=False),
+                       HealthMonitor(50.0, 1.5e-6)))  # fmt: skip
+    assert feed.info(50.0, 1.5e-6)["kind"] == "live" and not feed.pace
+    assert streamer.dropped == 0 and len(got) == len(want)
+    assert np.allclose([f["pos"] for f in got], [f["pos"] for f in want], atol=1e-6)
+    assert [f["health"]["alerts"] for f in got] == [f["health"]["alerts"] for f in want]
+    assert all(f["truth"] is None and f["err_h_m"] is None for f in got)
+
+
+def test_hub_tells_how_long_the_feed_has_been_quiet(tmp_path):
+    # How a live page sees a stopped stream, even when it is opened after the stream stopped
+    pytest.importorskip("fastapi")  # ground extra
+    from pnt.dashboard.server import Hub
+
+    hub = Hub({"kind": "live"})
+    assert hub.quiet() == {"s": None} and "quiet" not in dict(hub.snapshot())
+    feed = sim_feed(_small(tmp_path), seed=0, estimator="ekf", preflight=False)
+    hub.publish("frame", next(frames(feed, HealthMonitor(50.0, 1.5e-6))))
+    hub.latest_mono -= 5.0  # the last frame came 5 s ago
+    assert dict(hub.snapshot())["quiet"]["s"] >= 5.0
 
 
 def test_frames_and_preflight_use_the_panels_alert_limit(tmp_path):

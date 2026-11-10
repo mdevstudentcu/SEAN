@@ -116,6 +116,28 @@ def sim_feed(
     return feed
 
 
+def live_feed(
+    measurements: Iterable[Measurement],
+    name: str,
+    estimator: str = "ekf",
+    origin_llh=None,
+    reference: dict | None = None,
+    notes: list[str] | None = None,
+) -> Feed:
+    """The payload's live stream (`pnt.sources.live.LiveSource`, ADR-0009): no truth, no
+    pre-flight strip, and no pacing, since the records arrive in real time already."""
+    return Feed(
+        name=name,
+        kind="live",
+        measurements=measurements,
+        estimator=estimator,
+        origin_llh=None if origin_llh is None else list(origin_llh),
+        reference=reference,
+        pace=False,
+        notes=list(notes or []),
+    )
+
+
 def _clock_s(t_ns: int) -> str:
     from pnt.sim.scenario import T0_NS
 

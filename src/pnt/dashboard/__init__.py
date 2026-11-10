@@ -8,4 +8,5 @@ Fed by any source (sim, replay, live), like the estimator (`feed.py`).
 
     pnt dash <session> [--estimator ekf] [--speed 4]      # replay a recorded session
     pnt sim <scenario> --dash [--estimator ekf]           # a scenario, nothing recorded
+    pnt live --connect <endpoint> --dash [--out <folder>]  # the payload's live stream
 """

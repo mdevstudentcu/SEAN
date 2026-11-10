@@ -43,9 +43,9 @@ preflight scenario *args="":
 viz path:
     {{py}} pnt viz {{path}}
 
-# Subscribe to the Pi's live stream, run nav + dashboard (not built yet)
-live:
-    {{py}} pnt live
+# Subscribe to the Pi's live stream and run nav (add --dash for the operator panel)
+live *args="":
+    {{py}} pnt live {{args}}
 
 # Regenerate MAVLink code (C for the ESP32, Python for the Pi) from systems/icd/pnt.xml
 gen:

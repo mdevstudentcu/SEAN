@@ -401,7 +401,7 @@ def _serve_dash(feed, args) -> None:
 
     app = create_app(
         feed,
-        speed=args.speed,
+        speed=getattr(args, "speed", 1.0),  # `pnt live` has none: a live feed is not paced
         alert_limit_m=args.alert_limit,
         time_alert_limit_s=args.time_alert_limit * 1e-6,
         host=args.host,
@@ -696,11 +696,31 @@ def cmd_live(args) -> None:
         session.write_meta(out, live_meta(out))
         writer = SessionWriter(out / session.MCAP_NAME)
 
+    lock = threading.Lock()  # with --dash the panel's thread writes; this one closes
+
     def tee():
         for m in src:
-            if writer:
-                writer.write(f"/meas/{m.source}", m)
+            with lock:
+                if writer:
+                    writer.write(f"/meas/{m.source}", m)
             yield m
+
+    if args.dash:
+        from pnt.dashboard.feed import live_feed
+
+        name = f"live from {', '.join(src.endpoints)}"
+        feed = live_feed(tee(), name, args.estimator, origin, reference, [src.describe()])
+        try:
+            _serve_dash(feed, args)  # until Ctrl-C; the panel runs the estimator
+        finally:
+            src.stop()
+            with lock:
+                if writer:
+                    writer.close()
+                    session.write_meta(out, live_meta(out))
+                    writer = None
+        print(f"live: stream {src.stats}")
+        return
 
     last = 0
     n = 0
@@ -742,8 +762,15 @@ def main(argv=None) -> None:
         )
 
     def add_dash(parser) -> None:
-        """Options of the operator panel (pnt.dashboard)."""
+        """Options of the operator panel (pnt.dashboard) on a sim run or a replay."""
         parser.add_argument("--speed", type=float, default=1.0, help="x real time (inf: no hold)")
+        add_panel(parser)
+        parser.add_argument(
+            "--no-preflight", action="store_true", help="skip the predicted HPL strip"
+        )
+
+    def add_panel(parser) -> None:
+        """Options of the operator panel that a live stream shares."""
         parser.add_argument("--host", default="127.0.0.1")
         parser.add_argument("--port", type=int, default=8050)
         parser.add_argument(
@@ -754,9 +781,6 @@ def main(argv=None) -> None:
             type=float,
             default=TIME_ALERT_LIMIT_S * 1e6,
             help="µs, TBC (REQ-03)",
-        )
-        parser.add_argument(
-            "--no-preflight", action="store_true", help="skip the predicted HPL strip"
         )
 
     s = sub.add_parser("sim", help="run one simulated scenario, write an MCAP, print metrics")
@@ -911,7 +935,13 @@ def main(argv=None) -> None:
     s.add_argument("--reorder", type=float, default=1.0, help="s held to put records in order")
     s.add_argument("--duration", type=float, help="seconds (default: until Ctrl-C)")
     s.add_argument("--out", help="also record the stream and estimates to this session folder")
+    s.add_argument(
+        "--dash",
+        action="store_true",
+        help="show it on the operator panel (with --out only the stream is recorded)",
+    )
     add_estimator(s)
+    add_panel(s)
     add_link(s)
     s.set_defaults(fn=cmd_live)
 

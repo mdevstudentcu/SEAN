@@ -148,8 +148,8 @@ def _tower_fault_words(detail: str) -> str:
     size = "" if m is None else f" {m:+.0f} m ({m / C_M_PER_US:+.2f} µs)"
     return (
         f"Tower {_emitter_words(emitter)}: its clock jumped{size} on its own, seen by the "
-        "reference station. It cancels in the difference, so position is unaffected; that "
-        "tower's clock estimate was restarted."
+        "reference station. The jump cancels against the reference station, so the tower stays "
+        "in use; its clock estimate was restarted."
     )
 
 

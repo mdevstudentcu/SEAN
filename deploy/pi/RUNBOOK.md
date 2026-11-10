@@ -75,7 +75,7 @@ A key is replaced with `pnt keys gen --role <role> --force`, then K2 again for t
 
 ## E. Live (laptop)
 
-11. With the [keys](#keys-once-per-host) set up, while the Pi records: `pnt live --connect tcp://pnt.local:5556 --out data/sessions/<date>-live` prints a position line per second and records what it received. It takes the origin from the Pi's stream (the Pi's first 3D fix) unless `--origin lat,lon,h` is given.
+11. With the [keys](#keys-once-per-host) set up, while the Pi records: `pnt live --connect tcp://pnt.local:5556 --out data/sessions/<date>-live` prints a position line per second and records what it received. It takes the origin from the Pi's stream (the Pi's first 3D fix) unless `--origin lat,lon,h` is given. Add `--dash` to show it on the operator panel at http://127.0.0.1:8050 instead of printing (with `--out` it then records the stream only; `pnt replay` re-runs the estimator).
 
 ## F. Ground reference station (Pi 3B+, #85)
 
