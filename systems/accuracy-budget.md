@@ -150,7 +150,7 @@ The filters run on the same scenarios, seeds 0–49, GPS good for 120 s first. 9
 All values in metres. Figure: `analysis/results/accuracy-budget/budget_vs_monte_carlo.png`; terms: `budget_terms.png`.
 
 Where they agree and where they do not:
-- **`uc01`, `ekf`: within 30 %** at every time. The budget's worst over 300 s is 23 m against the Monte Carlo's 27 m: the Monte Carlo 95th percentile over 50 seeds moves by a few metres from second to second, and the budget is a smooth curve.
+- **`uc01`, `ekf`: within 5 m** at the times in the table (21 m against 16 m at +60 s is the widest). The budget's worst over 300 s is 23 m against the Monte Carlo's 27 m: the Monte Carlo 95th percentile over 50 seeds moves by a few metres from second to second, and the budget is a smooth curve.
 - **`uc01`, `ekf-calibrated`: the budget is high late** (53 m against 35 m at +300 s). The likely cause, not checked: the filter keeps refining its tower drifts from the redundant towers after handover, and the budget holds them (approximation 1). Its dependence on calibration time matches (below).
 - **`uc01`, `ekf-imu`: the budget is low** (15 m against 22 m worst over 300 s). The budget lets the IMU filter average noise over 7 s. A likely cause, not checked: its weak heading on a multirotor (`nav/imu.py`) means it averages less.
 - **`uc01-realistic`, `ekf-calibrated`: within a factor 1.6**, the budget low after +60 s (425 m against 278 m at +120 s). Not explained yet.
