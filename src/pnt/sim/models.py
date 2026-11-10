@@ -180,6 +180,60 @@ def pseudoranges(
     return out
 
 
+def bearings(
+    ts_ns,
+    pos,
+    rng,
+    source: str,
+    emitters: np.ndarray,
+    sigma_deg: float,
+    bias_deg: float = 0.0,
+    max_range_m: float | None = None,
+    cone_deg: float | None = None,
+    emitters_llh=None,
+) -> list[Measurement]:
+    """VOR-style bearings (ICD `bearing`): from each station to the receiver, clockwise from true
+    north, in rad.
+
+    Each station has a fixed bias drawn once (site error, `bias_deg` 1-sigma) and white noise
+    (`sigma_deg`). Nothing is reported beyond `max_range_m` (line of sight, service volume) or
+    inside the cone of confusion above the station: elevation from the station over `cone_deg`.
+    The reported sigma is the white noise only: the bias is for the estimator to model, as for
+    the IMU (`pnt.sim.sensors`) and the tower clocks."""
+    t_pos = np.asarray(pos, float)
+    out: list[Measurement] = []
+    sigma = np.deg2rad(sigma_deg)
+    for i, e in enumerate(np.asarray(emitters, float)):
+        d = t_pos - e
+        horiz = np.hypot(d[:, 0], d[:, 1])
+        keep = horiz > 0.0
+        if max_range_m is not None:
+            keep &= np.linalg.norm(d, axis=1) <= max_range_m
+        if cone_deg is not None:
+            keep &= np.degrees(np.arctan2(d[:, 2], horiz)) <= cone_deg
+        truth = np.arctan2(d[:, 0], d[:, 1])  # east over north: clockwise from north
+        bias = np.deg2rad(rng.normal(0.0, bias_deg)) if bias_deg else 0.0
+        theta = truth + bias + np.deg2rad(rng.normal(0.0, sigma_deg, len(truth)))
+        theta = np.mod(theta, 2 * np.pi)
+        if emitters_llh is not None:
+            meta = {"emitter_llh": [float(x) for x in emitters_llh[i]]}
+        else:
+            meta = {"emitter_enu": [float(x) for x in e]}
+        out += [
+            Measurement(
+                t_ns=int(t),
+                source=source,
+                kind="bearing",
+                emitter=f"{source}:sim{i}",
+                value=(float(v),),
+                sigma=(float(sigma),),
+                meta=meta,
+            )
+            for t, v in zip(np.asarray(ts_ns)[keep], theta[keep], strict=True)
+        ]
+    return out
+
+
 def oscillator(
     rng,
     t_s: np.ndarray,
