@@ -17,7 +17,7 @@ The source of truth for what we are building and why. When code or another doc d
 | [`mentor-qa.md`](mentor-qa.md) | Answers from our Honeywell mentors, dated |
 | [`threat-model.md`](threat-model.md) | Attacks ranked per use case, mapped to scenarios and detections, with the gaps |
 | [`research.md`](research.md) | Summary of our research with cited references, and the novelty check against full papers |
-| [`architecture.md`](architecture.md) | D1 draft: architecture, key requirements per use case, what is real vs simulated |
+| [`architecture.md`](architecture.md) | D1 draft: use cases and key requirements, the architecture as built, how the sim aligns to reality, what is real vs simulated |
 | [`roadmap.md`](roadmap.md) | D3 draft: from hackathon to a certifiable product |
 | [`results.md`](results.md) | The evidence in tables, each number with its kind (sim, synthetic, registry, real) and source |
 | [`sim-plan.md`](sim-plan.md) | What the simulation work will build, in what order, and what is still undecided |
