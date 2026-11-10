@@ -64,10 +64,16 @@ sitl:
 mission pattern="square":
     {{py}} python flight/missions/fly.py {{pattern}}
 
-# Copy the repo to the Pi and restart its services (PI_HOST=pi@pnt.local)
+# Copy the repo's tracked files to the Pi and run its setup (PI_HOST=pi@pnt.local).
+# Only `git ls-files`: untracked PDFs and notes in the working tree never reach the Pi.
 pi-deploy host="pi@pnt.local":
-    git describe --always --dirty --abbrev=7 > .pnt-commit  # the Pi copy has no .git (REQ-10)
-    rsync -az --delete --exclude .venv --exclude data/sessions --exclude .git ./ {{host}}:~/pnt/
+    #!/usr/bin/env bash
+    set -euo pipefail
+    stage="$(mktemp -d)"
+    trap 'rm -rf "$stage"' EXIT
+    git ls-files -z | rsync -a --from0 --files-from=- --ignore-missing-args ./ "$stage/"
+    git describe --always --dirty --abbrev=7 > "$stage/.pnt-commit"  # the Pi copy has no .git (REQ-10)
+    rsync -az --delete --exclude .venv --exclude data/sessions "$stage/" {{host}}:~/pnt/
     ssh {{host}} 'cd ~/pnt && bash deploy/pi/setup.sh'
 
 test:
