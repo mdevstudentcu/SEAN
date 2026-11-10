@@ -1,4 +1,4 @@
-"""ADS-B interference early warning (#91, P6, ADR-0032): aircraft around us report their own GNSS
+"""ADS-B interference early warning (#91, P6, ADR-0033): aircraft around us report their own GNSS
 quality, and it degrades before ours does when a jammer is ahead.
 
 Reads `adsb_report` measurements (ICD-measurement: e, n, u, NACp, NIC) and keeps one track per
@@ -19,7 +19,7 @@ Two kinds of evidence, each about one aircraft:
 Only aircraft within `region_m` of our position count, and evidence lasts `memory_s` after the
 aircraft last showed it. The warning is on while at least `min_aircraft` aircraft show a quality
 drop, or any aircraft a confirmed jump. While it is on, the integrity monitor raises its GNSS
-common-mode prior (`pnt.integrity.mhss`, ADR-0032).
+common-mode prior (`pnt.integrity.mhss`, ADR-0033).
 
 All thresholds are TBC: none is set by a requirement, and the sim's traffic is synthetic.
 """
