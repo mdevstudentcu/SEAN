@@ -51,6 +51,11 @@ least `site_drift_floor`, TBC), rather than a fixed (0, `init_tower_drift_sigma`
 site shows (our clock's while it is not modelled, a builder's) then carries over instead of
 making the new site look faulty.
 
+Tower map (`tower_map`, P12, #96; calibrated model): tower states learned by another filter (a
+drone with GPS) are added at the first fix as this filter's prior, carried to its time on the
+coast model, so a user with no GPS of its own knows the tower clocks before its first reading.
+See `nav/tower_map.py`. None (the default) leaves the filter as it was.
+
 Tower error model (`CALIBRATED`; each part off by default, every value TBC until the radio test
 and published data replace it, ADR-0015). Beyond the white noise each reading reports:
 - Multipath (`multipath_ratio`, `multipath_tau_s`): a first-order Gauss-Markov state per
@@ -250,6 +255,7 @@ class EKF:
         imu: Mapping | None = None,  # ImuMotion options when motion="imu"
         hostile: Mapping | None = None,  # BeaconParams options: use hostile beacons (#93)
         jump_guard: Callable[[], JumpGuard] | None = None,  # JumpGuard: refuse GNSS jumps (#184)
+        tower_map=None,  # a `tower_map.TowerMap`: prior tower states from a drone (P12, #96)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -332,6 +338,7 @@ class EKF:
         self.position_idx: dict[str, tuple] = {}  # site -> (told-position error state, los0)
         self.bearing_bias_idx: dict[str, int] = {}  # station -> its constant bearing bias state
         self.jump = jump_guard() if jump_guard is not None else None  # #184, integrity/jump_guard
+        self.tower_map = tower_map  # added at the first fix (`_init`), see nav/tower_map.py
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -349,6 +356,8 @@ class EKF:
         if self.imu is not None:
             self.imu.augment(self, POS, VEL)
         self.n_core = len(self.x)
+        if self.tower_map is not None:
+            self.tower_map.apply(self)  # tower states known before the first reading (P12)
 
     def _append_states(self, mean, sigma) -> int:
         """Add independent states with the given means and sigmas; returns the first index."""
