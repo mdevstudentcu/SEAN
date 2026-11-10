@@ -314,7 +314,7 @@ def summary(data: dict) -> str:
         "",
         "## False alarms (an outage must not look like a spoof)",
         "",
-        "| Leg | Entry | Estimator | False alarms / h (mean) | Runs with one |",
+        "| Leg | Entry | Estimator | False alarms / h (mean) | Seeds with one |",
         "|---|---|---|---|---|",
     ]
     for leg in TABLE_LEGS:
@@ -324,9 +324,11 @@ def summary(data: dict) -> str:
                 if not rs:
                     continue
                 fa = [r["false_alarms_per_h"] for r in rs]
+                seeds = [r["seed"] for r in rs if r["false_alarms_per_h"] > 0]
+                listed = ", ".join(map(str, seeds)) if 0 < len(seeds) <= 5 else ""
                 lines.append(
                     f"| {leg} | {entry} | `{est}` | {_f(_mean(fa), 2)} | "
-                    f"{sum(x > 0 for x in fa)}/{len(rs)} |"
+                    f"{len(seeds)}/{len(rs)}{' (' + listed + ')' if listed else ''} |"
                 )
     lines += [
         "",
@@ -340,7 +342,7 @@ def summary(data: dict) -> str:
         "Follows | Error at +30 s / +120 s (m) |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
-    smallest = {}
+    smallest, tried = {}, {}
     for leg in JUMP_LEGS:
         for size in JUMP_SIZES:
             cid = case_id(leg, "spoof-jump", None if size == 300.0 else size)
@@ -350,6 +352,7 @@ def summary(data: dict) -> str:
                     continue
                 d = detection(rs)
                 follows = sum(r["err_30s"] > size / 2 for r in rs)
+                tried.setdefault((leg, est), []).append(size)
                 if d["detected"] == d["n"]:
                     smallest.setdefault((leg, est), size)
                     smallest[(leg, est)] = min(smallest[(leg, est)], size)
@@ -370,14 +373,22 @@ def summary(data: dict) -> str:
         "",
         "Of the sizes tried (" + ", ".join(f"{s:g}" for s in JUMP_SIZES) + " m). Detected by "
         "the filter's own GNSS gate or by the monitor; whether the output then follows the jump "
-        "is in the table above.",
+        "is in the table above. In brackets, the sizes run for that estimator. A seed whose "
+        "filter raised a false alarm before the spoof starts and still holds it is scored as "
+        "missed by `pnt.metrics` (an alarm already running is not a response).",
         "",
         "| Leg | " + " | ".join(f"`{e}`" for e in ests_in(runs)) + " |",
         "|---|" + "---|" * len(ests_in(runs)),
     ]
     for leg in JUMP_LEGS:
-        cells = [_f(smallest.get((leg, e))) if (leg, e) in smallest else "none" for e in
-                 ests_in(runs)]  # fmt: skip
+        cells = []
+        for e in ests_in(runs):
+            if (leg, e) not in tried:
+                cells.append("not run")
+                continue
+            sizes = ", ".join(f"{x:g}" for x in tried[(leg, e)])
+            best = _f(smallest[(leg, e)]) if (leg, e) in smallest else "none"
+            cells.append(f"{best} ({sizes})")
         lines.append(f"| {leg} | " + " | ".join(cells) + " |")
     lines += [
         "",
@@ -448,8 +459,8 @@ def plot(data: dict, out: Path) -> None:
     runs, meta = data["runs"], data["meta"]
     groups = [(leg, entry) for leg in TABLE_LEGS for entry in ("spoof-ramp", "spoof-jump",
                                                              "time-spoof")]  # fmt: skip
-    labels = {"spoof-ramp": "ramp 2 m/s", "spoof-jump": "jump 300 m", "time-spoof": "time 50 ns/s"}
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(12, 4.6), dpi=130)
+    labels = {"spoof-ramp": "ramp", "spoof-jump": "jump", "time-spoof": "time"}
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(14, 4.8), dpi=130)
     width = 0.8 / len(FAST)
     x = np.arange(len(groups))
     for k, est in enumerate(FAST):
@@ -465,7 +476,7 @@ def plot(data: dict, out: Path) -> None:
         a2.plot(xs, worst, "_", color=INK, ms=8, mew=1.5,
                 label="worst seed" if k == 0 else None)  # fmt: skip
     for ax in (a1, a2):
-        ax.set_xticks(x, [f"{leg}\n{labels[e]}" for leg, e in groups], fontsize=7)
+        ax.set_xticks(x, [f"{labels[e]}\n{leg}" for leg, e in groups], fontsize=7)
         ax.grid(True, axis="y", color=GRID, lw=0.6)
         ax.set_axisbelow(True)
         for side in ("top", "right"):
@@ -482,13 +493,14 @@ def plot(data: dict, out: Path) -> None:
     fig.legend(handles, labels_, loc="upper left", bbox_to_anchor=(0.005, 0.93), ncol=6,
                fontsize=8, frameon=False)  # fmt: skip
     fig.suptitle(
-        "GNSS spoof detection before and after the tower monitor: challenge-drone (1-3 cells), "
-        f"drone-many (3 km), realistic; seeds 0-{meta['seeds'] - 1}, {meta['commit']} (sim)",
+        "GNSS spoof detection before and after the tower monitor (ramp 2 m/s, jump 300 m, time "
+        "50 ns/s): challenge-drone (1-3 cells), drone-many (3 km), realistic; "
+        f"seeds 0-{meta['seeds'] - 1}, {meta['commit']} (sim)",
         fontsize=10,
         x=0.01,
         ha="left",
     )
-    fig.tight_layout(rect=(0, 0, 1, 0.86))
+    fig.tight_layout(rect=(0, 0, 1, 0.88))
     fig.savefig(out)
     plt.close(fig)
     print(f"wrote {out}")
