@@ -1,4 +1,4 @@
-"""ADS-B traffic in the sim and the interference early warning (#91, P6, ADR-0032)."""
+"""ADS-B traffic in the sim and the interference early warning (#91, P6, ADR-0033)."""
 
 import numpy as np
 import pytest

@@ -1,4 +1,4 @@
-# ADR-0032: ADS-B interference evidence raises the GNSS fault prior
+# ADR-0033: ADS-B interference evidence raises the GNSS fault prior
 
 - **Status:** Proposed
 - **Date:** 2026-11-10

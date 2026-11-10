@@ -1,4 +1,4 @@
-"""ADS-B interference early warning (#91, P6, ADR-0032): lead time, false alerts and what the
+"""ADS-B interference early warning (#91, P6, ADR-0033): lead time, false alerts and what the
 raised GNSS prior does to the protection level, on the YOW approach with ADS-B traffic.
 
 Sim evidence only: the traffic, the jammer and spoofer, the aircraft's avionics quality and the
