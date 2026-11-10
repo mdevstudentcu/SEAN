@@ -322,6 +322,7 @@ class EKF:
         self.multipath_idx: dict[str, int] = {}  # emitter -> its multipath state
         self.multipath_sigma: dict[int, float] = {}  # state -> steady-state sigma (m)
         self.position_idx: dict[str, tuple] = {}  # site -> (told-position error state, los0)
+        self.bearing_bias_idx: dict[str, int] = {}  # station -> its constant bearing bias state
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -618,6 +619,9 @@ class EKF:
         for i, _ in self.position_idx.values():
             if i >= c + k:
                 P[i, i] = P[i + 1, i + 1] = self.tower_position_sigma_m**2
+        for i in self.bearing_bias_idx.values():
+            if i >= c + k:
+                P[i, i] = BEARING_BIAS_SIGMA_RAD**2
         self.x[old] = F @ xc
         self.P = (P + P.T) / 2
         self.rollbacks.append((alarm_ns, t_s))
@@ -1012,6 +1016,30 @@ def _doppler(ekf: EKF, m: Measurement):
                 rate += ekf.x[i]
                 H[0, i] = 1.0
     return m.value[0] - rate, H, np.diag(np.square(m.sigma)), True
+BEARING_MIN_RANGE_M = 100.0  # TBC: closer than this the bearing turns too fast to linearise
+BEARING_BIAS_SIGMA_RAD = float(np.deg2rad(1.0))  # TBC: literature, a VOR's site error, 1-sigma
+
+
+def _bearing(ekf: EKF, m: Measurement):
+    """Bearing from a station to us, clockwise from true north (ICD `bearing`, e.g. a VOR
+    radial), plus a constant bias state per station (its site error, added on first sight).
+    The record's sigma is the white noise only. Horizontal position only; the innovation is
+    wrapped to [-pi, pi)."""
+    e = ekf._emitter(m)
+    if e is None:
+        return None
+    de, dn = ekf.x[0] - e[0], ekf.x[1] - e[1]
+    r2 = de * de + dn * dn
+    if r2 < BEARING_MIN_RANGE_M**2:
+        return None
+    b = ekf.bearing_bias_idx.get(m.emitter)
+    if b is None:
+        b = ekf.bearing_bias_idx[m.emitter] = ekf._append_states([0.0], [BEARING_BIAS_SIGMA_RAD])
+    H = _row(ekf)
+    H[0, 0], H[0, 1] = dn / r2, -de / r2  # d(atan2(de, dn)) / d(e, n)
+    H[0, b] = 1.0
+    y = (m.value[0] - np.arctan2(de, dn) - ekf.x[b] + np.pi) % (2 * np.pi) - np.pi
+    return y, H, np.diag(np.square(m.sigma)), True
 
 
 def _rssi(ekf: EKF, m: Measurement):
@@ -1021,6 +1049,7 @@ def _rssi(ekf: EKF, m: Measurement):
 
 MODELS: dict[str, Callable] = {
     "position_enu": _position,
+    "bearing": _bearing,
     "altitude": _altitude,
     "time": _time,
     "pseudorange": _pseudorange,

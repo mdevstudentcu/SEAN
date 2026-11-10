@@ -294,6 +294,17 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
             )
             if ref is not None and source in ref.sources:
                 meas += ref.pseudoranges(source, ts, ts_ns, em, em_llh, told_em, clocks)
+        elif model == "bearing":
+            em_llh = cfg.pop("emitters_llh", None)
+            if em_llh is not None:
+                em = np.array([llh_to_enu(x, spec["origin_llh"]) for x in em_llh])
+            else:
+                em = models.synthetic_emitters(
+                    rng, cfg.pop("n_emitters"), tuple(cfg.pop("ring_radius_m")), (0.0, 10.0)
+                )
+            for i, e in enumerate(em):
+                emitters[f"{source}:sim{i}"] = [float(x) for x in e]
+            meas += models.bearings(ts_ns, pos, rng, source, em, emitters_llh=em_llh, **cfg)
         elif model == "leo_doppler":
             from pnt.sim import leo  # needs sgp4 (ground extra)
 

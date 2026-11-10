@@ -1,0 +1,15 @@
+# UC-02 with two VOR stations heard on the approach (#11, #13): bearings, ICD `bearing`.
+# SYNTHETIC station positions (data/reference has no navaids yet, #7). Every error value is
+# literature, TBC until our own VOR captures (verification.md, Sim validity: VOR bearing).
+extends: uc02-yow-approach
+description: The UC-02 approach, GPS lost for the last 80 s, with bearings from two synthetic VORs.
+sources:
+  vor:
+    model: bearing
+    rate_hz: 1
+    n_emitters: 2
+    ring_radius_m: [15000, 40000]  # SYNTHETIC
+    sigma_deg: 1.0                 # TBC: literature, receiver noise of a software VOR decoder
+    bias_deg: 1.0                  # TBC: literature, per-station site error, 1-sigma
+    max_range_m: 75000             # TBC: low-altitude service volume (40 NM)
+    cone_deg: 60                   # TBC: no bearing inside the cone of confusion
