@@ -177,7 +177,10 @@ def _start(
         resid = f.boundary - cell.n0 - k * L - st.theta
         if abs(resid) < 3 * math.sqrt(max(st.p00, 0.0)) + 2.0:
             st.theta += resid
-            st.p00 = 0.25
+            # Re-anchored on this detection: its timing variance is the detection's, and the
+            # predicted timing-rate correlation no longer applies. Keeping p01 with a reset p00
+            # left a non-positive covariance (the first real capture, 2026-11-10, failed on it).
+            st.p00, st.p01 = 0.25, 0.0
             return cell, st
         cell.arc += 1
         cell.n0 = f.boundary

@@ -404,3 +404,29 @@ def test_stamp_stall_that_catches_up_is_not_a_drop(tmp_path):
     extra = _stamps(int(1.3 * FS), stall_at=16384 * 70, stall_ns=40_000_000)  # 40 ms late
     r = process_file(write(tmp_path, "stall", [TOWER], 1.3, 0.0, **extra))
     assert r.gaps == []
+
+
+def test_a_cell_picked_up_again_keeps_a_valid_covariance():
+    """A cell found again in a later segment continues its arc: its timing is re-anchored on the
+    new detection. The re-anchored covariance must stay positive semi-definite. Keeping the
+    predicted timing-rate correlation with a reset timing variance did not, and the first real
+    capture (2026-11-10, EARFCN 2460) then failed with a math domain error in the tracker."""
+    from pnt.frontends.lte import frontend
+    from pnt.frontends.lte.capture import Segment
+    from pnt.frontends.lte.tracker import Found, State
+
+    fs, fc = 1.92e6, 875e6
+    L = int(round(fs * sig.HALF_FRAME_S))
+    cfg = Config()
+    sigma_f = 600.0  # Hz: a coarse frequency estimate, as after acquisition
+    prev = State(0.0, 0.0, 0.3**2, 0.0, (sigma_f / fc) ** 2, 0)
+    cell = CellTrack(earfcn=2460, fc=fc, pci=244, n0=0.0)
+    k = 2000  # 10 s later
+    found = Found(n_id1=81, n_id2=1, boundary=k * L + 0.5, f_hz=0.0, sigma_f_hz=sigma_f,
+                  snr_db=10.0, pss_metric=1.0, sss_metric=1.0)  # fmt: skip
+    seg = Segment(start=0, stop=10**9, center_freq_hz=fc, earfcn=2460)
+    _, st = frontend._start(("key",), found, fc, L, {("key",): (cell, prev)}, seg, cfg)
+    assert st.p00 >= 0 and st.p11 >= 0
+    assert st.p00 * st.p11 - st.p01**2 >= 0
+    st.predict(k + 1, L, fs, (cfg.accel_ms2 / 299_792_458.0) ** 2)
+    assert st.s(0, 0.0) >= 0  # what the tracker takes the square root of
