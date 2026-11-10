@@ -18,6 +18,13 @@ fails together, not by tower:
   offset and the towers carry no receiver clock, so tower time never reaches our position or
   clock and there is nothing to release. Once the EKF shares a builder clock term (#77), this
   hypothesis's sub-filters must leave that term unconstrained (not built yet).
+- `hostile:<emitter>`: a located jammer used as a beacon (ADR-0025, #93), only when the main
+  filter uses one (`EKF.hostile`). Its prior `p_hostile` is far above the others: the adversary
+  controls its position, power and timing. Its records belong to this hypothesis alone. When the
+  main filter does not use beacons, their records are passed to no filter, so the monitor runs
+  exactly as without them. The beacon may not shrink the HPL (ADR-0025 guardrail 3): without an
+  exclusion, the HPL is at least |x_h - x_0| + K_ff s_h for each beacon's subset h, the bound
+  that holds if the beacon is certainly lying.
 A GNSS layer hypothesis is not added: it is a subset of `gnss-cm`, whose sub-filter already
 excludes it. Groupings (site and builder of each emitter) are optional inputs; by default every
 emitter is its own site and there are no builder hypotheses.
@@ -78,6 +85,7 @@ from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.dependency import GNSS_DERIVED, tag_of
 
 GNSS_CM = "gnss-cm"
+HOSTILE = "hostile:"  # prefix of a hostile beacon's hypothesis (ADR-0025, #93)
 # EKF health keys (`EKF.last_used`) whose measurements say nothing about horizontal position.
 # "gnss:time" is pnt.nav.ekf.GNSS_TIME (not imported: pnt.nav imports this module).
 NOT_HORIZONTAL = frozenset({"baro", "gnss:time"})
@@ -105,6 +113,10 @@ class Params:
     # p_gnss_cm: GNSS spoofed, meaconed or wrong, and everything that echoes it. Our threat model
     #   is a contested environment, so 10x the site prior's ARAIM analogue.
     p_gnss_cm: float = 1e-3
+    # p_hostile: a hostile beacon (ADR-0025 guardrail 1) moved, changed its power or lies. TBC:
+    #   unsourced; ten times p_gnss_cm, because the adversary chooses when it fails. The HPL
+    #   floor in `estimate` (guardrail 3) does not depend on it.
+    p_hostile: float = 1e-2
     # Integrity budget per epoch, horizontal. 1e-7 matches K_H = 5.33 in protection.py (TBC by
     # REQ-02).
     phmi: float = 1e-7
@@ -254,6 +266,8 @@ class MHSS:
     # --- grouping -----------------------------------------------------------------------
     def groups(self, m: Measurement) -> dict[str, float]:
         """The hypotheses a measurement belongs to, with their priors."""
+        if m.meta.get("hostile"):
+            return {f"{HOSTILE}{m.emitter}": self.p.p_hostile}
         if tag_of(m) == GNSS_DERIVED:
             return {GNSS_CM: self.p.p_gnss_cm}
         out = {f"layer:{m.source}": self.p.p_layer}
@@ -286,6 +300,8 @@ class MHSS:
     def process(self, m: Measurement) -> None:
         if self.main.x is None:
             return
+        if m.meta.get("hostile") and getattr(self.main, "hostile", None) is None:
+            return  # a beacon the filter does not use: no hypothesis, and no copy sees it
         if m.kind == "accel_gyro":
             # IMU samples drive every copy's prediction and never update it, so they open no
             # fault hypothesis. An IMU fault hypothesis (motion="imu") is not modelled yet.
@@ -385,6 +401,12 @@ class MHSS:
                 if r.name != excluded
             ]
         hpl = _pl(ff, terms, p.phmi, p.allocation)
+        if excluded is None:
+            # A hostile beacon may not shrink the PL (ADR-0025 guardrail 3): the bound holds as if
+            # the beacon were certainly lying, from its subset's own fault-free bound
+            for r in rows:
+                if r.name.startswith(HOSTILE):
+                    hpl = max(hpl, r.sep + k_ff * r.s)
 
         self.report = Report(
             t_ns=t, hpl_m=hpl, tests={r.name: r.q for r in rows}, excluded=excluded,
@@ -435,6 +457,8 @@ class MHSS:
                 trust["gnss"] = 0.0
             elif excluded.startswith("layer:"):
                 trust[excluded.split(":", 1)[1]] = 0.0
+            elif excluded.startswith(HOSTILE):
+                trust[excluded] = 0.0  # the beacon's own trust key (EKF health key)
         status = "unsafe" if hpl > self.p.alert_limit_m else ("degraded" if flags else "nominal")
         out = msgspec.structs.replace(
             est, hpl_m=float(hpl), status=status, trust=trust, flags=flags

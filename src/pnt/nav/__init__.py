@@ -40,6 +40,9 @@ ESTIMATORS = {
     "ekf-base": base_rover.run,
     # ekf-mhss: the same EKF, with solution-separation protection levels and exclusion (#82)
     "ekf-mhss": partial(ekf.run, monitor=MHSS),
+    # ekf-mhss-beacon: ekf-mhss that may use a located jammer as a low-trust beacon (#93,
+    # ADR-0025). Only behind the monitor, which holds the beacon's own fault hypothesis
+    "ekf-mhss-beacon": partial(ekf.run, monitor=MHSS, hostile={}),
     # Stage 2 (#12): the same filters with IMU-driven prediction (nav/imu.py)
     "ekf-imu": configured(ekf.run, motion="imu"),
     "ekf-base-imu": configured(base_rover.run, motion="imu"),
