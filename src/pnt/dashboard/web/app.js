@@ -399,6 +399,7 @@ es.addEventListener("frame", (ev) => {
   addEmitters(f.new_emitters);
   if (!S.hist.length || S.hist[S.hist.length - 1][P.t] < f.t_s) S.hist.push(point(f));
   S.frame = f; S.heard = new Set(f.heard);
+  if (!S.failed) conn.className = "dot live";
   renderSide(); redraw();
 });
 es.addEventListener("alerts", (ev) => renderAlerts(JSON.parse(ev.data)));
@@ -418,5 +419,15 @@ es.addEventListener("error", (ev) => {
   if (ev.data) { S.failed = true; feedLost(`Feed error: ${JSON.parse(ev.data).message}. The values on this page are stale.`); }
   else if (!S.done && !S.failed) feedLost("Connection to the server lost: the values on this page are stale. Retrying.");
   else if (!S.done) conn.className = "dot err";
+});
+// Live only: the estimator runs on what arrives, so a stopped stream stops the frames and would
+// leave the last NOMINAL on screen. The server says how long it has been quiet (its own clock, so
+// a page opened late sees the age too); the next frame restores the panel. TBC: 3 s, three missed
+// readings of a 1 Hz tower.
+const STALE_S = 3;
+es.addEventListener("quiet", (ev) => {
+  const q = JSON.parse(ev.data).s;
+  if (!S.info || S.info.kind !== "live" || S.done || S.failed || q == null || q <= STALE_S) return;
+  feedLost(`No estimate for ${q.toFixed(0)} s: the payload's stream has stopped. The values on this page are stale.`);
 });
 window.addEventListener("resize", redraw);

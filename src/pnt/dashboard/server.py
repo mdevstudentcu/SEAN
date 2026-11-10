@@ -16,6 +16,7 @@ import asyncio
 import json
 import math
 import threading
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -29,8 +30,10 @@ from pnt.dashboard.feed import Feed, frames, paced
 from pnt.dashboard.health import HealthMonitor
 
 WEB = Path(__file__).parent / "web"
-# Keep-alive comment on a quiet stream, so proxies and the browser keep it open (s)
-KEEPALIVE_S = 15.0
+# On a stream with no new frame for this long the server sends a `quiet` event: how long since the
+# last frame, on the server's clock. It keeps the connection open, and on a live feed it is how the
+# page tells a stopped stream from a steady one (s)
+QUIET_EVERY_S = 1.0
 # Host names that always mean this machine. `--host` adds its own; a wildcard bind allows any.
 LOOPBACK = frozenset({"localhost", "127.0.0.1", "::1"})
 WILDCARD = frozenset({"0.0.0.0", "::"})
@@ -78,6 +81,7 @@ class Hub:
         self.history: list[list] = []
         self.emitters: list[dict] = []
         self.latest: dict | None = None
+        self.latest_mono: float | None = None  # when `latest` arrived (time.monotonic)
         self.done = False
         self.error: str | None = None
         self.clients: set[asyncio.Queue] = set()
@@ -88,6 +92,7 @@ class Hub:
             self.emitters += data["new_emitters"]
             self.history.append(_point(data))
             self.latest = data
+            self.latest_mono = time.monotonic()
         elif event == "end":
             self.done = True
         elif event == "error":
@@ -95,10 +100,17 @@ class Hub:
         for q in self.clients:
             q.put_nowait((event, data))
 
+    def quiet(self) -> dict:
+        """Seconds since the last frame arrived (None before the first)."""
+        if self.latest_mono is None:
+            return {"s": None}
+        return {"s": round(time.monotonic() - self.latest_mono, 1)}
+
     def snapshot(self) -> list[tuple[str, object]]:
         out = [("info", self.info), ("emitters", self.emitters), ("history", self.history)]
         if self.latest is not None:
             out.append(("frame", {**self.latest, "new_emitters": []}))
+            out.append(("quiet", self.quiet()))  # a page that loads late sees the frame's age
         if self.error is not None:
             out.append(("error", {"message": self.error}))
         if self.done:
@@ -164,9 +176,9 @@ def create_app(
             try:
                 while not await request.is_disconnected():
                     try:
-                        event, data = await asyncio.wait_for(q.get(), KEEPALIVE_S)
+                        event, data = await asyncio.wait_for(q.get(), QUIET_EVERY_S)
                     except TimeoutError:
-                        yield b": keep-alive\n\n"
+                        yield _sse("quiet", hub.quiet())
                         continue
                     yield _sse(event, data)
             finally:
