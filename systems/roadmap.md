@@ -44,7 +44,7 @@ Still receive-only (REQ-07).
 
 - A coherent multi-channel, wideband receiver: SIB1 decoding confirms tower identity instead of inferring it ([ADR-0023](adr/0023-tower-identity.md) roadmap), and more carriers per builder add redundancy.
 - A better oscillator for longer time holdover (UC-03), and a tactical-grade IMU.
-- More signal families as fault hypotheses, each with its GNSS-dependency tag ([ADR-0024](adr/0024-gnss-dependency-tags.md)): 5G NR sync blocks, VOR, ILS and DME (P9), LEO (ADR-0013, P13).
+- More signal families as fault hypotheses, each with its GNSS-dependency tag ([ADR-0024](adr/0024-gnss-dependency-tags.md)): 5G NR sync blocks, VOR, ILS and DME (P9), LEO: Iridium (ADR-0013) and Starlink (P13, simulated in `starlink-outage`; a real receiver needs a Ku-band LNB and downconverter).
 - Tamper-evident session logs (hash chain, [ADR-0026](adr/0026-ground-link-security.md)) and per-deployment key management.
 
 ### 4. Integrate as a layer

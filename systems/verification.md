@@ -31,6 +31,7 @@ How each simulated model aligns to reality. Status: `placeholder` (datasheet/lit
 | ADS-B | message rate, NIC/NACp behaviour | literature | RF survey | placeholder |
 | Wi-Fi RSSI | σ, NLOS bias | literature | Indoor session at surveyed points | placeholder |
 | Iridium (LEO) | Doppler σ, visibility; the filter is told the exact satellite position and velocity (no ephemeris error, TBC) | literature + real orbits | Not measurable this week: bound stated | placeholder |
+| Starlink (LEO, P13, #97) | Doppler σ (1 m/s), elevation mask (25°), pass availability (0.5), Doppler carrier (11.325 GHz); the filter is told the exact satellite position and velocity (no TLE ephemeris error, no satellite clock drift, TBC) | real orbits (`tle-starlink-20261110.txt`); every other value TBC | Not measurable: Ku-band needs an LNB and downconverter we don't have | placeholder |
 | Attacks (spoof, jam) | injected in software | — | Same attacks injected into real sessions | placeholder |
 | Ray-traced blockage (Sionna) | excess delay, blocked segments | ray trace with assumed heights and materials (ADR-0016) | LTE sessions along the traced route | placeholder |
 
