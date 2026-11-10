@@ -1,0 +1,28 @@
+# Challenge benchmark, UC-01 leg with carrier hopping (#173): challenge-drone.yaml (ADR-0030,
+# Proposed) with one dongle dwelling on several LTE carriers in turn instead of EARFCN 2460 alone
+# (sim/lte_front_end.py, `Hop`). Everything else, attack menu included, is challenge-drone's,
+# value for value (`extends`). Every value is TBC (ADR-0015). Not a decision: the hop set and the
+# dwell are proposals for the owners (#173).
+# - Hop set (TBC): every carrier of data/reference/lte-scan-list-ottawa.csv without a flag, in
+#   that file's order (sites within 3 km of Carleton). A flagged carrier (`tx_rx_swapped`,
+#   `off_raster`, `nonstandard_bw`, data/reference/README.md) may not be on air at its filed
+#   frequency or bandwidth, so it stays out until a capture confirms it. 2535 is filed by TELUS
+#   (5 MHz) and Bell (10 MHz, one site); it is one carrier here, with both licensees' sectors.
+# - Dwell (TBC): 1 s per carrier, so records come at the drone leg's 1 Hz. Unsourced; the
+#   accuracy budget (analysis/accuracy_budget.py) compares 0.5 and 2 s.
+# - Dead time after each retune (TBC): 0.15 s. The front end skips `settle_s` (20 ms) after a
+#   retune and needs one `acq_ms` search window (80 ms) before it tracks (frontends/lte/tracker.py
+#   Config); 50 ms is allowed on top for the RTL-SDR's retune over USB, which is tens of ms and
+#   not measured.
+# - Every carrier is heard by challenge-drone's link budget, with the near-far floor applied
+#   within the carrier dwelled on. The table's filed powers differ by licensee (Vidéotron rows
+#   give 92 to 103 dBW); the floor is relative within a carrier, but the noise floor is not.
+extends: challenge-drone
+description: UC-01 drone circuit on front-end LTE records hopping 13 carriers, 600 s GPS outage (challenge set).
+sources:
+  lte:
+    cells_from:
+      earfcn: [2460, 5145, 5255, 2535, 5035, 5085, 5205, 5060, 68611, 68661, 2560, 68711, 68761]
+    hop: {dwell_s: 1.0, reacquire_s: 0.15}   # TBC (above)
+provenance:
+  lte_hop: TBC   # hop set from the registry's scan list; dwell and dead time unsourced
