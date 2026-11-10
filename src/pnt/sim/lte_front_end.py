@@ -7,7 +7,10 @@ with `record_shape: front_end` on a pseudorange source (`scenario.generate`).
 
 What is on air: every sector of one EARFCN in a cell table (`cells_from`), PCI reuse included. A
 PCI that more than one eNB uses is heard as one cell per epoch (the strongest, or the nearest),
-as the front end tracks one cell per PCI; the lookup then drops it as a collision.
+as the front end tracks one cell per PCI. The lookup drops it as a collision only when every eNB
+on that PCI is within `cells.MAX_RANGE_KM` of the origin, as for the committed table about
+Carleton. Otherwise the lookup can match the in-range eNB while the far one was heard, as it
+would on a capture.
 
 Which cells are heard (`hearing`):
 - `range`: every sector within `hearing_km` of the truth, horizontally, at that epoch.
@@ -359,7 +362,7 @@ def records(
     clean = distance + site_clock + rx  # what the carrier sees: geometry and clocks
     rate = np.gradient(clean, ts, axis=1) if n_t > 1 else np.zeros_like(clean)
     value = np.mod(clean + noise + multipath[of_enb], AMBIGUITY_M)
-    n_epochs = round(1.0 / (float(np.median(dt[1:])) if n_t > 1 else 1.0) / EPOCH_S)
+    n_epochs = round((float(np.median(dt[1:])) if n_t > 1 else 1.0) / EPOCH_S)  # per record
 
     out: list[Measurement] = []
     for i, s in enumerate(secs):
