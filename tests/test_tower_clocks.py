@@ -23,6 +23,14 @@ def _spec(tower_clocks: dict, duration_s: float = 60.0, **lte) -> dict:
     return spec
 
 
+def _clocks_only(spec: dict) -> dict:
+    """`spec` with only its LTE source, at a low rate: the tower clocks come from their own
+    random stream on the truth timeline, so they are identical, about 35x faster."""
+    spec = copy.deepcopy(spec)
+    spec["sources"] = {"lte": {**spec["sources"]["lte"], "rate_hz": 0.1}}
+    return spec
+
+
 def _drift(clock: np.ndarray, duration_s: float = 60.0) -> float:
     return float(clock[-1] - clock[0]) / duration_s
 
@@ -59,7 +67,7 @@ def test_drift_is_correlated_within_a_builder_and_independent_across():
     level = {"drift_mps": 0.5}
     within, across = [], []
     for seed in range(RUNS):
-        run = generate(_spec({"builder": level, "site": level}), seed=seed)
+        run = generate(_clocks_only(_spec({"builder": level, "site": level})), seed=seed)
         sites, builders = tower_groups(run.spec, seed)
         em = sorted(run.tower_clocks)
         for i, a in enumerate(em):

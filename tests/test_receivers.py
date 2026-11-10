@@ -41,6 +41,7 @@ PAYLOAD_ONLY = sorted(n for n, fn in ESTIMATORS.items() if receivers(fn) == {"pa
 @pytest.mark.parametrize("name", PAYLOAD_ONLY)
 def test_reference_records_do_not_change_any_estimate(tmp_path, caplog, name):
     spec = load("gps-outage")
+    spec["duration_s"] = 150.0  # past the outage start (120 s): enough to compare, 2.4x faster
     run = generate(spec, seed=0)
     ref = _reference_copies(run.measurements)
     mixed = _write(tmp_path / "mixed.mcap", run, ref)
