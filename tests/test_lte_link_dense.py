@@ -57,7 +57,8 @@ def test_near_far_ladder_through_the_chain(dense):
     assert r.ghosts == []
     assert by_rel[0].tracked and by_rel[-6].tracked
     assert not any(s.wrong_timing for s in r.sectors)
-    # Regression guard from this seed's run, with margin. Not a requirement.
+    # Regression guard from what was observed, with margin; not a requirement. Seeds 0-2: bias of
+    # the 0 dB cell -0.5, -1.0, -1.3 m; of the -6 dB cell -8.2, 4.0, 6.6 m.
     assert abs(by_rel[0].bias_m) < 5.0 and abs(by_rel[-6].bias_m) < 30.0
     # Known limit (#124), observed, not a target: a cell about 13 dB or more below a fully loaded
     # one is lost by the search and the tracker. See the `ladder` part of the script.
