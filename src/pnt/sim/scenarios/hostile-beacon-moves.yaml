@@ -1,0 +1,8 @@
+# hostile-beacon, but the jammer is a honeypot: from t=200 s it drives north at 2 m/s while the
+# position it was located at stays put, dragging any filter that trusts it (ADR-0025, #93).
+# The GPS denial footprint does not move with it (a limit of the `hostile_moves` fault).
+extends: hostile-beacon
+description: Jammer that drives off at 2 m/s from t=200 s (honeypot beacon).
+faults:
+  - {type: jamming_zone, source: gnss, center_llh: [45.3876, -75.693446, 70.0], start_s: 120, radius_m: 250, onset_m: 400}
+  - {type: hostile_moves, start_s: 200, velocity_enu_mps: [0.0, 2.0, 0.0]}

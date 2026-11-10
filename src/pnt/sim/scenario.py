@@ -17,7 +17,7 @@ import yaml
 from pnt.core.frames import enu_to_llh, llh_to_enu
 from pnt.core.measurement import Measurement, Truth
 from pnt.core.time import s_to_ns, utc_to_gps_ns
-from pnt.sim import attacks, lte_front_end, models, sensors, trajectory
+from pnt.sim import attacks, hostile, lte_front_end, models, sensors, trajectory
 
 SCENARIO_DIR = Path(__file__).parent / "scenarios"
 SET_DIR = SCENARIO_DIR / "sets"
@@ -50,6 +50,8 @@ _GROUP_STREAM, _TOWER_CLOCK_STREAM = 220, 221
 # The IMU's own random stream, for the same reason: adding an IMU to a scenario changes no other
 # source's draws, so estimators that ignore the IMU see the same run with or without it.
 _IMU_STREAM = 222
+# The hostile beacon's own random stream (`jammer_power`, #93), for the same reason
+_HOSTILE_STREAM = 223
 
 
 @dataclass
@@ -218,6 +220,7 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     meas: list[Measurement] = []
     emitters: dict[str, list[float]] = {}
     rx_clocks: dict[str, np.ndarray] = {}
+    jammers: dict[str, dict] = {}  # true jammer positions, for the hostile-emitter faults
     ref = _Reference(spec, seed, t_truth) if spec.get("reference") else None
     for source, cfg in spec.get("sources", {}).items():
         cfg = dict(cfg)
@@ -306,6 +309,14 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
                 clock_s=clock_s,
                 **cfg,
             )
+        elif model == "jammer_power":  # the hostile beacon's observable (#93, ADR-0025)
+            p = hostile.params(cfg)
+            found = hostile.jammers(spec)
+            if not found:
+                raise ValueError("jammer_power needs a jamming_zone fault to place the jammer")
+            rng_jam = np.random.default_rng([seed, _HOSTILE_STREAM])
+            meas += hostile.power(ts, ts_ns, pos, rng_jam, found, p)
+            jammers.update({j.emitter: {"enu": j.enu, "n": p.path_loss_exponent} for j in found})
         else:
             raise ValueError(f"unknown model {model!r} for source {source!r}")
 
@@ -317,6 +328,7 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
         emitters=emitters,
         reference_enu=None if ref is None else ref.true_enu,
         tower_groups=groups,
+        jammers=jammers,
     )
     meas, events = attacks.apply(meas, spec.get("faults", []), ctx)
     meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter, m.receiver))

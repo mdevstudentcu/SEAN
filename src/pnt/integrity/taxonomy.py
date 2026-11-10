@@ -47,6 +47,11 @@ TAXONOMY: dict[str, FaultClass] = {
     "tower_holdover": FaultClass("SoOP fault", (POSITION, TIME), "none"),
     # TBC (owners confirm): like baro_drift
     "imu_degradation": FaultClass("sensor degradation", (POSITION,), "none"),
+    # The hostile beacon's own faults (ADR-0025, #93). TBC (owners confirm): they corrupt
+    # position only through a filter that uses the beacon, and its answer is to demote the beacon
+    # or exclude its hypothesis, not to raise a GNSS alarm, so no alarm is expected
+    "hostile_power": FaultClass("hostile emitter", (POSITION,), "none", expect_alert=False),
+    "hostile_moves": FaultClass("hostile emitter", (POSITION,), "none", expect_alert=False),
 }
 
 

@@ -1,0 +1,27 @@
+# A jammer switches on at t=120 s, 200 m east of the loop centre, 50 m outside the loop: every
+# lap GPS is lost on the near half (within 250 m) and degraded on the far half (within 400 m),
+# where the beacon can be calibrated against it, as JAM-ME does before entering the zone. Its
+# received power is measured (the hostile beacon, ADR-0025, #93); its range swings from about 60
+# to 350 m every lap. Compare estimators ekf-mhss and ekf-mhss-beacon. REQ-01, REQ-02, REQ-04.
+description: Jammer from t=120 s denies GPS on half of each lap; its power is a beacon.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: loop, radius_m: 150, speed_mps: 8, altitude_m: 30}
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5, health: true}   # TBC
+  baro: {rate_hz: 10, sigma_m: 0.5}                 # TBC
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    n_emitters: 6
+    ring_radius_m: [800, 3000]   # SYNTHETIC geometry
+    sigma_m: 20.0                # TBC (RSK-02)
+    clock_rw_m: 0.2              # TBC
+    init_bias_m: 1000.0
+  jammer:
+    model: jammer_power   # sim/hostile.py; every value TBC (HostileParams.provenance)
+    rate_hz: 1
+faults:
+  # 200 m east of the origin, on from t=120 s to the end
+  - {type: jamming_zone, source: gnss, center_llh: [45.3876, -75.693446, 70.0], start_s: 120, radius_m: 250, onset_m: 400}

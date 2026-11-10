@@ -1,0 +1,9 @@
+# jamming-zone with the jammer's received power measured (the hostile beacon, ADR-0025, #93).
+# Compare estimators ekf-mhss and ekf-mhss-beacon on this scenario: the beacon's records have
+# their own random stream, so every other record is jamming-zone's, and ekf-mhss ignores them.
+extends: jamming-zone
+description: Jammer on the loop path, with its received power measured as a hostile beacon.
+sources:
+  jammer:
+    model: jammer_power   # sim/hostile.py; every value TBC (HostileParams.provenance)
+    rate_hz: 1
