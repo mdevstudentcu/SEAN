@@ -115,5 +115,5 @@ The [AERPAW LTE recordings](https://ieee-dataport.org/documents/lte-iq-measureme
 ## Needed from others
 
 - LTE timing spike (#21) and RF survey (#20): towers heard, clock drift and range noise.
-- Mentors: accuracy, integrity and timing targets (Q1 to Q3 in `mentor-qa.md`).
+- Mentors: accuracy, integrity and timing targets (Q1 to Q3 in `mentor-qa.md`): answered 2026-11-10, ADR-0034.
 - The other software owner: review of any `icd` PR.
