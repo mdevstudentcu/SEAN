@@ -17,3 +17,5 @@ Checks after a reboot: `sudo ppstest /dev/pps0` (one line per second), `gpsmon` 
 The MPU6050 and BMP180 (ADR-0014) go on the Pi's I2C bus (GPIO2/GPIO3, through the HAT's prototyping area). Only if the day-1 test brings back the Pi Zero 2 W hub (ADR-0018): wire the HAT's PPS pin (GPIO4) to the Zero's PPS GPIO (`TBC`) with a common ground, and plug the Zero's data port into a Pi USB 2 port.
 
 Plug both SDRs into the **USB 2 ports** (black). USB 3 ports radiate near GPS L1 and 2.4 GHz: leave them empty, or use one only for a shielded recording SSD kept away from the GPS antenna. Space the SDRs out with short extensions and ferrites (RSK-06). The 4B needs a 5 V 3 A supply and a heatsink or fan.
+
+RF survey at a site (#20): `bash deploy/pi/rf_survey.sh <site>` with an antenna on the SDR: a 24–1766 MHz `rtl_power` sweep, short captures of the top LTE EARFCNs and 60 s of ADS-B, into `data/sessions/<date>-survey-<site>/`. Analyse on the laptop with `analysis/rf_survey.py`.
