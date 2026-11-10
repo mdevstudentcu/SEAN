@@ -71,7 +71,9 @@ pi-deploy host="pi@pnt.local":
     set -euo pipefail
     stage="$(mktemp -d)"
     trap 'rm -rf "$stage"' EXIT
-    git ls-files -z | rsync -a --from0 --files-from=- --ignore-missing-args ./ "$stage/"
+    # Skip tracked files deleted in the working tree here: macOS rsync has no --ignore-missing-args
+    git ls-files -z | while IFS= read -r -d '' f; do if [ -e "$f" ]; then printf '%s\0' "$f"; fi; done \
+      | rsync -a --from0 --files-from=- ./ "$stage/"
     git describe --always --dirty --abbrev=7 > "$stage/.pnt-commit"  # the Pi copy has no .git (REQ-10)
     rsync -az --delete --exclude .venv --exclude data/sessions "$stage/" {{host}}:~/pnt/
     ssh {{host}} 'cd ~/pnt && bash deploy/pi/setup.sh'
