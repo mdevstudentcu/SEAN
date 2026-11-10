@@ -2,9 +2,20 @@
 
 Answers from our Honeywell mentors, kept so decisions trace back to them. Newest first.
 
+## 2026-11-10: answers to Q1–Q4
+
+Relayed by the team. The answers are numbered #1–#4; we read them as our Q1–Q3 (still open from 2026-11-08) and the attack-order part of Q4 (`TBC`: confirm the numbering with the mentors).
+
+| Q | Our question | Answer | What it changes |
+| --- | --- | --- | --- |
+| 1 | What horizontal accuracy and outage duration would matter (REQ-01)? | "For the drone, ≤ 50 m for ~2 min should be OK-ish. You will need to explain the calculations [that] lead to this accuracy." | T1 gets the mentors' figure as its threshold, ours as its objective (ADR-0034, Proposed); an accuracy budget per error term becomes a deliverable |
+| 2 | Which integrity risk or confidence level should the protection level target (REQ-02)? | "Determining this is part of the challenge. You should consider different methods for indicating a level of confidence." | T5 is ours to set; we show confidence several ways, not only the HPL (ADR-0034) |
+| 3 | What timing holdover target matters (REQ-03)? | "Handover timing matters because it will affect the accuracy and duration without GPS, and it must remain within the overall timing/accuracy budget." | No number: T3 stays ours. The budget includes the handover: how long GPS must be available before loss (ADR-0034) |
+| 4 | Which attacks? | "I would begin with location jumps." | Location jumps first in the attack work and `threat-model.md`; a jump target for T4, `TBD` from a jump study |
+
 ## 2026-11-08: answers to our seven questions (Teams)
 
-From the Honeywell mentor (SATCOM). Q1–Q3 (accuracy, integrity level, timing target) are still open; they will answer later.
+From the Honeywell mentor (SATCOM). Q1–Q3 (accuracy, integrity level, timing target) were left open here; they are answered above (2026-11-10).
 
 | Q | Our question | Answer | What it changes |
 | --- | --- | --- | --- |
