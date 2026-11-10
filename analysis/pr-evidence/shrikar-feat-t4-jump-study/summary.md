@@ -1,4 +1,4 @@
-# Location-jump study (f17475e, sim)
+# Location-jump study (6f03e92, sim)
 
 Seeds 0..49 per row; seed k jumps towards 45° x (k mod 8). Jump at t = 150 s, held to the end of the 360 s run. Command: `python analysis/jump_study.py --runs 50 --jobs N --out DIR`. Environments: `realistic-uc01` is `realistic-nominal` (realistic set) flown on `uc01-drone-circuit`'s route; `uc01` is `uc01-drone-circuit` as committed. Faults removed from both first.
 
