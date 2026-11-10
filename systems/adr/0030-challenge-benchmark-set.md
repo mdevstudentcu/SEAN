@@ -43,7 +43,7 @@ Each point is proposed; the owners accept or change it.
 
 **Open questions:**
 
-- **The reported sigma (point 6) may make every filter overconfident.** In the first run (#136's PR) the filters rejected the LTE records at this sigma and the drone leg's error equalled the same run without LTE. Keep 2.0 m as the real-records case, or also score a leg told the true noise? Should #118 size the error model apart from the reported sigma?
+- **The reported sigma (point 6) may make every filter overconfident.** In a check beside the first run (#136's PR, drone and timing legs, 10 seeds, sim) `ekf` and `ekf-calibrated` did worse with these LTE records than with none on 5 to 8 of 10 seeds per leg. Keep 2.0 m as the real-records case, or also score a leg told the true noise? Should #118 size the error model apart from the reported sigma?
 - **60 s of GPS before the outage** (#126) leaves `ekf-calibrated` 30 s to learn the tower clocks after its 30 s gate (ADR-0022). Longer?
 - **The approach leg's start** (point 3) is ours, not uc02's, and every tower is in one direction for most of the leg. Keep, or place synthetic towers along the route?
 - **`pnt eval challenge`** (as #126 asks) isn't a name today: each leg runs on its own. Add a name for the three, or keep three commands?
