@@ -33,3 +33,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0027](0027-dashboard-sse-canvas.md) | The dashboard streams over Server-Sent Events and draws on canvas | Accepted |
 | [0028](0028-fly-inav.md) | The drone flies INAV on the BLITZ ATF435, pilot-flown with an RC kill switch | Accepted |
 | [0029](0029-tethered-hover-wifi-control.md) | Tethered indoor hover may be flown from a gamepad through an ESP32 Wi-Fi bridge | Accepted |
+| [0030](0030-challenge-benchmark-set.md) | A challenge benchmark set: one leg per use case, on records shaped like real ones | Proposed |
