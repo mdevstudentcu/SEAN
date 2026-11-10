@@ -22,6 +22,7 @@ from functools import partial
 from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.jump_guard import JumpGuard
 from pnt.integrity.mhss import MHSS
+from pnt.integrity.spoof_monitor import SpoofMonitor
 from pnt.nav import base_rover, baseline, cells, ekf
 
 DEFAULT_RECEIVERS = frozenset({"payload"})
@@ -52,6 +53,11 @@ ESTIMATORS = {
     "ekf-guard": configured(ekf.run, jump_guard=JumpGuard),
     "ekf-imu-guard": configured(ekf.run, motion="imu", jump_guard=JumpGuard),
     "ekf-calibrated-guard": configured(ekf.run_calibrated, jump_guard=JumpGuard),
+    # Opt-in GNSS position spoof monitor (#173, integrity/spoof_monitor.py): towers against the
+    # GNSS position, and with the IMU also a GNSS-free IMU copy against the filter
+    "ekf-spoof": partial(ekf.run, monitor=SpoofMonitor),
+    "ekf-calibrated-spoof": partial(ekf.run_calibrated, monitor=SpoofMonitor),
+    "ekf-imu-spoof": configured(ekf.run, motion="imu", monitor=partial(SpoofMonitor, imu=True)),
 }
 
 log = logging.getLogger(__name__)
