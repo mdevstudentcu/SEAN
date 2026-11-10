@@ -797,6 +797,13 @@ class EKF:
             stat = min(stat, float(x[:2] @ np.linalg.solve(cov_p, x[:2])))
         return stat
 
+    def raise_spoof_alarm(self) -> None:
+        """Raise the spoof alarm from another detector (`integrity.spoof_monitor`, #173): the
+        same response as this filter's own (GNSS position excluded until it agrees again, and a
+        calibrated filter's clocks roll back), whatever the clock model."""
+        if not self.spoof_alarm:
+            self._raise_spoof_alarm()
+
     def _raise_spoof_alarm(self) -> None:
         self.spoof_alarm = True
         self.spoof_alarms.append(self.t_ns)
