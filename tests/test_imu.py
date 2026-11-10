@@ -250,10 +250,11 @@ def test_alignment_recovers_a_known_heading_on_a_turn(start_s):
 HOVER = {"type": "loop", "radius_m": 1.0, "speed_mps": 0.0, "altitude_m": 30}
 
 
-def heading_at_alignment(traj, seed, gnss_sigma=1.0, start_s=0.0, gyro=1.0, spoof=None):
+def heading_at_alignment(traj, seed, gnss_sigma=1.0, start_s=0.0, gyro=1.0, spoof=None, **config):
     """(heading error, reported heading 1-sigma) in degrees when the filter aligns within 60 s of
     GNSS, or None if it never does. `gyro` scales the gyro's noise and biases, in the sim and in
-    what the filter is told alike; `spoof(t_s)` is added to every GNSS fix."""
+    what the filter is told alike; `spoof(t_s)` is added to every GNSS fix; `config` goes to the
+    filter."""
     sim = dataclasses.replace(
         MPU6050_SIM,
         gyro_noise_dps_rthz=gyro * MPU6050_SIM.gyro_noise_dps_rthz,
@@ -274,7 +275,7 @@ def heading_at_alignment(traj, seed, gnss_sigma=1.0, start_s=0.0, gyro=1.0, spoo
             else m
             for m in meas
         ]
-    f = ekf.EKF(motion="imu", imu={"spec": told})
+    f = ekf.EKF(motion="imu", imu={"spec": told}, **config)
     for m in meas:
         f.process(m)
         if f.imu.R is not None:
@@ -323,10 +324,22 @@ def test_heading_sigma_bounds_the_error_with_gnss_spoofed_during_alignment_issue
     spoof, traj, gnss_sigma
 ):
     """On the hard turn and on the gentle UC-01 circuit, where heading is barely observable in
-    one window (sigma tens of degrees). Seeds 0-2: every one aligns."""
+    one window (sigma tens of degrees). Seeds 0-2: every one aligns. For the jump the jump
+    guard (#184) is off: it refuses the jump, and the filter then never aligns (checked below),
+    so the alignment's own bound is tested on what it would see without the guard."""
+    config = {"jump_guard": None} if spoof.startswith("jump") else {}
     for seed in range(3):
-        err, sigma = heading_at_alignment(traj, seed, gnss_sigma, spoof=SPOOFS[spoof])
+        err, sigma = heading_at_alignment(traj, seed, gnss_sigma, spoof=SPOOFS[spoof], **config)
         assert abs(err) <= 3.0 * sigma, seed
+
+
+@pytest.mark.parametrize(
+    ("traj", "gnss_sigma"), [(TURN, 1.0), (CIRCUIT, 2.5)], ids=["turn", "uc01"]
+)
+def test_a_gnss_jump_during_alignment_is_refused_not_aligned_on_issue_184(traj, gnss_sigma):
+    for seed in range(3):
+        spoof = SPOOFS["jump 30 m at 4 s"]
+        assert heading_at_alignment(traj, seed, gnss_sigma, spoof=spoof) is None, seed
 
 
 def test_worse_grade_spec_scales_every_term():
