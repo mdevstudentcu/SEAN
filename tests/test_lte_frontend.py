@@ -16,8 +16,8 @@ from pnt.cli import main
 from pnt.core.measurement import validate
 from pnt.frontends.lte import capture, process_file, synth
 from pnt.frontends.lte import signals as sig
-from pnt.frontends.lte.frontend import emit
-from pnt.frontends.lte.tracker import CellTrack, Config, Epoch, GapMap
+from pnt.frontends.lte.frontend import _start, emit
+from pnt.frontends.lte.tracker import CellTrack, Config, Epoch, Found, GapMap, State
 from pnt.io.mcap_log import read_session
 from pnt.sources.replay import ReplaySource
 
@@ -404,3 +404,30 @@ def test_stamp_stall_that_catches_up_is_not_a_drop(tmp_path):
     extra = _stamps(int(1.3 * FS), stall_at=16384 * 70, stall_ns=40_000_000)  # 40 ms late
     r = process_file(write(tmp_path, "stall", [TOWER], 1.3, 0.0, **extra))
     assert r.gaps == []
+
+
+def _psd(st: State) -> bool:
+    return st.p00 >= 0 and st.p11 >= 0 and st.p01**2 <= st.p00 * st.p11 * (1 + 1e-9)
+
+
+def test_cell_refound_after_coasting_keeps_the_loop_covariance_valid():
+    # #181: a cell lost for 8 s and re-found on its old arc. Coasting builds the offset-rate
+    # cross term up (about dn · p11); pinning the offset again must not leave p01² > p00 · p11,
+    # or the next update makes p11, then p00, negative. Loop state as the 20261110-1305 capture
+    # left PCI 244 when it was lost (rate not yet carrier-aided).
+    L, cfg = sig.half_frame_length(FS), Config()
+    q = (cfg.accel_ms2 / synth.C) ** 2
+    lost = State(theta=3.2, nu=-2.6e-7, p00=7.3187, p01=1.8639e-6, p11=4.8063e-13, k=404)
+    cell = CellTrack(earfcn=2460, fc=FC, pci=8, n0=1000.0)
+    k = 2000  # the next search, 10 s later
+    seen = cell.n0 + k * L + lost.at(k, L) + 1.5  # 1.5 samples from the prediction
+    found = Found(2, 2, seen, -PPM * FC * 1e-6, 10.0, 0.0, 0.0, 10.0)
+    carry = {(2460, 8): (cell, lost)}
+    same, st = _start((2460, 8), found, FC, L, carry, SimpleNamespace(earfcn=2460), cfg)
+    assert same is cell and cell.arc == 0 and st.k == k  # continues the arc
+    assert st.theta == pytest.approx(seen - cell.n0 - k * L) and st.p00 == 0.25
+    assert _psd(st)
+    for kk in range(k, k + 40):  # tracked again: code updates every 5 ms
+        st.predict(kk, L, FS, q)
+        st.update(0, st.theta + 0.1, 0.05)
+        assert _psd(st), kk
