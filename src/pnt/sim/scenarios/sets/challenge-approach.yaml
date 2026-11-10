@@ -1,0 +1,102 @@
+# Challenge benchmark, UC-02 leg (#126, #136, ADR-0030 Proposed): the YOW runway 32 approach on
+# SYNTHETIC towers. Every value is TBC (ADR-0015).
+# SYNTHETIC GEOMETRY: label every result of this leg so. uc02-yow-approach.yaml starts 17 km
+# from Carleton and lte-cells-ottawa.csv stops at 10 km, so real towers can't be used here, and
+# this leg starts further out still (below). Extending the table needs an owner's go-ahead
+# (third-party data) and is not planned (#126). The towers are uc02's: 6 in a ring 0.8 to 3 km
+# around the origin, so for most of the leg every tower lies ahead of the aircraft, in one
+# direction.
+# - Approach: uc02's threshold, 5 km and 10 km points, course 320, 3-degree path and 70 m/s.
+#   To still be flying 600 s into the outage it starts 50.4 km out, on the straight line through
+#   the threshold and the 10 km point (ENU), and ends the run (720 s) 76 m short of the
+#   threshold. It comes within 10 km of Carleton only from 683 s. The threshold is uc02's airport
+#   reference point: APPROXIMATE, TBC against the Canada Flight Supplement.
+# - LTE: tower records as the sim makes them (`record_shape: sim`: each carries its tower's
+#   position), on the payload clock, with the realistic set's error sizes and tower clocks.
+# - GNSS, baro and payload clock: the realistic set's. IMU: the payload's MPU6050 (REQ-09, the
+#   payload is platform-agnostic); uc02 has none.
+# - Run: 60 s of GPS, then a 600 s outage, then 60 s of GPS again.
+description: UC-02 YOW approach on synthetic towers, 600 s GPS outage (challenge set, synthetic geometry).
+shared_attacks: false
+duration_s: 720   # TBC: 60 s GPS (as #126 and the shared long-outage), 600 s outage, 60 s GPS
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin), as uc02
+trajectory:
+  type: waypoints
+  vehicle: fixedwing
+  closed: false
+  speed_mps: 70
+  points_llh:
+    # TBC: 50.4 km from the threshold, ENU (34498, -45844, 2681) m, on the line below
+    - [44.974445, -75.258869, 3008.8]
+    # uc02-yow-approach.yaml: 10 km, 5 km and 0 km from the threshold on course 320
+    - [45.253536, -75.587358, 656.7]
+    - [45.288024, -75.628252, 383.4]
+    - [45.3225, -75.6692, 114.0]
+clock: {drift_ppb: 20, rw_ns: 2.0}   # the realistic set's payload clock, TBC
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5, time_sigma_ns: 20, health: true}   # realistic set, TBC
+  baro: {rate_hz: 10, sigma_m: 0.5}   # realistic set, TBC
+  imu: {rate_hz: 100}   # MPU6050 (ADR-0014, sim/sensors.py); rate TBC until the Pi 4B day-1 test (ADR-0018)
+  lte:
+    model: pseudorange
+    record_shape: sim
+    rate_hz: 1
+    n_emitters: 6   # uc02
+    ring_radius_m: [800, 3000]   # SYNTHETIC geometry, uc02
+    sigma_m: 50.0   # TBC: the realistic set's
+    receiver_clock: true   # the realistic set's: our clock in every tower reading (ADR-0022 amendment)
+    multipath: {sigma_m: 50.0, tau_s: 30.0}   # TBC: the realistic set's
+    dropout: {availability: 0.75, block_s: 30.0}   # TBC: the realistic set's
+    told_position_sigma_m: 100.0   # TBC: the realistic set's
+# Tower clocks in the realistic set's form and sizes (ADR-0022, Proposed; amended by ADR-0030 so
+# the challenge sets may share clocks). Synthetic towers get their builder from the seed
+# (scenario.tower_groups). Every value is TBC; sources as in sets/realistic.yaml.
+tower_clocks:
+  builder: {drift_mps: 0.0354, drift_rw_mps: 2.7e-4}
+  site: {offset_m: 1000.0, drift_mps: 0.0354, offset_rw_m: 0.2, drift_rw_mps: 2.7e-4}
+provenance:
+  clock: TBC
+  gnss: TBC
+  baro: TBC
+  imu: TBC   # MPU6050: noise datasheet, the rest literature (sim/sensors.py)
+  lte_noise: TBC
+  lte_geometry: TBC   # SYNTHETIC: uc02's ring of 6 towers
+  tower_clocks: TBC   # form: Shamaei et al. 2018; grouping: ADR-0022; sizes unsourced
+  multipath: TBC
+  dropout: TBC
+  tower_position_error: TBC
+  approach_start: TBC   # unsourced: uc02's line extended to 50.4 km
+# The menu (ADR-0030), timed as challenge-drone's: GNSS attacks at 150 s, other faults 120 s
+# into the outage (180 s). Start times are TBC.
+attacks:
+  nominal: []
+  # The 600 s outage. GPS returns at 660 s, so this entry also covers recovery after the outage.
+  outage:
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+  spoof-ramp:   # T4: 2 m/s position ramp
+    - {type: spoof_ramp, source: gnss, start_s: 150, rate_mps: 2.0, direction_deg: 45}
+  spoof-jump:
+    - {type: spoof_jump, source: gnss, start_s: 150, offset_enu_m: [300, 0, 0]}
+  time-spoof:   # T4: 50 ns/s time ramp
+    - {type: time_spoof, source: gnss, start_s: 150, rate_ns_per_s: 50}
+  meaconing:
+    - {type: meaconing, source: gnss, start_s: 150, delay_s: 5.0}
+  # Jammed on final (uc02): a ground jammer under the 5 km point. TBC, unsourced sizes: GPS is
+  # lost within 3 km (about 605 to 690 s) and degrades within 8 km (from about 535 s)
+  jamming-zone:
+    - {type: jamming_zone, source: gnss, center_llh: [45.288024, -75.628252, 90.0], radius_m: 3000, onset_m: 8000}
+  # A tower clock jumps 300 m (1 us) while GPS is out
+  outage-tower-clock-step:
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+    - {type: tower_clock_step, source: lte, emitter: "lte:sim0", start_s: 180, offset_m: 300.0}
+  # Every tower's timing goes into holdover (OCXO grade) 120 s into the outage (TBC)
+  outage-tower-holdover:
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+    - {type: tower_holdover, source: lte, start_s: 180}
+  outage-imu-bias:   # start-up calibration lost (datasheet offsets) while GPS is out
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+    - {type: imu_degradation, start_s: 180, mode: bias}
+  outage-baro-drift:   # the shared menu's 0.2 m/s drift, while GPS is out
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+    - {type: baro_drift, source: baro, start_s: 180, rate_mps: 0.2}

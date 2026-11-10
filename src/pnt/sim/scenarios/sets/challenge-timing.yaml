@@ -1,0 +1,82 @@
+# Challenge benchmark, UC-03 leg (#126, #136, ADR-0030 Proposed): a static timing receiver in the
+# drone leg's radio environment, scored on time error 10 min after GPS loss (T3). Every value is
+# TBC (ADR-0015).
+# - Receiver: static, 10 m up, beside the session origin at Carleton. The sim has no static
+#   trajectory type; `loop` at speed 0 holds still at (radius_m, 0, altitude_m) with zero velocity
+#   and acceleration, which the IMU model accepts.
+# - Radio environment, payload clock, GNSS, baro and IMU: the same as challenge-drone.yaml, value
+#   for value (tests/test_challenge_set.py checks this). Reasons and sources are given there.
+# - Run: 60 s of GPS, then a 600 s outage, then 60 s of GPS again.
+# Its own attack menu, as challenge-drone. No jamming zone: a static receiver is either always
+# inside one (an outage from t = 0) or never.
+description: UC-03 static timing receiver on front-end LTE records, 600 s GPS outage (challenge set).
+shared_attacks: false
+duration_s: 720   # TBC: 60 s GPS (as #126 and the shared long-outage), 600 s outage, 60 s GPS
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: loop, radius_m: 1.0, speed_mps: 0.0, altitude_m: 10.0}   # TBC: static, ENU (1, 0, 10) m
+clock: {drift_ppb: 20, rw_ns: 2.0}   # the realistic set's payload clock, TBC
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5, time_sigma_ns: 20, health: true}   # realistic set, TBC
+  baro: {rate_hz: 10, sigma_m: 0.5}   # realistic set, TBC
+  imu: {rate_hz: 100}   # MPU6050 (ADR-0014, sim/sensors.py); rate TBC until the Pi 4B day-1 test (ADR-0018)
+  lte:   # as challenge-drone.yaml, where each value's source is given
+    model: pseudorange
+    record_shape: front_end
+    rate_hz: 1
+    cells_from: {file: lte-cells-ottawa.csv, earfcn: 2460}
+    hearing: {model: link_budget}   # TBC
+    dongle: {}   # TBC
+    sigma_m: 50.0   # TBC
+    told_sigma_m: 2.0   # TBC: what the front end reports (challenge-drone.yaml, ADR-0030)
+    multipath: {sigma_m: 50.0, tau_s: 30.0}   # TBC: a static antenna's reflections may change slower
+    dropout: {availability: 0.75, block_s: 30.0}   # TBC
+    told_position_sigma_m: 100.0   # TBC
+tower_clocks:   # as challenge-drone.yaml (ADR-0022 form, ADR-0030 amendment); TBC
+  builder: {drift_mps: 0.0354, drift_rw_mps: 2.7e-4}
+  site: {offset_m: 1000.0, drift_mps: 0.0354, offset_rw_m: 0.2, drift_rw_mps: 2.7e-4}
+provenance:
+  clock: TBC
+  gnss: TBC
+  baro: TBC
+  imu: TBC   # MPU6050: noise datasheet, the rest literature (sim/sensors.py)
+  lte_noise: TBC
+  lte_reported_sigma: TBC   # PR #133's dense check, synthetic baseband (challenge-drone.yaml)
+  lte_geometry: literature   # ISED site registry via lte-cells-ottawa.csv (data/reference/README.md)
+  lte_hearing: TBC   # link budget unsourced; near-far floor measured on synthetic baseband (#133)
+  dongle_clock: TBC
+  tower_clocks: TBC   # form: Shamaei et al. 2018; grouping: ADR-0022; sizes unsourced
+  multipath: TBC
+  dropout: TBC
+  tower_position_error: TBC
+  receiver_site: TBC   # unsourced: a mast beside the origin
+# The menu (ADR-0030), timed as challenge-drone's: GNSS attacks at 150 s, other faults 120 s
+# into the outage (180 s). Start times are TBC.
+attacks:
+  nominal: []
+  # The 600 s outage. GPS returns at 660 s, so this entry also covers recovery after the outage.
+  outage:
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+  spoof-ramp:   # T4: 2 m/s position ramp
+    - {type: spoof_ramp, source: gnss, start_s: 150, rate_mps: 2.0, direction_deg: 45}
+  spoof-jump:
+    - {type: spoof_jump, source: gnss, start_s: 150, offset_enu_m: [300, 0, 0]}
+  time-spoof:   # T4: 50 ns/s time ramp, UC-03's own threat
+    - {type: time_spoof, source: gnss, start_s: 150, rate_ns_per_s: 50}
+  meaconing:
+    - {type: meaconing, source: gnss, start_s: 150, delay_s: 5.0}
+  # A tower clock jumps 300 m (1 us) while GPS is out, on the cell heard most here (eNB 30018,
+  # the strongest cell at Carleton in PR #133)
+  outage-tower-clock-step:
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+    - {type: tower_clock_step, source: lte, emitter: "lte:2460:300", start_s: 180, offset_m: 300.0}
+  # Every tower's timing goes into holdover (OCXO grade) 120 s into the outage (TBC)
+  outage-tower-holdover:
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+    - {type: tower_holdover, source: lte, start_s: 180}
+  outage-imu-bias:   # start-up calibration lost (datasheet offsets) while GPS is out
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+    - {type: imu_degradation, start_s: 180, mode: bias}
+  outage-baro-drift:   # the shared menu's 0.2 m/s drift, while GPS is out
+    - {type: outage, source: gnss, start_s: 60, end_s: 660}
+    - {type: baro_drift, source: baro, start_s: 180, rate_mps: 0.2}
