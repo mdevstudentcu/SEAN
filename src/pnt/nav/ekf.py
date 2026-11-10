@@ -1016,6 +1016,8 @@ def _doppler(ekf: EKF, m: Measurement):
                 rate += ekf.x[i]
                 H[0, i] = 1.0
     return m.value[0] - rate, H, np.diag(np.square(m.sigma)), True
+
+
 BEARING_MIN_RANGE_M = 100.0  # TBC: closer than this the bearing turns too fast to linearise
 BEARING_BIAS_SIGMA_RAD = float(np.deg2rad(1.0))  # TBC: literature, a VOR's site error, 1-sigma
 
