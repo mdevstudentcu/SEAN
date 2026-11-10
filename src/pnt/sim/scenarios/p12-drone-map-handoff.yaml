@@ -1,0 +1,66 @@
+# P12 (issue #96, option A): the drone as a mobile reference station, by tower-map hand-off.
+# The drone flies the circuit with GPS (above a ground-level jammer, or clear of an urban canyon)
+# and learns each tower's clock while GPS is trusted. A first responder on the ground hears the
+# same towers and loses GPS; its filter starts from the drone's map (`pnt.nav.tower_map`), or
+# from nothing. Results: analysis/p12_map_handoff.py.
+# The world and the drone are the `realistic` set's (sets/realistic.yaml), copied because a
+# standalone scenario can't extend a set: one carrier's 4 nearest towers, shared tower clocks,
+# our clock in the tower readings. Every value is TBC until the radio test (ADR-0015).
+# Not modelled: ground-level reception (more blockage and multipath than at 30 m); the user's
+# receiver is the drone's kit. The IMU is left out: `ekf-calibrated` does not use it.
+description: Drone learns the tower clocks with GPS; a GPS-less ground user starts from its map.
+duration_s: 2410
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: loop, radius_m: 150, speed_mps: 8, altitude_m: 30}
+clock: {drift_ppb: 20, rw_ns: 2.0}
+sources:
+  gnss: {rate_hz: 5, sigma_m: 2.5, time_sigma_ns: 20, health: true}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    towers_from: {file: cells-ottawa.csv, carrier: TELUS, tx_mhz: 886.25, min_km: 0.8, count: 4}
+    sigma_m: 50.0
+    receiver_clock: true
+    multipath: {sigma_m: 50.0, tau_s: 30.0}
+    dropout: {availability: 0.75, block_s: 30.0}
+    told_position_sigma_m: 100.0
+tower_clocks:   # as sets/realistic.yaml (ADR-0022): builder clock + site residual
+  builder: {drift_mps: 0.0354, drift_rw_mps: 2.7e-4}
+  site: {offset_m: 1000.0, drift_mps: 0.0354, offset_rw_m: 0.2, drift_rw_mps: 2.7e-4}
+# The ground user (scenario._GroundUser): a responder walking a 50 m circle inside the drone's
+# circuit. It switches on 10 s before it loses GPS, so it has a first fix and GPS time but too
+# little GPS to calibrate any tower itself (the gate needs 30 s, `calib_gate_s`).
+ground_user:
+  start_s: 2100   # TBC: the longest map age plus one circuit
+  trajectory: {type: loop, radius_m: 50, speed_mps: 1.4, altitude_m: 1.5}   # TBC: walking
+  clock: {drift_ppb: 20, rw_ns: 2.0}   # TBC: the drone's kit, its own oscillator
+  sources:
+    gnss: {rate_hz: 5, sigma_m: 2.5, time_sigma_ns: 20, health: true}   # TBC: the drone's kit
+    baro: {rate_hz: 10, sigma_m: 0.5}   # TBC
+    lte:   # the drone's towers; noise, multipath and dropouts drawn for the user (TBC)
+      sigma_m: 50.0
+      receiver_clock: true
+      multipath: {sigma_m: 50.0, tau_s: 30.0}
+      dropout: {availability: 0.75, block_s: 30.0}
+  faults:
+    - {type: outage, source: gnss, start_s: 2110}   # GPS lost for the rest of the run
+# The hand-off, read by analysis/p12_map_handoff.py. Map age: time from the end of the drone's
+# circuit (the map's epoch) to the user's switch-on, 10 s before its GPS loss. Each age gets its
+# own circuit of the same length, so the maps differ only in age.
+handoff:
+  circuit_s: 300   # TBC: drone's time with trusted GPS before the hand-off
+  map_ages_s: [0, 300, 600, 1200, 1800]   # TBC: span chosen to show the fade
+provenance:
+  clock: TBC
+  gnss: TBC
+  baro: TBC
+  lte_noise: TBC
+  lte_geometry: literature   # ISED site registry (data/reference/README.md)
+  tower_clocks: TBC   # form: Shamaei et al. 2018; grouping: ADR-0022; sizes unsourced
+  multipath: TBC
+  dropout: TBC
+  tower_position_error: TBC
+  ground_user: TBC
+  handoff: TBC

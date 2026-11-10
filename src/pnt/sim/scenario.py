@@ -31,6 +31,8 @@ SAME_SITE_M = 10.0
 GROUND_MISSING_BELOW_M = 80.0
 # Seeds the reference station's own random stream, kept apart from the payload's (REQ-10)
 REFERENCE_STREAM = 0x0BA5E
+# Seeds the ground user's own random stream (P12, #96), for the same reason
+GROUND_USER_STREAM = 0x96
 # Fixed scenario start so runs are reproducible (REQ-10): judging day, 18:00 UTC.
 T0_NS = utc_to_gps_ns(datetime(2026, 11, 12, 18, 0, tzinfo=UTC))
 # Who built each carrier's radios in Ottawa (ADR-0022, Proposed): Bell and TELUS share one RAN
@@ -76,6 +78,8 @@ class SimRun:
     # Truth for debugging: each dongle's clock (m) at the truth times, by `meta.rx_clock`, when a
     # source has `record_shape: front_end`
     rx_clocks: dict[str, np.ndarray] = field(default_factory=dict)
+    # The ground user (P12, #96) as a run of its own, when the scenario has `ground_user:`
+    ground_user: SimRun | None = None
 
 
 _NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
@@ -228,6 +232,7 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     rx_clocks: dict[str, np.ndarray] = {}
     jammers: dict[str, dict] = {}  # true jammer positions, for the hostile-emitter faults
     ref = _Reference(spec, seed, t_truth) if spec.get("reference") else None
+    ground = _GroundUser(spec, seed, t_truth) if spec.get("ground_user") else None
     for source, cfg in spec.get("sources", {}).items():
         cfg = dict(cfg)
         rate_hz = cfg.pop("rate_hz")
@@ -238,6 +243,8 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
         if model == "pseudorange" and _record_shape(cfg) == "front_end":
             if ref is not None and source in ref.sources:
                 raise ValueError("the reference station can't hear front-end records yet")
+            if ground is not None and source in ground.sources:
+                raise ValueError("the ground user can't hear front-end records yet")
             cells_file = _cells_file(cfg)
             schedule = lte_front_end.dwell_schedule(cfg, dur, rate_hz)
             if schedule is not None:  # a dongle hopping carriers: epochs follow its dwells
@@ -313,6 +320,12 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
             )
             if ref is not None and source in ref.sources:
                 meas += ref.pseudoranges(source, ts, ts_ns, em, em_llh, told_em, clocks)
+            if ground is not None and source in ground.sources:
+                if cfg.get("ray_table") is not None:
+                    raise ValueError(
+                        "a ray table is traced along the drone's path, not the user's"
+                    )
+                ground.pseudoranges(source, ts, ts_ns, em, em_llh, told_em, clocks)
         elif model == "bearing":
             em_llh = cfg.pop("emitters_llh", None)
             if em_llh is not None:
@@ -375,8 +388,19 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     meas, events = attacks.apply(meas, spec.get("faults", []), ctx)
     meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter, m.receiver))
     meta = None if ref is None else ref.meta()
+    user = None if ground is None else ground.run(spec, seed, emitters, groups, tower_clk)
     return SimRun(
-        spec["name"], spec, seed, truth, meas, events, emitters, tower_clk, meta, rx_clocks
+        spec["name"],
+        spec,
+        seed,
+        truth,
+        meas,
+        events,
+        emitters,
+        tower_clk,
+        meta,
+        rx_clocks,
+        ground_user=user,
     )
 
 
@@ -543,6 +567,110 @@ class _Reference:
             "surveyed": False,
             "sigma_m": self.survey_sigma_m,
         }
+
+
+class _GroundUser:
+    """A user on the ground with little or no GPS of its own (P12, issue #96): a first responder
+    who navigates on the tower map a drone learned in the same world (`pnt.nav.tower_map`).
+
+    It hears the drone's towers, so it shares their true and told positions and their clocks, but
+    has its own path, receiver clock, noise, multipath, dropouts and faults (scenario
+    `ground_user:` block; every value TBC). It draws from its own random stream, so adding it
+    leaves every drone record exactly as it was. Its records are a run of their own
+    (`SimRun.ground_user`), never part of the drone's session: they say `payload` because they are
+    that user's own receiver's, so ICD-measurement gains no receiver.
+    - `sources`: `gnss` and `baro` take their usual settings. A pseudorange source of the drone's,
+      by name, takes `sigma_m` and optionally `told_sigma_m`, `multipath`, `dropout` and
+      `receiver_clock` (the user's own `clock:`); its towers and rate are the drone's.
+    - `faults`: the user's own, e.g. its GPS loss. A fault of the world (a tower clock step) is
+      listed for each receiver it reaches.
+    - `start_s`: the user arrives (switches on) then; its records before it are dropped.
+    """
+
+    def __init__(self, spec: dict, seed: int, t_truth: np.ndarray):
+        cfg = spec["ground_user"]
+        self.rng = np.random.default_rng([seed, GROUND_USER_STREAM])
+        self.traj = {**cfg["trajectory"], "_origin_llh": spec.get("origin_llh")}
+        self.sources = dict(cfg.get("sources", {}))
+        self.t_truth = t_truth
+        self.clock = _clock(cfg.get("clock"), t_truth, self.rng)
+        self.start_ns = T0_NS + s_to_ns(cfg.get("start_s", 0.0))
+        self.spec = {
+            "name": f"{spec['name']}-ground-user",
+            **{k: spec[k] for k in ("duration_s", "dt_s", "origin_llh") if k in spec},
+            "trajectory": cfg["trajectory"],
+            "sources": self.sources,
+            "faults": list(cfg.get("faults", [])),
+            **({"clock": cfg["clock"]} if cfg.get("clock") else {}),
+        }
+        self.heard: set[str] = set()
+        self.meas: list[Measurement] = []
+
+    def _clock_at(self, ts: np.ndarray) -> np.ndarray:
+        return np.interp(ts, self.t_truth, self.clock)
+
+    def pseudoranges(self, source, ts, ts_ns, em, em_llh, told_em, clocks) -> None:
+        cfg = self.sources[source]
+        if cfg.get("receiver_clock") and "clock" not in self.spec:
+            raise ValueError("the ground user's receiver_clock needs its own `clock:` model")
+        pos, _ = trajectory.make(self.traj, ts)
+        self.heard.add(source)
+        self.meas += models.pseudoranges(
+            ts_ns,
+            pos,
+            self.rng,
+            source=source,
+            emitters=em,
+            emitters_llh=em_llh,
+            told_emitters=told_em,
+            sigma_m=cfg["sigma_m"],
+            told_sigma_m=cfg.get("told_sigma_m"),
+            clock_s=self._clock_at(ts) if cfg.get("receiver_clock") else None,
+            multipath=cfg.get("multipath"),
+            dropout=cfg.get("dropout"),
+            tower_clock_m=clocks,
+        )
+
+    def run(self, spec: dict, seed: int, emitters: dict, groups, tower_clk: dict) -> SimRun:
+        """The user's GNSS and barometer, its truth and its faults: its run, from `start_s`."""
+        meas = list(self.meas)
+        for source, cfg in self.sources.items():
+            if source in self.heard:
+                continue
+            cfg = dict(cfg)
+            model = cfg.pop("model", source)
+            ts = _times(float(spec["duration_s"]), cfg.pop("rate_hz"))
+            ts_ns = T0_NS + np.round(ts * 1e9).astype(np.int64)
+            pos, _ = trajectory.make(self.traj, ts)
+            if model == "gnss":
+                clock_s = self._clock_at(ts) if "clock" in self.spec else None
+                meas += models.gnss(ts_ns, pos, self.rng, clock_s=clock_s, **cfg)
+            elif model == "baro":
+                meas += models.baro(ts_ns, pos, self.rng, **cfg)
+            else:
+                raise ValueError(
+                    f"ground user source {source!r}: gnss, baro or a pseudorange source the "
+                    f"drone has, not {model!r}"
+                )
+        pos_t, vel_t = trajectory.make(self.traj, self.t_truth)
+        truth = [
+            Truth(
+                t_ns=T0_NS + s_to_ns(t), pos_enu=tuple(p), vel_enu=tuple(v), clock_bias_s=float(c)
+            )
+            for t, p, v, c in zip(self.t_truth, pos_t, vel_t, self.clock, strict=True)
+        ]
+        ctx = attacks.Context(
+            t0_ns=T0_NS,
+            origin_llh=spec.get("origin_llh"),
+            truth_pos=lambda t: trajectory.make(self.traj, np.atleast_1d(t))[0],
+            rng=self.rng,
+            emitters=emitters,
+            tower_groups=groups,
+        )
+        meas, events = attacks.apply(meas, self.spec["faults"], ctx)
+        meas = [m for m in meas if m.t_ns >= self.start_ns]
+        meas.sort(key=lambda m: (m.t_ns, m.source, m.kind, m.emitter, m.receiver))
+        return SimRun(self.spec["name"], self.spec, seed, truth, meas, events, emitters, tower_clk)
 
 
 def tower_height_m(filed_m: float, ground_m: float) -> float:
