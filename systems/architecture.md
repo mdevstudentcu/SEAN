@@ -120,6 +120,7 @@ On `main`: the tower site, network builder, source layer, GNSS common mode and r
 | Tower positions | Real (ISED registry). The sim uses the 2024 extract (`data/reference/cells-ottawa.csv`); the 2026 extract with PCI per sector is #110 | Registry; staleness and PCI collisions stay association fault modes (ADR-0023) |
 | Tower noise, clocks, multipath, dropouts | Literature or `TBC` | `placeholder` in *Sim validity* |
 | LEO (Iridium) | Simulated from real orbits ([ADR-0013](adr/0013-no-iridium-hardware.md)), confirmed acceptable by the mentors | Sim |
+| LEO (Starlink, P13) | Simulated from real orbits (`starlink-outage`, #97). Its Ku-band downlink (10.7–12.7 GHz) is out of the RTL-SDR's range; a real receiver needs an LNB and downconverter, as in the Kassas-group Starlink Doppler work, which we don't have | Sim; every Starlink value `TBC` |
 | Jamming and spoofing | Software injection only ([ADR-0001](adr/0001-receive-only-payload.md), ASM-03) | Sim; injection into real sessions once they exist |
 
 ## Safety, security and regulation
