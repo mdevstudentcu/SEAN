@@ -1,0 +1,6441 @@
+{
+ "command": "python analysis/accuracy_budget.py --seeds 20 --jobs 3",
+ "commit": "fb62912",
+ "seeds": 20,
+ "elapsed_min": 81.60620020486677,
+ "estimators": [
+  "ekf",
+  "ekf-calibrated"
+ ],
+ "variants": {
+  "committed": "told sigma as committed (2 m)",
+  "true-noise": "told the true noise (if #147 is solved)"
+ },
+ "configs": [
+  {
+   "key": "one-carrier",
+   "label": "1 carrier, today's leg (2460)",
+   "family": "reference"
+  },
+  {
+   "key": "range-3km",
+   "label": "every tower within 3 km (2460)",
+   "family": "reference"
+  },
+  {
+   "key": "scan-2-1s",
+   "label": "scan order, 2 carriers, 1 s",
+   "family": "scan order",
+   "earfcn": [
+    2460,
+    5145
+   ],
+   "dwell_s": 1.0
+  },
+  {
+   "key": "scan-4-1s",
+   "label": "scan order, 4 carriers, 1 s",
+   "family": "scan order",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535
+   ],
+   "dwell_s": 1.0
+  },
+  {
+   "key": "scan-6-1s",
+   "label": "scan order, 6 carriers, 1 s",
+   "family": "scan order",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535,
+    5035,
+    5085
+   ],
+   "dwell_s": 1.0
+  },
+  {
+   "key": "scan-8-1s",
+   "label": "scan order, 8 carriers, 1 s",
+   "family": "scan order",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535,
+    5035,
+    5085,
+    5205,
+    5060
+   ],
+   "dwell_s": 1.0
+  },
+  {
+   "key": "scan-13-1s",
+   "label": "scan order, 13 carriers, 1 s",
+   "family": "scan order",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535,
+    5035,
+    5085,
+    5205,
+    5060,
+    68611,
+    68661,
+    2560,
+    68711,
+    68761
+   ],
+   "dwell_s": 1.0
+  },
+  {
+   "key": "scan-4-0.5s",
+   "label": "scan order, 4 carriers, 0.5 s",
+   "family": "scan order",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535
+   ],
+   "dwell_s": 0.5
+  },
+  {
+   "key": "scan-4-2s",
+   "label": "scan order, 4 carriers, 2 s",
+   "family": "scan order",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535
+   ],
+   "dwell_s": 2.0
+  },
+  {
+   "key": "distinct-4-1s",
+   "label": "distinct eNB sets, 4 carriers, 1 s",
+   "family": "distinct eNB sets",
+   "earfcn": [
+    2460,
+    5145,
+    2535,
+    5035
+   ],
+   "dwell_s": 1.0
+  },
+  {
+   "key": "distinct-6-1s",
+   "label": "distinct eNB sets, 6 carriers, 1 s",
+   "family": "distinct eNB sets",
+   "earfcn": [
+    2460,
+    5145,
+    2535,
+    5035,
+    5205,
+    5060
+   ],
+   "dwell_s": 1.0
+  }
+ ],
+ "rows": [
+  {
+   "config": "one-carrier",
+   "label": "1 carrier, today's leg (2460)",
+   "family": "reference",
+   "variant": "committed",
+   "earfcn": [
+    2460
+   ],
+   "dwell_s": null,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 17.0,
+    "min": 3.0,
+    "max": 25.0
+   },
+   "masts_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 18.0
+   },
+   "masts_10s": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 18.0
+   },
+   "cells_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 22.0
+   },
+   "cells_10s": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 22.0
+   },
+   "dropped_share": 0.023266610229662196,
+   "ekf": {
+    "p95_120s_median": 1201.7573390471716,
+    "p95_120s_worst": 3432.432007890824,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 4033.647850723517,
+    "p95_300s_worst": 16638.949688575252,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.6978333333333333,
+    "hpl_bound_300s_min": 0.107,
+    "hazardous_epochs": 180,
+    "hazardous_seeds": 2
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 1238.562361600497,
+    "p95_120s_worst": 3251.434132818533,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 4114.409734979652,
+    "p95_300s_worst": 12058.795252602156,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.7386666666666667,
+    "hpl_bound_300s_min": 0.10033333333333333,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "one-carrier",
+   "label": "1 carrier, today's leg (2460)",
+   "family": "reference",
+   "variant": "true-noise",
+   "earfcn": [
+    2460
+   ],
+   "dwell_s": null,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 17.0,
+    "min": 3.0,
+    "max": 25.0
+   },
+   "masts_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 18.0
+   },
+   "masts_10s": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 18.0
+   },
+   "cells_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 22.0
+   },
+   "cells_10s": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 22.0
+   },
+   "dropped_share": 0.023266610229662196,
+   "ekf": {
+    "p95_120s_median": 374.4939336290597,
+    "p95_120s_worst": 1125.3063245512894,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 714.7835149263958,
+    "p95_300s_worst": 2304.7249119522107,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.9390000000000001,
+    "hpl_bound_300s_min": 0.45966666666666667,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 412.5704991560131,
+    "p95_120s_worst": 701.2838560517318,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 962.7294704929134,
+    "p95_300s_worst": 1507.6554908043333,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 0.8203333333333334,
+    "hazardous_epochs": 71,
+    "hazardous_seeds": 1
+   }
+  },
+  {
+   "config": "range-3km",
+   "label": "every tower within 3 km (2460)",
+   "family": "reference",
+   "variant": "committed",
+   "earfcn": [
+    2460
+   ],
+   "dwell_s": null,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 18.0,
+    "min": 17.0,
+    "max": 19.0
+   },
+   "masts_epoch": {
+    "median": 13.0,
+    "min": 7.0,
+    "max": 17.0
+   },
+   "masts_10s": {
+    "median": 13.0,
+    "min": 7.0,
+    "max": 17.0
+   },
+   "cells_epoch": {
+    "median": 39.0,
+    "min": 21.0,
+    "max": 51.0
+   },
+   "cells_10s": {
+    "median": 39.0,
+    "min": 21.0,
+    "max": 51.0
+   },
+   "dropped_share": 0.10438670368988043,
+   "ekf": {
+    "p95_120s_median": 1339.6098205777812,
+    "p95_120s_worst": 4221.9537493399985,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 4815.237929499753,
+    "p95_300s_worst": 14476.123468565036,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.7501666666666666,
+    "hpl_bound_300s_min": 0.017,
+    "hazardous_epochs": 314,
+    "hazardous_seeds": 3
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 1327.306850692366,
+    "p95_120s_worst": 4820.665128937482,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 4032.692442124451,
+    "p95_300s_worst": 18506.927611253443,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.5453333333333333,
+    "hpl_bound_300s_min": 0.047,
+    "hazardous_epochs": 284,
+    "hazardous_seeds": 2
+   }
+  },
+  {
+   "config": "range-3km",
+   "label": "every tower within 3 km (2460)",
+   "family": "reference",
+   "variant": "true-noise",
+   "earfcn": [
+    2460
+   ],
+   "dwell_s": null,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 18.0,
+    "min": 17.0,
+    "max": 19.0
+   },
+   "masts_epoch": {
+    "median": 13.0,
+    "min": 7.0,
+    "max": 17.0
+   },
+   "masts_10s": {
+    "median": 13.0,
+    "min": 7.0,
+    "max": 17.0
+   },
+   "cells_epoch": {
+    "median": 39.0,
+    "min": 21.0,
+    "max": 51.0
+   },
+   "cells_10s": {
+    "median": 39.0,
+    "min": 21.0,
+    "max": 51.0
+   },
+   "dropped_share": 0.10438670368988043,
+   "ekf": {
+    "p95_120s_median": 64.44896916362029,
+    "p95_120s_worst": 110.94484255892786,
+    "p95_120s_meet": 4,
+    "p95_300s_median": 66.18390019316584,
+    "p95_300s_worst": 101.97194176838289,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.9396666666666667,
+    "hpl_bound_300s_min": 0.7363333333333333,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 68.0756702177126,
+    "p95_120s_worst": 192.2386970796246,
+    "p95_120s_meet": 1,
+    "p95_300s_median": 90.97046324986852,
+    "p95_300s_worst": 387.45420842052476,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 0.377,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "scan-2-1s",
+   "label": "scan order, 2 carriers, 1 s",
+   "family": "scan order",
+   "variant": "committed",
+   "earfcn": [
+    2460,
+    5145
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 30.0,
+    "min": 9.0,
+    "max": 47.0
+   },
+   "masts_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 23.0
+   },
+   "masts_10s": {
+    "median": 5.0,
+    "min": 2.0,
+    "max": 31.0
+   },
+   "cells_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 24.0
+   },
+   "cells_10s": {
+    "median": 5.0,
+    "min": 2.0,
+    "max": 36.0
+   },
+   "dropped_share": 0.011374156857558524,
+   "ekf": {
+    "p95_120s_median": 1803.2462660601832,
+    "p95_120s_worst": 3499.528041762202,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 4945.601331386592,
+    "p95_300s_worst": 12317.443951872141,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.1935,
+    "hpl_bound_300s_min": 0.01633333333333333,
+    "hazardous_epochs": 387,
+    "hazardous_seeds": 3
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 1660.830334110432,
+    "p95_120s_worst": 4016.2558075014676,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 4446.626051465813,
+    "p95_300s_worst": 10344.15195506098,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.18483333333333335,
+    "hpl_bound_300s_min": 0.074,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "scan-2-1s",
+   "label": "scan order, 2 carriers, 1 s",
+   "family": "scan order",
+   "variant": "true-noise",
+   "earfcn": [
+    2460,
+    5145
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 30.0,
+    "min": 9.0,
+    "max": 47.0
+   },
+   "masts_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 23.0
+   },
+   "masts_10s": {
+    "median": 5.0,
+    "min": 2.0,
+    "max": 31.0
+   },
+   "cells_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 24.0
+   },
+   "cells_10s": {
+    "median": 5.0,
+    "min": 2.0,
+    "max": 36.0
+   },
+   "dropped_share": 0.011374156857558524,
+   "ekf": {
+    "p95_120s_median": 226.84278106282937,
+    "p95_120s_worst": 723.414949454349,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 316.1900040556684,
+    "p95_300s_worst": 1079.5768325900349,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.9983333333333333,
+    "hpl_bound_300s_min": 0.7686666666666667,
+    "hazardous_epochs": 37,
+    "hazardous_seeds": 3
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 228.5144959847892,
+    "p95_120s_worst": 571.2080274293186,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 490.8799561268305,
+    "p95_300s_worst": 1019.7956226811245,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 0.9953333333333333,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "scan-4-1s",
+   "label": "scan order, 4 carriers, 1 s",
+   "family": "scan order",
+   "variant": "committed",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 38.0,
+    "min": 21.0,
+    "max": 60.0
+   },
+   "masts_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 35.0
+   },
+   "masts_10s": {
+    "median": 5.0,
+    "min": 2.0,
+    "max": 38.0
+   },
+   "cells_epoch": {
+    "median": 2.5,
+    "min": 1.0,
+    "max": 38.0
+   },
+   "cells_10s": {
+    "median": 11.0,
+    "min": 4.0,
+    "max": 104.0
+   },
+   "dropped_share": 0.013963842417701025,
+   "ekf": {
+    "p95_120s_median": 1296.0070826419392,
+    "p95_120s_worst": 3996.944007237627,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 5560.689983889941,
+    "p95_300s_worst": 15986.70159069418,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.49883333333333335,
+    "hpl_bound_300s_min": 0.050666666666666665,
+    "hazardous_epochs": 168,
+    "hazardous_seeds": 4
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 1175.1817482592319,
+    "p95_120s_worst": 2700.897368820401,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 3225.279944749298,
+    "p95_300s_worst": 7360.798547564087,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.5529999999999999,
+    "hpl_bound_300s_min": 0.074,
+    "hazardous_epochs": 34,
+    "hazardous_seeds": 1
+   }
+  },
+  {
+   "config": "scan-4-1s",
+   "label": "scan order, 4 carriers, 1 s",
+   "family": "scan order",
+   "variant": "true-noise",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 38.0,
+    "min": 21.0,
+    "max": 60.0
+   },
+   "masts_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 35.0
+   },
+   "masts_10s": {
+    "median": 5.0,
+    "min": 2.0,
+    "max": 38.0
+   },
+   "cells_epoch": {
+    "median": 2.5,
+    "min": 1.0,
+    "max": 38.0
+   },
+   "cells_10s": {
+    "median": 11.0,
+    "min": 4.0,
+    "max": 104.0
+   },
+   "dropped_share": 0.013963842417701025,
+   "ekf": {
+    "p95_120s_median": 206.87167594056592,
+    "p95_120s_worst": 879.9576415681129,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 278.37376679661634,
+    "p95_300s_worst": 1643.0105173845702,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.9565,
+    "hpl_bound_300s_min": 0.278,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 162.33613862769255,
+    "p95_120s_worst": 662.384009943454,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 382.45570713050586,
+    "p95_300s_worst": 1142.4703648846519,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 0.855,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "scan-6-1s",
+   "label": "scan order, 6 carriers, 1 s",
+   "family": "scan order",
+   "variant": "committed",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535,
+    5035,
+    5085
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 45.5,
+    "min": 28.0,
+    "max": 60.0
+   },
+   "masts_epoch": {
+    "median": 2.25,
+    "min": 1.0,
+    "max": 27.0
+   },
+   "masts_10s": {
+    "median": 8.75,
+    "min": 4.0,
+    "max": 36.0
+   },
+   "cells_epoch": {
+    "median": 3.0,
+    "min": 1.0,
+    "max": 28.0
+   },
+   "cells_10s": {
+    "median": 20.25,
+    "min": 8.0,
+    "max": 101.0
+   },
+   "dropped_share": 0.021017973991551395,
+   "ekf": {
+    "p95_120s_median": 1270.3878319827559,
+    "p95_120s_worst": 4005.0637087736236,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 4511.002459562389,
+    "p95_300s_worst": 14917.58829344712,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.679,
+    "hpl_bound_300s_min": 0.04066666666666666,
+    "hazardous_epochs": 89,
+    "hazardous_seeds": 3
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 1276.1909020524586,
+    "p95_120s_worst": 2728.710175500445,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 3410.296103386411,
+    "p95_300s_worst": 9990.413176129403,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.7406666666666666,
+    "hpl_bound_300s_min": 0.074,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "scan-6-1s",
+   "label": "scan order, 6 carriers, 1 s",
+   "family": "scan order",
+   "variant": "true-noise",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535,
+    5035,
+    5085
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 45.5,
+    "min": 28.0,
+    "max": 60.0
+   },
+   "masts_epoch": {
+    "median": 2.25,
+    "min": 1.0,
+    "max": 27.0
+   },
+   "masts_10s": {
+    "median": 8.75,
+    "min": 4.0,
+    "max": 36.0
+   },
+   "cells_epoch": {
+    "median": 3.0,
+    "min": 1.0,
+    "max": 28.0
+   },
+   "cells_10s": {
+    "median": 20.25,
+    "min": 8.0,
+    "max": 101.0
+   },
+   "dropped_share": 0.021017973991551395,
+   "ekf": {
+    "p95_120s_median": 111.67830553654366,
+    "p95_120s_worst": 329.285627404559,
+    "p95_120s_meet": 1,
+    "p95_300s_median": 128.6069585471954,
+    "p95_300s_worst": 293.14310945720234,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 0.9366666666666666,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 100.03811011555952,
+    "p95_120s_worst": 363.0255865586357,
+    "p95_120s_meet": 1,
+    "p95_300s_median": 140.28234867198137,
+    "p95_300s_worst": 306.86343144032793,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 1.0,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "scan-8-1s",
+   "label": "scan order, 8 carriers, 1 s",
+   "family": "scan order",
+   "variant": "committed",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535,
+    5035,
+    5085,
+    5205,
+    5060
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 66.5,
+    "min": 42.0,
+    "max": 89.0
+   },
+   "masts_epoch": {
+    "median": 3.0,
+    "min": 0.0,
+    "max": 31.0
+   },
+   "masts_10s": {
+    "median": 18.0,
+    "min": 9.0,
+    "max": 61.0
+   },
+   "cells_epoch": {
+    "median": 3.0,
+    "min": 0.0,
+    "max": 36.0
+   },
+   "cells_10s": {
+    "median": 29.75,
+    "min": 14.0,
+    "max": 145.0
+   },
+   "dropped_share": 0.06808056605892704,
+   "ekf": {
+    "p95_120s_median": 1268.8428616126434,
+    "p95_120s_worst": 2688.3534442519267,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 3400.389796774097,
+    "p95_300s_worst": 8805.938088300256,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.7538333333333334,
+    "hpl_bound_300s_min": 0.024,
+    "hazardous_epochs": 173,
+    "hazardous_seeds": 3
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 1268.8428629596165,
+    "p95_120s_worst": 3060.850181515574,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 3309.5006685619837,
+    "p95_300s_worst": 7943.7114486978,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.8373333333333333,
+    "hpl_bound_300s_min": 0.037333333333333336,
+    "hazardous_epochs": 36,
+    "hazardous_seeds": 2
+   }
+  },
+  {
+   "config": "scan-8-1s",
+   "label": "scan order, 8 carriers, 1 s",
+   "family": "scan order",
+   "variant": "true-noise",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535,
+    5035,
+    5085,
+    5205,
+    5060
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 66.5,
+    "min": 42.0,
+    "max": 89.0
+   },
+   "masts_epoch": {
+    "median": 3.0,
+    "min": 0.0,
+    "max": 31.0
+   },
+   "masts_10s": {
+    "median": 18.0,
+    "min": 9.0,
+    "max": 61.0
+   },
+   "cells_epoch": {
+    "median": 3.0,
+    "min": 0.0,
+    "max": 36.0
+   },
+   "cells_10s": {
+    "median": 29.75,
+    "min": 14.0,
+    "max": 145.0
+   },
+   "dropped_share": 0.06808056605892704,
+   "ekf": {
+    "p95_120s_median": 82.92932394409496,
+    "p95_120s_worst": 121.95122792611349,
+    "p95_120s_meet": 1,
+    "p95_300s_median": 101.14953650864521,
+    "p95_300s_worst": 137.27593268579466,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 1.0,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 75.2816226478559,
+    "p95_120s_worst": 137.38657548921935,
+    "p95_120s_meet": 1,
+    "p95_300s_median": 102.60472702448928,
+    "p95_300s_worst": 178.31742446981397,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 1.0,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "scan-13-1s",
+   "label": "scan order, 13 carriers, 1 s",
+   "family": "scan order",
+   "variant": "committed",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535,
+    5035,
+    5085,
+    5205,
+    5060,
+    68611,
+    68661,
+    2560,
+    68711,
+    68761
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 84.0,
+    "min": 67.0,
+    "max": 109.0
+   },
+   "masts_epoch": {
+    "median": 3.0,
+    "min": 0.0,
+    "max": 32.0
+   },
+   "masts_10s": {
+    "median": 26.5,
+    "min": 10.0,
+    "max": 75.0
+   },
+   "cells_epoch": {
+    "median": 4.0,
+    "min": 0.0,
+    "max": 35.0
+   },
+   "cells_10s": {
+    "median": 46.0,
+    "min": 15.0,
+    "max": 160.0
+   },
+   "dropped_share": 0.03794541890737297,
+   "ekf": {
+    "p95_120s_median": 1132.2088494298407,
+    "p95_120s_worst": 3291.055008546701,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 3866.437138220701,
+    "p95_300s_worst": 12590.713913010679,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.47683333333333333,
+    "hpl_bound_300s_min": 0.04133333333333333,
+    "hazardous_epochs": 526,
+    "hazardous_seeds": 3
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 1103.3767647027198,
+    "p95_120s_worst": 4606.515636462243,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 2777.705627789167,
+    "p95_300s_worst": 17395.00158810116,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.6323333333333334,
+    "hpl_bound_300s_min": 0.050666666666666665,
+    "hazardous_epochs": 12,
+    "hazardous_seeds": 1
+   }
+  },
+  {
+   "config": "scan-13-1s",
+   "label": "scan order, 13 carriers, 1 s",
+   "family": "scan order",
+   "variant": "true-noise",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535,
+    5035,
+    5085,
+    5205,
+    5060,
+    68611,
+    68661,
+    2560,
+    68711,
+    68761
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 84.0,
+    "min": 67.0,
+    "max": 109.0
+   },
+   "masts_epoch": {
+    "median": 3.0,
+    "min": 0.0,
+    "max": 32.0
+   },
+   "masts_10s": {
+    "median": 26.5,
+    "min": 10.0,
+    "max": 75.0
+   },
+   "cells_epoch": {
+    "median": 4.0,
+    "min": 0.0,
+    "max": 35.0
+   },
+   "cells_10s": {
+    "median": 46.0,
+    "min": 15.0,
+    "max": 160.0
+   },
+   "dropped_share": 0.03794541890737297,
+   "ekf": {
+    "p95_120s_median": 68.4996197125964,
+    "p95_120s_worst": 99.97023224889864,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 78.20026701838822,
+    "p95_300s_worst": 102.07845979814407,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 1.0,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 69.36938476063327,
+    "p95_120s_worst": 101.66018296052508,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 87.43646837106787,
+    "p95_300s_worst": 140.77461174288067,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 1.0,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "scan-4-0.5s",
+   "label": "scan order, 4 carriers, 0.5 s",
+   "family": "scan order",
+   "variant": "committed",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535
+   ],
+   "dwell_s": 0.5,
+   "seeds": 20,
+   "epochs_per_s": 2.0,
+   "masts_outage": {
+    "median": 38.5,
+    "min": 21.0,
+    "max": 60.0
+   },
+   "masts_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 35.0
+   },
+   "masts_10s": {
+    "median": 5.0,
+    "min": 2.0,
+    "max": 38.0
+   },
+   "cells_epoch": {
+    "median": 2.5,
+    "min": 1.0,
+    "max": 38.0
+   },
+   "cells_10s": {
+    "median": 11.0,
+    "min": 4.0,
+    "max": 104.0
+   },
+   "dropped_share": 0.013915449861632956,
+   "ekf": {
+    "p95_120s_median": 1175.162791632567,
+    "p95_120s_worst": 3591.3777026282105,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 3090.3863718077746,
+    "p95_300s_worst": 16711.280209014294,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.8528333333333333,
+    "hpl_bound_300s_min": 0.10566666666666667,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 1175.2193508935165,
+    "p95_120s_worst": 2714.0898856075955,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 2751.992022388832,
+    "p95_300s_worst": 12804.985681488432,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.9206666666666667,
+    "hpl_bound_300s_min": 0.10566666666666667,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "scan-4-0.5s",
+   "label": "scan order, 4 carriers, 0.5 s",
+   "family": "scan order",
+   "variant": "true-noise",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535
+   ],
+   "dwell_s": 0.5,
+   "seeds": 20,
+   "epochs_per_s": 2.0,
+   "masts_outage": {
+    "median": 38.5,
+    "min": 21.0,
+    "max": 60.0
+   },
+   "masts_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 35.0
+   },
+   "masts_10s": {
+    "median": 5.0,
+    "min": 2.0,
+    "max": 38.0
+   },
+   "cells_epoch": {
+    "median": 2.5,
+    "min": 1.0,
+    "max": 38.0
+   },
+   "cells_10s": {
+    "median": 11.0,
+    "min": 4.0,
+    "max": 104.0
+   },
+   "dropped_share": 0.013915449861632956,
+   "ekf": {
+    "p95_120s_median": 183.4612763555673,
+    "p95_120s_worst": 650.3627935458045,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 271.4325858047306,
+    "p95_300s_worst": 1061.2984975144354,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.9918333333333333,
+    "hpl_bound_300s_min": 0.7873333333333333,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 166.78435896859736,
+    "p95_120s_worst": 613.8409069616993,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 310.58913800165055,
+    "p95_300s_worst": 1142.198996396656,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 0.768,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "scan-4-2s",
+   "label": "scan order, 4 carriers, 2 s",
+   "family": "scan order",
+   "variant": "committed",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535
+   ],
+   "dwell_s": 2.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 38.5,
+    "min": 21.0,
+    "max": 60.0
+   },
+   "masts_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 35.0
+   },
+   "masts_10s": {
+    "median": 5.0,
+    "min": 2.0,
+    "max": 38.0
+   },
+   "cells_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 38.0
+   },
+   "cells_10s": {
+    "median": 11.0,
+    "min": 4.0,
+    "max": 104.0
+   },
+   "dropped_share": 0.013783302127275599,
+   "ekf": {
+    "p95_120s_median": 1354.6304427776897,
+    "p95_120s_worst": 3777.8754237171597,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 6532.097687014583,
+    "p95_300s_worst": 11024.227494463,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.6205,
+    "hpl_bound_300s_min": 0.044,
+    "hazardous_epochs": 33,
+    "hazardous_seeds": 1
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 1308.7877755111122,
+    "p95_120s_worst": 4417.812743213251,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 7546.733984875125,
+    "p95_300s_worst": 16258.478947320018,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.499,
+    "hpl_bound_300s_min": 0.12733333333333333,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "scan-4-2s",
+   "label": "scan order, 4 carriers, 2 s",
+   "family": "scan order",
+   "variant": "true-noise",
+   "earfcn": [
+    2460,
+    5145,
+    5255,
+    2535
+   ],
+   "dwell_s": 2.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 38.5,
+    "min": 21.0,
+    "max": 60.0
+   },
+   "masts_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 35.0
+   },
+   "masts_10s": {
+    "median": 5.0,
+    "min": 2.0,
+    "max": 38.0
+   },
+   "cells_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 38.0
+   },
+   "cells_10s": {
+    "median": 11.0,
+    "min": 4.0,
+    "max": 104.0
+   },
+   "dropped_share": 0.013783302127275599,
+   "ekf": {
+    "p95_120s_median": 212.12393845656237,
+    "p95_120s_worst": 770.0992848610623,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 249.21812339936326,
+    "p95_300s_worst": 1497.6253543923885,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.9786666666666666,
+    "hpl_bound_300s_min": 0.4876666666666667,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 250.91713127949168,
+    "p95_120s_worst": 579.7851365214406,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 468.04775811186295,
+    "p95_300s_worst": 991.5349009023311,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 0.9186666666666666,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "distinct-4-1s",
+   "label": "distinct eNB sets, 4 carriers, 1 s",
+   "family": "distinct eNB sets",
+   "variant": "committed",
+   "earfcn": [
+    2460,
+    5145,
+    2535,
+    5035
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 45.0,
+    "min": 29.0,
+    "max": 59.0
+   },
+   "masts_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 27.0
+   },
+   "masts_10s": {
+    "median": 8.5,
+    "min": 4.0,
+    "max": 36.0
+   },
+   "cells_epoch": {
+    "median": 3.0,
+    "min": 1.0,
+    "max": 28.0
+   },
+   "cells_10s": {
+    "median": 13.0,
+    "min": 5.0,
+    "max": 71.0
+   },
+   "dropped_share": 0.02420797138477261,
+   "ekf": {
+    "p95_120s_median": 1632.8465875861432,
+    "p95_120s_worst": 3949.289861818502,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 6125.17548637005,
+    "p95_300s_worst": 16522.09491654692,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.30233333333333334,
+    "hpl_bound_300s_min": 0.027333333333333334,
+    "hazardous_epochs": 178,
+    "hazardous_seeds": 3
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 1294.7950018014749,
+    "p95_120s_worst": 3326.0474820656013,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 4648.733091361979,
+    "p95_300s_worst": 13024.18397394607,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.2523333333333333,
+    "hpl_bound_300s_min": 0.127,
+    "hazardous_epochs": 61,
+    "hazardous_seeds": 3
+   }
+  },
+  {
+   "config": "distinct-4-1s",
+   "label": "distinct eNB sets, 4 carriers, 1 s",
+   "family": "distinct eNB sets",
+   "variant": "true-noise",
+   "earfcn": [
+    2460,
+    5145,
+    2535,
+    5035
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 45.0,
+    "min": 29.0,
+    "max": 59.0
+   },
+   "masts_epoch": {
+    "median": 2.0,
+    "min": 1.0,
+    "max": 27.0
+   },
+   "masts_10s": {
+    "median": 8.5,
+    "min": 4.0,
+    "max": 36.0
+   },
+   "cells_epoch": {
+    "median": 3.0,
+    "min": 1.0,
+    "max": 28.0
+   },
+   "cells_10s": {
+    "median": 13.0,
+    "min": 5.0,
+    "max": 71.0
+   },
+   "dropped_share": 0.02420797138477261,
+   "ekf": {
+    "p95_120s_median": 113.64135272692374,
+    "p95_120s_worst": 429.95965024807793,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 134.51862460912167,
+    "p95_300s_worst": 332.5296411235679,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 0.9536666666666667,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 106.68307860463563,
+    "p95_120s_worst": 382.82729697773135,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 134.0479472647263,
+    "p95_300s_worst": 339.38891800477234,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 1.0,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  },
+  {
+   "config": "distinct-6-1s",
+   "label": "distinct eNB sets, 6 carriers, 1 s",
+   "family": "distinct eNB sets",
+   "variant": "committed",
+   "earfcn": [
+    2460,
+    5145,
+    2535,
+    5035,
+    5205,
+    5060
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 66.0,
+    "min": 41.0,
+    "max": 90.0
+   },
+   "masts_epoch": {
+    "median": 3.0,
+    "min": 0.0,
+    "max": 33.0
+   },
+   "masts_10s": {
+    "median": 18.0,
+    "min": 9.0,
+    "max": 60.0
+   },
+   "cells_epoch": {
+    "median": 3.0,
+    "min": 0.0,
+    "max": 37.0
+   },
+   "cells_10s": {
+    "median": 22.0,
+    "min": 10.0,
+    "max": 105.0
+   },
+   "dropped_share": 0.08488738863372254,
+   "ekf": {
+    "p95_120s_median": 1205.844496212101,
+    "p95_120s_worst": 3770.274944918531,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 5075.971979310118,
+    "p95_300s_worst": 16568.823322702578,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.42133333333333334,
+    "hpl_bound_300s_min": 0.037333333333333336,
+    "hazardous_epochs": 402,
+    "hazardous_seeds": 4
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 1186.4244621523842,
+    "p95_120s_worst": 3603.957916584131,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 2563.7533438576884,
+    "p95_300s_worst": 13281.054896988295,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 0.20583333333333334,
+    "hpl_bound_300s_min": 0.02033333333333333,
+    "hazardous_epochs": 119,
+    "hazardous_seeds": 5
+   }
+  },
+  {
+   "config": "distinct-6-1s",
+   "label": "distinct eNB sets, 6 carriers, 1 s",
+   "family": "distinct eNB sets",
+   "variant": "true-noise",
+   "earfcn": [
+    2460,
+    5145,
+    2535,
+    5035,
+    5205,
+    5060
+   ],
+   "dwell_s": 1.0,
+   "seeds": 20,
+   "epochs_per_s": 1.0,
+   "masts_outage": {
+    "median": 66.0,
+    "min": 41.0,
+    "max": 90.0
+   },
+   "masts_epoch": {
+    "median": 3.0,
+    "min": 0.0,
+    "max": 33.0
+   },
+   "masts_10s": {
+    "median": 18.0,
+    "min": 9.0,
+    "max": 60.0
+   },
+   "cells_epoch": {
+    "median": 3.0,
+    "min": 0.0,
+    "max": 37.0
+   },
+   "cells_10s": {
+    "median": 22.0,
+    "min": 10.0,
+    "max": 105.0
+   },
+   "dropped_share": 0.08488738863372254,
+   "ekf": {
+    "p95_120s_median": 78.62854128679768,
+    "p95_120s_worst": 103.66566631707362,
+    "p95_120s_meet": 1,
+    "p95_300s_median": 88.47348642244026,
+    "p95_300s_worst": 138.37363901822815,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 1.0,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   },
+   "ekf-calibrated": {
+    "p95_120s_median": 78.15930056409985,
+    "p95_120s_worst": 128.64978904990994,
+    "p95_120s_meet": 0,
+    "p95_300s_median": 99.44396400641938,
+    "p95_300s_worst": 174.7481749791508,
+    "p95_300s_meet": 0,
+    "hpl_bound_300s_median": 1.0,
+    "hpl_bound_300s_min": 1.0,
+    "hazardous_epochs": 0,
+    "hazardous_seeds": 0
+   }
+  }
+ ],
+ "runs": [
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 0,
+   "masts_10s": 2.0,
+   "run_s": 5.9,
+   "ekf_120s": 1192.6,
+   "ekf_300s": 2624.6,
+   "ekf-calibrated_120s": 1192.6,
+   "ekf-calibrated_300s": 2624.6
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 1,
+   "masts_10s": 2.0,
+   "run_s": 4.8,
+   "ekf_120s": 1375.1,
+   "ekf_300s": 7990.9,
+   "ekf-calibrated_120s": 2560.8,
+   "ekf-calibrated_300s": 10890.9
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 2,
+   "masts_10s": 1.0,
+   "run_s": 4.0,
+   "ekf_120s": 2642.7,
+   "ekf_300s": 6604.6,
+   "ekf-calibrated_120s": 3043.4,
+   "ekf-calibrated_300s": 8030.6
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 3,
+   "masts_10s": 2.0,
+   "run_s": 4.0,
+   "ekf_120s": 1271.5,
+   "ekf_300s": 4643.9,
+   "ekf-calibrated_120s": 1271.5,
+   "ekf-calibrated_300s": 2300.3
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 4,
+   "masts_10s": 2.0,
+   "run_s": 4.4,
+   "ekf_120s": 1163.4,
+   "ekf_300s": 2277.1,
+   "ekf-calibrated_120s": 1163.4,
+   "ekf-calibrated_300s": 2367.9
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 5,
+   "masts_10s": 3.0,
+   "run_s": 5.1,
+   "ekf_120s": 1070.5,
+   "ekf_300s": 2330.6,
+   "ekf-calibrated_120s": 1070.5,
+   "ekf-calibrated_300s": 2330.6
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 6,
+   "masts_10s": 3.0,
+   "run_s": 4.4,
+   "ekf_120s": 1665.7,
+   "ekf_300s": 4030.3,
+   "ekf-calibrated_120s": 1652.2,
+   "ekf-calibrated_300s": 3990.0
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 7,
+   "masts_10s": 2.0,
+   "run_s": 4.9,
+   "ekf_120s": 3432.4,
+   "ekf_300s": 16180.3,
+   "ekf-calibrated_120s": 2417.2,
+   "ekf-calibrated_300s": 5937.2
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 8,
+   "masts_10s": 3.0,
+   "run_s": 4.1,
+   "ekf_120s": 1266.2,
+   "ekf_300s": 16638.9,
+   "ekf-calibrated_120s": 1266.2,
+   "ekf-calibrated_300s": 12058.8
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 9,
+   "masts_10s": 2.0,
+   "run_s": 4.3,
+   "ekf_120s": 1176.5,
+   "ekf_300s": 2252.4,
+   "ekf-calibrated_120s": 1176.5,
+   "ekf-calibrated_300s": 2066.1
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 10,
+   "masts_10s": 3.0,
+   "run_s": 4.1,
+   "ekf_120s": 1173.9,
+   "ekf_300s": 2587.9,
+   "ekf-calibrated_120s": 1173.9,
+   "ekf-calibrated_300s": 2587.9
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 11,
+   "masts_10s": 1.0,
+   "run_s": 4.4,
+   "ekf_120s": 1210.9,
+   "ekf_300s": 1999.4,
+   "ekf-calibrated_120s": 1210.9,
+   "ekf-calibrated_300s": 1999.4
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 12,
+   "masts_10s": 2.0,
+   "run_s": 4.3,
+   "ekf_120s": 400.8,
+   "ekf_300s": 7445.0,
+   "ekf-calibrated_120s": 423.9,
+   "ekf-calibrated_300s": 8431.5
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 13,
+   "masts_10s": 2.0,
+   "run_s": 3.8,
+   "ekf_120s": 2732.2,
+   "ekf_300s": 3756.9,
+   "ekf-calibrated_120s": 2000.1,
+   "ekf-calibrated_300s": 4623.7
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 14,
+   "masts_10s": 3.0,
+   "run_s": 5.1,
+   "ekf_120s": 639.6,
+   "ekf_300s": 1475.4,
+   "ekf-calibrated_120s": 3251.4,
+   "ekf-calibrated_300s": 4238.8
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 15,
+   "masts_10s": 1.0,
+   "run_s": 5.2,
+   "ekf_120s": 1016.9,
+   "ekf_300s": 2732.3,
+   "ekf-calibrated_120s": 1043.8,
+   "ekf-calibrated_300s": 2968.9
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 16,
+   "masts_10s": 2.0,
+   "run_s": 5.7,
+   "ekf_120s": 1012.3,
+   "ekf_300s": 6174.6,
+   "ekf-calibrated_120s": 1033.7,
+   "ekf-calibrated_300s": 6437.7
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 17,
+   "masts_10s": 2.0,
+   "run_s": 4.2,
+   "ekf_120s": 2139.5,
+   "ekf_300s": 6019.4,
+   "ekf-calibrated_120s": 2433.5,
+   "ekf-calibrated_300s": 6567.4
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 18,
+   "masts_10s": 3.0,
+   "run_s": 3.8,
+   "ekf_120s": 649.3,
+   "ekf_300s": 4037.0,
+   "ekf-calibrated_120s": 809.1,
+   "ekf-calibrated_300s": 2955.5
+  },
+  {
+   "config": "one-carrier",
+   "variant": "committed",
+   "seed": 19,
+   "masts_10s": 1.0,
+   "run_s": 3.3,
+   "ekf_120s": 2141.0,
+   "ekf_300s": 5315.8,
+   "ekf-calibrated_120s": 1903.8,
+   "ekf-calibrated_300s": 4678.5
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 0,
+   "masts_10s": 2.0,
+   "run_s": 6.3,
+   "ekf_120s": 223.4,
+   "ekf_300s": 340.3,
+   "ekf-calibrated_120s": 409.7,
+   "ekf-calibrated_300s": 663.7
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 1,
+   "masts_10s": 2.0,
+   "run_s": 4.3,
+   "ekf_120s": 238.3,
+   "ekf_300s": 603.5,
+   "ekf-calibrated_120s": 195.7,
+   "ekf-calibrated_300s": 446.0
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 2,
+   "masts_10s": 1.0,
+   "run_s": 3.5,
+   "ekf_120s": 206.9,
+   "ekf_300s": 1011.2,
+   "ekf-calibrated_120s": 265.1,
+   "ekf-calibrated_300s": 773.8
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 3,
+   "masts_10s": 2.0,
+   "run_s": 3.9,
+   "ekf_120s": 419.3,
+   "ekf_300s": 722.4,
+   "ekf-calibrated_120s": 403.0,
+   "ekf-calibrated_300s": 1492.9
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 4,
+   "masts_10s": 2.0,
+   "run_s": 4.5,
+   "ekf_120s": 1125.3,
+   "ekf_300s": 2304.7,
+   "ekf-calibrated_120s": 701.3,
+   "ekf-calibrated_300s": 1104.8
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 5,
+   "masts_10s": 3.0,
+   "run_s": 5.7,
+   "ekf_120s": 146.9,
+   "ekf_300s": 510.3,
+   "ekf-calibrated_120s": 122.7,
+   "ekf-calibrated_300s": 499.1
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 6,
+   "masts_10s": 3.0,
+   "run_s": 4.5,
+   "ekf_120s": 134.1,
+   "ekf_300s": 448.9,
+   "ekf-calibrated_120s": 104.1,
+   "ekf-calibrated_300s": 567.1
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 7,
+   "masts_10s": 2.0,
+   "run_s": 4.7,
+   "ekf_120s": 604.3,
+   "ekf_300s": 593.8,
+   "ekf-calibrated_120s": 572.3,
+   "ekf-calibrated_300s": 1030.4
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 8,
+   "masts_10s": 3.0,
+   "run_s": 4.4,
+   "ekf_120s": 231.9,
+   "ekf_300s": 224.8,
+   "ekf-calibrated_120s": 485.6,
+   "ekf-calibrated_300s": 384.1
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 9,
+   "masts_10s": 2.0,
+   "run_s": 4.1,
+   "ekf_120s": 714.8,
+   "ekf_300s": 1682.2,
+   "ekf-calibrated_120s": 652.4,
+   "ekf-calibrated_300s": 925.3
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 10,
+   "masts_10s": 3.0,
+   "run_s": 3.9,
+   "ekf_120s": 631.4,
+   "ekf_300s": 1273.2,
+   "ekf-calibrated_120s": 515.8,
+   "ekf-calibrated_300s": 1050.2
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 11,
+   "masts_10s": 1.0,
+   "run_s": 4.3,
+   "ekf_120s": 662.9,
+   "ekf_300s": 1549.5,
+   "ekf-calibrated_120s": 635.7,
+   "ekf-calibrated_300s": 1507.7
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 12,
+   "masts_10s": 2.0,
+   "run_s": 4.0,
+   "ekf_120s": 419.1,
+   "ekf_300s": 815.9,
+   "ekf-calibrated_120s": 594.1,
+   "ekf-calibrated_300s": 1285.0
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 13,
+   "masts_10s": 2.0,
+   "run_s": 3.6,
+   "ekf_120s": 467.0,
+   "ekf_300s": 865.0,
+   "ekf-calibrated_120s": 415.4,
+   "ekf-calibrated_300s": 1000.1
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 14,
+   "masts_10s": 3.0,
+   "run_s": 5.1,
+   "ekf_120s": 296.9,
+   "ekf_300s": 675.1,
+   "ekf-calibrated_120s": 398.9,
+   "ekf-calibrated_300s": 810.7
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 15,
+   "masts_10s": 1.0,
+   "run_s": 6.1,
+   "ekf_120s": 249.9,
+   "ekf_300s": 418.5,
+   "ekf-calibrated_120s": 566.1,
+   "ekf-calibrated_300s": 753.3
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 16,
+   "masts_10s": 2.0,
+   "run_s": 5.6,
+   "ekf_120s": 396.2,
+   "ekf_300s": 1273.9,
+   "ekf-calibrated_120s": 295.3,
+   "ekf-calibrated_300s": 1083.3
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 17,
+   "masts_10s": 2.0,
+   "run_s": 4.2,
+   "ekf_120s": 644.8,
+   "ekf_300s": 699.9,
+   "ekf-calibrated_120s": 544.4,
+   "ekf-calibrated_300s": 1132.2
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 18,
+   "masts_10s": 3.0,
+   "run_s": 3.7,
+   "ekf_120s": 204.8,
+   "ekf_300s": 707.2,
+   "ekf-calibrated_120s": 378.0,
+   "ekf-calibrated_300s": 916.7
+  },
+  {
+   "config": "one-carrier",
+   "variant": "true-noise",
+   "seed": 19,
+   "masts_10s": 1.0,
+   "run_s": 3.6,
+   "ekf_120s": 352.8,
+   "ekf_300s": 971.5,
+   "ekf-calibrated_120s": 307.3,
+   "ekf-calibrated_300s": 1225.0
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 0,
+   "masts_10s": 14.5,
+   "run_s": 11.4,
+   "ekf_120s": 2809.3,
+   "ekf_300s": 11244.5,
+   "ekf-calibrated_120s": 807.4,
+   "ekf-calibrated_300s": 2853.5
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 1,
+   "masts_10s": 13.0,
+   "run_s": 8.7,
+   "ekf_120s": 1121.2,
+   "ekf_300s": 2416.7,
+   "ekf-calibrated_120s": 1121.2,
+   "ekf-calibrated_300s": 2416.7
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 2,
+   "masts_10s": 12.5,
+   "run_s": 8.5,
+   "ekf_120s": 2032.3,
+   "ekf_300s": 5006.4,
+   "ekf-calibrated_120s": 1806.6,
+   "ekf-calibrated_300s": 4388.7
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 3,
+   "masts_10s": 12.5,
+   "run_s": 8.3,
+   "ekf_120s": 1271.5,
+   "ekf_300s": 2806.5,
+   "ekf-calibrated_120s": 1271.6,
+   "ekf-calibrated_300s": 2807.2
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 4,
+   "masts_10s": 14.0,
+   "run_s": 10.0,
+   "ekf_120s": 3083.6,
+   "ekf_300s": 9968.5,
+   "ekf-calibrated_120s": 1585.3,
+   "ekf-calibrated_300s": 4532.8
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 5,
+   "masts_10s": 14.0,
+   "run_s": 7.9,
+   "ekf_120s": 1070.5,
+   "ekf_300s": 2330.6,
+   "ekf-calibrated_120s": 1070.5,
+   "ekf-calibrated_300s": 2330.1
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 6,
+   "masts_10s": 13.0,
+   "run_s": 13.2,
+   "ekf_120s": 2123.8,
+   "ekf_300s": 5404.2,
+   "ekf-calibrated_120s": 2314.2,
+   "ekf-calibrated_300s": 5978.8
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 7,
+   "masts_10s": 12.0,
+   "run_s": 13.2,
+   "ekf_120s": 818.5,
+   "ekf_300s": 9407.4,
+   "ekf-calibrated_120s": 854.2,
+   "ekf-calibrated_300s": 18506.9
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 8,
+   "masts_10s": 14.0,
+   "run_s": 14.2,
+   "ekf_120s": 2027.6,
+   "ekf_300s": 9996.5,
+   "ekf-calibrated_120s": 2996.3,
+   "ekf-calibrated_300s": 11888.4
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 9,
+   "masts_10s": 14.0,
+   "run_s": 11.2,
+   "ekf_120s": 3017.4,
+   "ekf_300s": 4624.1,
+   "ekf-calibrated_120s": 1836.0,
+   "ekf-calibrated_300s": 1786.3
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 10,
+   "masts_10s": 13.0,
+   "run_s": 10.5,
+   "ekf_120s": 4222.0,
+   "ekf_300s": 14476.1,
+   "ekf-calibrated_120s": 3311.0,
+   "ekf-calibrated_300s": 7711.4
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 11,
+   "masts_10s": 13.0,
+   "run_s": 10.3,
+   "ekf_120s": 1211.1,
+   "ekf_300s": 2674.3,
+   "ekf-calibrated_120s": 1210.8,
+   "ekf-calibrated_300s": 2672.4
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 12,
+   "masts_10s": 13.0,
+   "run_s": 10.8,
+   "ekf_120s": 637.1,
+   "ekf_300s": 3983.3,
+   "ekf-calibrated_120s": 1771.3,
+   "ekf-calibrated_300s": 8326.1
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 13,
+   "masts_10s": 13.0,
+   "run_s": 11.7,
+   "ekf_120s": 2450.1,
+   "ekf_300s": 11985.2,
+   "ekf-calibrated_120s": 1232.3,
+   "ekf-calibrated_300s": 6187.8
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 14,
+   "masts_10s": 12.0,
+   "run_s": 9.8,
+   "ekf_120s": 1149.0,
+   "ekf_300s": 2450.2,
+   "ekf-calibrated_120s": 1149.0,
+   "ekf-calibrated_300s": 2450.2
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 15,
+   "masts_10s": 13.0,
+   "run_s": 9.9,
+   "ekf_120s": 2264.0,
+   "ekf_300s": 9971.3,
+   "ekf-calibrated_120s": 1391.0,
+   "ekf-calibrated_300s": 4150.9
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 16,
+   "masts_10s": 13.0,
+   "run_s": 10.5,
+   "ekf_120s": 1012.3,
+   "ekf_300s": 9517.4,
+   "ekf-calibrated_120s": 1012.3,
+   "ekf-calibrated_300s": 3914.5
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 17,
+   "masts_10s": 12.0,
+   "run_s": 9.8,
+   "ekf_120s": 1407.7,
+   "ekf_300s": 3086.0,
+   "ekf-calibrated_120s": 1383.0,
+   "ekf-calibrated_300s": 3029.4
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 18,
+   "masts_10s": 12.0,
+   "run_s": 8.7,
+   "ekf_120s": 1057.4,
+   "ekf_300s": 2222.5,
+   "ekf-calibrated_120s": 1144.4,
+   "ekf-calibrated_300s": 2499.3
+  },
+  {
+   "config": "range-3km",
+   "variant": "committed",
+   "seed": 19,
+   "masts_10s": 13.0,
+   "run_s": 9.1,
+   "ekf_120s": 909.2,
+   "ekf_300s": 3270.5,
+   "ekf-calibrated_120s": 4820.7,
+   "ekf-calibrated_300s": 12590.0
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 0,
+   "masts_10s": 14.5,
+   "run_s": 31.4,
+   "ekf_120s": 43.2,
+   "ekf_300s": 74.9,
+   "ekf-calibrated_120s": 65.4,
+   "ekf-calibrated_300s": 80.6
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 1,
+   "masts_10s": 13.0,
+   "run_s": 40.5,
+   "ekf_120s": 47.9,
+   "ekf_300s": 49.4,
+   "ekf-calibrated_120s": 67.4,
+   "ekf-calibrated_300s": 90.0
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 2,
+   "masts_10s": 12.5,
+   "run_s": 40.0,
+   "ekf_120s": 50.3,
+   "ekf_300s": 53.1,
+   "ekf-calibrated_120s": 50.0,
+   "ekf-calibrated_300s": 58.3
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 3,
+   "masts_10s": 12.5,
+   "run_s": 45.9,
+   "ekf_120s": 92.5,
+   "ekf_300s": 66.0,
+   "ekf-calibrated_120s": 86.0,
+   "ekf-calibrated_300s": 78.8
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 4,
+   "masts_10s": 14.0,
+   "run_s": 37.4,
+   "ekf_120s": 110.9,
+   "ekf_300s": 70.1,
+   "ekf-calibrated_120s": 192.2,
+   "ekf-calibrated_300s": 387.5
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 5,
+   "masts_10s": 14.0,
+   "run_s": 41.7,
+   "ekf_120s": 64.2,
+   "ekf_300s": 64.1,
+   "ekf-calibrated_120s": 53.5,
+   "ekf-calibrated_300s": 63.7
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 6,
+   "masts_10s": 13.0,
+   "run_s": 29.6,
+   "ekf_120s": 46.3,
+   "ekf_300s": 68.9,
+   "ekf-calibrated_120s": 81.5,
+   "ekf-calibrated_300s": 91.0
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 7,
+   "masts_10s": 12.0,
+   "run_s": 26.2,
+   "ekf_120s": 86.2,
+   "ekf_300s": 76.7,
+   "ekf-calibrated_120s": 45.5,
+   "ekf-calibrated_300s": 55.4
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 8,
+   "masts_10s": 14.0,
+   "run_s": 31.4,
+   "ekf_120s": 76.1,
+   "ekf_300s": 79.8,
+   "ekf-calibrated_120s": 51.2,
+   "ekf-calibrated_300s": 144.3
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 9,
+   "masts_10s": 14.0,
+   "run_s": 32.8,
+   "ekf_120s": 45.9,
+   "ekf_300s": 64.2,
+   "ekf-calibrated_120s": 68.8,
+   "ekf-calibrated_300s": 181.5
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 10,
+   "masts_10s": 13.0,
+   "run_s": 35.4,
+   "ekf_120s": 64.7,
+   "ekf_300s": 66.4,
+   "ekf-calibrated_120s": 71.4,
+   "ekf-calibrated_300s": 110.6
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 11,
+   "masts_10s": 13.0,
+   "run_s": 34.6,
+   "ekf_120s": 78.1,
+   "ekf_300s": 68.6,
+   "ekf-calibrated_120s": 60.5,
+   "ekf-calibrated_300s": 90.1
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 12,
+   "masts_10s": 13.0,
+   "run_s": 27.1,
+   "ekf_120s": 106.1,
+   "ekf_300s": 102.0,
+   "ekf-calibrated_120s": 87.0,
+   "ekf-calibrated_300s": 87.8
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 13,
+   "masts_10s": 13.0,
+   "run_s": 30.7,
+   "ekf_120s": 67.1,
+   "ekf_300s": 62.0,
+   "ekf-calibrated_120s": 67.2,
+   "ekf-calibrated_300s": 91.0
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 14,
+   "masts_10s": 12.0,
+   "run_s": 24.7,
+   "ekf_120s": 58.0,
+   "ekf_300s": 60.0,
+   "ekf-calibrated_120s": 57.0,
+   "ekf-calibrated_300s": 89.0
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 15,
+   "masts_10s": 13.0,
+   "run_s": 25.5,
+   "ekf_120s": 50.7,
+   "ekf_300s": 52.8,
+   "ekf-calibrated_120s": 83.6,
+   "ekf-calibrated_300s": 137.4
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 16,
+   "masts_10s": 13.0,
+   "run_s": 28.3,
+   "ekf_120s": 88.5,
+   "ekf_300s": 79.6,
+   "ekf-calibrated_120s": 152.5,
+   "ekf-calibrated_300s": 183.3
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 17,
+   "masts_10s": 12.0,
+   "run_s": 27.0,
+   "ekf_120s": 58.2,
+   "ekf_300s": 61.0,
+   "ekf-calibrated_120s": 108.9,
+   "ekf-calibrated_300s": 145.7
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 18,
+   "masts_10s": 12.0,
+   "run_s": 24.4,
+   "ekf_120s": 59.0,
+   "ekf_300s": 59.0,
+   "ekf-calibrated_120s": 74.5,
+   "ekf-calibrated_300s": 95.5
+  },
+  {
+   "config": "range-3km",
+   "variant": "true-noise",
+   "seed": 19,
+   "masts_10s": 13.0,
+   "run_s": 22.0,
+   "ekf_120s": 73.1,
+   "ekf_300s": 84.5,
+   "ekf-calibrated_120s": 66.9,
+   "ekf-calibrated_300s": 97.6
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 0,
+   "masts_10s": 5.0,
+   "run_s": 11.7,
+   "ekf_120s": 2513.7,
+   "ekf_300s": 5073.4,
+   "ekf-calibrated_120s": 2021.5,
+   "ekf-calibrated_300s": 6424.1
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 1,
+   "masts_10s": 5.0,
+   "run_s": 5.1,
+   "ekf_120s": 861.2,
+   "ekf_300s": 2926.3,
+   "ekf-calibrated_120s": 1354.1,
+   "ekf-calibrated_300s": 2342.7
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 2,
+   "masts_10s": 4.0,
+   "run_s": 8.2,
+   "ekf_120s": 3230.2,
+   "ekf_300s": 7244.8,
+   "ekf-calibrated_120s": 4016.3,
+   "ekf-calibrated_300s": 10344.2
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 3,
+   "masts_10s": 5.0,
+   "run_s": 12.2,
+   "ekf_120s": 3050.2,
+   "ekf_300s": 8544.3,
+   "ekf-calibrated_120s": 1846.6,
+   "ekf-calibrated_300s": 2152.0
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 4,
+   "masts_10s": 4.0,
+   "run_s": 7.0,
+   "ekf_120s": 1163.4,
+   "ekf_300s": 2512.8,
+   "ekf-calibrated_120s": 1163.4,
+   "ekf-calibrated_300s": 2512.8
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 5,
+   "masts_10s": 6.0,
+   "run_s": 11.1,
+   "ekf_120s": 2900.7,
+   "ekf_300s": 7953.9,
+   "ekf-calibrated_120s": 2901.7,
+   "ekf-calibrated_300s": 7872.5
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 6,
+   "masts_10s": 5.0,
+   "run_s": 4.5,
+   "ekf_120s": 288.8,
+   "ekf_300s": 3451.0,
+   "ekf-calibrated_120s": 593.4,
+   "ekf-calibrated_300s": 3193.9
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 7,
+   "masts_10s": 4.0,
+   "run_s": 4.9,
+   "ekf_120s": 3499.5,
+   "ekf_300s": 12317.4,
+   "ekf-calibrated_120s": 2201.6,
+   "ekf-calibrated_300s": 4823.7
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 8,
+   "masts_10s": 5.0,
+   "run_s": 7.1,
+   "ekf_120s": 3030.5,
+   "ekf_300s": 8363.8,
+   "ekf-calibrated_120s": 2665.4,
+   "ekf-calibrated_300s": 7352.9
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 9,
+   "masts_10s": 6.0,
+   "run_s": 4.9,
+   "ekf_120s": 566.5,
+   "ekf_300s": 1617.0,
+   "ekf-calibrated_120s": 575.2,
+   "ekf-calibrated_300s": 2674.5
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 10,
+   "masts_10s": 5.0,
+   "run_s": 3.7,
+   "ekf_120s": 1231.0,
+   "ekf_300s": 4533.1,
+   "ekf-calibrated_120s": 1034.0,
+   "ekf-calibrated_300s": 1210.9
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 11,
+   "masts_10s": 4.0,
+   "run_s": 4.9,
+   "ekf_120s": 1780.1,
+   "ekf_300s": 4558.9,
+   "ekf-calibrated_120s": 1541.1,
+   "ekf-calibrated_300s": 4719.7
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 12,
+   "masts_10s": 5.0,
+   "run_s": 7.6,
+   "ekf_120s": 1826.4,
+   "ekf_300s": 2300.7,
+   "ekf-calibrated_120s": 1780.5,
+   "ekf-calibrated_300s": 4521.7
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 13,
+   "masts_10s": 5.0,
+   "run_s": 3.9,
+   "ekf_120s": 3051.2,
+   "ekf_300s": 5302.7,
+   "ekf-calibrated_120s": 1197.3,
+   "ekf-calibrated_300s": 1165.1
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 14,
+   "masts_10s": 4.5,
+   "run_s": 6.3,
+   "ekf_120s": 890.4,
+   "ekf_300s": 3740.7,
+   "ekf-calibrated_120s": 2610.0,
+   "ekf-calibrated_300s": 6197.2
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 15,
+   "masts_10s": 5.0,
+   "run_s": 6.8,
+   "ekf_120s": 886.4,
+   "ekf_300s": 6687.9,
+   "ekf-calibrated_120s": 1050.0,
+   "ekf-calibrated_300s": 5442.6
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 16,
+   "masts_10s": 4.0,
+   "run_s": 6.4,
+   "ekf_120s": 947.9,
+   "ekf_300s": 4891.8,
+   "ekf-calibrated_120s": 881.1,
+   "ekf-calibrated_300s": 1716.5
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 17,
+   "masts_10s": 4.0,
+   "run_s": 8.0,
+   "ekf_120s": 1200.4,
+   "ekf_300s": 4999.4,
+   "ekf-calibrated_120s": 498.4,
+   "ekf-calibrated_300s": 2299.1
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 18,
+   "masts_10s": 6.0,
+   "run_s": 6.0,
+   "ekf_120s": 3421.4,
+   "ekf_300s": 6617.5,
+   "ekf-calibrated_120s": 2424.5,
+   "ekf-calibrated_300s": 10041.4
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "committed",
+   "seed": 19,
+   "masts_10s": 5.0,
+   "run_s": 5.6,
+   "ekf_120s": 3013.4,
+   "ekf_300s": 3874.6,
+   "ekf-calibrated_120s": 2046.9,
+   "ekf-calibrated_300s": 4371.5
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 0,
+   "masts_10s": 5.0,
+   "run_s": 16.1,
+   "ekf_120s": 173.1,
+   "ekf_300s": 199.2,
+   "ekf-calibrated_120s": 115.5,
+   "ekf-calibrated_300s": 432.4
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 1,
+   "masts_10s": 5.0,
+   "run_s": 6.3,
+   "ekf_120s": 153.4,
+   "ekf_300s": 575.8,
+   "ekf-calibrated_120s": 127.6,
+   "ekf-calibrated_300s": 556.9
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 2,
+   "masts_10s": 4.0,
+   "run_s": 5.8,
+   "ekf_120s": 230.4,
+   "ekf_300s": 409.4,
+   "ekf-calibrated_120s": 242.9,
+   "ekf-calibrated_300s": 262.2
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 3,
+   "masts_10s": 5.0,
+   "run_s": 11.2,
+   "ekf_120s": 100.6,
+   "ekf_300s": 166.0,
+   "ekf-calibrated_120s": 160.6,
+   "ekf-calibrated_300s": 247.5
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 4,
+   "masts_10s": 4.0,
+   "run_s": 9.3,
+   "ekf_120s": 723.4,
+   "ekf_300s": 672.5,
+   "ekf-calibrated_120s": 443.3,
+   "ekf-calibrated_300s": 883.6
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 5,
+   "masts_10s": 6.0,
+   "run_s": 15.4,
+   "ekf_120s": 207.2,
+   "ekf_300s": 377.5,
+   "ekf-calibrated_120s": 277.2,
+   "ekf-calibrated_300s": 549.3
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 6,
+   "masts_10s": 5.0,
+   "run_s": 6.2,
+   "ekf_120s": 115.6,
+   "ekf_300s": 245.8,
+   "ekf-calibrated_120s": 85.3,
+   "ekf-calibrated_300s": 214.3
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 7,
+   "masts_10s": 4.0,
+   "run_s": 7.2,
+   "ekf_120s": 513.9,
+   "ekf_300s": 480.8,
+   "ekf-calibrated_120s": 571.2,
+   "ekf-calibrated_300s": 1019.8
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 8,
+   "masts_10s": 5.0,
+   "run_s": 12.0,
+   "ekf_120s": 239.0,
+   "ekf_300s": 486.4,
+   "ekf-calibrated_120s": 207.6,
+   "ekf-calibrated_300s": 572.2
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 9,
+   "masts_10s": 6.0,
+   "run_s": 7.3,
+   "ekf_120s": 257.7,
+   "ekf_300s": 222.7,
+   "ekf-calibrated_120s": 421.3,
+   "ekf-calibrated_300s": 283.0
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 10,
+   "masts_10s": 5.0,
+   "run_s": 5.4,
+   "ekf_120s": 343.5,
+   "ekf_300s": 597.7,
+   "ekf-calibrated_120s": 383.9,
+   "ekf-calibrated_300s": 724.0
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 11,
+   "masts_10s": 4.0,
+   "run_s": 7.1,
+   "ekf_120s": 307.9,
+   "ekf_300s": 310.1,
+   "ekf-calibrated_120s": 374.8,
+   "ekf-calibrated_300s": 563.9
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 12,
+   "masts_10s": 5.0,
+   "run_s": 11.1,
+   "ekf_120s": 223.3,
+   "ekf_300s": 207.7,
+   "ekf-calibrated_120s": 190.5,
+   "ekf-calibrated_300s": 198.5
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 13,
+   "masts_10s": 5.0,
+   "run_s": 6.8,
+   "ekf_120s": 201.5,
+   "ekf_300s": 1079.6,
+   "ekf-calibrated_120s": 402.6,
+   "ekf-calibrated_300s": 932.1
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 14,
+   "masts_10s": 4.5,
+   "run_s": 9.4,
+   "ekf_120s": 398.2,
+   "ekf_300s": 864.0,
+   "ekf-calibrated_120s": 413.5,
+   "ekf-calibrated_300s": 648.3
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 15,
+   "masts_10s": 5.0,
+   "run_s": 10.0,
+   "ekf_120s": 192.2,
+   "ekf_300s": 215.5,
+   "ekf-calibrated_120s": 211.4,
+   "ekf-calibrated_300s": 200.1
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 16,
+   "masts_10s": 4.0,
+   "run_s": 8.4,
+   "ekf_120s": 248.5,
+   "ekf_300s": 277.9,
+   "ekf-calibrated_120s": 123.9,
+   "ekf-calibrated_300s": 274.2
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 17,
+   "masts_10s": 4.0,
+   "run_s": 9.0,
+   "ekf_120s": 269.9,
+   "ekf_300s": 322.2,
+   "ekf-calibrated_120s": 544.6,
+   "ekf-calibrated_300s": 794.2
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 18,
+   "masts_10s": 6.0,
+   "run_s": 6.3,
+   "ekf_120s": 223.0,
+   "ekf_300s": 205.2,
+   "ekf-calibrated_120s": 214.1,
+   "ekf-calibrated_300s": 174.5
+  },
+  {
+   "config": "scan-2-1s",
+   "variant": "true-noise",
+   "seed": 19,
+   "masts_10s": 5.0,
+   "run_s": 5.2,
+   "ekf_120s": 188.4,
+   "ekf_300s": 175.8,
+   "ekf-calibrated_120s": 101.7,
+   "ekf-calibrated_300s": 259.3
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 0,
+   "masts_10s": 5.0,
+   "run_s": 25.3,
+   "ekf_120s": 2752.3,
+   "ekf_300s": 7429.7,
+   "ekf-calibrated_120s": 2700.9,
+   "ekf-calibrated_300s": 7360.8
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 1,
+   "masts_10s": 6.0,
+   "run_s": 12.0,
+   "ekf_120s": 1121.2,
+   "ekf_300s": 2416.7,
+   "ekf-calibrated_120s": 1121.2,
+   "ekf-calibrated_300s": 2416.7
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 2,
+   "masts_10s": 4.0,
+   "run_s": 32.2,
+   "ekf_120s": 1136.1,
+   "ekf_300s": 2464.5,
+   "ekf-calibrated_120s": 1136.1,
+   "ekf-calibrated_300s": 2464.5
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 3,
+   "masts_10s": 5.0,
+   "run_s": 16.7,
+   "ekf_120s": 1104.1,
+   "ekf_300s": 2166.2,
+   "ekf-calibrated_120s": 958.0,
+   "ekf-calibrated_300s": 1117.5
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 4,
+   "masts_10s": 5.0,
+   "run_s": 13.4,
+   "ekf_120s": 2034.7,
+   "ekf_300s": 6014.6,
+   "ekf-calibrated_120s": 1408.1,
+   "ekf-calibrated_300s": 2763.8
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 5,
+   "masts_10s": 6.0,
+   "run_s": 10.5,
+   "ekf_120s": 935.6,
+   "ekf_300s": 5120.1,
+   "ekf-calibrated_120s": 1730.7,
+   "ekf-calibrated_300s": 2215.3
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 6,
+   "masts_10s": 7.0,
+   "run_s": 12.8,
+   "ekf_120s": 1720.9,
+   "ekf_300s": 3721.8,
+   "ekf-calibrated_120s": 1546.4,
+   "ekf-calibrated_300s": 2544.7
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 7,
+   "masts_10s": 5.0,
+   "run_s": 9.2,
+   "ekf_120s": 2736.6,
+   "ekf_300s": 7493.6,
+   "ekf-calibrated_120s": 497.1,
+   "ekf-calibrated_300s": 3378.3
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 8,
+   "masts_10s": 6.5,
+   "run_s": 10.8,
+   "ekf_120s": 2389.1,
+   "ekf_300s": 12413.2,
+   "ekf-calibrated_120s": 804.8,
+   "ekf-calibrated_300s": 3415.7
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 9,
+   "masts_10s": 4.0,
+   "run_s": 7.2,
+   "ekf_120s": 1176.5,
+   "ekf_300s": 1912.8,
+   "ekf-calibrated_120s": 1176.5,
+   "ekf-calibrated_300s": 1277.5
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 10,
+   "masts_10s": 4.0,
+   "run_s": 5.0,
+   "ekf_120s": 1173.9,
+   "ekf_300s": 2587.9,
+   "ekf-calibrated_120s": 1173.9,
+   "ekf-calibrated_300s": 2587.9
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 11,
+   "masts_10s": 4.0,
+   "run_s": 14.1,
+   "ekf_120s": 3996.9,
+   "ekf_300s": 10538.2,
+   "ekf-calibrated_120s": 1848.1,
+   "ekf-calibrated_300s": 5482.7
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 12,
+   "masts_10s": 6.0,
+   "run_s": 36.6,
+   "ekf_120s": 965.8,
+   "ekf_300s": 2500.4,
+   "ekf-calibrated_120s": 1846.2,
+   "ekf-calibrated_300s": 7029.0
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 13,
+   "masts_10s": 7.0,
+   "run_s": 23.5,
+   "ekf_120s": 3201.4,
+   "ekf_300s": 15986.7,
+   "ekf-calibrated_120s": 1509.3,
+   "ekf-calibrated_300s": 5756.9
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 14,
+   "masts_10s": 6.0,
+   "run_s": 10.8,
+   "ekf_120s": 2278.6,
+   "ekf_300s": 10043.2,
+   "ekf-calibrated_120s": 1149.0,
+   "ekf-calibrated_300s": 5820.2
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 15,
+   "masts_10s": 4.0,
+   "run_s": 6.4,
+   "ekf_120s": 1287.7,
+   "ekf_300s": 3613.5,
+   "ekf-calibrated_120s": 1287.7,
+   "ekf-calibrated_300s": 2537.8
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 16,
+   "masts_10s": 4.0,
+   "run_s": 24.5,
+   "ekf_120s": 692.9,
+   "ekf_300s": 4682.3,
+   "ekf-calibrated_120s": 1173.1,
+   "ekf-calibrated_300s": 6472.1
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 17,
+   "masts_10s": 4.0,
+   "run_s": 18.3,
+   "ekf_120s": 1317.4,
+   "ekf_300s": 8184.1,
+   "ekf-calibrated_120s": 715.5,
+   "ekf-calibrated_300s": 3072.3
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 18,
+   "masts_10s": 6.5,
+   "run_s": 13.7,
+   "ekf_120s": 1110.6,
+   "ekf_300s": 6001.3,
+   "ekf-calibrated_120s": 1110.6,
+   "ekf-calibrated_300s": 5620.4
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "committed",
+   "seed": 19,
+   "masts_10s": 4.0,
+   "run_s": 30.0,
+   "ekf_120s": 1304.3,
+   "ekf_300s": 6337.8,
+   "ekf-calibrated_120s": 1626.2,
+   "ekf-calibrated_300s": 6398.2
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 0,
+   "masts_10s": 5.0,
+   "run_s": 31.1,
+   "ekf_120s": 132.8,
+   "ekf_300s": 229.2,
+   "ekf-calibrated_120s": 152.9,
+   "ekf-calibrated_300s": 640.1
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 1,
+   "masts_10s": 6.0,
+   "run_s": 14.6,
+   "ekf_120s": 88.0,
+   "ekf_300s": 560.9,
+   "ekf-calibrated_120s": 77.6,
+   "ekf-calibrated_300s": 555.9
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 2,
+   "masts_10s": 4.0,
+   "run_s": 42.2,
+   "ekf_120s": 156.2,
+   "ekf_300s": 199.1,
+   "ekf-calibrated_120s": 125.9,
+   "ekf-calibrated_300s": 176.4
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 3,
+   "masts_10s": 5.0,
+   "run_s": 21.3,
+   "ekf_120s": 243.1,
+   "ekf_300s": 257.8,
+   "ekf-calibrated_120s": 267.4,
+   "ekf-calibrated_300s": 307.3
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 4,
+   "masts_10s": 5.0,
+   "run_s": 18.2,
+   "ekf_120s": 880.0,
+   "ekf_300s": 1643.0,
+   "ekf-calibrated_120s": 324.6,
+   "ekf-calibrated_300s": 757.2
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 5,
+   "masts_10s": 6.0,
+   "run_s": 11.9,
+   "ekf_120s": 207.7,
+   "ekf_300s": 761.2,
+   "ekf-calibrated_120s": 369.1,
+   "ekf-calibrated_300s": 662.6
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 6,
+   "masts_10s": 7.0,
+   "run_s": 13.0,
+   "ekf_120s": 293.0,
+   "ekf_300s": 283.7,
+   "ekf-calibrated_120s": 145.0,
+   "ekf-calibrated_300s": 157.0
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 7,
+   "masts_10s": 5.0,
+   "run_s": 7.8,
+   "ekf_120s": 490.2,
+   "ekf_300s": 545.7,
+   "ekf-calibrated_120s": 112.4,
+   "ekf-calibrated_300s": 186.1
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 8,
+   "masts_10s": 6.5,
+   "run_s": 11.6,
+   "ekf_120s": 205.6,
+   "ekf_300s": 325.8,
+   "ekf-calibrated_120s": 147.3,
+   "ekf-calibrated_300s": 179.9
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 9,
+   "masts_10s": 4.0,
+   "run_s": 8.8,
+   "ekf_120s": 195.0,
+   "ekf_300s": 236.1,
+   "ekf-calibrated_120s": 171.8,
+   "ekf-calibrated_300s": 261.0
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 10,
+   "masts_10s": 4.0,
+   "run_s": 5.6,
+   "ekf_120s": 492.7,
+   "ekf_300s": 1026.1,
+   "ekf-calibrated_120s": 309.4,
+   "ekf-calibrated_300s": 899.1
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 11,
+   "masts_10s": 4.0,
+   "run_s": 17.8,
+   "ekf_120s": 159.9,
+   "ekf_300s": 160.3,
+   "ekf-calibrated_120s": 152.1,
+   "ekf-calibrated_300s": 158.7
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 12,
+   "masts_10s": 6.0,
+   "run_s": 43.7,
+   "ekf_120s": 118.1,
+   "ekf_300s": 123.4,
+   "ekf-calibrated_120s": 105.0,
+   "ekf-calibrated_300s": 112.1
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 13,
+   "masts_10s": 7.0,
+   "run_s": 30.0,
+   "ekf_120s": 115.0,
+   "ekf_300s": 273.1,
+   "ekf-calibrated_120s": 75.5,
+   "ekf-calibrated_300s": 283.6
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 14,
+   "masts_10s": 6.0,
+   "run_s": 12.3,
+   "ekf_120s": 621.9,
+   "ekf_300s": 1026.1,
+   "ekf-calibrated_120s": 539.2,
+   "ekf-calibrated_300s": 995.1
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 15,
+   "masts_10s": 4.0,
+   "run_s": 7.1,
+   "ekf_120s": 732.8,
+   "ekf_300s": 1086.2,
+   "ekf-calibrated_120s": 662.4,
+   "ekf-calibrated_300s": 1142.5
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 16,
+   "masts_10s": 4.0,
+   "run_s": 26.3,
+   "ekf_120s": 206.0,
+   "ekf_300s": 238.9,
+   "ekf-calibrated_120s": 307.6,
+   "ekf-calibrated_300s": 457.6
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 17,
+   "masts_10s": 4.0,
+   "run_s": 17.8,
+   "ekf_120s": 709.3,
+   "ekf_300s": 619.3,
+   "ekf-calibrated_120s": 574.1,
+   "ekf-calibrated_300s": 558.2
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 18,
+   "masts_10s": 6.5,
+   "run_s": 14.4,
+   "ekf_120s": 300.6,
+   "ekf_300s": 251.1,
+   "ekf-calibrated_120s": 291.3,
+   "ekf-calibrated_300s": 643.2
+  },
+  {
+   "config": "scan-4-1s",
+   "variant": "true-noise",
+   "seed": 19,
+   "masts_10s": 4.0,
+   "run_s": 37.0,
+   "ekf_120s": 117.4,
+   "ekf_300s": 185.1,
+   "ekf-calibrated_120s": 110.4,
+   "ekf-calibrated_300s": 187.3
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 0,
+   "masts_10s": 8.0,
+   "run_s": 14.2,
+   "ekf_120s": 1334.6,
+   "ekf_300s": 3071.2,
+   "ekf-calibrated_120s": 1280.9,
+   "ekf-calibrated_300s": 2909.3
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 1,
+   "masts_10s": 9.5,
+   "run_s": 37.5,
+   "ekf_120s": 2131.8,
+   "ekf_300s": 6703.9,
+   "ekf-calibrated_120s": 1972.6,
+   "ekf-calibrated_300s": 4000.4
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 2,
+   "masts_10s": 8.0,
+   "run_s": 30.3,
+   "ekf_120s": 1269.3,
+   "ekf_300s": 3006.9,
+   "ekf-calibrated_120s": 1255.9,
+   "ekf-calibrated_300s": 2625.0
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 3,
+   "masts_10s": 7.0,
+   "run_s": 11.2,
+   "ekf_120s": 1271.5,
+   "ekf_300s": 4136.1,
+   "ekf-calibrated_120s": 1271.5,
+   "ekf-calibrated_300s": 4202.7
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 4,
+   "masts_10s": 8.0,
+   "run_s": 8.8,
+   "ekf_120s": 811.8,
+   "ekf_300s": 2187.1,
+   "ekf-calibrated_120s": 1466.0,
+   "ekf-calibrated_300s": 7378.2
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 5,
+   "masts_10s": 8.0,
+   "run_s": 72.9,
+   "ekf_120s": 1016.1,
+   "ekf_300s": 4886.0,
+   "ekf-calibrated_120s": 1033.3,
+   "ekf-calibrated_300s": 4800.9
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 6,
+   "masts_10s": 11.0,
+   "run_s": 17.5,
+   "ekf_120s": 1170.9,
+   "ekf_300s": 1578.8,
+   "ekf-calibrated_120s": 789.0,
+   "ekf-calibrated_300s": 4886.0
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 7,
+   "masts_10s": 9.0,
+   "run_s": 17.1,
+   "ekf_120s": 1020.6,
+   "ekf_300s": 6185.3,
+   "ekf-calibrated_120s": 1088.3,
+   "ekf-calibrated_300s": 1999.0
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 8,
+   "masts_10s": 8.0,
+   "run_s": 24.8,
+   "ekf_120s": 4005.1,
+   "ekf_300s": 14917.6,
+   "ekf-calibrated_120s": 2427.2,
+   "ekf-calibrated_300s": 4237.0
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 9,
+   "masts_10s": 8.0,
+   "run_s": 20.5,
+   "ekf_120s": 760.8,
+   "ekf_300s": 2806.2,
+   "ekf-calibrated_120s": 2108.8,
+   "ekf-calibrated_300s": 3666.3
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 10,
+   "masts_10s": 9.5,
+   "run_s": 40.1,
+   "ekf_120s": 1004.6,
+   "ekf_300s": 10464.7,
+   "ekf-calibrated_120s": 1060.9,
+   "ekf-calibrated_300s": 9990.4
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 11,
+   "masts_10s": 9.0,
+   "run_s": 23.2,
+   "ekf_120s": 1210.9,
+   "ekf_300s": 8998.3,
+   "ekf-calibrated_120s": 1210.9,
+   "ekf-calibrated_300s": 1179.3
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 12,
+   "masts_10s": 7.0,
+   "run_s": 17.4,
+   "ekf_120s": 1341.4,
+   "ekf_300s": 4969.6,
+   "ekf-calibrated_120s": 1421.3,
+   "ekf-calibrated_300s": 3154.3
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 13,
+   "masts_10s": 10.0,
+   "run_s": 10.5,
+   "ekf_120s": 1180.3,
+   "ekf_300s": 2581.4,
+   "ekf-calibrated_120s": 1180.3,
+   "ekf-calibrated_300s": 2581.4
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 14,
+   "masts_10s": 12.0,
+   "run_s": 10.4,
+   "ekf_120s": 1831.8,
+   "ekf_300s": 8265.4,
+   "ekf-calibrated_120s": 1215.6,
+   "ekf-calibrated_300s": 2743.8
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 15,
+   "masts_10s": 10.0,
+   "run_s": 34.7,
+   "ekf_120s": 1287.7,
+   "ekf_300s": 2396.7,
+   "ekf-calibrated_120s": 1287.7,
+   "ekf-calibrated_300s": 2413.9
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 16,
+   "masts_10s": 8.5,
+   "run_s": 36.0,
+   "ekf_120s": 962.5,
+   "ekf_300s": 1848.7,
+   "ekf-calibrated_120s": 940.0,
+   "ekf-calibrated_300s": 2206.5
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 17,
+   "masts_10s": 9.5,
+   "run_s": 53.8,
+   "ekf_120s": 1317.4,
+   "ekf_300s": 8229.7,
+   "ekf-calibrated_120s": 1671.8,
+   "ekf-calibrated_300s": 7084.1
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 18,
+   "masts_10s": 10.5,
+   "run_s": 25.1,
+   "ekf_120s": 2841.0,
+   "ekf_300s": 7772.6,
+   "ekf-calibrated_120s": 2728.7,
+   "ekf-calibrated_300s": 7428.8
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "committed",
+   "seed": 19,
+   "masts_10s": 7.0,
+   "run_s": 25.5,
+   "ekf_120s": 1632.6,
+   "ekf_300s": 2769.6,
+   "ekf-calibrated_120s": 1579.3,
+   "ekf-calibrated_300s": 2630.4
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 0,
+   "masts_10s": 8.0,
+   "run_s": 15.8,
+   "ekf_120s": 45.0,
+   "ekf_300s": 185.2,
+   "ekf-calibrated_120s": 43.1,
+   "ekf-calibrated_300s": 191.7
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 1,
+   "masts_10s": 9.5,
+   "run_s": 40.0,
+   "ekf_120s": 131.6,
+   "ekf_300s": 121.9,
+   "ekf-calibrated_120s": 147.0,
+   "ekf-calibrated_300s": 173.2
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 2,
+   "masts_10s": 8.0,
+   "run_s": 32.8,
+   "ekf_120s": 99.9,
+   "ekf_300s": 90.2,
+   "ekf-calibrated_120s": 119.1,
+   "ekf-calibrated_300s": 113.4
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 3,
+   "masts_10s": 7.0,
+   "run_s": 13.2,
+   "ekf_120s": 329.3,
+   "ekf_300s": 286.1,
+   "ekf-calibrated_120s": 273.6,
+   "ekf-calibrated_300s": 197.8
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 4,
+   "masts_10s": 8.0,
+   "run_s": 9.7,
+   "ekf_120s": 87.2,
+   "ekf_300s": 128.3,
+   "ekf-calibrated_120s": 93.5,
+   "ekf-calibrated_300s": 195.1
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 5,
+   "masts_10s": 8.0,
+   "run_s": 94.3,
+   "ekf_120s": 178.9,
+   "ekf_300s": 166.6,
+   "ekf-calibrated_120s": 201.1,
+   "ekf-calibrated_300s": 189.4
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 6,
+   "masts_10s": 11.0,
+   "run_s": 23.6,
+   "ekf_120s": 141.7,
+   "ekf_300s": 130.9,
+   "ekf-calibrated_120s": 136.1,
+   "ekf-calibrated_300s": 139.1
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 7,
+   "masts_10s": 9.0,
+   "run_s": 24.7,
+   "ekf_120s": 104.1,
+   "ekf_300s": 99.3,
+   "ekf-calibrated_120s": 99.6,
+   "ekf-calibrated_300s": 136.6
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 8,
+   "masts_10s": 8.0,
+   "run_s": 32.8,
+   "ekf_120s": 92.8,
+   "ekf_300s": 140.1,
+   "ekf-calibrated_120s": 69.4,
+   "ekf-calibrated_300s": 131.1
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 9,
+   "masts_10s": 8.0,
+   "run_s": 27.0,
+   "ekf_120s": 136.4,
+   "ekf_300s": 130.2,
+   "ekf-calibrated_120s": 91.9,
+   "ekf-calibrated_300s": 111.3
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 10,
+   "masts_10s": 9.5,
+   "run_s": 49.7,
+   "ekf_120s": 95.4,
+   "ekf_300s": 112.0,
+   "ekf-calibrated_120s": 87.0,
+   "ekf-calibrated_300s": 232.2
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 11,
+   "masts_10s": 9.0,
+   "run_s": 26.4,
+   "ekf_120s": 327.3,
+   "ekf_300s": 293.1,
+   "ekf-calibrated_120s": 363.0,
+   "ekf-calibrated_300s": 306.9
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 12,
+   "masts_10s": 7.0,
+   "run_s": 20.2,
+   "ekf_120s": 170.8,
+   "ekf_300s": 147.3,
+   "ekf-calibrated_120s": 157.8,
+   "ekf-calibrated_300s": 141.5
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 13,
+   "masts_10s": 10.0,
+   "run_s": 14.0,
+   "ekf_120s": 88.5,
+   "ekf_300s": 100.7,
+   "ekf-calibrated_120s": 85.2,
+   "ekf-calibrated_300s": 111.4
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 14,
+   "masts_10s": 12.0,
+   "run_s": 15.7,
+   "ekf_120s": 97.0,
+   "ekf_300s": 99.0,
+   "ekf-calibrated_120s": 100.5,
+   "ekf-calibrated_300s": 124.3
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 15,
+   "masts_10s": 10.0,
+   "run_s": 46.6,
+   "ekf_120s": 106.4,
+   "ekf_300s": 123.2,
+   "ekf-calibrated_120s": 90.6,
+   "ekf-calibrated_300s": 105.5
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 16,
+   "masts_10s": 8.5,
+   "run_s": 47.4,
+   "ekf_120s": 117.0,
+   "ekf_300s": 128.9,
+   "ekf-calibrated_120s": 168.8,
+   "ekf-calibrated_300s": 192.1
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 17,
+   "masts_10s": 9.5,
+   "run_s": 77.6,
+   "ekf_120s": 99.5,
+   "ekf_300s": 93.9,
+   "ekf-calibrated_120s": 76.2,
+   "ekf-calibrated_300s": 86.1
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 18,
+   "masts_10s": 10.5,
+   "run_s": 38.4,
+   "ekf_120s": 128.4,
+   "ekf_300s": 112.9,
+   "ekf-calibrated_120s": 73.9,
+   "ekf-calibrated_300s": 80.5
+  },
+  {
+   "config": "scan-6-1s",
+   "variant": "true-noise",
+   "seed": 19,
+   "masts_10s": 7.0,
+   "run_s": 36.3,
+   "ekf_120s": 149.6,
+   "ekf_300s": 188.9,
+   "ekf-calibrated_120s": 114.6,
+   "ekf-calibrated_300s": 185.3
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 0,
+   "masts_10s": 18.0,
+   "run_s": 112.5,
+   "ekf_120s": 763.2,
+   "ekf_300s": 4105.5,
+   "ekf-calibrated_120s": 371.6,
+   "ekf-calibrated_300s": 2448.4
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 1,
+   "masts_10s": 18.0,
+   "run_s": 53.2,
+   "ekf_120s": 1121.2,
+   "ekf_300s": 2416.7,
+   "ekf-calibrated_120s": 1121.2,
+   "ekf-calibrated_300s": 2416.7
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 2,
+   "masts_10s": 17.0,
+   "run_s": 68.7,
+   "ekf_120s": 1839.4,
+   "ekf_300s": 2598.3,
+   "ekf-calibrated_120s": 2288.7,
+   "ekf-calibrated_300s": 2955.3
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 3,
+   "masts_10s": 18.0,
+   "run_s": 52.8,
+   "ekf_120s": 1271.5,
+   "ekf_300s": 2806.5,
+   "ekf-calibrated_120s": 1271.5,
+   "ekf-calibrated_300s": 2806.5
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 4,
+   "masts_10s": 17.0,
+   "run_s": 38.0,
+   "ekf_120s": 2426.8,
+   "ekf_300s": 3561.3,
+   "ekf-calibrated_120s": 2600.6,
+   "ekf-calibrated_300s": 7855.9
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 5,
+   "masts_10s": 18.0,
+   "run_s": 90.6,
+   "ekf_120s": 1070.5,
+   "ekf_300s": 4562.7,
+   "ekf-calibrated_120s": 1070.5,
+   "ekf-calibrated_300s": 4366.3
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 6,
+   "masts_10s": 20.0,
+   "run_s": 70.5,
+   "ekf_120s": 1097.3,
+   "ekf_300s": 2341.6,
+   "ekf-calibrated_120s": 1097.3,
+   "ekf-calibrated_300s": 2341.6
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 7,
+   "masts_10s": 16.0,
+   "run_s": 43.0,
+   "ekf_120s": 1086.0,
+   "ekf_300s": 2329.8,
+   "ekf-calibrated_120s": 1086.0,
+   "ekf-calibrated_300s": 2329.8
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 8,
+   "masts_10s": 16.5,
+   "run_s": 22.6,
+   "ekf_120s": 1266.2,
+   "ekf_300s": 2803.6,
+   "ekf-calibrated_120s": 1266.2,
+   "ekf-calibrated_300s": 2803.6
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 9,
+   "masts_10s": 16.0,
+   "run_s": 76.8,
+   "ekf_120s": 2539.7,
+   "ekf_300s": 2855.6,
+   "ekf-calibrated_120s": 583.7,
+   "ekf-calibrated_300s": 3503.1
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 10,
+   "masts_10s": 18.0,
+   "run_s": 201.2,
+   "ekf_120s": 1399.2,
+   "ekf_300s": 8783.5,
+   "ekf-calibrated_120s": 1339.9,
+   "ekf-calibrated_300s": 2977.3
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 11,
+   "masts_10s": 19.0,
+   "run_s": 39.0,
+   "ekf_120s": 2296.4,
+   "ekf_300s": 2914.5,
+   "ekf-calibrated_120s": 1197.0,
+   "ekf-calibrated_300s": 3115.9
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 12,
+   "masts_10s": 14.0,
+   "run_s": 30.5,
+   "ekf_120s": 2688.4,
+   "ekf_300s": 7269.5,
+   "ekf-calibrated_120s": 1592.9,
+   "ekf-calibrated_300s": 5090.8
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 13,
+   "masts_10s": 18.0,
+   "run_s": 38.9,
+   "ekf_120s": 1708.5,
+   "ekf_300s": 5204.7,
+   "ekf-calibrated_120s": 1682.5,
+   "ekf-calibrated_300s": 4911.7
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 14,
+   "masts_10s": 22.0,
+   "run_s": 143.8,
+   "ekf_120s": 1070.6,
+   "ekf_300s": 7336.5,
+   "ekf-calibrated_120s": 1100.6,
+   "ekf-calibrated_300s": 7943.7
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 15,
+   "masts_10s": 19.0,
+   "run_s": 68.5,
+   "ekf_120s": 1463.3,
+   "ekf_300s": 5530.0,
+   "ekf-calibrated_120s": 1448.0,
+   "ekf-calibrated_300s": 5189.0
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 16,
+   "masts_10s": 18.0,
+   "run_s": 135.7,
+   "ekf_120s": 1234.6,
+   "ekf_300s": 8805.9,
+   "ekf-calibrated_120s": 1309.4,
+   "ekf-calibrated_300s": 5646.3
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 17,
+   "masts_10s": 17.0,
+   "run_s": 69.1,
+   "ekf_120s": 1130.4,
+   "ekf_300s": 3239.5,
+   "ekf-calibrated_120s": 3060.9,
+   "ekf-calibrated_300s": 4633.6
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 18,
+   "masts_10s": 17.5,
+   "run_s": 86.2,
+   "ekf_120s": 2581.9,
+   "ekf_300s": 4000.1,
+   "ekf-calibrated_120s": 2645.5,
+   "ekf-calibrated_300s": 4080.5
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "committed",
+   "seed": 19,
+   "masts_10s": 16.0,
+   "run_s": 30.2,
+   "ekf_120s": 1051.8,
+   "ekf_300s": 2349.3,
+   "ekf-calibrated_120s": 790.7,
+   "ekf-calibrated_300s": 1635.3
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 0,
+   "masts_10s": 18.0,
+   "run_s": 144.0,
+   "ekf_120s": 64.1,
+   "ekf_300s": 132.3,
+   "ekf-calibrated_120s": 66.0,
+   "ekf-calibrated_300s": 109.2
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 1,
+   "masts_10s": 18.0,
+   "run_s": 63.7,
+   "ekf_120s": 75.7,
+   "ekf_300s": 74.5,
+   "ekf-calibrated_120s": 72.0,
+   "ekf-calibrated_300s": 72.4
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 2,
+   "masts_10s": 17.0,
+   "run_s": 79.7,
+   "ekf_120s": 98.2,
+   "ekf_300s": 94.8,
+   "ekf-calibrated_120s": 63.2,
+   "ekf-calibrated_300s": 67.2
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 3,
+   "masts_10s": 18.0,
+   "run_s": 65.5,
+   "ekf_120s": 108.5,
+   "ekf_300s": 103.0,
+   "ekf-calibrated_120s": 100.6,
+   "ekf-calibrated_300s": 94.6
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 4,
+   "masts_10s": 17.0,
+   "run_s": 50.1,
+   "ekf_120s": 63.6,
+   "ekf_300s": 97.5,
+   "ekf-calibrated_120s": 82.9,
+   "ekf-calibrated_300s": 90.8
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 5,
+   "masts_10s": 18.0,
+   "run_s": 108.5,
+   "ekf_120s": 95.3,
+   "ekf_300s": 122.2,
+   "ekf-calibrated_120s": 124.0,
+   "ekf-calibrated_300s": 113.9
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 6,
+   "masts_10s": 20.0,
+   "run_s": 86.1,
+   "ekf_120s": 70.2,
+   "ekf_300s": 81.4,
+   "ekf-calibrated_120s": 73.1,
+   "ekf-calibrated_300s": 104.2
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 7,
+   "masts_10s": 16.0,
+   "run_s": 48.6,
+   "ekf_120s": 122.0,
+   "ekf_300s": 107.1,
+   "ekf-calibrated_120s": 84.5,
+   "ekf-calibrated_300s": 78.6
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 8,
+   "masts_10s": 16.5,
+   "run_s": 26.4,
+   "ekf_120s": 74.8,
+   "ekf_300s": 112.0,
+   "ekf-calibrated_120s": 51.5,
+   "ekf-calibrated_300s": 156.1
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 9,
+   "masts_10s": 16.0,
+   "run_s": 96.0,
+   "ekf_120s": 90.7,
+   "ekf_300s": 109.4,
+   "ekf-calibrated_120s": 81.3,
+   "ekf-calibrated_300s": 154.4
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 10,
+   "masts_10s": 18.0,
+   "run_s": 270.3,
+   "ekf_120s": 56.6,
+   "ekf_300s": 78.8,
+   "ekf-calibrated_120s": 72.1,
+   "ekf-calibrated_300s": 88.2
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 11,
+   "masts_10s": 19.0,
+   "run_s": 47.9,
+   "ekf_120s": 54.0,
+   "ekf_300s": 137.3,
+   "ekf-calibrated_120s": 47.4,
+   "ekf-calibrated_300s": 121.4
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 12,
+   "masts_10s": 14.0,
+   "run_s": 38.3,
+   "ekf_120s": 95.9,
+   "ekf_300s": 92.7,
+   "ekf-calibrated_120s": 75.9,
+   "ekf-calibrated_300s": 95.9
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 13,
+   "masts_10s": 18.0,
+   "run_s": 54.6,
+   "ekf_120s": 73.6,
+   "ekf_300s": 72.8,
+   "ekf-calibrated_120s": 78.7,
+   "ekf-calibrated_300s": 98.9
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 14,
+   "masts_10s": 22.0,
+   "run_s": 202.8,
+   "ekf_120s": 48.2,
+   "ekf_300s": 62.3,
+   "ekf-calibrated_120s": 67.2,
+   "ekf-calibrated_300s": 72.7
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 15,
+   "masts_10s": 19.0,
+   "run_s": 94.5,
+   "ekf_120s": 104.5,
+   "ekf_300s": 100.1,
+   "ekf-calibrated_120s": 108.9,
+   "ekf-calibrated_300s": 117.5
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 16,
+   "masts_10s": 18.0,
+   "run_s": 149.5,
+   "ekf_120s": 105.3,
+   "ekf_300s": 115.9,
+   "ekf-calibrated_120s": 137.4,
+   "ekf-calibrated_300s": 126.1
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 17,
+   "masts_10s": 17.0,
+   "run_s": 67.3,
+   "ekf_120s": 90.2,
+   "ekf_300s": 101.2,
+   "ekf-calibrated_120s": 122.1,
+   "ekf-calibrated_300s": 178.3
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 18,
+   "masts_10s": 17.5,
+   "run_s": 81.1,
+   "ekf_120s": 63.8,
+   "ekf_300s": 101.1,
+   "ekf-calibrated_120s": 74.6,
+   "ekf-calibrated_300s": 120.4
+  },
+  {
+   "config": "scan-8-1s",
+   "variant": "true-noise",
+   "seed": 19,
+   "masts_10s": 16.0,
+   "run_s": 28.0,
+   "ekf_120s": 98.6,
+   "ekf_300s": 112.9,
+   "ekf-calibrated_120s": 68.9,
+   "ekf-calibrated_300s": 101.0
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 0,
+   "masts_10s": 28.0,
+   "run_s": 324.2,
+   "ekf_120s": 752.4,
+   "ekf_300s": 4008.5,
+   "ekf-calibrated_120s": 761.8,
+   "ekf-calibrated_300s": 1097.3
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 1,
+   "masts_10s": 25.5,
+   "run_s": 67.5,
+   "ekf_120s": 1121.2,
+   "ekf_300s": 2416.7,
+   "ekf-calibrated_120s": 1121.2,
+   "ekf-calibrated_300s": 2416.7
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 2,
+   "masts_10s": 25.0,
+   "run_s": 77.9,
+   "ekf_120s": 1419.1,
+   "ekf_300s": 4665.4,
+   "ekf-calibrated_120s": 1343.7,
+   "ekf-calibrated_300s": 7084.8
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 3,
+   "masts_10s": 26.0,
+   "run_s": 72.5,
+   "ekf_120s": 2674.4,
+   "ekf_300s": 7596.1,
+   "ekf-calibrated_120s": 1854.2,
+   "ekf-calibrated_300s": 3532.4
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 4,
+   "masts_10s": 27.0,
+   "run_s": 182.8,
+   "ekf_120s": 3291.1,
+   "ekf_300s": 7669.6,
+   "ekf-calibrated_120s": 848.9,
+   "ekf-calibrated_300s": 7415.3
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 5,
+   "masts_10s": 28.0,
+   "run_s": 102.3,
+   "ekf_120s": 680.8,
+   "ekf_300s": 2359.2,
+   "ekf-calibrated_120s": 3352.1,
+   "ekf-calibrated_300s": 15474.2
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 6,
+   "masts_10s": 28.0,
+   "run_s": 127.9,
+   "ekf_120s": 914.8,
+   "ekf_300s": 1803.7,
+   "ekf-calibrated_120s": 633.8,
+   "ekf-calibrated_300s": 900.3
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 7,
+   "masts_10s": 25.0,
+   "run_s": 164.7,
+   "ekf_120s": 1428.9,
+   "ekf_300s": 3997.2,
+   "ekf-calibrated_120s": 1312.6,
+   "ekf-calibrated_300s": 2660.0
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 8,
+   "masts_10s": 26.0,
+   "run_s": 64.4,
+   "ekf_120s": 3175.5,
+   "ekf_300s": 12590.7,
+   "ekf-calibrated_120s": 1563.0,
+   "ekf-calibrated_300s": 2583.3
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 9,
+   "masts_10s": 24.5,
+   "run_s": 118.4,
+   "ekf_120s": 2089.1,
+   "ekf_300s": 10287.8,
+   "ekf-calibrated_120s": 2841.4,
+   "ekf-calibrated_300s": 15353.2
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 10,
+   "masts_10s": 27.0,
+   "run_s": 88.2,
+   "ekf_120s": 1274.9,
+   "ekf_300s": 2866.1,
+   "ekf-calibrated_120s": 1005.7,
+   "ekf-calibrated_300s": 2186.0
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 11,
+   "masts_10s": 27.0,
+   "run_s": 87.5,
+   "ekf_120s": 993.0,
+   "ekf_300s": 2861.5,
+   "ekf-calibrated_120s": 585.7,
+   "ekf-calibrated_300s": 1687.0
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 12,
+   "masts_10s": 27.0,
+   "run_s": 194.3,
+   "ekf_120s": 689.4,
+   "ekf_300s": 3181.1,
+   "ekf-calibrated_120s": 592.2,
+   "ekf-calibrated_300s": 2318.2
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 13,
+   "masts_10s": 25.5,
+   "run_s": 87.8,
+   "ekf_120s": 1180.3,
+   "ekf_300s": 2581.4,
+   "ekf-calibrated_120s": 1180.3,
+   "ekf-calibrated_300s": 2581.4
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 14,
+   "masts_10s": 28.5,
+   "run_s": 172.4,
+   "ekf_120s": 1143.2,
+   "ekf_300s": 4522.9,
+   "ekf-calibrated_120s": 4606.5,
+   "ekf-calibrated_300s": 17395.0
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 15,
+   "masts_10s": 28.0,
+   "run_s": 183.6,
+   "ekf_120s": 591.5,
+   "ekf_300s": 3735.6,
+   "ekf-calibrated_120s": 2079.7,
+   "ekf-calibrated_300s": 7216.7
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 16,
+   "masts_10s": 27.5,
+   "run_s": 69.1,
+   "ekf_120s": 1012.3,
+   "ekf_300s": 2189.7,
+   "ekf-calibrated_120s": 1012.3,
+   "ekf-calibrated_300s": 5709.5
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 17,
+   "masts_10s": 25.0,
+   "run_s": 87.1,
+   "ekf_120s": 2459.4,
+   "ekf_300s": 11691.2,
+   "ekf-calibrated_120s": 1085.5,
+   "ekf-calibrated_300s": 1456.5
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 18,
+   "masts_10s": 26.0,
+   "run_s": 66.3,
+   "ekf_120s": 743.0,
+   "ekf_300s": 9336.4,
+   "ekf-calibrated_120s": 799.9,
+   "ekf-calibrated_300s": 5870.1
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "committed",
+   "seed": 19,
+   "masts_10s": 26.0,
+   "run_s": 74.6,
+   "ekf_120s": 621.5,
+   "ekf_300s": 3485.6,
+   "ekf-calibrated_120s": 542.6,
+   "ekf-calibrated_300s": 2895.4
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 0,
+   "masts_10s": 28.0,
+   "run_s": 280.7,
+   "ekf_120s": 67.9,
+   "ekf_300s": 102.1,
+   "ekf-calibrated_120s": 52.0,
+   "ekf-calibrated_300s": 60.2
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 1,
+   "masts_10s": 25.5,
+   "run_s": 53.5,
+   "ekf_120s": 87.4,
+   "ekf_300s": 80.0,
+   "ekf-calibrated_120s": 98.9,
+   "ekf-calibrated_300s": 95.1
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 2,
+   "masts_10s": 25.0,
+   "run_s": 65.0,
+   "ekf_120s": 63.9,
+   "ekf_300s": 85.9,
+   "ekf-calibrated_120s": 62.6,
+   "ekf-calibrated_300s": 84.3
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 3,
+   "masts_10s": 26.0,
+   "run_s": 61.7,
+   "ekf_120s": 74.4,
+   "ekf_300s": 72.1,
+   "ekf-calibrated_120s": 71.6,
+   "ekf-calibrated_300s": 70.5
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 4,
+   "masts_10s": 27.0,
+   "run_s": 160.2,
+   "ekf_120s": 71.3,
+   "ekf_300s": 70.9,
+   "ekf-calibrated_120s": 66.3,
+   "ekf-calibrated_300s": 79.8
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 5,
+   "masts_10s": 28.0,
+   "run_s": 82.8,
+   "ekf_120s": 51.6,
+   "ekf_300s": 72.9,
+   "ekf-calibrated_120s": 68.3,
+   "ekf-calibrated_300s": 71.9
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 6,
+   "masts_10s": 28.0,
+   "run_s": 110.7,
+   "ekf_120s": 91.0,
+   "ekf_300s": 82.1,
+   "ekf-calibrated_120s": 101.3,
+   "ekf-calibrated_300s": 97.1
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 7,
+   "masts_10s": 25.0,
+   "run_s": 141.5,
+   "ekf_120s": 81.7,
+   "ekf_300s": 79.1,
+   "ekf-calibrated_120s": 79.4,
+   "ekf-calibrated_300s": 77.1
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 8,
+   "masts_10s": 26.0,
+   "run_s": 51.5,
+   "ekf_120s": 58.9,
+   "ekf_300s": 70.2,
+   "ekf-calibrated_120s": 69.0,
+   "ekf-calibrated_300s": 81.9
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 9,
+   "masts_10s": 24.5,
+   "run_s": 100.3,
+   "ekf_120s": 51.6,
+   "ekf_300s": 90.9,
+   "ekf-calibrated_120s": 70.5,
+   "ekf-calibrated_300s": 125.5
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 10,
+   "masts_10s": 27.0,
+   "run_s": 75.9,
+   "ekf_120s": 55.4,
+   "ekf_300s": 74.8,
+   "ekf-calibrated_120s": 50.4,
+   "ekf-calibrated_300s": 109.8
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 11,
+   "masts_10s": 27.0,
+   "run_s": 78.3,
+   "ekf_120s": 65.9,
+   "ekf_300s": 88.3,
+   "ekf-calibrated_120s": 65.2,
+   "ekf-calibrated_300s": 98.2
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 12,
+   "masts_10s": 27.0,
+   "run_s": 158.1,
+   "ekf_120s": 69.1,
+   "ekf_300s": 78.6,
+   "ekf-calibrated_120s": 62.3,
+   "ekf-calibrated_300s": 102.6
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 13,
+   "masts_10s": 25.5,
+   "run_s": 78.6,
+   "ekf_120s": 66.7,
+   "ekf_300s": 71.1,
+   "ekf-calibrated_120s": 71.0,
+   "ekf-calibrated_300s": 88.5
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 14,
+   "masts_10s": 28.5,
+   "run_s": 166.2,
+   "ekf_120s": 64.2,
+   "ekf_300s": 66.2,
+   "ekf-calibrated_120s": 63.3,
+   "ekf-calibrated_300s": 116.8
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 15,
+   "masts_10s": 28.0,
+   "run_s": 212.4,
+   "ekf_120s": 100.0,
+   "ekf_300s": 90.2,
+   "ekf-calibrated_120s": 94.5,
+   "ekf-calibrated_300s": 86.4
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 16,
+   "masts_10s": 27.5,
+   "run_s": 99.5,
+   "ekf_120s": 86.3,
+   "ekf_300s": 82.2,
+   "ekf-calibrated_120s": 101.7,
+   "ekf-calibrated_300s": 98.7
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 17,
+   "masts_10s": 25.0,
+   "run_s": 132.9,
+   "ekf_120s": 85.1,
+   "ekf_300s": 76.8,
+   "ekf-calibrated_120s": 86.3,
+   "ekf-calibrated_300s": 140.8
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 18,
+   "masts_10s": 26.0,
+   "run_s": 104.5,
+   "ekf_120s": 74.8,
+   "ekf_300s": 73.4,
+   "ekf-calibrated_120s": 69.7,
+   "ekf-calibrated_300s": 69.5
+  },
+  {
+   "config": "scan-13-1s",
+   "variant": "true-noise",
+   "seed": 19,
+   "masts_10s": 26.0,
+   "run_s": 112.3,
+   "ekf_120s": 51.0,
+   "ekf_300s": 77.8,
+   "ekf-calibrated_120s": 58.4,
+   "ekf-calibrated_300s": 68.8
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 0,
+   "masts_10s": 5.0,
+   "run_s": 26.2,
+   "ekf_120s": 936.1,
+   "ekf_300s": 2628.0,
+   "ekf-calibrated_120s": 603.4,
+   "ekf-calibrated_300s": 2939.9
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 1,
+   "masts_10s": 7.0,
+   "run_s": 10.2,
+   "ekf_120s": 1665.8,
+   "ekf_300s": 11527.0,
+   "ekf-calibrated_120s": 1669.5,
+   "ekf-calibrated_300s": 12805.0
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 2,
+   "masts_10s": 4.0,
+   "run_s": 29.8,
+   "ekf_120s": 3108.5,
+   "ekf_300s": 16711.3,
+   "ekf-calibrated_120s": 435.5,
+   "ekf-calibrated_300s": 2606.1
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 3,
+   "masts_10s": 5.0,
+   "run_s": 15.6,
+   "ekf_120s": 1557.2,
+   "ekf_300s": 3300.1,
+   "ekf-calibrated_120s": 1474.9,
+   "ekf-calibrated_300s": 4367.5
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 4,
+   "masts_10s": 5.0,
+   "run_s": 11.2,
+   "ekf_120s": 1163.4,
+   "ekf_300s": 3894.0,
+   "ekf-calibrated_120s": 1163.4,
+   "ekf-calibrated_300s": 1691.9
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 5,
+   "masts_10s": 6.0,
+   "run_s": 9.2,
+   "ekf_120s": 1070.5,
+   "ekf_300s": 2330.6,
+   "ekf-calibrated_120s": 1070.5,
+   "ekf-calibrated_300s": 2330.6
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 6,
+   "masts_10s": 7.5,
+   "run_s": 9.4,
+   "ekf_120s": 1097.3,
+   "ekf_300s": 2341.6,
+   "ekf-calibrated_120s": 1097.3,
+   "ekf-calibrated_300s": 2341.6
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 7,
+   "masts_10s": 5.0,
+   "run_s": 6.0,
+   "ekf_120s": 1225.1,
+   "ekf_300s": 2642.2,
+   "ekf-calibrated_120s": 1191.6,
+   "ekf-calibrated_300s": 2551.3
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 8,
+   "masts_10s": 7.0,
+   "run_s": 8.0,
+   "ekf_120s": 1131.2,
+   "ekf_300s": 2535.4,
+   "ekf-calibrated_120s": 1170.4,
+   "ekf-calibrated_300s": 2598.1
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 9,
+   "masts_10s": 4.0,
+   "run_s": 6.5,
+   "ekf_120s": 1176.4,
+   "ekf_300s": 5279.6,
+   "ekf-calibrated_120s": 1176.6,
+   "ekf-calibrated_300s": 4536.4
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 10,
+   "masts_10s": 4.0,
+   "run_s": 4.2,
+   "ekf_120s": 1173.9,
+   "ekf_300s": 2587.9,
+   "ekf-calibrated_120s": 1173.9,
+   "ekf-calibrated_300s": 2587.9
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 11,
+   "masts_10s": 4.0,
+   "run_s": 12.5,
+   "ekf_120s": 1920.4,
+   "ekf_300s": 10088.4,
+   "ekf-calibrated_120s": 1452.9,
+   "ekf-calibrated_300s": 5105.5
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 12,
+   "masts_10s": 6.0,
+   "run_s": 32.2,
+   "ekf_120s": 3591.4,
+   "ekf_300s": 9870.1,
+   "ekf-calibrated_120s": 2714.1,
+   "ekf-calibrated_300s": 4558.2
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 13,
+   "masts_10s": 7.0,
+   "run_s": 21.0,
+   "ekf_120s": 1060.7,
+   "ekf_300s": 3978.2,
+   "ekf-calibrated_120s": 1731.2,
+   "ekf-calibrated_300s": 2623.3
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 14,
+   "masts_10s": 6.0,
+   "run_s": 10.0,
+   "ekf_120s": 1149.0,
+   "ekf_300s": 2450.2,
+   "ekf-calibrated_120s": 1180.3,
+   "ekf-calibrated_300s": 2528.7
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 15,
+   "masts_10s": 4.0,
+   "run_s": 6.1,
+   "ekf_120s": 1387.8,
+   "ekf_300s": 7697.2,
+   "ekf-calibrated_120s": 1104.5,
+   "ekf-calibrated_300s": 6871.3
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 16,
+   "masts_10s": 4.0,
+   "run_s": 19.3,
+   "ekf_120s": 2168.2,
+   "ekf_300s": 7061.6,
+   "ekf-calibrated_120s": 1947.1,
+   "ekf-calibrated_300s": 6929.7
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 17,
+   "masts_10s": 4.0,
+   "run_s": 13.9,
+   "ekf_120s": 1317.4,
+   "ekf_300s": 2880.7,
+   "ekf-calibrated_120s": 1317.4,
+   "ekf-calibrated_300s": 2880.7
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 18,
+   "masts_10s": 7.0,
+   "run_s": 10.7,
+   "ekf_120s": 1110.6,
+   "ekf_300s": 2375.8,
+   "ekf-calibrated_120s": 1110.6,
+   "ekf-calibrated_300s": 5658.6
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "committed",
+   "seed": 19,
+   "masts_10s": 4.0,
+   "run_s": 26.3,
+   "ekf_120s": 1051.8,
+   "ekf_300s": 2349.3,
+   "ekf-calibrated_120s": 1051.8,
+   "ekf-calibrated_300s": 2349.3
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 0,
+   "masts_10s": 5.0,
+   "run_s": 30.7,
+   "ekf_120s": 174.7,
+   "ekf_300s": 257.5,
+   "ekf-calibrated_120s": 145.8,
+   "ekf-calibrated_300s": 521.1
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 1,
+   "masts_10s": 7.0,
+   "run_s": 12.6,
+   "ekf_120s": 172.0,
+   "ekf_300s": 847.8,
+   "ekf-calibrated_120s": 169.3,
+   "ekf-calibrated_300s": 766.7
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 2,
+   "masts_10s": 4.0,
+   "run_s": 39.7,
+   "ekf_120s": 147.9,
+   "ekf_300s": 218.7,
+   "ekf-calibrated_120s": 128.1,
+   "ekf-calibrated_300s": 465.8
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 3,
+   "masts_10s": 5.0,
+   "run_s": 19.4,
+   "ekf_120s": 163.8,
+   "ekf_300s": 213.6,
+   "ekf-calibrated_120s": 153.6,
+   "ekf-calibrated_300s": 190.3
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 4,
+   "masts_10s": 5.0,
+   "run_s": 17.5,
+   "ekf_120s": 338.4,
+   "ekf_300s": 581.3,
+   "ekf-calibrated_120s": 251.0,
+   "ekf-calibrated_300s": 395.6
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 5,
+   "masts_10s": 6.0,
+   "run_s": 12.0,
+   "ekf_120s": 349.8,
+   "ekf_300s": 496.4,
+   "ekf-calibrated_120s": 349.6,
+   "ekf-calibrated_300s": 609.7
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 6,
+   "masts_10s": 7.5,
+   "run_s": 12.0,
+   "ekf_120s": 192.2,
+   "ekf_300s": 237.5,
+   "ekf-calibrated_120s": 154.6,
+   "ekf-calibrated_300s": 166.0
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 7,
+   "masts_10s": 5.0,
+   "run_s": 7.5,
+   "ekf_120s": 650.4,
+   "ekf_300s": 688.1,
+   "ekf-calibrated_120s": 573.8,
+   "ekf-calibrated_300s": 1142.2
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 8,
+   "masts_10s": 7.0,
+   "run_s": 10.5,
+   "ekf_120s": 121.9,
+   "ekf_300s": 168.3,
+   "ekf-calibrated_120s": 131.2,
+   "ekf-calibrated_300s": 195.0
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 9,
+   "masts_10s": 4.0,
+   "run_s": 8.1,
+   "ekf_120s": 455.9,
+   "ekf_300s": 396.6,
+   "ekf-calibrated_120s": 262.2,
+   "ekf-calibrated_300s": 259.2
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 10,
+   "masts_10s": 4.0,
+   "run_s": 4.9,
+   "ekf_120s": 270.2,
+   "ekf_300s": 285.4,
+   "ekf-calibrated_120s": 612.1,
+   "ekf-calibrated_300s": 1129.6
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 11,
+   "masts_10s": 4.0,
+   "run_s": 16.7,
+   "ekf_120s": 160.6,
+   "ekf_300s": 166.7,
+   "ekf-calibrated_120s": 164.3,
+   "ekf-calibrated_300s": 179.8
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 12,
+   "masts_10s": 6.0,
+   "run_s": 46.2,
+   "ekf_120s": 193.8,
+   "ekf_300s": 172.1,
+   "ekf-calibrated_120s": 85.6,
+   "ekf-calibrated_300s": 92.9
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 13,
+   "masts_10s": 7.0,
+   "run_s": 29.8,
+   "ekf_120s": 63.4,
+   "ekf_300s": 145.6,
+   "ekf-calibrated_120s": 54.6,
+   "ekf-calibrated_300s": 231.4
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 14,
+   "masts_10s": 6.0,
+   "run_s": 12.6,
+   "ekf_120s": 460.2,
+   "ekf_300s": 868.4,
+   "ekf-calibrated_120s": 613.8,
+   "ekf-calibrated_300s": 1052.4
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 15,
+   "masts_10s": 4.0,
+   "run_s": 7.1,
+   "ekf_120s": 268.4,
+   "ekf_300s": 1061.3,
+   "ekf-calibrated_120s": 532.5,
+   "ekf-calibrated_300s": 976.6
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 16,
+   "masts_10s": 4.0,
+   "run_s": 26.8,
+   "ekf_120s": 150.4,
+   "ekf_300s": 681.5,
+   "ekf-calibrated_120s": 219.1,
+   "ekf-calibrated_300s": 362.0
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 17,
+   "masts_10s": 4.0,
+   "run_s": 18.0,
+   "ekf_120s": 368.3,
+   "ekf_300s": 358.8,
+   "ekf-calibrated_120s": 178.6,
+   "ekf-calibrated_300s": 189.9
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 18,
+   "masts_10s": 7.0,
+   "run_s": 14.9,
+   "ekf_120s": 153.8,
+   "ekf_300s": 231.4,
+   "ekf-calibrated_120s": 141.6,
+   "ekf-calibrated_300s": 226.6
+  },
+  {
+   "config": "scan-4-0.5s",
+   "variant": "true-noise",
+   "seed": 19,
+   "masts_10s": 4.0,
+   "run_s": 37.3,
+   "ekf_120s": 156.4,
+   "ekf_300s": 172.0,
+   "ekf-calibrated_120s": 80.2,
+   "ekf-calibrated_300s": 248.8
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 0,
+   "masts_10s": 5.0,
+   "run_s": 21.6,
+   "ekf_120s": 3777.9,
+   "ekf_300s": 11024.2,
+   "ekf-calibrated_120s": 4003.6,
+   "ekf-calibrated_300s": 11043.5
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 1,
+   "masts_10s": 6.0,
+   "run_s": 8.2,
+   "ekf_120s": 1551.9,
+   "ekf_300s": 9403.0,
+   "ekf-calibrated_120s": 3681.0,
+   "ekf-calibrated_300s": 14801.9
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 2,
+   "masts_10s": 4.0,
+   "run_s": 26.3,
+   "ekf_120s": 2531.8,
+   "ekf_300s": 6221.1,
+   "ekf-calibrated_120s": 3954.8,
+   "ekf-calibrated_300s": 16258.5
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 3,
+   "masts_10s": 5.0,
+   "run_s": 13.3,
+   "ekf_120s": 3081.5,
+   "ekf_300s": 9425.7,
+   "ekf-calibrated_120s": 841.9,
+   "ekf-calibrated_300s": 1937.7
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 4,
+   "masts_10s": 4.0,
+   "run_s": 9.9,
+   "ekf_120s": 1235.3,
+   "ekf_300s": 4136.3,
+   "ekf-calibrated_120s": 1300.1,
+   "ekf-calibrated_300s": 3461.1
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 5,
+   "masts_10s": 6.0,
+   "run_s": 7.5,
+   "ekf_120s": 1070.5,
+   "ekf_300s": 2330.6,
+   "ekf-calibrated_120s": 1070.5,
+   "ekf-calibrated_300s": 2330.6
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 6,
+   "masts_10s": 7.0,
+   "run_s": 7.8,
+   "ekf_120s": 1677.2,
+   "ekf_300s": 10590.4,
+   "ekf-calibrated_120s": 1664.5,
+   "ekf-calibrated_300s": 12293.3
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 7,
+   "masts_10s": 5.0,
+   "run_s": 5.2,
+   "ekf_120s": 3001.8,
+   "ekf_300s": 9248.0,
+   "ekf-calibrated_120s": 3486.9,
+   "ekf-calibrated_300s": 11196.1
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 8,
+   "masts_10s": 6.0,
+   "run_s": 6.4,
+   "ekf_120s": 1172.3,
+   "ekf_300s": 8683.6,
+   "ekf-calibrated_120s": 1167.6,
+   "ekf-calibrated_300s": 10619.2
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 9,
+   "masts_10s": 4.0,
+   "run_s": 5.3,
+   "ekf_120s": 1176.5,
+   "ekf_300s": 2859.6,
+   "ekf-calibrated_120s": 1176.5,
+   "ekf-calibrated_300s": 3268.3
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 10,
+   "masts_10s": 4.0,
+   "run_s": 3.6,
+   "ekf_120s": 1157.8,
+   "ekf_300s": 7654.5,
+   "ekf-calibrated_120s": 1158.0,
+   "ekf-calibrated_300s": 7608.7
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 11,
+   "masts_10s": 4.0,
+   "run_s": 10.0,
+   "ekf_120s": 2334.1,
+   "ekf_300s": 7286.7,
+   "ekf-calibrated_120s": 811.7,
+   "ekf-calibrated_300s": 1097.4
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 12,
+   "masts_10s": 5.5,
+   "run_s": 24.8,
+   "ekf_120s": 656.6,
+   "ekf_300s": 6843.1,
+   "ekf-calibrated_120s": 693.9,
+   "ekf-calibrated_300s": 6689.5
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 13,
+   "masts_10s": 6.5,
+   "run_s": 16.5,
+   "ekf_120s": 1033.3,
+   "ekf_300s": 5321.1,
+   "ekf-calibrated_120s": 3634.8,
+   "ekf-calibrated_300s": 12150.2
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 14,
+   "masts_10s": 5.5,
+   "run_s": 7.6,
+   "ekf_120s": 2716.0,
+   "ekf_300s": 3189.2,
+   "ekf-calibrated_120s": 1213.2,
+   "ekf-calibrated_300s": 2596.2
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 15,
+   "masts_10s": 3.0,
+   "run_s": 4.6,
+   "ekf_120s": 1287.7,
+   "ekf_300s": 2571.2,
+   "ekf-calibrated_120s": 964.2,
+   "ekf-calibrated_300s": 1442.6
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 16,
+   "masts_10s": 4.0,
+   "run_s": 15.3,
+   "ekf_120s": 2122.4,
+   "ekf_300s": 7775.8,
+   "ekf-calibrated_120s": 4417.8,
+   "ekf-calibrated_300s": 11996.0
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 17,
+   "masts_10s": 4.0,
+   "run_s": 10.9,
+   "ekf_120s": 1317.4,
+   "ekf_300s": 1259.9,
+   "ekf-calibrated_120s": 1317.4,
+   "ekf-calibrated_300s": 1259.9
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 18,
+   "masts_10s": 6.0,
+   "run_s": 7.9,
+   "ekf_120s": 990.1,
+   "ekf_300s": 1679.4,
+   "ekf-calibrated_120s": 1858.7,
+   "ekf-calibrated_300s": 7484.8
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "committed",
+   "seed": 19,
+   "masts_10s": 4.0,
+   "run_s": 19.5,
+   "ekf_120s": 1391.8,
+   "ekf_300s": 4909.5,
+   "ekf-calibrated_120s": 2910.2,
+   "ekf-calibrated_300s": 10208.7
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 0,
+   "masts_10s": 5.0,
+   "run_s": 20.8,
+   "ekf_120s": 123.9,
+   "ekf_300s": 245.3,
+   "ekf-calibrated_120s": 107.5,
+   "ekf-calibrated_300s": 531.9
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 1,
+   "masts_10s": 6.0,
+   "run_s": 7.5,
+   "ekf_120s": 447.1,
+   "ekf_300s": 334.7,
+   "ekf-calibrated_120s": 146.2,
+   "ekf-calibrated_300s": 525.0
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 2,
+   "masts_10s": 4.0,
+   "run_s": 28.9,
+   "ekf_120s": 130.8,
+   "ekf_300s": 330.3,
+   "ekf-calibrated_120s": 146.5,
+   "ekf-calibrated_300s": 572.1
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 3,
+   "masts_10s": 5.0,
+   "run_s": 14.6,
+   "ekf_120s": 223.3,
+   "ekf_300s": 225.2,
+   "ekf-calibrated_120s": 381.0,
+   "ekf-calibrated_300s": 313.9
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 4,
+   "masts_10s": 4.0,
+   "run_s": 12.6,
+   "ekf_120s": 770.1,
+   "ekf_300s": 1497.6,
+   "ekf-calibrated_120s": 275.8,
+   "ekf-calibrated_300s": 794.5
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 5,
+   "masts_10s": 6.0,
+   "run_s": 8.3,
+   "ekf_120s": 191.9,
+   "ekf_300s": 189.3,
+   "ekf-calibrated_120s": 240.3,
+   "ekf-calibrated_300s": 665.1
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 6,
+   "masts_10s": 7.0,
+   "run_s": 9.2,
+   "ekf_120s": 272.6,
+   "ekf_300s": 253.1,
+   "ekf-calibrated_120s": 325.0,
+   "ekf-calibrated_300s": 824.6
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 7,
+   "masts_10s": 5.0,
+   "run_s": 5.9,
+   "ekf_120s": 416.6,
+   "ekf_300s": 467.2,
+   "ekf-calibrated_120s": 194.9,
+   "ekf-calibrated_300s": 216.3
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 8,
+   "masts_10s": 6.0,
+   "run_s": 7.0,
+   "ekf_120s": 157.0,
+   "ekf_300s": 279.4,
+   "ekf-calibrated_120s": 137.6,
+   "ekf-calibrated_300s": 142.2
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 9,
+   "masts_10s": 4.0,
+   "run_s": 5.9,
+   "ekf_120s": 206.6,
+   "ekf_300s": 205.2,
+   "ekf-calibrated_120s": 274.8,
+   "ekf-calibrated_300s": 402.4
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 10,
+   "masts_10s": 4.0,
+   "run_s": 3.7,
+   "ekf_120s": 470.5,
+   "ekf_300s": 987.1,
+   "ekf-calibrated_120s": 380.5,
+   "ekf-calibrated_300s": 912.0
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 11,
+   "masts_10s": 4.0,
+   "run_s": 11.6,
+   "ekf_120s": 159.2,
+   "ekf_300s": 234.5,
+   "ekf-calibrated_120s": 123.6,
+   "ekf-calibrated_300s": 288.9
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 12,
+   "masts_10s": 5.5,
+   "run_s": 30.7,
+   "ekf_120s": 127.9,
+   "ekf_300s": 119.5,
+   "ekf-calibrated_120s": 108.5,
+   "ekf-calibrated_300s": 161.1
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 13,
+   "masts_10s": 6.5,
+   "run_s": 20.4,
+   "ekf_120s": 105.8,
+   "ekf_300s": 186.3,
+   "ekf-calibrated_120s": 65.6,
+   "ekf-calibrated_300s": 168.2
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 14,
+   "masts_10s": 5.5,
+   "run_s": 8.8,
+   "ekf_120s": 615.7,
+   "ekf_300s": 1176.2,
+   "ekf-calibrated_120s": 454.8,
+   "ekf-calibrated_300s": 936.5
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 15,
+   "masts_10s": 3.0,
+   "run_s": 5.1,
+   "ekf_120s": 662.7,
+   "ekf_300s": 1171.5,
+   "ekf-calibrated_120s": 579.8,
+   "ekf-calibrated_300s": 991.5
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 16,
+   "masts_10s": 4.0,
+   "run_s": 19.0,
+   "ekf_120s": 217.7,
+   "ekf_300s": 219.0,
+   "ekf-calibrated_120s": 261.5,
+   "ekf-calibrated_300s": 283.3
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 17,
+   "masts_10s": 4.0,
+   "run_s": 12.7,
+   "ekf_120s": 533.6,
+   "ekf_300s": 554.8,
+   "ekf-calibrated_120s": 456.7,
+   "ekf-calibrated_300s": 411.1
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 18,
+   "masts_10s": 6.0,
+   "run_s": 10.1,
+   "ekf_120s": 196.9,
+   "ekf_300s": 166.1,
+   "ekf-calibrated_120s": 291.4,
+   "ekf-calibrated_300s": 571.9
+  },
+  {
+   "config": "scan-4-2s",
+   "variant": "true-noise",
+   "seed": 19,
+   "masts_10s": 4.0,
+   "run_s": 24.4,
+   "ekf_120s": 112.0,
+   "ekf_300s": 171.8,
+   "ekf-calibrated_120s": 128.5,
+   "ekf-calibrated_300s": 192.0
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 0,
+   "masts_10s": 8.0,
+   "run_s": 8.4,
+   "ekf_120s": 3949.3,
+   "ekf_300s": 7192.2,
+   "ekf-calibrated_120s": 756.2,
+   "ekf-calibrated_300s": 2573.4
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 1,
+   "masts_10s": 10.0,
+   "run_s": 19.6,
+   "ekf_120s": 1022.4,
+   "ekf_300s": 2842.7,
+   "ekf-calibrated_120s": 1238.4,
+   "ekf-calibrated_300s": 3196.9
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 2,
+   "masts_10s": 8.0,
+   "run_s": 14.8,
+   "ekf_120s": 2332.2,
+   "ekf_300s": 4409.3,
+   "ekf-calibrated_120s": 1984.5,
+   "ekf-calibrated_300s": 9403.0
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 3,
+   "masts_10s": 7.0,
+   "run_s": 5.7,
+   "ekf_120s": 3745.2,
+   "ekf_300s": 6687.0,
+   "ekf-calibrated_120s": 2547.5,
+   "ekf-calibrated_300s": 3374.3
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 4,
+   "masts_10s": 8.0,
+   "run_s": 5.3,
+   "ekf_120s": 1137.6,
+   "ekf_300s": 2241.0,
+   "ekf-calibrated_120s": 1272.2,
+   "ekf-calibrated_300s": 6982.7
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 5,
+   "masts_10s": 7.5,
+   "run_s": 31.5,
+   "ekf_120s": 3632.5,
+   "ekf_300s": 15270.8,
+   "ekf-calibrated_120s": 2066.3,
+   "ekf-calibrated_300s": 7774.2
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 6,
+   "masts_10s": 11.0,
+   "run_s": 9.5,
+   "ekf_120s": 1097.3,
+   "ekf_300s": 5563.3,
+   "ekf-calibrated_120s": 1097.3,
+   "ekf-calibrated_300s": 4785.9
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 7,
+   "masts_10s": 9.0,
+   "run_s": 9.2,
+   "ekf_120s": 1086.0,
+   "ekf_300s": 2329.8,
+   "ekf-calibrated_120s": 1086.0,
+   "ekf-calibrated_300s": 2329.8
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 8,
+   "masts_10s": 8.0,
+   "run_s": 12.1,
+   "ekf_120s": 1948.3,
+   "ekf_300s": 10305.1,
+   "ekf-calibrated_120s": 979.1,
+   "ekf-calibrated_300s": 4511.6
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 9,
+   "masts_10s": 8.0,
+   "run_s": 11.0,
+   "ekf_120s": 1176.5,
+   "ekf_300s": 2494.8,
+   "ekf-calibrated_120s": 1176.5,
+   "ekf-calibrated_300s": 2494.8
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 10,
+   "masts_10s": 10.0,
+   "run_s": 17.1,
+   "ekf_120s": 1132.5,
+   "ekf_300s": 9786.6,
+   "ekf-calibrated_120s": 1120.6,
+   "ekf-calibrated_300s": 13024.2
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 11,
+   "masts_10s": 9.0,
+   "run_s": 10.5,
+   "ekf_120s": 3654.6,
+   "ekf_300s": 9481.7,
+   "ekf-calibrated_120s": 2435.5,
+   "ekf-calibrated_300s": 4072.5
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 12,
+   "masts_10s": 7.0,
+   "run_s": 8.0,
+   "ekf_120s": 799.6,
+   "ekf_300s": 2937.1,
+   "ekf-calibrated_120s": 1138.1,
+   "ekf-calibrated_300s": 3040.0
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 13,
+   "masts_10s": 10.0,
+   "run_s": 6.1,
+   "ekf_120s": 610.9,
+   "ekf_300s": 4815.5,
+   "ekf-calibrated_120s": 1611.1,
+   "ekf-calibrated_300s": 2359.3
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 14,
+   "masts_10s": 12.0,
+   "run_s": 6.6,
+   "ekf_120s": 2347.5,
+   "ekf_300s": 9994.5,
+   "ekf-calibrated_120s": 2446.9,
+   "ekf-calibrated_300s": 10093.7
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 15,
+   "masts_10s": 10.0,
+   "run_s": 16.1,
+   "ekf_120s": 3057.7,
+   "ekf_300s": 15998.4,
+   "ekf-calibrated_120s": 3299.2,
+   "ekf-calibrated_300s": 6825.5
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 16,
+   "masts_10s": 8.0,
+   "run_s": 17.1,
+   "ekf_120s": 3368.8,
+   "ekf_300s": 16522.1,
+   "ekf-calibrated_120s": 3326.0,
+   "ekf-calibrated_300s": 12328.3
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 17,
+   "masts_10s": 10.0,
+   "run_s": 22.9,
+   "ekf_120s": 1317.4,
+   "ekf_300s": 7068.4,
+   "ekf-calibrated_120s": 1317.4,
+   "ekf-calibrated_300s": 6988.5
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 18,
+   "masts_10s": 10.0,
+   "run_s": 11.9,
+   "ekf_120s": 2039.6,
+   "ekf_300s": 5157.5,
+   "ekf-calibrated_120s": 1438.8,
+   "ekf-calibrated_300s": 5219.6
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "committed",
+   "seed": 19,
+   "masts_10s": 8.0,
+   "run_s": 11.7,
+   "ekf_120s": 1051.8,
+   "ekf_300s": 2349.3,
+   "ekf-calibrated_120s": 1051.8,
+   "ekf-calibrated_300s": 2349.3
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 0,
+   "masts_10s": 8.0,
+   "run_s": 8.8,
+   "ekf_120s": 80.1,
+   "ekf_300s": 155.2,
+   "ekf-calibrated_120s": 55.2,
+   "ekf-calibrated_300s": 126.3
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 1,
+   "masts_10s": 10.0,
+   "run_s": 20.6,
+   "ekf_120s": 179.9,
+   "ekf_300s": 142.7,
+   "ekf-calibrated_120s": 134.0,
+   "ekf-calibrated_300s": 151.9
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 2,
+   "masts_10s": 8.0,
+   "run_s": 16.9,
+   "ekf_120s": 122.5,
+   "ekf_300s": 112.9,
+   "ekf-calibrated_120s": 112.1,
+   "ekf-calibrated_300s": 135.9
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 3,
+   "masts_10s": 7.0,
+   "run_s": 6.9,
+   "ekf_120s": 314.9,
+   "ekf_300s": 259.4,
+   "ekf-calibrated_120s": 219.7,
+   "ekf-calibrated_300s": 192.2
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 4,
+   "masts_10s": 8.0,
+   "run_s": 5.7,
+   "ekf_120s": 91.5,
+   "ekf_300s": 117.8,
+   "ekf-calibrated_120s": 144.8,
+   "ekf-calibrated_300s": 178.3
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 5,
+   "masts_10s": 7.5,
+   "run_s": 39.0,
+   "ekf_120s": 110.0,
+   "ekf_300s": 144.7,
+   "ekf-calibrated_120s": 101.2,
+   "ekf-calibrated_300s": 117.6
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 6,
+   "masts_10s": 11.0,
+   "run_s": 10.9,
+   "ekf_120s": 151.8,
+   "ekf_300s": 136.5,
+   "ekf-calibrated_120s": 123.9,
+   "ekf-calibrated_300s": 127.0
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 7,
+   "masts_10s": 9.0,
+   "run_s": 10.8,
+   "ekf_120s": 117.3,
+   "ekf_300s": 125.8,
+   "ekf-calibrated_120s": 68.8,
+   "ekf-calibrated_300s": 115.7
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 8,
+   "masts_10s": 8.0,
+   "run_s": 13.6,
+   "ekf_120s": 72.2,
+   "ekf_300s": 136.1,
+   "ekf-calibrated_120s": 72.0,
+   "ekf-calibrated_300s": 139.7
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 9,
+   "masts_10s": 8.0,
+   "run_s": 12.0,
+   "ekf_120s": 135.6,
+   "ekf_300s": 132.9,
+   "ekf-calibrated_120s": 95.4,
+   "ekf-calibrated_300s": 132.1
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 10,
+   "masts_10s": 10.0,
+   "run_s": 20.2,
+   "ekf_120s": 88.3,
+   "ekf_300s": 116.4,
+   "ekf-calibrated_120s": 86.6,
+   "ekf-calibrated_300s": 157.8
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 11,
+   "masts_10s": 9.0,
+   "run_s": 11.9,
+   "ekf_120s": 430.0,
+   "ekf_300s": 332.5,
+   "ekf-calibrated_120s": 382.8,
+   "ekf-calibrated_300s": 339.4
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 12,
+   "masts_10s": 7.0,
+   "run_s": 8.1,
+   "ekf_120s": 155.1,
+   "ekf_300s": 136.8,
+   "ekf-calibrated_120s": 121.2,
+   "ekf-calibrated_300s": 105.2
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 13,
+   "masts_10s": 10.0,
+   "run_s": 6.6,
+   "ekf_120s": 87.1,
+   "ekf_300s": 122.1,
+   "ekf-calibrated_120s": 60.5,
+   "ekf-calibrated_300s": 153.4
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 14,
+   "masts_10s": 12.0,
+   "run_s": 7.1,
+   "ekf_120s": 81.4,
+   "ekf_300s": 83.2,
+   "ekf-calibrated_120s": 96.9,
+   "ekf-calibrated_300s": 94.2
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 15,
+   "masts_10s": 10.0,
+   "run_s": 18.6,
+   "ekf_120s": 109.7,
+   "ekf_300s": 117.3,
+   "ekf-calibrated_120s": 88.1,
+   "ekf-calibrated_300s": 122.5
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 16,
+   "masts_10s": 8.0,
+   "run_s": 19.8,
+   "ekf_120s": 137.4,
+   "ekf_300s": 118.7,
+   "ekf-calibrated_120s": 122.1,
+   "ekf-calibrated_300s": 192.5
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 17,
+   "masts_10s": 10.0,
+   "run_s": 29.1,
+   "ekf_120s": 87.7,
+   "ekf_300s": 83.5,
+   "ekf-calibrated_120s": 88.8,
+   "ekf-calibrated_300s": 83.4
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 18,
+   "masts_10s": 10.0,
+   "run_s": 15.3,
+   "ekf_120s": 86.2,
+   "ekf_300s": 141.3,
+   "ekf-calibrated_120s": 126.0,
+   "ekf-calibrated_300s": 109.5
+  },
+  {
+   "config": "distinct-4-1s",
+   "variant": "true-noise",
+   "seed": 19,
+   "masts_10s": 8.0,
+   "run_s": 14.7,
+   "ekf_120s": 145.4,
+   "ekf_300s": 194.9,
+   "ekf-calibrated_120s": 128.7,
+   "ekf-calibrated_300s": 149.9
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 0,
+   "masts_10s": 18.0,
+   "run_s": 55.4,
+   "ekf_120s": 1192.6,
+   "ekf_300s": 2624.6,
+   "ekf-calibrated_120s": 1192.6,
+   "ekf-calibrated_300s": 2624.6
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 1,
+   "masts_10s": 18.0,
+   "run_s": 27.9,
+   "ekf_120s": 1121.2,
+   "ekf_300s": 2416.7,
+   "ekf-calibrated_120s": 1121.2,
+   "ekf-calibrated_300s": 2416.7
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 2,
+   "masts_10s": 17.5,
+   "run_s": 29.7,
+   "ekf_120s": 1136.1,
+   "ekf_300s": 2464.5,
+   "ekf-calibrated_120s": 1136.1,
+   "ekf-calibrated_300s": 2464.5
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 3,
+   "masts_10s": 18.0,
+   "run_s": 25.7,
+   "ekf_120s": 3461.6,
+   "ekf_300s": 6001.9,
+   "ekf-calibrated_120s": 1760.9,
+   "ekf-calibrated_300s": 2214.6
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 4,
+   "masts_10s": 17.0,
+   "run_s": 20.0,
+   "ekf_120s": 3770.3,
+   "ekf_300s": 12000.0,
+   "ekf-calibrated_120s": 1505.0,
+   "ekf-calibrated_300s": 2286.4
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 5,
+   "masts_10s": 18.0,
+   "run_s": 50.0,
+   "ekf_120s": 1397.9,
+   "ekf_300s": 6939.8,
+   "ekf-calibrated_120s": 888.5,
+   "ekf-calibrated_300s": 1559.0
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 6,
+   "masts_10s": 20.0,
+   "run_s": 38.7,
+   "ekf_120s": 1109.7,
+   "ekf_300s": 5141.0,
+   "ekf-calibrated_120s": 1104.9,
+   "ekf-calibrated_300s": 4959.1
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 7,
+   "masts_10s": 16.0,
+   "run_s": 20.5,
+   "ekf_120s": 1676.4,
+   "ekf_300s": 1682.5,
+   "ekf-calibrated_120s": 1995.9,
+   "ekf-calibrated_300s": 10597.9
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 8,
+   "masts_10s": 17.0,
+   "run_s": 12.1,
+   "ekf_120s": 1266.2,
+   "ekf_300s": 2803.6,
+   "ekf-calibrated_120s": 1266.2,
+   "ekf-calibrated_300s": 2803.6
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 9,
+   "masts_10s": 16.5,
+   "run_s": 42.2,
+   "ekf_120s": 1176.5,
+   "ekf_300s": 2494.8,
+   "ekf-calibrated_120s": 1176.5,
+   "ekf-calibrated_300s": 2494.8
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 10,
+   "masts_10s": 18.0,
+   "run_s": 102.2,
+   "ekf_120s": 1136.6,
+   "ekf_300s": 2509.6,
+   "ekf-calibrated_120s": 1105.5,
+   "ekf-calibrated_300s": 2502.9
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 11,
+   "masts_10s": 19.0,
+   "run_s": 21.8,
+   "ekf_120s": 612.7,
+   "ekf_300s": 5474.2,
+   "ekf-calibrated_120s": 3163.7,
+   "ekf-calibrated_300s": 10817.8
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 12,
+   "masts_10s": 14.0,
+   "run_s": 16.9,
+   "ekf_120s": 2672.1,
+   "ekf_300s": 6687.3,
+   "ekf-calibrated_120s": 1653.5,
+   "ekf-calibrated_300s": 3560.5
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 13,
+   "masts_10s": 18.0,
+   "run_s": 21.0,
+   "ekf_120s": 1180.3,
+   "ekf_300s": 9187.8,
+   "ekf-calibrated_120s": 1180.3,
+   "ekf-calibrated_300s": 9150.3
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 14,
+   "masts_10s": 22.0,
+   "run_s": 79.6,
+   "ekf_120s": 3625.0,
+   "ekf_300s": 16568.8,
+   "ekf-calibrated_120s": 3604.0,
+   "ekf-calibrated_300s": 13281.1
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 15,
+   "masts_10s": 19.5,
+   "run_s": 39.2,
+   "ekf_120s": 503.5,
+   "ekf_300s": 6705.8,
+   "ekf-calibrated_120s": 568.4,
+   "ekf-calibrated_300s": 9752.9
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 16,
+   "masts_10s": 18.5,
+   "run_s": 61.1,
+   "ekf_120s": 568.5,
+   "ekf_300s": 5011.0,
+   "ekf-calibrated_120s": 526.9,
+   "ekf-calibrated_300s": 1567.8
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 17,
+   "masts_10s": 17.0,
+   "run_s": 30.2,
+   "ekf_120s": 1317.4,
+   "ekf_300s": 4540.5,
+   "ekf-calibrated_120s": 1317.4,
+   "ekf-calibrated_300s": 4654.2
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 18,
+   "masts_10s": 17.5,
+   "run_s": 36.4,
+   "ekf_120s": 1219.1,
+   "ekf_300s": 1724.1,
+   "ekf-calibrated_120s": 1278.3,
+   "ekf-calibrated_300s": 2364.0
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "committed",
+   "seed": 19,
+   "masts_10s": 16.0,
+   "run_s": 14.7,
+   "ekf_120s": 1380.4,
+   "ekf_300s": 5210.0,
+   "ekf-calibrated_120s": 917.7,
+   "ekf-calibrated_300s": 2101.2
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 0,
+   "masts_10s": 18.0,
+   "run_s": 64.7,
+   "ekf_120s": 57.0,
+   "ekf_300s": 138.4,
+   "ekf-calibrated_120s": 60.7,
+   "ekf-calibrated_300s": 102.3
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 1,
+   "masts_10s": 18.0,
+   "run_s": 30.5,
+   "ekf_120s": 85.4,
+   "ekf_300s": 79.2,
+   "ekf-calibrated_120s": 78.8,
+   "ekf-calibrated_300s": 100.8
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 2,
+   "masts_10s": 17.5,
+   "run_s": 33.2,
+   "ekf_120s": 93.9,
+   "ekf_300s": 93.0,
+   "ekf-calibrated_120s": 78.6,
+   "ekf-calibrated_300s": 85.3
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 3,
+   "masts_10s": 18.0,
+   "run_s": 30.6,
+   "ekf_120s": 74.6,
+   "ekf_300s": 95.0,
+   "ekf-calibrated_120s": 76.3,
+   "ekf-calibrated_300s": 98.1
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 4,
+   "masts_10s": 17.0,
+   "run_s": 23.0,
+   "ekf_120s": 57.4,
+   "ekf_300s": 68.1,
+   "ekf-calibrated_120s": 80.6,
+   "ekf-calibrated_300s": 108.6
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 5,
+   "masts_10s": 18.0,
+   "run_s": 56.7,
+   "ekf_120s": 82.7,
+   "ekf_300s": 90.1,
+   "ekf-calibrated_120s": 93.1,
+   "ekf-calibrated_300s": 87.6
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 6,
+   "masts_10s": 20.0,
+   "run_s": 44.4,
+   "ekf_120s": 69.5,
+   "ekf_300s": 87.8,
+   "ekf-calibrated_120s": 56.3,
+   "ekf-calibrated_300s": 95.5
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 7,
+   "masts_10s": 16.0,
+   "run_s": 22.3,
+   "ekf_120s": 91.6,
+   "ekf_300s": 79.8,
+   "ekf-calibrated_120s": 95.6,
+   "ekf-calibrated_300s": 88.7
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 8,
+   "masts_10s": 17.0,
+   "run_s": 13.2,
+   "ekf_120s": 66.6,
+   "ekf_300s": 112.3,
+   "ekf-calibrated_120s": 60.9,
+   "ekf-calibrated_300s": 174.7
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 9,
+   "masts_10s": 16.5,
+   "run_s": 49.3,
+   "ekf_120s": 103.7,
+   "ekf_300s": 98.6,
+   "ekf-calibrated_120s": 94.6,
+   "ekf-calibrated_300s": 139.6
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 10,
+   "masts_10s": 18.0,
+   "run_s": 125.5,
+   "ekf_120s": 58.1,
+   "ekf_300s": 70.4,
+   "ekf-calibrated_120s": 61.9,
+   "ekf-calibrated_300s": 68.0
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 11,
+   "masts_10s": 19.0,
+   "run_s": 26.5,
+   "ekf_120s": 61.6,
+   "ekf_300s": 86.6,
+   "ekf-calibrated_120s": 59.1,
+   "ekf-calibrated_300s": 76.6
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 12,
+   "masts_10s": 14.0,
+   "run_s": 19.8,
+   "ekf_120s": 87.6,
+   "ekf_300s": 81.3,
+   "ekf-calibrated_120s": 96.4,
+   "ekf-calibrated_300s": 95.6
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 13,
+   "masts_10s": 18.0,
+   "run_s": 25.4,
+   "ekf_120s": 72.0,
+   "ekf_300s": 73.3,
+   "ekf-calibrated_120s": 68.3,
+   "ekf-calibrated_300s": 115.5
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 14,
+   "masts_10s": 22.0,
+   "run_s": 104.6,
+   "ekf_120s": 40.6,
+   "ekf_300s": 67.4,
+   "ekf-calibrated_120s": 70.8,
+   "ekf-calibrated_300s": 73.0
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 15,
+   "masts_10s": 19.5,
+   "run_s": 49.8,
+   "ekf_120s": 90.9,
+   "ekf_300s": 84.8,
+   "ekf-calibrated_120s": 99.5,
+   "ekf-calibrated_300s": 98.0
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 16,
+   "masts_10s": 18.5,
+   "run_s": 77.3,
+   "ekf_120s": 103.1,
+   "ekf_300s": 103.3,
+   "ekf-calibrated_120s": 128.6,
+   "ekf-calibrated_300s": 117.7
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 17,
+   "masts_10s": 17.0,
+   "run_s": 38.2,
+   "ekf_120s": 96.6,
+   "ekf_300s": 94.5,
+   "ekf-calibrated_120s": 106.6,
+   "ekf-calibrated_300s": 127.5
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 18,
+   "masts_10s": 17.5,
+   "run_s": 41.7,
+   "ekf_120s": 56.1,
+   "ekf_300s": 129.7,
+   "ekf-calibrated_120s": 59.5,
+   "ekf-calibrated_300s": 136.5
+  },
+  {
+   "config": "distinct-6-1s",
+   "variant": "true-noise",
+   "seed": 19,
+   "masts_10s": 16.0,
+   "run_s": 18.0,
+   "ekf_120s": 86.8,
+   "ekf_300s": 89.1,
+   "ekf-calibrated_120s": 77.7,
+   "ekf-calibrated_300s": 125.3
+  }
+ ]
+}
