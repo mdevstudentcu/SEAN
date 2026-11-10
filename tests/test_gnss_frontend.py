@@ -1,7 +1,8 @@
 """GNSS front end (#22, ADR-0031) on a hand-written gpsd snippet: no hardware, no network.
 
 `fixtures/gnss/gpspipe-w.jsonl` is gpsd JSON as `gpspipe -w` prints it: six epochs walking
-east, open sky, then C/N0 falling 8 and 12 dB, then two epochs with no fix. It is hand-written in
+east, open sky, then C/N0 falling 8 and 12 dB, then two epochs with no fix. It also has a
+repeated TPV, a SKY with no `time` and a SKY with DOPs but no satellite list. It is hand-written in
 gpsd's format (https://gpsd.io/gpsd_json.html), not recorded: no GPS HAT session exists yet.
 """
 
@@ -62,7 +63,7 @@ def test_gpsd_snippet_gives_fixes_and_health_per_epoch():
     assert len(by_kind(out, "velocity_enu")) == 4
 
     health = by_kind(out, "gnss_health")
-    # the SKY report with no `time` takes the last TPV's
+    # the SKY report with no `time` takes the last TPV's; the one with no satellites gives none
     assert [m.t_ns for m in health] == [t(0), t(1), t(2), t(3), t(4), t(5)]
     jam = [m.value[0] for m in health]
     assert jam == pytest.approx([0.0, 0.0, 6.25 / 15, 10.25 / 15, 1.0, 1.0])
@@ -133,7 +134,7 @@ def test_derived_session_adds_health_and_keeps_the_recording(tmp_path):
     kept = [k for k in kinds(src) if k != "gnss_health"]
     assert kinds(out) == sorted(kept + ["gnss_health"] * 6)
     texts = [d["text"] for _, d in read_json(out / session.MCAP_NAME, ["/events"])]
-    assert texts.count("gnss_sky") == 6 and "pps" in texts
+    assert texts.count("gnss_sky") == 7 and "pps" in texts  # all copied, DOP-only one too
     meta = session.read_meta(out)
     assert meta["commit"] == "abc1234" and meta["notes"].startswith("bench; GNSS health")
     assert meta["origin_llh"] == list(ORIGIN)
