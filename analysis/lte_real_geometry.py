@@ -120,6 +120,7 @@ class Row:
     heard: dict[str, int] = field(default_factory=dict)  # status -> distinct cells heard
     alarms: dict[str, int] = field(default_factory=dict)  # MHSS hypothesis -> flagged epochs
     excluded: dict[str, int] = field(default_factory=dict)
+    sites_excluded: dict[str, int] = field(default_factory=dict)  # site -> epochs flagged (#132)
     first_flag_s: float = float("nan")  # after GPS loss; nan if never flagged
     # After GPS returns and metrics.RECOVERY_SETTLE_S: p95 error, and the fraction of epochs
     # flagged gnss_excluded (the filter refusing GNSS that is back and correct)
@@ -392,6 +393,7 @@ def run_job(job: Job) -> Row:
         row.heard = _heard_cells(w, stream, used)
         row.alarms = dict(_flags(estimates, "mhss_alarm:"))
         row.excluded = dict(_flags(estimates, "mhss_excluded:"))
+        row.sites_excluded = dict(_flags(estimates, "site_excluded:"))
         flagged = [
             (e.t_ns - loss) / 1e9
             for e in estimates
@@ -499,10 +501,15 @@ def group(rows: list[Row], *keys) -> dict:
     return out
 
 
+def seeds(args) -> range:
+    return range(args.first_seed, args.first_seed + args.seeds)
+
+
 def report_header(args, w: World) -> None:
     print(f"commit {commit()}; argv: {' '.join(sys.argv[1:])}")
     print(
-        f"seeds 0..{args.seeds - 1}; UC-01 circuit, GPS off at {w.gps_off_s:.0f} s for "
+        f"seeds {args.first_seed}..{args.first_seed + args.seeds - 1}; UC-01 circuit, GPS off "
+        f"at {w.gps_off_s:.0f} s for "
         f"{w.outage_s:.0f} s; EARFCN {w.earfcn}; records {w.rate_hz:g} Hz (TBC); dongle "
         f"{w.rx_drift_ppm} ppm (TBC), wander {w.rx_wander_mps} m/s/sqrt(s) (TBC); site clocks "
         f"ADR-0022 form, realistic-set sizes (TBC). Evidence: sim over real tower positions."
@@ -547,16 +554,16 @@ def run_geometry(args) -> None:
     base = World(hearing_km=args.hearing_km, sigma_m=args.sigma, outage_s=args.outage,
                  rx_wander_mps=args.rx_wander)  # fmt: skip
     jobs = [
-        Job(base, Case(), est, s, keep_series=s == 0)
+        Job(base, Case(), est, s, keep_series=s == args.first_seed)
         for est in args.estimators
-        for s in range(args.seeds)
+        for s in seeds(args)
     ]
     sweeps: list[World] = []
     if args.sweep:
         sweeps += [replace(base, hearing_km=h) for h in args.sweep_hearing if h != base.hearing_km]
         sweeps += [replace(base, sigma_m=s) for s in args.sweep_sigma if s != base.sigma_m]
         jobs += [Job(w, Case(), est, s) for w in sweeps for est in args.sweep_estimators
-                 for s in range(args.seeds)]  # fmt: skip
+                 for s in seeds(args)]  # fmt: skip
     t0 = time.perf_counter()
     rows = run_all(jobs, args.jobs)
     wall = time.perf_counter() - t0
@@ -693,7 +700,10 @@ def wrong_table_row(est: str, case: Case, rows: list[Row], victim_site: str) -> 
         first = f", first flag {min(ff):+.0f} s" if ff else ""
         text += f" flagged bad site in {bad_flag}/{len(good)}; other hypothesis {other}/{len(good)}{first} |"  # noqa: E501
     else:
-        text += " |"
+        bad = sum(victim_site.removeprefix("site:") in r.sites_excluded for r in good)
+        other = sum(any(k != victim_site.removeprefix("site:") for k in r.sites_excluded)
+                    for r in good)  # fmt: skip
+        text += f" site excluded (#132): bad site {bad}/{len(good)}, other {other}/{len(good)} |"
     return text
 
 
@@ -702,8 +712,8 @@ def run_wrong_table(args) -> None:
               rogue_km=args.rogue_km, outage_s=args.outage)  # fmt: skip
     enb, pcis = victim(w)
     site = f"site:enb:{enb}"
-    cases = wrong_table_cases(args)
-    jobs = [Job(w, c, est, s) for c in cases for est in args.estimators for s in range(args.seeds)]
+    cases = [c for c in wrong_table_cases(args) if args.cases is None or c.kind in args.cases]
+    jobs = [Job(w, c, est, s) for c in cases for est in args.estimators for s in seeds(args)]
     t0 = time.perf_counter()
     rows = run_all(jobs, args.jobs)
     wall = time.perf_counter() - t0
@@ -718,7 +728,8 @@ def run_wrong_table(args) -> None:
         "HPL ≥ error %, outage (mean / worst run) | hazardous epochs, all runs (outage / "
         "whole run) | misleading epochs in outage, all runs | median HPL, HPL ≤ 50 m | "
         + RECOVERY_HEAD
-        + " | MHSS |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
+        + " | MHSS, or sites excluded |\n"
+        + "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"
     )
     by = group(rows, lambda r: r.job.case.name, lambda r: r.job.estimator)
     for c in cases:
@@ -791,6 +802,7 @@ def main() -> None:
     for name in ("geometry", "wrong-table"):
         s = sub.add_parser(name)
         s.add_argument("--seeds", type=int, default=10)
+        s.add_argument("--first-seed", type=int, default=0, help="seeds run from here")
         s.add_argument("--jobs", type=int, default=3, help="worker processes; keep this small")
         s.add_argument("--hearing-km", type=float, default=3.0, help="TBC")
         s.add_argument("--sigma", type=float, default=20.0, help="range noise, m (TBC)")
@@ -809,6 +821,8 @@ def main() -> None:
                    help="m")  # fmt: skip
     d.add_argument("--position-sigma", type=float, default=30.0, help="m, 1σ per axis (TBC)")
     d.add_argument("--rogue-km", type=float, default=1.0, help="TBC")
+    d.add_argument("--cases", nargs="+", help="only these case kinds (none, move, jitter, "
+                   "missing, missing-control, rogue); default all")  # fmt: skip
     args = p.parse_args()
     {"geometry": run_geometry, "wrong-table": run_wrong_table}[args.mode](args)
 
