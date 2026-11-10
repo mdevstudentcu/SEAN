@@ -408,6 +408,15 @@ class State:
             self.p11 - g1 * p_h1,
         )
 
+    def reacquire(self, theta: float, var: float) -> None:
+        """Replace the offset by an independent fix of variance `var` (a re-found cell).
+
+        The new offset's error is the fix's error, which owes nothing to the rate's, so the
+        cross term goes to zero and the covariance stays positive semi-definite. Setting `p00`
+        alone keeps the cross term built up while coasting (about dn · p11): after a long
+        coast p01² > p00 · p11, and the next update drives the variances negative (#181)."""
+        self.theta, self.p00, self.p01 = theta, var, 0.0
+
     def s(self, h: int, r: float) -> float:
         return (self.p00 if h == 0 else self.p11) + r
 

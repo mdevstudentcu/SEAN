@@ -176,8 +176,7 @@ def _start(
         st.predict(k, L, L / sig.HALF_FRAME_S, (cfg.accel_ms2 / C) ** 2)
         resid = f.boundary - cell.n0 - k * L - st.theta
         if abs(resid) < 3 * math.sqrt(max(st.p00, 0.0)) + 2.0:
-            st.theta += resid
-            st.p00 = 0.25
+            st.reacquire(st.theta + resid, 0.25)
             return cell, st
         cell.arc += 1
         cell.n0 = f.boundary
