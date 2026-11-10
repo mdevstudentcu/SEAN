@@ -6,9 +6,13 @@ A checklist to follow with the Pi in hand. Commands run **on the Pi in `~/pnt`**
 
 ## A. Set up (once per SD card)
 
-1. Flash Raspberry Pi OS Bookworm Lite 64-bit: hostname `pnt`, user `pi`, Wi-Fi and SSH on.
+1. Flash Raspberry Pi OS Lite 64-bit: hostname `pnt`, user `pi`, Wi-Fi and SSH on. The payload Pi runs Trixie (Debian 13), set up on 2026-11-10. With Raspberry Pi Imager 1.9.6 (snap) on that day:
+   - Under Wayland the Imager crashed; `QT_QPA_PLATFORM=xcb rpi-imager` ran.
+   - Its customisation did not reach the Trixie image: `user-data` and `network-config` on the boot partition were still the stock templates. Before the first boot, open them. If they are unchanged, write them by hand (cloud-init: hostname, user `pi` with the laptop's SSH public key, `ssh_pwauth: false`, Wi-Fi with `regulatory-domain: CA`) and set a new `instance-id: <name>` in `meta-data`, or cloud-init skips them. Never commit these files: they hold the Wi-Fi password.
+   - A Pi 4 that blinks an error pattern when booting from a USB drive may have an old bootloader. Boot it from the SD card.
 2. Plug in: GPS HAT with its antenna at a window or outdoors; MPU6050 and BMP180 on I2C (SDA GPIO2, SCL GPIO3, 3V3, GND); both SDRs on the **black USB 2 ports** with antennas, spaced apart; Pi camera. Power from the DPS-150 at 5.1 V (current limit 3 A) so the current can be read.
-3. *Laptop:* `just pi-deploy` (copies the repo and the commit stamp, runs `deploy/pi/setup.sh`). Then `ssh pi@pnt.local sudo reboot` once.
+   Without the HAT, wire the MPU6050 straight to the header: VCC → pin 1 (3V3), GND → pin 6, SDA → pin 3 (GPIO2), SCL → pin 5 (GPIO3); AD0 and INT unconnected (address `0x68`).
+3. *Laptop:* `just pi-deploy` (copies the files git tracks and the commit stamp, runs `deploy/pi/setup.sh`; untracked files in your working tree stay on the laptop). On the first run chrony may not start, because `/dev/pps0` only appears after the reboot: setup says so and carries on. Then `ssh pi@pnt.local sudo reboot` once.
 4. Check, after 10–15 min with a fix so chrony can lock:
 
    | Command | Good output |
@@ -17,7 +21,7 @@ A checklist to follow with the Pi in hand. Commands run **on the Pi in `~/pnt`**
    | `chronyc sources -v` | `#* PPS` (selected), offset a few µs or less |
    | `gpsmon` (q) | 3D fix, satellites with SNR |
    | `rtl_test -t` | both dongles listed (`0:` and `1:`); note which index is which |
-   | `i2cdetect -y 1` | `68` (MPU6050) and `77` (BMP180, ADR-0014). `pnt record` then lists `bmp180` under captured |
+   | `/usr/sbin/i2cdetect -y 1` (not on `pi`'s `PATH`) | `68` (MPU6050) and `77` (BMP180, ADR-0014). `pnt record` then lists `bmp180` under captured |
    | `.venv/bin/pnt record --help` | the help text (the Python install works) |
    | `.venv/bin/python -c "import zmq; print(zmq.has('curve'))"` | `True`. If `False`, this libzmq cannot authenticate the stream: record with `--no-stream`, and raise it in #89 (ADR-0026 is reopened) |
 
@@ -93,6 +97,18 @@ A key is replaced with `pnt keys gen --role <role> --force`, then K2 again for t
     - base: `pnt record --receiver reference --origin $O --reference data/sessions/<survey>.survey.yaml --gnss-hw neo-6m --no-imu --no-baro --no-camera --no-fc --sdr a:875e6:earfcn=2460`
     - payload: `pnt record --origin $O ...` as in D
     - *laptop:* `pnt live --connect payload=tcp://pnt.local:5556 --connect reference=tcp://pnt-base.local:5556 --origin $O --reference <survey.yaml> --estimator ekf-base --out data/sessions/<date>-live-base` (each endpoint is checked against its own trusted key; untagged, the first is the payload and the second the base)
+
+## G. Long static IMU log (ADR-0015)
+
+15. For the IMU's Allan variance: the Pi on a still surface, nobody touching the bench, several hours. Run it as a systemd unit so it keeps going after you log out, and stops by itself (7 h here):
+
+    ```bash
+    sudo systemd-run --unit=pnt-overnight --uid=pi --gid=pi -p WorkingDirectory=/home/pi/pnt \
+      /home/pi/pnt/.venv/bin/pnt record --platform static --place <site> --duration 25200 \
+      --no-baro --no-camera --no-fc --no-stream --notes "static IMU for ADR-0015, <setup>"
+    ```
+
+    Add `--no-gnss` if the GPS HAT is off; then the clock is NTP only, and the timestamps are not GPS time. `systemctl status pnt-overnight` shows it running; `journalctl -u pnt-overnight` has the summary when it ends. Don't run `just pi-deploy` meanwhile: setup restarts chrony.
 
 ## If something is wrong
 
