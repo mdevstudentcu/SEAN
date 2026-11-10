@@ -91,6 +91,13 @@ def test_sim_record_carries_the_same_fields_as_a_front_end_record(tmp_path):
     assert placed_real.meta["site"] == unique.site
 
 
+def test_n_epochs_counts_the_5_ms_epochs_in_one_record():
+    """As the front end: a record at rate r holds 1 / r / 5 ms tracking epochs."""
+    for rate_hz, n in ((1, 200), (10, 20)):
+        records = lte_of(generate(spec(5.0, rate_hz=rate_hz), seed=0))
+        assert {m.meta["n_epochs"] for m in records} == {n}
+
+
 def test_records_go_through_the_lookup_with_collisions_dropped_and_counted():
     run = generate(spec(), seed=0)
     lte = lte_of(run)
