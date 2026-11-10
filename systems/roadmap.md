@@ -53,6 +53,11 @@ Still receive-only (REQ-07).
 - **Interfaces:** position, time, protection levels and per-source trust as a navigation-aid input to the host's integrated navigation. Interface standard `TBD` with Honeywell.
 - **Operator language:** protection levels against alert limits in RNP/ANP terms on crewed aircraft; the navigation-health panel (P10) on UAS.
 - **Network-side option:** a ground reference station network that measures tower clocks continuously for many users, the base/rover idea at scale (P4, P12).
+- **Drone as a mobile reference station (P12, #96):**
+  - *On `main`, sim only (option A):* a tower-map hand-off. A drone with trusted GPS learns the tower clocks, and a GPS-less ground user starts its filter from them (`nav/tower_map.py`, `p12-drone-map-handoff`, `analysis/p12_map_handoff.py`). There is no ICD change: the map never enters a session.
+  - *Sim result, realistic-set world, every value `TBC`, 50 seeds:* the map cut the user's p95 error over the 300 s after GPS loss from 425 m to 323 m, and did nothing over the first 120 s (221 m both ways). A no-aid filter given the sim's own tower drift spread as its prior did better (255 m), because what the drone learns in a 300 s circuit (drift sigma 0.22 to 0.26 m/s in seeds 0 and 1) is looser than the sim's spread (0.05 m/s). Neither meets T1. Map age up to 30 min made no visible difference at these values. Whether a map beats a prior depends on the real towers' drift spread, which the radio test has to measure.
+  - *Trust:* a spoofed drone hands on clocks that fit the spoofed track. The map is one more fault hypothesis, not truth, and nothing tests it yet.
+  - *Roadmap (option B):* a live moving reference that streams its readings for differencing, as the ground station does (P4). It needs an ICD change for a moving reference receiver and its position.
 
 ### 5. Certify
 
