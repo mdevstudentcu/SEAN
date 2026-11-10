@@ -67,6 +67,21 @@ These states are learned while GNSS is trusted, like the clocks, and roll back w
 Cost: a slow drag that a reflection could explain is absorbed by the multipath states before
 the towers-vs-GNSS test sees it, so that test loses power against slow ramps (PR evidence).
 
+Site consistency test (`site_test_p`, off by default, on in `CALIBRATED`; #132). The told-position
+states can soak up a site whose table entry is wrong (filed hundreds of metres off, or another
+tower on its PCI) while GNSS holds the position, and then steer the outage confidently.
+- When: about once a second while GNSS has been trusted for `calib_gate_s`, whatever the gate's
+  tower checks say: a bad site is what makes the towers disagree, and keeps the gate shut.
+- Test: each site's told-position estimate against its prior, x'x / `tower_position_sigma_m`^2
+  over the chi-square (2 dof) quantile for `site_test_p`. The prior alone, not the prior less
+  what was learned, so it never fires more often than that exact test would.
+- Only a minority: if half or more of the sites in use fail at once, none is excluded. A shift
+  common to the sites (GNSS dragged by a spoof) moves every told position alike; that is for
+  the spoof detector, not a reason to drop the towers.
+- A site that fails is excluded: its pseudoranges are no longer used and each estimate carries
+  `site_excluded:<site>`. A rollback restores the sites excluded after its snapshot, as it
+  discards the rest of what was learned since.
+
 Calibration gate (calibrated model only). It opens when both hold:
 - GNSS has been trusted (position accepted recently, no exclusion, no time alarm) continuously
   for `calib_gate_s`.
@@ -235,6 +250,7 @@ class EKF:
         site_drift_floor: float = 0.1,  # m/s: least drift sigma of a seeded new site (TBC)
         motion: str = "cv",  # or "imu" (stage 2, nav/imu.py)
         imu: Mapping | None = None,  # ImuMotion options when motion="imu"
+        site_test_p: float | None = None,  # P(a good site fails one site test); None: off (TBC)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -314,6 +330,10 @@ class EKF:
         self.multipath_idx: dict[str, int] = {}  # emitter -> its multipath state
         self.multipath_sigma: dict[int, float] = {}  # state -> steady-state sigma (m)
         self.position_idx: dict[str, tuple] = {}  # site -> (told-position error state, los0)
+        # Site consistency test (#132): see the module docstring
+        self.site_threshold = None if site_test_p is None else -2.0 * np.log(site_test_p)
+        self.excluded_sites: dict[str, int] = {}  # site -> when it was excluded
+        self._site_test_t: int | None = None
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -513,6 +533,8 @@ class EKF:
         if self.calibrated:
             self.calibrating = self.calibration_allowed()
             self._learned |= self.calibrating
+            if self.site_threshold is not None:
+                self._test_sites()
         self._tower_process(F, Q, dt, self.calibrating)
         self.x = F @ self.x
         if nav is not None:
@@ -610,10 +632,35 @@ class EKF:
                 P[i, i] = P[i + 1, i + 1] = self.tower_position_sigma_m**2
         self.x[old] = F @ xc
         self.P = (P + P.T) / 2
+        self.excluded_sites = {s: t for s, t in self.excluded_sites.items() if t <= t_s}
         self.rollbacks.append((alarm_ns, t_s))
         self._learned = False
         self._snaps.clear()
         self._snapshot()
+
+    # --- site consistency test (calibrated model, #132) -----------------------------------------
+    def _site_of(self, m: Measurement) -> str:
+        return self.sites.get(m.emitter) or m.meta.get("site") or m.emitter
+
+    def _test_sites(self) -> None:
+        """Exclude the sites whose told-position estimate is beyond what its prior allows, if
+        they are fewer than half of those in use (see the module docstring). About once a second,
+        while GNSS has been trusted for `calib_gate_s`."""
+        trusted = self._trusted_since  # kept by the calibration gate
+        if trusted is None or self.t_ns - trusted < self.calib_gate_ns:
+            return
+        if self._site_test_t is not None and self.t_ns - self._site_test_t < SNAPSHOT_NS:
+            return
+        self._site_test_t = self.t_ns
+        limit = self.site_threshold * self.tower_position_sigma_m**2
+        in_use = [s for s in self.position_idx if s not in self.excluded_sites]
+        failed = []
+        for site in in_use:
+            i = self.position_idx[site][0]
+            if float(self.x[i : i + 2] @ self.x[i : i + 2]) > limit:
+                failed.append(site)
+        if 2 * len(failed) < len(in_use):
+            self.excluded_sites.update(dict.fromkeys(failed, self.t_ns))
 
     def _update(self, key: str, t_ns: int, y, H, R, gate: bool = True) -> bool:
         y = np.atleast_1d(y)
@@ -645,6 +692,12 @@ class EKF:
         model = MODELS.get(m.kind)
         if model is None:
             return  # not modelled yet
+        if (
+            self.excluded_sites
+            and m.kind == "pseudorange"
+            and self._site_of(m) in self.excluded_sites
+        ):
+            return
         self.predict(m.t_ns)
         out = model(self, m)
         if out is None:
@@ -828,6 +881,7 @@ class EKF:
             flags.append("time_spoof_suspected")  # GNSS time disagrees with our clock model
         if self.spoof_alarm:
             flags.append("spoof_suspected")  # the towers refute GNSS (#83)
+        flags += [f"site_excluded:{s}" for s in self.excluded_sites]  # #132
         h = hpl(P3)
         status = "unsafe" if h > self.alert_limit_m else ("degraded" if flags else "nominal")
         trust = {
@@ -969,6 +1023,9 @@ MODELS: dict[str, Callable] = {
 # the filter's model matches the environment we pitch; sensitivity to them is in the PR.
 CALIBRATED: dict = {
     "clock_model": "calibrated",
+    # P(a good site fails one site test), TBC: picked over 1e-5 on wrong-table tuning seeds
+    # 100-104 (analysis/lte_real_geometry.py), where 1e-5 missed a site filed 500 m off (#132)
+    "site_test_p": 1e-3,
     "pseudorange_receiver_clock": True,
     "h0": 8e-18,  # s: our clock's white frequency noise, 2 ns/sqrt(s) (realistic set, TBC)
     "h_2": 2e-23,  # 1/s: our clock's frequency wander; the sim has none (TBC)
