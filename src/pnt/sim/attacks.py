@@ -26,6 +26,11 @@ Attacks (`type` in a scenario's `faults:` list):
   holdover from start_s: a growing clock error on their pseudoranges (ADR-0022, ADR-0024)
 - imu_degradation: the IMU's bias steps or ramps, its noise grows, it sticks, or it drops out
   (sensor degradation)
+- hostile_power: a jammer's transmit power steps, ramps or is modulated (ADR-0025: the adversary
+  controls its power). Touches the hostile beacon's `rssi` records (`sim/hostile.py`)
+- hostile_moves: a jammer moves from where it was located, at velocity_enu_mps (a honeypot
+  that tries to drag a filter using it as a beacon). Its `rssi` records follow the true geometry
+  while the told position stays put
 
 Any fault may name a `receiver` (`payload` or `reference`) to touch only that receiver's records;
 without one it touches both.
@@ -61,6 +66,9 @@ class Context:
     # (sites, builders) as `scenario.tower_groups` gives them, when the scenario groups its tower
     # clocks (`tower_clocks:`, ADR-0022); None otherwise
     tower_groups: tuple[dict[str, str], dict[str, str]] | None = None
+    # Jammers placed by `jamming_zone` faults when the scenario measures their power
+    # (`jammer_power`, #93): emitter -> {"enu": true position, "n": path-loss exponent}
+    jammers: dict[str, dict] = field(default_factory=dict)
 
 
 Event = tuple[int, str]
@@ -267,7 +275,8 @@ def reference_clock_step(meas, f, ctx, start, end):
 def jamming_zone(meas, f, ctx, start, end):
     """A jammer at a fixed place. Between onset_m and radius_m from it, accuracy degrades
     smoothly (noise and reported sigma grow up to max_sigma_scale, health worsens); inside
-    radius_m, position and time are lost."""
+    radius_m, position and time are lost. The jammer's own received power (`rssi`, the hostile
+    beacon's records) is never lost: jamming raises it."""
     center = llh_to_enu(f["center_llh"], ctx.origin_llh)
     r_in, r_on = float(f["radius_m"]), float(f["onset_m"])
     k_max = float(f.get("max_sigma_scale", 10.0))
@@ -290,6 +299,8 @@ def jamming_zone(meas, f, ctx, start, end):
                 m,
                 value=(frac, 0.0 if d < r_in else round(nsat * (1 - 0.7 * frac)), hdop + 4 * frac),
             )
+        elif m.kind == "rssi":
+            continue  # the jammer's power: what the jamming raises, not loses
         elif d < r_in:
             out[i] = None  # lost lock
         elif m.kind == "position_enu":
@@ -488,3 +499,63 @@ def imu_degradation(meas, f, ctx, start, end):
     for k, i in enumerate(hit):
         out[i] = _replace(meas[i], value=tuple(float(x) for x in vals[k]))
     return out, [(start, desc)]
+
+
+def _hostile_records(meas, f, start, end) -> list[int]:
+    """Indices of the hostile beacon's records the fault touches: `emitter` (default every
+    jammer), in the window."""
+    f = {"source": "gnss", **f}
+    return [
+        i
+        for i, m in enumerate(meas)
+        if _active(m, f, start, end)
+        and m.kind == "rssi"
+        and m.meta.get("hostile")
+        and f.get("emitter", m.emitter) == m.emitter
+    ]
+
+
+@attack("hostile_power")
+def hostile_power(meas, f, ctx, start, end):
+    """The jammer changes its transmit power from start_s: step_db, plus rate_db_per_s times the
+    time since start_s, plus a square wave of amplitude_db and period_s (power modulation, which
+    widens jammer localisation error: ADR-0025). Defaults 0. `emitter` picks one jammer."""
+    step, rate = float(f.get("step_db", 0.0)), float(f.get("rate_db_per_s", 0.0))
+    amp, period = float(f.get("amplitude_db", 0.0)), float(f.get("period_s", 0.0))
+    if amp and period <= 0:
+        raise ValueError("hostile_power: amplitude_db needs a positive period_s")
+    out = list(meas)
+    for i in _hostile_records(meas, f, start, end):
+        t = _since(meas[i], start)
+        square = amp * (1.0 if (t % period) < period / 2 else -1.0) if amp else 0.0
+        out[i] = _replace(meas[i], value=(meas[i].value[0] + step + rate * t + square,))
+    desc = f"jammer power: {step} dB step, {rate} dB/s, {amp} dB square wave"
+    return out, [(start, desc + _window(f, end))]
+
+
+@attack("hostile_moves")
+def hostile_moves(meas, f, ctx, start, end):
+    """The jammer drives off at velocity_enu_mps from start_s (and stops at end_s), while the
+    position it was located at stays what its records say. Each record's power changes by the
+    true geometry, with the path-loss exponent the sim used. The GNSS denial footprint
+    (`jamming_zone`) does not move with it: a limit of this fault."""
+    if not ctx.jammers:
+        raise ValueError("hostile_moves needs a jammer_power source")
+    v = np.asarray(f["velocity_enu_mps"], float)
+    idx = _hostile_records(meas, f, start, None)
+    out = list(meas)
+    if idx:
+        t = np.array([(meas[i].t_ns - ctx.t0_ns) / 1e9 for i in idx])
+        rx = ctx.truth_pos(t)
+        for k, i in enumerate(idx):
+            m = meas[i]
+            j = ctx.jammers[m.emitter]
+            moved_s = (
+                _since(m, start) if end is None else min(_since(m, start), (end - start) / 1e9)
+            )
+            now = j["enu"] + v * moved_s
+            d0 = max(float(np.linalg.norm(rx[k] - j["enu"])), 1.0)
+            d1 = max(float(np.linalg.norm(rx[k] - now)), 1.0)
+            out[i] = _replace(m, value=(m.value[0] - 10.0 * j["n"] * np.log10(d1 / d0),))
+    speed = float(np.linalg.norm(v))
+    return out, [(start, f"jammer moves at {speed:.1f} m/s{_window(f, end)}")]

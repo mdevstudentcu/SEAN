@@ -1,0 +1,8 @@
+# hostile-beacon, but the jammer modulates its power: a 3 dB square wave with a 20 s period from
+# t=200 s, then a 10 dB step at t=280 s (power-modulated and adaptive jamming, ADR-0025, #93).
+extends: hostile-beacon
+description: Jammer that modulates its power from t=200 s and steps it at t=280 s.
+faults:
+  - {type: jamming_zone, source: gnss, center_llh: [45.3876, -75.693446, 70.0], start_s: 120, radius_m: 250, onset_m: 400}
+  - {type: hostile_power, start_s: 200, amplitude_db: 3.0, period_s: 20.0}
+  - {type: hostile_power, start_s: 280, step_db: 10.0}
