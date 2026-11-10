@@ -86,11 +86,14 @@ attacks:
   # within 60 m and degrades within 250 m
   jamming-zone:
     - {type: jamming_zone, source: gnss, center_llh: [45.3876, -75.694085, 70.0], radius_m: 60, onset_m: 250}
-  # A tower clock jumps 300 m (1 us) while GPS is out. lte:2460:300 is the cell heard most on
-  # this circuit (eNB 30018, 286 m from the origin; the strongest cell at Carleton in PR #133)
+  # A tower clock jumps 300 m (1 us) while GPS is out, on eNB 30018 (286 m from the origin; the
+  # strongest cell at Carleton in PR #133). lte:2460:300 is the cell heard most on this circuit;
+  # its sectors share a site clock (ADR-0022), so all three step.
   outage-tower-clock-step:
     - {type: outage, source: gnss, start_s: 60, end_s: 660}
     - {type: tower_clock_step, source: lte, emitter: "lte:2460:300", start_s: 180, offset_m: 300.0}
+    - {type: tower_clock_step, source: lte, emitter: "lte:2460:308", start_s: 180, offset_m: 300.0}
+    - {type: tower_clock_step, source: lte, emitter: "lte:2460:316", start_s: 180, offset_m: 300.0}
   # Every tower's timing goes into holdover (OCXO grade, attacks.HOLDOVER_GRADES) 120 s into the
   # outage, as if the wide-area jamming reached the towers then (TBC)
   outage-tower-holdover:

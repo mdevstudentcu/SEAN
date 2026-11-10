@@ -65,11 +65,14 @@ attacks:
     - {type: time_spoof, source: gnss, start_s: 150, rate_ns_per_s: 50}
   meaconing:
     - {type: meaconing, source: gnss, start_s: 150, delay_s: 5.0}
-  # A tower clock jumps 300 m (1 us) while GPS is out, on the cell heard most here (eNB 30018,
-  # the strongest cell at Carleton in PR #133)
+  # A tower clock jumps 300 m (1 us) while GPS is out, on eNB 30018 (the strongest at Carleton in
+  # PR #133). Its sectors share a site clock (ADR-0022), so all three step: the receiver hears
+  # 300 on most seeds and only 308 or 316 on others (seeds 4, 15, 23 and 25 of 0-49).
   outage-tower-clock-step:
     - {type: outage, source: gnss, start_s: 60, end_s: 660}
     - {type: tower_clock_step, source: lte, emitter: "lte:2460:300", start_s: 180, offset_m: 300.0}
+    - {type: tower_clock_step, source: lte, emitter: "lte:2460:308", start_s: 180, offset_m: 300.0}
+    - {type: tower_clock_step, source: lte, emitter: "lte:2460:316", start_s: 180, offset_m: 300.0}
   # Every tower's timing goes into holdover (OCXO grade) 120 s into the outage (TBC)
   outage-tower-holdover:
     - {type: outage, source: gnss, start_s: 60, end_s: 660}
