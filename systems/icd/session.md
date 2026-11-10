@@ -34,7 +34,7 @@ simulated: false
 scenario: null            # scenario file for sim sessions
 seed: null                # sim random seed, so the run can be regenerated (REQ-10)
 commit: <git sha>
-hardware: [pi3bplus, pi-zero-2w, airnav-flightstick, nesdr-smart-v5, adafruit-gps-hat, mpu6050, bmp280, pi-camera]
+hardware: [host, rtl-sdr, adafruit-gps-hat, mpu6050, bmp180, pi-camera]   # as `pnt record` lists what it captured
 reference: null           # or the reference station, when the session has `reference` records:
 #   position_llh: [<lat>, <lon>, <h>]  # its antenna: WGS84 deg, deg, m
 #   surveyed: true        # true: averaged GPS fix (ADR-0020); false: set by a sim scenario
