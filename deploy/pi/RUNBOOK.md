@@ -64,6 +64,8 @@ A key is replaced with `pnt keys gen --role <role> --force`, then K2 again for t
 
 ## C. Day-1 LTE capture (for the LTE front end)
 
+What the first capture must measure, with one dongle, and which `TBC` each number replaces: [`first-capture.md`](first-capture.md) (#149).
+
 8. Static, outdoors or at a window, GPS fixed, 15 min, one EARFCN: Rogers EARFCN 2460 (875 MHz, top of `data/reference/lte-scan-list-ottawa.csv` from #87):
 
    ```bash
