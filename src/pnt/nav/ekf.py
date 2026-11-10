@@ -1012,6 +1012,8 @@ def _doppler(ekf: EKF, m: Measurement):
                 rate += ekf.x[i]
                 H[0, i] = 1.0
     return m.value[0] - rate, H, np.diag(np.square(m.sigma)), True
+
+
 def _rssi(ekf: EKF, m: Measurement):
     """A hostile beacon's received power (`nav/hostile.py`); `process` passes only those."""
     return ekf.hostile.model(ekf, m)
