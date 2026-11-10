@@ -48,8 +48,9 @@ who accelerates below the IMU's bias uncertainty passes it.
 Thresholds (both TBC): T4 asks for at most 1 false alarm per hour. A test run every `dt` seconds
 with false-alarm probability p per test raises at most 3600 p / dt false alarms per hour (union
 bound over tests, ignoring that the hold needs several in a row), so `p_fa_towers` 1e-4 at 1 Hz
-gives at most 0.36 per hour (split evenly between the tower tests), and `p_fa_imu` 1e-5 at the 10 Hz output gives at most 0.36. An
-exceedance must hold for `hold_s` (TBC, 3 s) before it alarms.
+gives at most 0.36 per hour (split evenly between the tower tests), and `p_fa_imu` 1e-5 at the
+10 Hz output gives at most 0.36. An exceedance must hold for `hold_s` (TBC, 3 s) before it
+alarms.
 
 When it fires: the filter's own spoof handling (`EKF.raise_spoof_alarm`): `spoof_suspected` and
 `gnss_excluded` are flagged, GNSS position is no longer used, and a calibrated filter rolls its
