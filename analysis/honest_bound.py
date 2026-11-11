@@ -244,7 +244,75 @@ def plan_measure(seeds: list[int]) -> list[tuple]:
     return tasks
 
 
-PLANS = {"measure": plan_measure}
+# The fix (ADR-0041) beside what it changes: the default and the same estimator without it
+FIX = ("ekf", "ekf-learned-noise", "ekf-honest")
+FIX_GUARD = ("ekf-guard", "ekf-learned-noise+guard", "ekf-honest-guard")
+# Each new setting at 0.5x and 1.5x (#226: a +-50 % sweep); values from `ekf.HONEST`
+SWEEP = {
+    "multipath_ratio": ekf.HONEST["multipath_ratio"],
+    "multipath_tau_s": ekf.HONEST["multipath_tau_s"],
+}
+SWEEP_FACTORS = (0.5, 1.5)
+MHSS_SEEDS = 20
+
+
+def drone_tasks(seeds: list[int], entries=DRONE_ENTRIES, carriers=CARRIERS) -> list[tuple]:
+    tasks = []
+    for n in carriers:
+        for entry in entries:
+            names = FIX + (FIX_GUARD if entry in GUARDED_ENTRIES else ())
+            tasks += [(f"drone/{entry}/{n}c", s, names, None) for s in seeds]
+    return tasks
+
+
+def plan_tune(seeds: list[int]) -> list[tuple]:
+    """The fix on every drone entry, tuning seeds (checked before the held-out run)."""
+    return drone_tasks(seeds)
+
+
+def plan_stress(seeds: list[int]) -> list[tuple]:
+    """#226 step 4 on held-out seeds: every drone entry on 1, 6 and 13 carriers; the timing and
+    approach legs' `outage` and `nominal` on the first 50 seeds; model mismatch (the truth's LTE
+    noise and multipath at 0.5x and 2x, records unchanged) on drone `outage` and, once, on the
+    IMU bias entry."""
+    tasks = drone_tasks(seeds)
+    for leg in ("timing", "approach"):
+        for entry in ("outage", "nominal"):
+            tasks += [(f"{leg}/{entry}", s, FIX, None) for s in seeds[:50]]
+    for k in (0.5, 2.0):
+        for n in CARRIERS:
+            tasks += [(f"drone/outage/{n}c/lte*{k:g}", s, FIX, None) for s in seeds]
+        tasks += [(f"drone/outage-imu-bias/1c/lte*{k:g}", s, FIX, None) for s in seeds[:50]]
+    return tasks
+
+
+def plan_sweep(seeds: list[int]) -> list[tuple]:
+    """Each new setting at 0.5x and 1.5x, `ekf-honest`, drone `outage` on 1 and 13 carriers,
+    the first 50 seeds; the unswept fix and its unfixed estimator ride along for pairing."""
+    tasks = []
+    for n in (1, 13):
+        key = f"drone/outage/{n}c"
+        for s in seeds[:50]:
+            tasks.append((key, s, ("ekf-learned-noise", "ekf-honest"), None))
+            for name, v in SWEEP.items():
+                for k in SWEEP_FACTORS:
+                    tasks.append((key, s, ("ekf-honest",), {name: v * k}))
+    return tasks
+
+
+def plan_mhss(seeds: list[int]) -> list[tuple]:
+    """`ekf-mhss`, the reference that bounds but is too large to use, on 20 seeds."""
+    return [(f"drone/{e}/1c", s, ("ekf-mhss",), None) for e in ("outage", "spoof-jump", "spoof-ramp")
+            for s in seeds[:MHSS_SEEDS]]  # fmt: skip
+
+
+PLANS = {
+    "measure": plan_measure,
+    "tune": plan_tune,
+    "stress": plan_stress,
+    "sweep": plan_sweep,
+    "mhss": plan_mhss,
+}
 
 
 def parse_seeds(text: str) -> list[int]:
