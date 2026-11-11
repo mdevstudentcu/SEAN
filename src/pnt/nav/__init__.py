@@ -52,6 +52,11 @@ ESTIMATORS = {
     "ekf-guard": configured(ekf.run, jump_guard=JumpGuard),
     "ekf-imu-guard": configured(ekf.run, motion="imu", jump_guard=JumpGuard),
     "ekf-calibrated-guard": configured(ekf.run_calibrated, jump_guard=JumpGuard),
+    # opt-in (#147, ADR-0039): learn a radio's LTE range noise from its innovations
+    "ekf-learned-noise": configured(ekf.run, noise_tau_s=ekf.NOISE_TAU_S),
+    "ekf-calibrated-learned-noise": configured(
+        ekf.run_calibrated, noise_tau_s=ekf.CALIBRATED_NOISE_TAU_S
+    ),
 }
 
 log = logging.getLogger(__name__)
