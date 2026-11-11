@@ -24,7 +24,9 @@ LTE variants (all opt-in here; nothing under `src/` changes):
   Doppler records are dropped: ADR-0036 gives them no σ and flags carrier aliases (#183).
 - `adr36-cut8`: `adr36`, keeping only records at SNR >= -8 dB (ADR-0036's fit range).
 
-Per run (estimator, variant, cut): horizontal error at 30, 60, 120 and 300 s after the cut; the
+Per run (estimator, variant, cut): horizontal error at 30, 60, 120 and 300 s after the cut (at
+the withheld fix on that instant, else the nearest one within 0.5 s: 1 Hz fixes need not fall on
+the instant); the
 p95 over [cut, cut + s) for s in 60, 120 and 300 (as `pnt.metrics` scores outage slices for T1);
 the share of withheld fixes with HPL >= error, and how many have error > HPL; and, before the cut
 while GNSS is fed, the p95 error and the share of epochs flagged `gnss_excluded`. `hold` is the
@@ -56,6 +58,10 @@ from pnt.sim import attacks
 CUTS_S = (100.0, 150.0, 200.0, 250.0, 300.0)
 HORIZON_S = 300.0  # s of coast scored after each cut (T1's 300 s, ADR-0034)
 AT_S = (30.0, 60.0, 120.0, 300.0)  # s after the cut: errors reported at these instants
+# A withheld fix this close to an instant is taken as on it (the first such fix); otherwise the
+# nearest fix within AT_NEAREST_S stands in. 0.5 s is half the 1 Hz fix interval, so a receiver
+# whose fixes fall anywhere in the second still has one (#264: fixes at x.54 s had none).
+AT_ON_S, AT_NEAREST_S = 0.05, 0.5
 SLICES_S = (60.0, 120.0, 300.0)  # p95 over [cut, cut + s), as metrics.OUTAGE_SLICES_S
 ESTIMATORS = ("ekf", "ekf-imu", "ekf-calibrated")
 VARIANTS = ("none", "told", "told-pr", "adr36", "adr36-cut8")
@@ -147,7 +153,11 @@ def score_cut(
     out = {"n_fixes": int(len(t)), "after_s": after.tolist(), "err_m": err.tolist()}
     out["hpl_m"] = hpl.tolist()
     for s in AT_S:
-        k = np.flatnonzero(np.isclose(after, s, atol=0.05))
+        k = np.flatnonzero(np.isclose(after, s, atol=AT_ON_S))
+        if not len(k) and after.size:
+            near = int(np.argmin(np.abs(after - s)))
+            if abs(after[near] - s) <= AT_NEAREST_S + 1e-9:
+                k = np.array([near])
         out[f"err_{s:g}s_m"] = float(err[k[0]]) if len(k) else float("nan")
         out[f"hpl_{s:g}s_m"] = float(hpl[k[0]]) if len(k) else float("nan")
     for s in SLICES_S:

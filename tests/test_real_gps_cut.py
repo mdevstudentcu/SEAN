@@ -105,6 +105,26 @@ def test_score_cut_reads_errors_bound_and_slices():
     assert out["misleading"] == 200
 
 
+def test_score_cut_takes_the_nearest_fix_when_none_falls_on_an_instant():
+    # #264: a receiver whose 1 Hz fixes fall at x.54 s has no fix within 0.05 s of +30 s
+    cut = T0 + 10 * S
+    fix_t = T0 + np.arange(0, 400) * S + 540_000_000
+    fix_pos = np.zeros((400, 3))
+    est_t = np.sort(np.concatenate([T0 + np.arange(0, 4000) * (S // 10), fix_t]))
+    est_pos = np.zeros((len(est_t), 3))
+    est_pos[:, 0] = np.clip((est_t - cut) / S, 0, None)  # 1 m of error per second after the cut
+    out = rgc.score_cut(est_t, est_pos, np.full(len(est_t), 1e3), fix_t, fix_pos, cut)
+    assert out["n_fixes"] == 300
+    assert out["err_30s_m"] == pytest.approx(29.54)  # the fix 0.46 s before, not 0.54 s after
+    assert out["err_300s_m"] == pytest.approx(299.54)  # the last fix inside the horizon
+    assert out["hpl_120s_m"] == 1e3
+    # nothing within 0.5 s of an instant: still no value, never a far fix's
+    sparse = fix_t[::7]  # a fix every 7 s: the nearest to +60 s is 0.54 s off, the others more
+    out = rgc.score_cut(est_t, est_pos, np.full(len(est_t), 1e3), sparse, fix_pos[::7], cut)
+    assert all(math.isnan(out[f"err_{s:g}s_m"]) for s in rgc.AT_S)
+    assert math.isnan(out["hpl_60s_m"])
+
+
 def test_hold_last_fix_scores_the_last_fix_before_the_cut():
     fix_t = T0 + np.arange(0, 400) * S
     fix_pos = np.zeros((400, 3))
