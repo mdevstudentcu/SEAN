@@ -11,7 +11,7 @@ Relayed by the team. The answers are numbered #1–#4; we read them as our Q1–
 | 1 | What horizontal accuracy and outage duration would matter (REQ-01)? | "For the drone, ≤ 50 m for ~2 min should be OK-ish. You will need to explain the calculations [that] lead to this accuracy." | We keep our stricter T1 and hold the mentors' figure as the fallback (ADR-0034); an accuracy budget per error term becomes a deliverable |
 | 2 | Which integrity risk or confidence level should the protection level target (REQ-02)? | "Determining this is part of the challenge. You should consider different methods for indicating a level of confidence." | T5 is ours to set; we show confidence several ways, not only the HPL (ADR-0034) |
 | 3 | What timing holdover target matters (REQ-03)? | "Handover timing matters because it will affect the accuracy and duration without GPS, and it must remain within the overall timing/accuracy budget." | No number: T3 stays ours. The budget includes the handover: how long GPS must be available before loss (ADR-0034) |
-| 4 | Which attacks? | "I would begin with location jumps." | Location jumps first in the attack work and `threat-model.md`; a jump target for T4, `TBD` from a jump study |
+| 4 | Which attacks? | "I would begin with location jumps." | Location jumps first in the attack work and `threat-model.md`; a jump target for T4 from the jump study (#176), accepted by the owners on 2026-11-11 (ADR-0034) |
 
 ## 2026-11-08: answers to our seven questions (Teams)
 

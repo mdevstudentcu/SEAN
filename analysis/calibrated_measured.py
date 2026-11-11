@@ -2,7 +2,7 @@
 
 `ekf-calibrated` takes its multipath, told-position and clock values from the `realistic` set
 (`nav.ekf.CALIBRATED`), so its consistency there is self-consistency. `ekf-calibrated-measured`
-(`nav.ekf.CALIBRATED_MEASURED`, ADR-0043 Proposed) keeps the calibrated model but takes no value
+(`nav.ekf.CALIBRATED_MEASURED`, ADR-0043) keeps the calibrated model but takes no value
 from a sim set: its correlated LTE error is ADR-0036's, measured on the 20261110 static sessions,
 and the rest are the filter's own defaults or TBD (see `CALIBRATED_MEASURED`).
 
