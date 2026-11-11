@@ -41,7 +41,7 @@ from pathlib import Path
 import numpy as np
 
 from pnt.cli import _commit
-from pnt.metrics import SPOOF_ATTACKS, score
+from pnt.metrics import ALARM_FLAGS, ALARM_HOLD_S, SPOOF_ATTACKS, score
 from pnt.nav import ESTIMATORS, estimate
 from pnt.sim.scenario import T0_NS, generate, load
 
@@ -104,6 +104,33 @@ def _at(t: np.ndarray, x: np.ndarray, s: float) -> float:
     return float(x[i]) if i < len(t) else float("nan")
 
 
+def alarm_context(t: np.ndarray, alarm: np.ndarray, suspected: np.ndarray, s0: float) -> dict:
+    """What the alarm was doing when an attack began at `s0` (times in s from the run's start).
+
+    `pnt.metrics` counts an alarm as a detection only if it starts inside the attack, so a run
+    whose alarm was already on (held `ALARM_HOLD_S`, as metrics confirms one) cannot detect the
+    attack at onset: it counts only if the alarm clears and starts again, a later event.
+    - `alarm_since_s`: when that alarm began, or None if no alarm was on at `s0`.
+    - `alarm_clear_s`: seconds after `s0` the alarm first went off (None: never, or not on).
+    - `suspected_s`: seconds after `s0` of the first `spoof_suspected` (None: never)."""
+    i0 = int(np.searchsorted(t, s0))
+    since = clear = None
+    if i0 > 0 and alarm[i0 - 1]:
+        j = i0 - 1
+        while j > 0 and alarm[j - 1]:
+            j -= 1
+        if t[i0 - 1] - t[j] >= ALARM_HOLD_S:
+            since = float(t[j])
+            off = np.flatnonzero(~alarm[i0:])
+            clear = float(t[i0 + off[0]] - s0) if off.size else None
+    hit = np.flatnonzero(suspected[i0:])
+    return {
+        "alarm_since_s": since,
+        "alarm_clear_s": clear,
+        "suspected_s": float(t[i0 + hit[0]] - s0) if hit.size else None,
+    }
+
+
 def run_one(case: str, estimator: str, seed: int) -> dict:
     spec = spec_of(case)
     run = generate(spec, seed=seed)
@@ -132,13 +159,18 @@ def run_one(case: str, estimator: str, seed: int) -> dict:
         "misleading_epochs": m.misleading_epochs,
     }
     spoofs = [f for f in spec.get("faults", []) if f["type"] in SPOOF_ATTACKS]
-    if spoofs and not math.isnan(m.detect_delay_s):
+    if spoofs:
         tmap = {g.t_ns: g for g in run.truth}
-        pairs = [(e, tmap[e.t_ns]) for e in est if e.t_ns in tmap]
+        pairs = [(e, tmap[e.t_ns]) for e in est if e.t_ns in tmap]  # as `score` pairs them
         t = np.array([(e.t_ns - T0_NS) / 1e9 for e, _ in pairs])
-        err = np.array([math.dist(e.pos_enu[:2], g.pos_enu[:2]) for e, g in pairs])
         s0 = float(spoofs[0].get("start_s", 0.0))
-        row["err_at_alert"] = _at(t, err, s0 + m.detect_delay_s)
+        row["attack_start_s"] = s0
+        alarm = np.array([bool(ALARM_FLAGS & set(e.flags)) for e, _ in pairs])
+        suspected = np.array(["spoof_suspected" in e.flags for e, _ in pairs])
+        row.update(alarm_context(t, alarm, suspected, s0))
+        if not math.isnan(m.detect_delay_s):
+            err = np.array([math.dist(e.pos_enu[:2], g.pos_enu[:2]) for e, g in pairs])
+            row["err_at_alert"] = _at(t, err, s0 + m.detect_delay_s)
     if log:
         for key in log[0][1]:
             vals = [r[key] for _, r in log if r.get(key) is not None]
@@ -226,6 +258,86 @@ def mhss_text(n: int) -> str:
     return f"`{MHSS}` 0–{n - 1}" if n > 0 else f"`{MHSS}` not run"
 
 
+def _s(x) -> str:
+    return "–" if x is None or (isinstance(x, float) and math.isnan(x)) else f"{x:,.1f}"
+
+
+def during_alarm(runs) -> list[str]:
+    """The attack runs whose alarm was already on when the attack began, and, for each pair
+    where one estimator counts a detection and the other does not, what happened (#189)."""
+    on = [r for r in runs if r.get("alarm_since_s") is not None
+          and not math.isnan(r["alarm_since_s"])]  # fmt: skip
+    if not on:
+        return []
+    lines = [
+        "",
+        "## Attacks that began during an alarm",
+        "",
+        "`pnt.metrics` counts an alarm as a detection only if it starts inside the attack. On "
+        "these runs the alarm was already on when the attack began, so none can flag the "
+        "attack at onset: a run counts as detected only if its alarm clears and starts again, "
+        "which is a later event, not the attack's onset. Times in s; *cleared* and "
+        "*`spoof_suspected`* are after the attack's start.",
+        "",
+        "| Leg | Attack | Estimator | Seed | Alarm on since | Counted delay | Alarm cleared | "
+        "`spoof_suspected` |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    order = {e: k for k, e in enumerate((*FAST, MHSS))}
+    on.sort(key=lambda r: (r["case"], r["seed"], order.get(r["estimator"], 99)))
+    for r in on:
+        leg, entry = r["case"].split(":")
+        lines.append(
+            f"| {leg} | {entry} | `{r['estimator']}` | {r['seed']} | {_s(r['alarm_since_s'])} | "
+            f"{_s(r['detect_delay_s'])} | {_s(r.get('alarm_clear_s'))} | "
+            f"{_s(r.get('suspected_s'))} |"
+        )
+    notes = []
+    key = {(r["case"], r["estimator"], r["seed"]): r for r in runs}
+    for base, mon in PAIRS:
+        for (case, est, seed), b in sorted(key.items()):
+            m = key.get((case, mon, seed))
+            if est != base or m is None or "attack_start_s" not in b:
+                continue
+            hit_b, hit_m = (not math.isnan(x["detect_delay_s"]) for x in (b, m))
+            if hit_b == hit_m:
+                continue
+            leg, entry = case.split(":")
+            seen, lost = (b, m) if hit_b else (m, b)
+            on_both = all(
+                x.get("alarm_since_s") is not None and not math.isnan(x["alarm_since_s"])
+                for x in (b, m)
+            )
+            if not on_both:
+                notes.append(
+                    f"- **{leg} {entry} seed {seed}: `{lost['estimator']}` misses an attack "
+                    f"`{seen['estimator']}` detects, with no alarm on before it. Not explained "
+                    "here: a defect to investigate.**"
+                )
+                continue
+            text = (
+                f"- {leg} {entry} seed {seed}: the alarm was on from {_s(b['alarm_since_s'])} s "
+                f"in `{base}` and from {_s(m['alarm_since_s'])} s in `{mon}`, before the attack "
+                f"at {_s(b['attack_start_s'])} s, so neither flags the attack at onset. "
+                f"`{seen['estimator']}`'s alarm cleared {_s(seen.get('alarm_clear_s'))} s after "
+                f"the attack began and started again: that restart is its "
+                f"{_s(seen['detect_delay_s'])} s detection."
+            )
+            if lost.get("alarm_clear_s") is None or math.isnan(lost["alarm_clear_s"]):
+                text += f" `{lost['estimator']}`'s alarm never cleared"
+                ss = lost.get("suspected_s")
+                if ss is not None and not math.isnan(ss):
+                    text += (
+                        f" (it raised `spoof_suspected` {_s(ss)} s after the attack began, "
+                        "which keeps GNSS position excluded)"
+                    )
+                text += ", so it had nothing to restart: no detection was lost."
+            notes.append(text)
+    if notes:
+        lines += ["", "Where one of a pair counts a detection and the other does not:", "", *notes]
+    return lines
+
+
 def summary(data: dict) -> str:
     runs, meta = data["runs"], data["meta"]
     lines = [
@@ -264,6 +376,7 @@ def summary(data: dict) -> str:
                     f"{_f(d['tta_med'], 1)} | {_f(d['tta_max'], 1)} | {_f(d['err_at_alert'])} | "
                     f"{_f(d['hazardous'])} |"
                 )
+    lines += during_alarm(runs)
     lines += [
         "",
         "## False alarms (an outage must not look like a spoof)",
