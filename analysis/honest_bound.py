@@ -781,10 +781,13 @@ def figure(p: dict, out: Path, tail: str) -> str | None:
                     f"{100 * st['above_win']:.1f} %)", transform=ax.transAxes, va="top",
                     fontsize=13, zorder=3)  # fmt: skip
             bad = st["worst_run"] > ESCAPE_WORST_RUN
-            ax.text(0.97, 0.03, f"worst run {100 * st['worst_run']:.1f} % above"
-                    f"{' (bar: 5 %)' if bad else ''}\nhazardous epochs {st['hazardous']:,}",
-                    transform=ax.transAxes, ha="right", va="bottom", fontsize=14,
-                    color="#b2182b" if bad else "#333333", zorder=3)  # fmt: skip
+            ax.text(0.97, 0.09, f"worst run {100 * st['worst_run']:.1f} % above"
+                    f"{' (bar: 5 %)' if bad else ''}", transform=ax.transAxes, ha="right",
+                    va="bottom", fontsize=14, color="#b2182b" if bad else "#333333",
+                    zorder=3)  # fmt: skip
+            ax.text(0.97, 0.03, f"hazardous epochs {st['hazardous']:,}", transform=ax.transAxes,
+                    ha="right", va="bottom", fontsize=14,
+                    color="#b2182b" if st["hazardous"] else "#333333", zorder=3)  # fmt: skip
             if r == 0:
                 ax.set_title(("before: default" if c == 0 else "after: the fix"), fontsize=20,
                              weight="bold", color="#2a78d6" if c == 0 else "#1b7837")  # fmt: skip
