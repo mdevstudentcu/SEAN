@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from pnt.cli import _commit
 
@@ -64,3 +65,26 @@ def test_t1_window_not_covered_is_not_scored():
     # a second of the window with no value (the run or the outage ended) gives no verdict
     assert math.isnan(cb.worst_in(np.array([1.0, np.nan, 2.0]), 2)[0])
     assert math.isnan(cb.worst_in(np.array([1.0, 2.0]), 2)[0])
+
+
+def test_bound_figure_shares_are_the_t5_metrics_req02(tmp_path):
+    # --bound re-runs only the T5 bound figure's runs, checks them against runs.json, and keeps
+    # every epoch's error and HPL: the shares drawn come from the epochs T5 scores
+    args = ["--legs", "drone", "--entries", "outage", "spoof-jump", "--estimators", "ekf"]
+    cb.main([*args, "--seeds", "1", "--jobs", "1", "--out", str(tmp_path)])
+    cb.main(["--bound", "--jobs", "1", "--out", str(tmp_path)])
+
+    data = json.loads((tmp_path / "runs.json").read_text())
+    epochs, meta = cb.load_bound(tmp_path / cb.BOUND_FILE)
+    assert meta["commit"] == _commit()
+    for entry in ("outage", "spoof-jump"):
+        scn = f"challenge-drone-{entry}"
+        st = cb.bound_stats(epochs[scn]["ekf"])
+        run = data["runs"][scn]["ekf"]["0"]
+        assert st["worst_bound"] == pytest.approx(run[cb.FIELDS.index("hpl_bound_frac")], abs=1e-5)
+        assert st["above"] == pytest.approx(1 - st["worst_bound"])  # one run
+        assert st["hazardous"] == run[cb.FIELDS.index("hazardous_epochs")]
+    png = (tmp_path / "t5_bound.png").read_bytes()
+    assert "t5_bound.png" in (tmp_path / "summary.md").read_text()
+    cb.main(["--redraw", "--out", str(tmp_path)])
+    assert (tmp_path / "t5_bound.png").read_bytes() == png  # byte for byte

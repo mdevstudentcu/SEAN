@@ -56,7 +56,7 @@ import numpy as np
 from pnt.cli import _commit
 from pnt.core.time import s_to_ns
 from pnt.experiments import _map
-from pnt.metrics import gps_loss, score
+from pnt.metrics import ALERT_LIMIT_M, gps_loss, score
 from pnt.nav import estimate
 from pnt.sim.scenario import T0_NS, expand, generate, load
 
@@ -745,7 +745,9 @@ def cut_lines(data: dict) -> list[str]:
     return lines
 
 
-def write_summary(data: dict, out: Path, figures: list[str]) -> Path:
+def write_summary(
+    data: dict, out: Path, figures: list[str], bound: tuple[dict, dict] | None = None
+) -> Path:
     ests = _est_cols(data)
     lines = [
         "# Challenge baseline: every estimator on every `challenge` entry",
@@ -859,6 +861,8 @@ def write_summary(data: dict, out: Path, figures: list[str]) -> Path:
     if figures:
         lines += ["## Figures", ""]
         lines += [f"![{f}]({f})" for f in figures]
+        if bound is not None and "t5_bound.png" in figures:
+            lines += bound_caption(data, bound)
         lines.append("")
     lines += [
         "## Reproduce",
@@ -1141,6 +1145,134 @@ def fig_t4(data: dict, title_tail: str, caption: str):
     return fig
 
 
+BOUND_LABEL = {
+    "outage": "outage: GPS lost\n60–660 s",
+    "spoof-jump": "spoof-jump: GNSS\n300 m east, 150 s on",
+}
+BOUND_RANGE_M = (1.0, 1e5)  # both axes; values outside are drawn on the edge, counted as they are
+ESCAPED, HAZARD = "#fbe3d6", "#f2b694"  # pale tints of ekf-calibrated's orange
+
+
+def bound_stats(runs: dict) -> dict:
+    """One estimator on one entry, from every epoch of every run: the share of epochs where the
+    error exceeds HPL (pooled), the worst run's share with HPL >= error (T5's 'HPL bound, worst
+    run'), the hazardous epochs (error over the alert limit with HPL at or under it, as
+    `pnt.metrics.score` counts them) and the runs and epochs."""
+    err = [r[0] for r in runs.values()]
+    hpl = [r[1] for r in runs.values()]
+    e, h = np.concatenate(err), np.concatenate(hpl)
+    return {
+        "above": float(np.mean(e > h)),
+        "worst_bound": min(float(np.mean(b >= a)) for a, b in zip(err, hpl, strict=True)),
+        "hazardous": int(np.sum((e > ALERT_LIMIT_M) & (h <= ALERT_LIMIT_M))),
+        "runs": len(err),
+        "epochs": int(e.size),
+    }
+
+
+def _bound_cells(data: dict, bound: dict) -> list[tuple[str, str, dict | None]]:
+    """(entry, estimator, its runs or None) for every panel of the T5 bound figure, in order."""
+    ests = [e for e in BOUND_ESTIMATORS if e in data["estimators"]]
+    ents = [e for e in BOUND_ENTRIES if e in data["entries"].get(BOUND_LEG, [])]
+    return [
+        (entry, e, bound.get(f"challenge-{BOUND_LEG}-{entry}", {}).get(e) or None)
+        for entry in ents
+        for e in ests
+    ]
+
+
+def fig_t5(data: dict, bound: dict, title_tail: str, caption: str):
+    """Q: at every epoch of every run, does the HPL bound the true horizontal error, on the drone
+    leg's GPS loss and held jump? Error against HPL: above the diagonal the error escaped."""
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import LogNorm
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+
+    cells = _bound_cells(data, bound)
+    if not any(r for _, _, r in cells):
+        return None
+    ents = list(dict.fromkeys(c[0] for c in cells))
+    ests = list(dict.fromkeys(c[1] for c in cells))
+    lo, hi, al = *BOUND_RANGE_M, ALERT_LIMIT_M
+    edges = np.logspace(math.log10(lo), math.log10(hi), 61)
+    fig, axes = plt.subplots(len(ents), len(ests), figsize=FIG_SIZE, dpi=FIG_DPI, sharex=True,
+                             sharey=True, squeeze=False)  # fmt: skip
+    empty = []
+    for (entry, e, runs), ax in zip(cells, axes.flat, strict=True):
+        r, c = ents.index(entry), ests.index(e)
+        if r == 0:
+            ax.set_title(e, fontsize=FS_LABEL, color=COLORS[e], weight="bold")
+        if c == 0:
+            ax.set_ylabel("true error (m)", fontsize=FS_NOTE + 1)
+            ax.annotate(BOUND_LABEL.get(entry, entry), (0, 0.5), xycoords="axes fraction",
+                        xytext=(-62, 0), textcoords="offset points", rotation=90, ha="right",
+                        va="center", fontsize=FS_LABEL, weight="bold")  # fmt: skip
+        if not runs:
+            empty.append((ax, f"{e} not run on {entry}"))
+            continue
+        # Escaped region (error > HPL), and inside it the hazardous box (HPL <= AL < error)
+        ax.fill_between([lo, hi], [lo, hi], hi, color=ESCAPED, lw=0, zorder=0)
+        ax.fill_between([lo, al], [al, al], hi, color=HAZARD, lw=0, zorder=0)
+        err = np.clip(np.concatenate([v[0] for v in runs.values()]), lo, hi)
+        hpl = np.clip(np.concatenate([v[1] for v in runs.values()]), lo, hi)
+        count, _, _ = np.histogram2d(hpl, err, [edges, edges])
+        ax.pcolormesh(edges, edges, np.ma.masked_equal(count.T, 0), cmap="Blues",
+                      norm=LogNorm(1, 5e4), zorder=1, rasterized=True)  # fmt: skip
+        ax.plot([lo, hi], [lo, hi], color="black", lw=1.6, zorder=2)
+        st = bound_stats(runs)
+        sub = "of epochs above"
+        if e in GUARDED:
+            same, n = identical(data, f"challenge-{BOUND_LEG}-{entry}", GUARDED[e], e)
+            if same == n:
+                sub += f"\nidentical: {same} of {n} runs"
+        ax.text(0.04, 0.97, f"{100 * st['above']:.1f} %", transform=ax.transAxes, va="top",
+                fontsize=FS_TITLE + 1, weight="bold", zorder=3)  # fmt: skip
+        ax.text(0.04, 0.80, sub, transform=ax.transAxes, va="top", fontsize=FS_NOTE, zorder=3)
+        low = f"worst run\nbounded {fmt_pct(st['worst_bound'])}\nhazardous {st['hazardous']:,}"
+        ax.text(0.97, 0.03, low, transform=ax.transAxes, ha="right", va="bottom",
+                fontsize=FS_NOTE, color=INK, zorder=3)  # fmt: skip
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlim(lo, hi)
+        ax.set_ylim(lo, hi)
+        ax.set_aspect("equal")
+        ticks = [1, 100, 1e4]
+        ax.set_xticks(ticks, ["≤1", "100", "10k"])
+        ax.set_yticks(ticks, ["≤1", "100", "10k"])
+        ax.minorticks_off()
+        ax.tick_params(labelsize=FS_TICK)
+    # The key goes in an empty panel if there is one, else below the panels
+    handles = [
+        Patch(color=ESCAPED, label="error > HPL:\nbound escaped"),
+        Patch(color=HAZARD, label=f"hazardous: error\n> {al:g} m, HPL ≤ {al:g} m"),
+        Line2D([], [], color="black", lw=1.6, label="error = HPL"),
+        Patch(color="#4a90c8", label="epochs (darker:\nmore of them)"),
+    ]
+    if empty:
+        ax, why = empty[0]
+        ax.set_axis_off()
+        ax.legend(handles=handles, loc="upper left", fontsize=FS_NOTE + 1, frameon=False,
+                  bbox_to_anchor=(-0.05, 1.02), handlelength=1.6)  # fmt: skip
+        ax.text(0.0, 0.08, "\n".join(w for _, w in empty).replace(" on ", "\non "),
+                transform=ax.transAxes, fontsize=FS_NOTE + 1, color=INK)  # fmt: skip
+    else:
+        fig.legend(handles=handles, loc="lower right", ncol=3, fontsize=FS_NOTE, frameon=False)
+    for ax in axes[-1]:
+        if ax.axison:
+            ax.set_xlabel("HPL (m)", fontsize=FS_NOTE + 1)
+    _title(
+        fig,
+        "T5: does the protection level bound the true error? Every epoch of every run",
+        "big number: share of all epochs above the diagonal · bottom right: T5's worst run "
+        "(share of its epochs bounded) and hazardous epochs, as in summary.md\n"
+        f"drone (UC-01), each whole 720 s run at 10 Hz · {title_tail}",
+    )
+    _caption(fig, caption)
+    fig.subplots_adjust(left=0.11, right=0.99, top=0.82, bottom=0.11, wspace=0.10, hspace=0.18)
+    return fig
+
+
 def _save_png(fig, path: Path) -> None:
     """A 256-colour PNG: the figures are flat colour, and this keeps the committed folder small."""
     import io
@@ -1175,7 +1307,7 @@ def write_t1_curves(data: dict, out: Path) -> str | None:
     return "t1_curves.json"
 
 
-def write_figures(data: dict, out: Path) -> list[str]:
+def write_figures(data: dict, out: Path, bound: tuple[dict, dict] | None = None) -> list[str]:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -1198,7 +1330,60 @@ def write_figures(data: dict, out: Path) -> list[str]:
         _save_png(fig, out / name)
         plt.close(fig)
         written.append(name)
+    if bound is not None:
+        epochs, meta = bound
+        ents = [e for e in BOUND_ENTRIES if e in data["entries"].get(BOUND_LEG, [])]
+        runs = "; ".join(f"{e} {bound_seeds(data, epochs, e)}" for e in ents)
+        fig = fig_t5(data, epochs, f"sim · {runs} · computed at commit {meta['commit']}", caption)
+        if fig is not None:
+            _save_png(fig, out / "t5_bound.png")
+            plt.close(fig)
+            written.append("t5_bound.png")
     return written
+
+
+def bound_seeds(data: dict, epochs: dict, entry: str) -> str:
+    """'seeds 0–49 (ekf-mhss 0–19)' for the runs the T5 bound figure has on one entry."""
+    by_est = epochs.get(f"challenge-{BOUND_LEG}-{entry}", {})
+    n = {e: len(r) for e, r in by_est.items()}
+    if not n:
+        return "not run"
+    most = max(n.values())
+    fewer = [f"{e} {seeds_text(k)[6:]}" for e, k in n.items() if k != most]
+    return seeds_text(most) + (f" ({', '.join(fewer)})" if fewer else "")
+
+
+def bound_caption(data: dict, bound: tuple[dict, dict]) -> list[str]:
+    """The T5 bound figure's caption in summary.md: where it comes from and its numbers."""
+    epochs, meta = bound
+    lines = [
+        "",
+        "*t5_bound.png*: the drone leg's true horizontal error against HPL at every 0.1 s epoch "
+        "of each whole run (the epochs T5 scores). Above the diagonal the error escaped the "
+        "bound. Per panel: the share of all epochs above it (pooled over runs); the worst "
+        "run's share with HPL ≥ error (the *HPL bound worst* column above); hazardous epochs "
+        "(summed, the *hazardous* column).",
+    ]
+    if meta["commit"] != data["commit"]:
+        lines[-1] += (
+            f" Computed at `{meta['commit']}` (`{meta['command']}`, the runs' metrics checked "
+            f"equal to `runs.json`); every table and the other figures are from "
+            f"`{data['commit']}`."
+        )
+    lines += [
+        "",
+        "| Entry | Estimator | runs | epochs above HPL | worst run bounded | hazardous |",
+    ]
+    lines.append("|---|---|---|---|---|---|")
+    for entry, e, runs in _bound_cells(data, epochs):
+        if not runs:
+            continue
+        st = bound_stats(runs)
+        lines.append(
+            f"| `{entry}` | `{e}` | {st['runs']} | {fmt_pct(st['above'])} | "
+            f"{fmt_pct(st['worst_bound'])} | {st['hazardous']:,} |"
+        )
+    return lines
 
 
 # ---------------------------------------------------------------- main
@@ -1412,8 +1597,9 @@ def main(argv=None) -> None:
         if bound and not args.resume:
             save_bound(bound, {"commit": commit, "command": data["command"]}, bound_path)
 
-    figures = write_figures(data, out)
-    path = write_summary(data, out, figures)
+    bound = load_bound(bound_path)
+    figures = write_figures(data, out, bound)
+    path = write_summary(data, out, figures, bound)
     curves = write_t1_curves(data, out)
     print(f"wrote {path}, {json_path}, {curves} and {len(figures)} figure(s)")
 
