@@ -131,7 +131,9 @@ def run_one(case: str, estimator: str, seed: int) -> dict:
     spec = spec_of(case)
     run = generate(spec, seed=seed)
     log: list = []
-    t_start = time.time()
+    # CPU time of this process, not wall time: a wall clock also counts the machine sleeping
+    # (#189: two runs logged 1,870 s, of which 1,859 s was the laptop asleep) and other jobs
+    cpu0 = time.process_time()
     est = list(
         estimate(
             _with_monitor_log(estimator, log),
@@ -140,7 +142,7 @@ def run_one(case: str, estimator: str, seed: int) -> dict:
             reference=run.reference,
         )
     )
-    runtime = time.time() - t_start
+    cpu_s = time.process_time() - cpu0
     m = score(est, run.truth, spec, T0_NS)
     tmap = {g.t_ns: g for g in run.truth}
     pairs = [(e, tmap[e.t_ns]) for e in est if e.t_ns in tmap]
@@ -154,7 +156,7 @@ def run_one(case: str, estimator: str, seed: int) -> dict:
         "case": case,
         "estimator": estimator,
         "seed": seed,
-        "runtime_s": round(runtime, 2),
+        "cpu_s": round(cpu_s, 2),
         "detect_delay_s": m.detect_delay_s,
         "spoof_detected": m.spoof_detected,
         "false_alarms_per_h": m.false_alarms_per_h,
@@ -441,11 +443,13 @@ def summary(data: dict) -> str:
         "",
         "## Runtime",
         "",
-        "| Estimator | Median s per run | Worst |",
+        "CPU seconds of the estimator per run (scenario generation and scoring not counted).",
+        "",
+        "| Estimator | Median CPU s per run | Worst |",
         "|---|---|---|",
     ]
     for est in ests_in(runs):
-        rt = [r["runtime_s"] for r in runs if r["estimator"] == est]
+        rt = [r["cpu_s"] for r in runs if r["estimator"] == est]
         lines.append(f"| `{est}` | {_f(_med(rt), 1)} | {_f(_max(rt), 1)} |")
     return "\n".join(lines) + "\n"
 
