@@ -38,7 +38,7 @@ A plain-words explainer for the mentor's question of 2026-11-10: "how can you id
 - **Our clock.** All cells heard by one dongle share its clock (`meta.rx_clock`), so it is one unknown common to every tower, like a GPS receiver's clock: it costs one tower's worth of geometry ([`src/pnt/nav/ekf.py`](../src/pnt/nav/ekf.py) docstring).
 - **Each mast's clock.** LTE FDD masts are frequency-locked to ±50 ppb but not time-aligned ([3GPP TS 36.104](https://www.etsi.org/deliver/etsi_ts/136100_136199/136104/)), so each mast has its own offset and drift. Sectors of one mast share it; masts built by one operator may share a common drift (ADR-0022).
 - **Learned while GPS is good.** While GPS is trusted the filter knows where it is, so each heard mast's pseudorange residual is its clock. `ekf-calibrated` (ADR-0022) learns an offset and a drift per mast once GPS has been trusted for 30 s (`calib_gate_s`, `TBC`) and the barometer agrees with it; when GPS is lost or distrusted it stops learning and coasts each clock on its learned drift. The default `ekf` instead lets each mast's clock wander as a random walk (0.2 m/√s, `TBC`).
-- How well the clocks hold after GPS loss sets how long towers keep us within the target (T1, ADR-0034). Measured so far at rest: sectors of one mast drift together to within 0.5 m/s over 1,800 s (PR #190, unmerged, ADR-0036 `Proposed`).
+- How well the clocks hold after GPS loss sets how long towers keep us within the target (T1, ADR-0034). Measured so far at rest: sectors of one mast drift together to within 0.5 m/s over 1,800 s ([ADR-0036](adr/0036-lte-measured-error-model.md), `Proposed`, from #190).
 
 ## 6. A tower we can't place
 
@@ -61,7 +61,7 @@ Laptop captures, front end on main (`analysis/lte_scan_table.py`):
 
 Every cell above is a `unique` match: one eNB in the table uses it. The 9.7-minute capture of 2026-11-11 (`20261111-0040-static-fullsuite`) heard four Rogers masts on 2460 (five cells), all weak (SNR −8 to −12 dB, up to 247 re-acquisitions).
 
-Carrier scan on the Pi (Mo, 2026-11-10, sessions `1610-*`, `1623-*`, `1759-*`). Its cells are in PR #190's `analysis/results/lte-measured-noise/summary.md`, **unmerged and not reproduced here** (the IQ is on the Pi only). The eNBs below are this file's lookup of those cells:
+Carrier scan on the Pi (Mo, 2026-11-10, sessions `1610-*`, `1623-*`, `1759-*`). Its cells are in [`analysis/results/lte-measured-noise/summary.md`](../analysis/results/lte-measured-noise/summary.md) (#190), **not reproduced here** (the IQ is on the Pi only). The eNBs below are this file's lookup of those cells:
 
 | Carrier | PCIs heard → eNB (registered site) |
 | --- | --- |
@@ -72,7 +72,7 @@ Carrier scan on the Pi (Mo, 2026-11-10, sessions `1610-*`, `1623-*`, `1759-*`). 
 | 5255, TELUS | 85 → 219129; 175, 347 → 219076 |
 | 2560, TELUS (band 5) | 175, 347 not in the table on 2560 (on 5145 and 5255 these PCIs are 219076, 1501 Bank St: possibly a carrier the register does not list there, `TBC`) |
 
-PR #190's `NOTES.md` lists no cell found on 2535, 5035, 5085 and 68611. Whether the scan list's other carriers were scanned on the Pi is `TBD`.
+Its [`NOTES.md`](../analysis/results/lte-measured-noise/NOTES.md) lists no cell found on 2535, 5035, 5085 and 68611. Whether the scan list's other carriers were scanned on the Pi is `TBD`.
 
 - The 850 MHz layer (Rogers EARFCN 2460, band 5) is on air: it was heard on every capture tuned to it.
 - Real data agrees with section 3: sectors of one mast carry PCIs in different `PCI // 3` groups (204 and 220 on eNB 36122, 90 and 106 on 36118, 188 and 189 on 219003).
