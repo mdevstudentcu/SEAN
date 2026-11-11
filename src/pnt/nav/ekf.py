@@ -167,6 +167,7 @@ from pnt.core.frames import emitter_enu
 from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.jump_guard import JumpGuard
 from pnt.integrity.protection import hpl, vpl
+from pnt.nav import told_sigma
 from pnt.nav.baseline import CHI2_999
 from pnt.nav.hostile import BeaconParams, Beacons
 from pnt.nav.imu import ImuMotion
@@ -250,6 +251,8 @@ class EKF:
         imu: Mapping | None = None,  # ImuMotion options when motion="imu"
         hostile: Mapping | None = None,  # BeaconParams options: use hostile beacons (#93)
         jump_guard: Callable[[], JumpGuard] | None = None,  # JumpGuard: refuse GNSS jumps (#184)
+        told_sigma_model: str | None = None,  # "adr0036": radio records' sigma from SNR (#147)
+        arc_bias: bool = False,  # a radio cell's new arc (meta.arc) starts a new range bias (#147)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -332,6 +335,11 @@ class EKF:
         self.position_idx: dict[str, tuple] = {}  # site -> (told-position error state, los0)
         self.bearing_bias_idx: dict[str, int] = {}  # station -> its constant bearing bias state
         self.jump = jump_guard() if jump_guard is not None else None  # #184, integrity/jump_guard
+        if told_sigma_model is not None and told_sigma_model not in told_sigma.MODELS:
+            raise ValueError(f"told_sigma_model must be one of {told_sigma.MODELS} or None")
+        self.told_sigma_model = told_sigma_model  # nav/told_sigma.py; None: the reported sigma
+        self.arc_bias = arc_bias
+        self._arc_idx: dict[str, list] = {}  # emitter -> [its arc, its arc state or None, t_ns]
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -450,6 +458,34 @@ class EKF:
                 self._augment(skey, residual - self.x[idx[0]], self.init_residual_sigma)
         idx.append(self.clock_idx[skey])
         return idx, new
+
+    def arc_state(self, m: Measurement, residual: float) -> tuple[int | None, bool]:
+        """With `arc_bias`, the range bias state of a radio record's arc (`meta.arc`), and whether
+        this record starts a new arc of a cell already seen. A front end that loses a cell and
+        finds it again starts a new arc, and its range may step by hundreds of metres there (#214:
+        90 of 103 new arcs at SNR >= -8 dB, median 874 m). The cell's first arc needs no state of
+        its own (its site clock carries it); a later one gets a constant bias state, seeded from
+        `residual` with `init_emitter_sigma` and no correlation with anything, so the step is
+        absorbed instead of pulling the position. Off, or for a record without `arc` or
+        `rx_clock`: (None, False)."""
+        arc = m.meta.get("arc")
+        if not self.arc_bias or arc is None or "rx_clock" not in m.meta:
+            return None, False
+        rec = self._arc_idx.get(m.emitter)
+        if rec is None:
+            self._arc_idx[m.emitter] = [arc, None, m.t_ns]
+            return None, False
+        if rec[0] == arc:
+            return rec[1], False
+        i = rec[1]
+        if i is None:
+            i = self._append_states([residual], [self.init_emitter_sigma])
+        else:  # reuse the cell's arc state: a new, independent bias
+            self.x[i] = residual
+            self.P[i, :] = self.P[:, i] = 0.0
+            self.P[i, i] = self.init_emitter_sigma**2
+        rec[:] = [arc, i, m.t_ns]
+        return i, True
 
     def gnss_trusted(self) -> bool:
         """GNSS position accepted recently, and neither GNSS position nor time rejected since."""
@@ -631,7 +667,13 @@ class EKF:
         for i in self.bearing_bias_idx.values():
             if i >= c + k:
                 P[i, i] = BEARING_BIAS_SIGMA_RAD**2
+        now = self.x.copy()
         self.x[old] = F @ xc
+        for _, i, t_arc in self._arc_idx.values():  # an arc begun after the snapshot: as new
+            if i is not None and (i >= c + k or t_arc > t_s):
+                self.x[i] = now[i]
+                P[i, :] = P[:, i] = 0.0
+                P[i, i] = self.init_emitter_sigma**2
         self.P = (P + P.T) / 2
         self.rollbacks.append((alarm_ns, t_s))
         self._learned = False
@@ -668,6 +710,8 @@ class EKF:
         model = MODELS.get(m.kind)
         if model is None:
             return  # not modelled yet
+        if self.told_sigma_model is not None:
+            m = told_sigma.retold(m, self.told_sigma_model)  # a radio record's sigma from its SNR
         if m.kind == "rssi" and (self.hostile is None or not m.meta.get("hostile")):
             return  # only a hostile beacon's power is modelled, and only when asked for
         self.predict(m.t_ns)
@@ -979,6 +1023,9 @@ def _pseudorange(ekf: EKF, m: Measurement):
         rx += float(h_pos @ err)
         h = u - err @ (np.eye(3) - np.outer(u, u))[:2] / r  # the line of sight turns
     idx, new = ekf.clock_offsets(m.emitter, m.value[0] - r - rx)
+    arc, new_arc = ekf.arc_state(m, m.value[0] - r - rx - float(np.sum(ekf.x[idx])))
+    if arc is not None:
+        idx = [*idx, arc]
     H = _row(ekf)
     H[0, POS] = h
     if use_rx:
@@ -989,7 +1036,7 @@ def _pseudorange(ekf: EKF, m: Measurement):
         H[0, i : i + 2] = h_pos
     H[0, idx] = 1.0
     y = m.value[0] - (r + rx + float(np.sum(ekf.x[idx])))
-    return y, H, np.diag(np.square(m.sigma)), not new
+    return y, H, np.diag(np.square(m.sigma)), not (new or new_arc)
 
 
 def _doppler(ekf: EKF, m: Measurement):
