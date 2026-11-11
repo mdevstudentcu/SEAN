@@ -39,9 +39,11 @@ reset: towers told too tight pull the position away again within seconds, and wi
 filter cycles between a reset and `wait_s` of exclusion (real session 0151: 5 cycles in 100 s).
 
 Limits (stated, not handled):
-- A smooth spoof (`spoof-ramp`) against towers that are overconfident (the challenge legs' records
-  told 2 m against ~50 m, #147) is re-admitted without an IMU: neither test can tell it from the
-  latch. Measured on the attack scenarios in ADR-0048.
+- **It reopens the slow-spoof hole.** On sim `spoof-ramp` it re-admitted the ramp once in two runs
+  for `ekf`, `ekf-imu`, `ekf-guard` and `ekf-imu-guard` (misleading epochs per run 1,441 to 2,026
+  to 2,060), and on `challenge-drone-spoof-jump` once for `ekf-imu`: the towers' test and the IMU
+  velocity check did not hold a smooth spoof (ADR-0048, `analysis/readmit_attacks.py`). Opt-in
+  only; not fit to be a default.
 - The window and the bounds assume Gaussian errors. `wait_s` is not derived (TBC).
 """
 
