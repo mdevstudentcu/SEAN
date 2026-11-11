@@ -60,8 +60,7 @@ def test_absolute_multipath_sigma_ignores_the_reported_sigma():
     f.process(_pr(0, "lte:0", 5000.0, sigma=50.0))
     f.process(_pr(0, "lte:1", 5000.0, sigma=2.0))
     for e in ("lte:0", "lte:1"):
-        mp = f.multipath_idx[e]
-        assert np.sqrt(f.P[mp, mp]) == pytest.approx(10.0)
+        assert f.multipath_sigma[f.multipath_idx[e]] == 10.0  # its steady-state sigma
     assert not f.position_idx  # told-position states off (TBD)
 
 
