@@ -323,7 +323,7 @@ SERIES = [  # (estimator, LTE, colour, label): reference categorical palette, fi
     ("ekf", "PR+doppler", "#1baf7a", "ekf, PR+doppler"),
     ("B", "PR", "#eda100", "B, PR"),
     ("B", "PR+doppler", "#e87ba4", "B, PR+doppler"),
-    ("B+arc", "PR", "#008300", "B+arc, PR"),
+    ("B+arc", "PR", "#6250d6", "B+arc, PR"),
 ]
 
 
