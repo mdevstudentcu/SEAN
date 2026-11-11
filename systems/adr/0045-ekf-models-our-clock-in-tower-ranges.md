@@ -33,23 +33,61 @@ Paired, seeds 0-49, `ekf` → `ekf` with `pseudorange_receiver_clock=True` (summ
 | `challenge-drone-outage` | everything | unchanged | unchanged: its records carry their own dongle clock (`meta.rx_clock`) |
 | `realistic-nominal` | p95 mean | 3.0 m | 3.0 m |
 | `nominal` | p95 mean (misleading per run) | 5.4 m (48.1) | 5.4 m (48.5) |
-| `gps-outage` | p95 mean | 15.5 m | 17.6 m |
-| `spoof-ramp` | misleading / hazardous per run | 1,872.5 / 1,621.3 | 1,923.5 / 1,672.0 |
-| `meaconing` | misleading per run | 1,988.1 | 2,048.6 |
+| `gps-outage` | p95 mean (paired Δ ± SE) | 15.5 m | 17.6 m (+2.1 ± 0.8) |
+| `spoof-ramp` | misleading per run (paired Δ ± SE) | 1,872.5 | 1,923.5 (+51.1 ± 60.9: not significant) |
+| `meaconing` | misleading per run (paired Δ ± SE) | 1,988.1 | 2,048.6 (+60.5 ± 9.6) |
+| `easy-long-outage` | T1 p95 mean (paired Δ ± SE) | 20.4 m | 4,314.2 m (+4,293.9 ± 241.8) |
+
+The Δ rows and `easy-long-outage` are from the cost study below (`costs.md`, commit `8b7cbda`). The `easy-long-outage` cost was missing from this ADR's first version.
+
+### Can the costs be avoided? (2026-11-11, owner's follow-up)
+
+`analysis/rx_clock_in_towers.py --costs` (commit `8b7cbda`, seeds 0-49 paired, sim; `analysis/pr-evidence/228/costs.md`). The base scenarios that carry a cost fall into two kinds:
+
+1. **No payload clock and no GNSS time** (`gps-outage`, `spoof-ramp`, `nominal` and most of the base set). The term adds a clock that nothing observes. The cost comes from its frequency wander (`h_2`):
+   - Changing its initial offset or drift σ changed nothing (10 seeds, scratch run outside the committed script).
+   - `h_2` = 2e-22 (TCXO literature: 2e-20) cuts the `gps-outage` cost to +0.4 ± 0.2 m. That is tuning to a sim that has no frequency wander; the real oscillator's `h_2` is TBC (day-1 Allan test).
+2. **A payload clock and GNSS time, but towers that leave the clock out** (`meaconing`, `time-spoof` and the `easy` set). No real radio works this way: our clock reaches every tower reading. The filter then rejects the towers (`meaconing` seed 0: 47 of 900 accepted before the attack), at the same size as #228 in reverse:
+   - `easy-long-outage` T1 +4,294 m.
+   - `ekf-guard` with the term on `meaconing`: p95 18.1 → 5,770.8 m. The guard excludes GNSS, and the towers it has left are rejected.
+
+What each variant gives (Δ against `ekf`):
+
+| Variant | `realistic-long-outage` T1 (HPL bound, worst run) | `gps-outage` Δ p95 | `meaconing` Δ misleading | `easy-long-outage` Δ T1 |
+| --- | --- | --- | --- | --- |
+| Term always on (A) | 331.7 m (0.631) | +2.1 ± 0.8 m | +60.5 ± 9.6 | +4,293.9 m |
+| `observed`: on once GNSS time has been used | 331.7 m (0.631) | +0.0 (identical) | +60.5 ± 9.6 | +4,293.9 m |
+| `gnss_out`: on only while GNSS position is lost or excluded | 636.8 m (0.162) | +2.7 ± 1.2 m | −588.8, but p95 +402.2 m | +552.9 m |
+| A with `h_2` = 2e-22 | 297.7 m (0.679) | +0.4 ± 0.2 m | +60.5 ± 9.6 | +6,065.6 m |
+| A with the jump guard | 331.7 m (0.631) | +2.1 ± 0.8 m | p95 +5,729.5 m | +4,293.9 m |
+
+What the variants show:
+
+- **`gnss_out` is worse everywhere.** Tower clocks learned with the term off carry the lag of the clock ramp into the switch.
+- **`observed` keeps every gain and removes the kind-1 costs exactly.** With no time source it is identical to `ekf`. A real payload always has GNSS time before an outage, so on real data `observed` equals A: it removes a sim-only cost and is not a better model.
+- **No estimator-side variant removes the kind-2 costs.** Making those sims consistent (`receiver_clock: true`) reverses them; these rows pair only with each other:
+  - `meaconing`: A has −53.1 ± 8.7 misleading per run against `ekf`.
+  - `meaconing` with the jump guard: 20.1 m p95 with the term, against 7,002.1 m without it.
+  - `easy-long-outage`: T1 22.6 m with the term, against 7,903.5 m without it.
+- **`ekf-calibrated` (term on) has the same kind-1 and kind-2 costs** (ADR-0022 amendment 3: `gps-outage` +4.4 m, `meaconing` +54 misleading). It does not avoid them.
 
 | Option | Pros | Cons |
 | --- | --- | --- |
 | A. `pseudorange_receiver_clock=True` by default in `ekf` | Matches every real radio and ADR-0022 amendment 1. Removes the km drift on the realistic, worst and approach sets. One line. | Changes every default output on scenarios with sim-shaped towers. The base set's towers carry no clock of ours, so the term costs one tower's worth of geometry there: `gps-outage` +2.1 m p95, `spoof-ramp` and `meaconing` +51 to +61 misleading epochs per run. |
 | B. Keep the default, and show realistic-set and approach figures from `ekf-calibrated` | No change to defaults. | The default estimator stays wrong on the environment we pitch, and its HPL stays below its error. There are two estimators to explain to the judges. |
-| C. A, and the base sets put our clock in their towers too (sim change) | One model fits every scenario. | A sim change breaks pairing with every earlier number. Larger change. |
+| C. A, and every scenario whose payload has a clock puts it in its towers (`receiver_clock: true`: `easy`, `meaconing`, `time-spoof`; sim change) | Kind-2 costs become gains. | Breaks pairing with earlier numbers on those scenarios. `gps-outage` +2.1 m stays. |
+| D. `pseudorange_receiver_clock="observed"` by default, and C | No measured row is worse than `ekf`. The consistent-sim rows ran with A; `observed` equals A wherever GNSS time comes before the towers, as there. Equals A on real data. | Kind 1 is avoided by keying on the sim's lack of a time source, not by a better model. The sim change is as in C. |
 
 ## Decision
 
-Proposed: option A. C can follow later.
+Proposed: option D. Without the sim change, nothing in the estimator removes the `easy` and `meaconing` costs; A or `observed` alone still carry them.
 
 ## Consequences
 
-- If A is accepted: flip the default in `nav/ekf.py` (its comment already says "True once the sim models it (#47)"). Then rerun `just results` and the challenge legs, and report the changed default outputs against `main`.
+- If D is accepted:
+  - Set `receiver_clock: true` in the `easy` set, `meaconing` and `time-spoof`. `time-spoof` and the rest of the `easy` menu are not measured yet.
+  - Set the `ekf` default to `"observed"`. The opt-in modes are in `nav/ekf.py`, tested in `tests/test_ekf_rx_clock_modes.py`.
+  - Rerun `just results` and the challenge legs, and report the changed default outputs against `main`.
 - **A does not make the HPL honest.** With the term on, `ekf`'s T1 HPL bound on the worst `realistic-long-outage` run is 0.631. The tower model is still white noise, while the sim adds 50 m of multipath correlated over 30 s and 100 m told-position errors (#77). In the #228 bisection those two were the rest of the gap: with the sim's multipath and told-position error removed, the bound was 1.000 on 5 seeds. `ekf-calibrated` models both and still reaches only 0.887 on its worst run.
 - **The UC-01 drone leg (`challenge-drone-outage`) is a separate problem.** Its front-end records already carry the dongle clock. `ekf` rejects 98 % of them (median NIS 150). Their reported σ is 2 m against the sim's 50 m white noise and 50 m multipath, which likely explains it (not bisected here). That is #147's question, not this one.
-- Reopen if real captures show our clock does not reach the tower ranges (it always does with one shared oscillator), or if the base-set cost grows past a stated bar.
+- Reopen if real captures show our clock does not reach the tower ranges (it always does with one shared oscillator), if the base-set cost grows past a stated bar, or if the measured `h_2` of our oscillator is far from 2e-20.
