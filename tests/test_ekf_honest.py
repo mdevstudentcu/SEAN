@@ -62,3 +62,16 @@ def test_drone_outage_error_stays_under_hpl_where_learned_noise_alone_escapes_re
     # Observed: 74 escaping epochs for ekf-learned-noise, 0 for ekf-honest
     assert _escapes("ekf-learned-noise", records, sim.truth, loss) > 20
     assert _escapes("ekf-honest", records, sim.truth, loss) == 0
+
+
+def test_the_receiver_clock_switch_leaves_radio_records_alone():
+    """Every challenge drone and timing record has `meta.rx_clock` and uses its dongle's clock,
+    so `ekf-honest`'s receiver-clock switch changes nothing there (the held-out drone runs were
+    started before the switch was added)."""
+    sim = generate(SPEC, seed=3)
+    cut = T0_NS + 120 * 1_000_000_000
+    records = [m for m in sim.measurements if m.t_ns <= cut]
+    without = {k: v for k, v in ekf.HONEST.items() if k != "pseudorange_receiver_clock"}
+    a = list(ESTIMATORS["ekf-honest"](records, origin_llh=SPEC["origin_llh"]))
+    b = list(ekf.run(records, origin_llh=SPEC["origin_llh"], **without))
+    assert a == b
