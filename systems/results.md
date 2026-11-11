@@ -62,7 +62,7 @@ Targets: [`plan.md`](plan.md), [ADR-0034](adr/0034-targets-after-mentor-answers.
 
 ## (c) What each fix buys
 
-Sim. Each on its own inputs; none of these numbers is A34 except where said. Together: `TBD (#218)`.
+Sim. Each on its own inputs; none of these numbers is A34 except where said. Together: the last row.
 
 | Fix | PR, decision, state | What it buys | What it costs or leaves | Statistic, seeds, commit |
 | --- | --- | --- | --- | --- |
@@ -71,7 +71,7 @@ Sim. Each on its own inputs; none of these numbers is A34 except where said. Tog
 | **Jump guard**: refuse a detected GNSS jump until the GNSS stream steps back | #191 (merged `83bbb97`), ADR-0038 Proposed; opt-in `ekf-guard`, `ekf-imu-guard`, `ekf-calibrated-guard` | Held 300 m jump, drone leg, `ekf`: hazardous epochs per run 5,244 (49/50 seeds) → 3 (3/50); on the spoofed position at +120 s: 44 of 47 → 0 of 50; honest GNSS back 0.1 s (median) after the jump ends, 50 of 50 | The filter then dead-reckons: median error 115 m / 1,263 m / 5,244 m at +30 / +120 / +300 s, HPL 547 m at +30 s (flagged unsafe). Keeps honest GNSS out after 5 of 46 hard manoeuvres with 1 Hz GNSS | [`jump-refusal/summary.md`](../analysis/results/jump-refusal/summary.md), seeds 0–49, `84401c5` → twin `df46bce` |
 | **Tower spoof monitor**: towers tested against GNSS outside the filter, 30 s and 120 s lags, ≥ 5 sites | #180 (open), ADR-0037 Proposed; opt-in `ekf-spoof` | 2 m/s ramp with every tower within 3 km heard (17 eNBs): 0 → 48 of 50 seeds, 131 s median, 313 s worst | Drone leg as committed (1 to 3 cells): 1 of 50. `realistic` set (4 towers): 0 of 50. 30 s out of reach: the ramp moves 60 m in 30 s against the towers' 34 m (1σ). No false alarms added | Seeds 0–49, `97795d8` |
 | **Coherent integration** in the LTE front end | #171 (merged `9aa896c`), opt-in settings | Synthetic: weakest cell tracked 3 of 3 seeds, same PSS root, −11 → −14 dB | At Carleton (2 km, 24 sectors): 1.0 → 1.0 cells tracked | Synthetic, seeds 0–2, `97a80bf` |
-| **All of the above on the drone leg** | #218 (in progress) | `TBD (#218)` | `TBD (#218)` | A34, seeds 0–49 |
+| **All of the above on the drone leg** | #218, draft PR #247 at `4faf994` | today 3,268 m (120 s) / 12,507 m (300 s), `ekf` | learned noise + 13 carriers 132 m / 132 m (`ekf`), 158 m / 203 m (`ekf-calibrated`); ceiling told the true noise 111 m. **Neither target met** | A34, seeds 0–49 |
 
 Why the noise fix comes first: told 2 m, the drone leg's `ekf` reached 6,557 m at 300 s; told the true 50 m, 1,002 m; with no LTE at all, 2,513 m (sim, per-run p95, #137 at `af2efce`, seeds 0–9; #147).
 
@@ -97,7 +97,7 @@ Sim unless marked. Detection means an alarm flag held 1 s (`pnt.metrics`). Read 
 - **Towers carrying the position on the real-shaped legs.** With records that report only the fast noise, the filter rejects nearly every tower reading (one seed: 5,374 of 5,383 before the spoof, #180), so after GPS loss the default filter flies on the barometer and dead reckoning. The guard demo's panel lists LTE as not in use (draft PR #220). No percentage of epochs is committed.
 - **Any position from real towers, and any real error after GPS loss:** `TBD (#214)` (a real session with GPS cut in software, scored against the real fixes).
 - **Any real-world accuracy, integrity level or detection rate.** Every number in (b), (c) and (d) is sim or synthetic, except the rows marked real.
-- **T1 on the agreed statistic for the `challenge` legs:** `TBD (#187)`; with every fix together: `TBD (#218)`.
+- **T1 on the agreed statistic for the `challenge` legs:** `TBD (#187)`; with every fix together: 132 m for 0–300 s (`ekf`, draft PR #247), not met.
 - **How many towers are enough with the barometer and IMU:** `TBD (#208)`.
 - **A confidence heat map on the track:** `TBD (#207)`. Today the panel shows NOMINAL / DEGRADED / UNSAFE, the HPL against the alert limit and latched alerts.
 - **T2**, scored against its alert limit; the approach leg's towers are synthetic.
