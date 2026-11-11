@@ -34,8 +34,9 @@ from pathlib import Path
 
 import numpy as np
 
-from pnt import experiments
+from pnt import experiments, nav
 from pnt.nav import ESTIMATORS, configured, ekf
+from pnt.sim import attacks
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
@@ -85,6 +86,34 @@ def run_one(path: str, name: str, lte: str, cut_s: float) -> dict:
     return out
 
 
+# Stress (the receiver is static, so a coast that holds still is right by construction): GNSS
+# is pulled at DRIFT_MPS for the DRIFT_S before the cut (the attack library's `spoof_ramp`,
+# software fault injection), so the filter enters the coast DRIFT_S * DRIFT_MPS off and moving
+# at DRIFT_MPS, as a coast that has drifted would. Scored against the real, unpulled fixes. A
+# coast with no other source keeps drifting; LTE that carries information pulls it back. TBC:
+# an illustration, not a model of any drone.
+DRIFT_MPS, DRIFT_S, DRIFT_DEG = 1.0, 60.0, 45.0
+STRESS = (("no LTE", "none"), ("ekf", "told"), ("B", "told-pr"), ("B", "told"))
+
+
+def run_stress(path: str, name: str, lte: str, cut_s: float) -> dict:
+    meas, t0, origin = CUT.load(path)
+    fix_t, fix_pos = CUT.gps_fixes(meas)  # truth: the real fixes, not the pulled ones
+    ramp = {"type": "spoof_ramp", "source": "gnss", "rate_mps": DRIFT_MPS,
+            "direction_deg": DRIFT_DEG, "start_s": cut_s - DRIFT_S, "end_s": cut_s}  # fmt: skip
+    cut = {"type": "outage", "source": "gnss", "start_s": cut_s}
+    ctx = attacks.Context(t0_ns=t0, origin_llh=None, truth_pos=None, rng=None)
+    fed, _ = attacks.apply(meas, [ramp, cut], ctx)
+    est = list(nav.estimate(ESTS.get(name, "ekf"), CUT.lte_variant(fed, lte), origin_llh=origin))
+    est_t = np.array([e.t_ns for e in est], dtype=np.int64)
+    est_pos = np.array([e.pos_enu for e in est], dtype=float)
+    est_hpl = np.array([e.hpl_m for e in est], dtype=float)
+    out = {"estimator": name, "variant": LTE.get(lte, "none") + ", drift", "cut_s": cut_s}
+    out.update(CUT.score_cut(est_t, est_pos, est_hpl, fix_t, fix_pos, t0 + round(cut_s * 1e9)))
+    out["pre_p95_m"], out["pre_gnss_excluded"] = math.nan, math.nan
+    return out
+
+
 def cuts_for(duration_s: float) -> list[float]:
     if duration_s < 1000:
         return [100.0, 150.0, 200.0, 250.0, 300.0]
@@ -104,6 +133,8 @@ def session_summary(path: str, jobs: int) -> tuple[dict, list[dict]]:
     tasks = [(path, n, lte, c) for n in ESTS for lte in LTE for c in cuts]
     tasks += [(path, "no LTE", "none", c) for c in cuts]
     rows = experiments._map(run_one, tasks, jobs)
+    stress = [(path, n, lte, c) for n, lte in STRESS for c in cuts]
+    rows += experiments._map(run_stress, stress, jobs)
     for c in cuts:
         h = CUT.hold_last_fix(fix_t, fix_pos, t0 + round(c * 1e9))
         rows.append({"estimator": "hold", "variant": "last fix", "cut_s": c, **h})
@@ -112,6 +143,8 @@ def session_summary(path: str, jobs: int) -> tuple[dict, list[dict]]:
     for key, a in agg.items():  # the worst second: largest error at any withheld fix
         rs = [r for r in rows if f"{r['estimator']}|{r['variant']}" == key]
         a["worst_second_m"] = float(max(max(r["err_m"]) for r in rs if r["err_m"]))
+        if key.endswith(", drift"):
+            a.pop("pre_gnss_excluded", None)
     same = {
         f"{rx} vs {base}, {LTE[lte]}": all(
             next(
@@ -155,6 +188,12 @@ def _fmt(x: float) -> str:
     return f"{x:,.0f}" if abs(x) >= 100 else f"{x:.1f}"
 
 
+STRESS_ORDER = [
+    ("no LTE", "none, drift"),
+    ("ekf", "PR+doppler, drift"),
+    ("B", "PR, drift"),
+    ("B", "PR+doppler, drift"),
+]
 ORDER = [
     ("no LTE", "none"),
     ("hold", "last fix"),
@@ -169,14 +208,14 @@ ORDER = [
 ]
 
 
-def table(s: dict) -> list[str]:
+def table(s: dict, order=None) -> list[str]:
     lines = [
         "| Estimator | LTE | 30 s | 60 s | 120 s | 300 s | p95 0–300 s, worst cut | "
         "Worst second | HPL ≥ error | Error > HPL | Before cut: GNSS excluded | "
         "Before cut: p95 |",
         "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
-    for est, var in ORDER:
+    for est, var in order or ORDER:
         a = s["aggregate"].get(f"{est}|{var}")
         if a is None:
             continue
@@ -244,6 +283,13 @@ def markdown(summary: dict) -> str:
             "HPL after the cut (median over the cuts, m): the coasting covariance.",
             "",
             *hpl_table(s),
+            "",
+            f"Stress: GNSS pulled {DRIFT_MPS:g} m/s for the {DRIFT_S:g} s before each cut "
+            f"(`spoof_ramp`), so each run enters the coast {DRIFT_MPS * DRIFT_S:g} m off and "
+            "drifting; truth stays the real fixes. A coast with nothing else keeps drifting; "
+            "LTE with information pulls it back.",
+            "",
+            *table(s, STRESS_ORDER),
             "",
         ]
     lines += summary.get("notes", [])
