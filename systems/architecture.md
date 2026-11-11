@@ -30,10 +30,12 @@ The integrity level is ours to choose, shown several ways (mentor Q2; ADR-0034):
 flowchart LR
   subgraph PAY["Payload: Pi 4B, receive-only (ADR-0001, ADR-0018)"]
     SDR["NESDR SMArt v5<br/>LTE IQ, one carrier at a time"]
+    ADSB["FlightStick<br/>ADS-B IQ"]
     GPS["GPS HAT<br/>NMEA + PPS"]
     SENS["MPU6050 IMU<br/>BMP180 baro"]
-    REC["Recorder<br/>raw IQ + MCAP session"]
+    REC["Recorder<br/>raw IQ to a USB drive (ADR-0042) + MCAP session"]
     SDR --> REC
+    ADSB --> REC
     GPS --> REC
     SENS --> REC
   end
@@ -93,7 +95,7 @@ Registry: `pnt.nav.ESTIMATORS`.
 | `ekf-map` | `ekf` with a residual map: each tower's error per 25 m cell, learned while GPS is trusted, frozen whenever it is not (P11, [ADR-0032](adr/0032-residual-map.md) Accepted as opt-in only, #95) |
 | `ekf-measured-sigma`, `ekf-calibrated-measured-sigma` | `ekf` and `ekf-calibrated` that tell a radio's LTE records ADR-0036's measured sigma from their SNR instead of the front end's ([ADR-0044](adr/0044-told-sigma-for-radio-records.md), Accepted, #147; opt-in) |
 
-Also opt-in: the tower spoof monitor (`ekf-spoof`, ADR-0037) and carrier hopping in the sim (ADR-0040), both merged through #250; learned LTE range noise (ADR-0039) is in review in draft PR #156. ADR-0037 and ADR-0040 are Proposed; ADR-0039 exists only on #156's branch.
+Also opt-in: the tower spoof monitor (`ekf-spoof`, `ekf-imu-spoof`, `ekf-calibrated-spoof`, ADR-0037) and carrier hopping in the sim (ADR-0040), both merged through #250; learned LTE range noise (ADR-0039) is in review in draft PR #156. ADR-0037 and ADR-0040 are Proposed; ADR-0039 exists only on #156's branch.
 
 ## Integrity layer
 
