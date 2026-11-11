@@ -19,7 +19,7 @@ So a spoofer only has to wait. Any re-admission test whose covariance grows with
 
 ## Options
 
-Numbers: sim, `ekf`, seeds 0-49, commit 84401c5 (`analysis/results/jump-refusal/summary.md`). Each cell gives the drone leg, the many-tower drone case and the timing leg.
+Numbers: sim, `ekf`, seeds 0-49, commit df46bce (`analysis/results/jump-refusal/summary.md`). Each cell gives the drone leg, the many-tower drone case and the timing leg.
 
 | Option | Held 300 m jump: hazardous epochs per run (seeds with any) | Held jump: output on the spoofed position at +120 s | Jump ended at 300 s: seeds re-admitted, median delay |
 | --- | --- | --- | --- |
@@ -64,8 +64,8 @@ Option B, **opt-in for now**: the estimators `ekf-guard`, `ekf-imu-guard` and `e
 
   The estimate is then the coast's own and flagged `unsafe`, not misleading: the cost is availability. At 5 Hz the guard locked nothing out in these cases.
 - **Meaconing:** with the guard, the `meaconing` scenarios latch at the replay's start (150 s, seed 0) and GNSS stays excluded to the end of the run. That is correct: the replay lasts to the end, 5 s late, about 40 m behind the receiver on the 8 m/s loop, so GNSS is faulted for the rest of the run. The gate alone takes the lagging GNSS back once the coast has grown.
-  `pnt eval meaconing --runs 20` (sim, seeds 0-19, at 9ac2aee): `ekf` has a worst-run HPL bound rate of 0.429, 1,976 misleading epochs per run and a fault-window p95 of 41.6 m; `ekf-guard` 1.000, 0 and 19.5 m. Both detect at 1.1 s; neither has a hazardous epoch or a false alarm.
-- **Jump size, 20 m to 500 km** (sim, seeds 0-19, `analysis/guard_jump_sizes.py --seeds 20` at 9ac2aee; table in `analysis/pr-evidence/191/guard_jump_sizes.md`). A jump held from 150 s on the UC-01 route, realistic set (`realistic-nominal` on `uc01-drone-circuit`'s route) and `uc01-drone-circuit` as committed. Every jump is detected 1.1 s after it (p95 1.1 s), with an alert 0.1 s after it, by every variant at every size, except one 20 m jump on `uc01-drone-circuit` that `ekf` missed (19/20; `ekf-guard` 20/20). The guard changes what follows detection, not detection. Runs with hazardously misleading epochs, realistic set:
+  `pnt eval meaconing --runs 20` (sim, seeds 0-19, at 5a7a1c9): `ekf` has a worst-run HPL bound rate of 0.429, 1,976 misleading epochs per run and a fault-window p95 of 41.6 m; `ekf-guard` 1.000, 0 and 19.5 m. Both detect at 1.1 s; neither has a hazardous epoch or a false alarm.
+- **Jump size, 20 m to 500 km** (sim, seeds 0-19, `analysis/guard_jump_sizes.py --seeds 20` at 5a7a1c9; table in `analysis/pr-evidence/191/guard_jump_sizes.md`). A jump held from 150 s on the UC-01 route, realistic set (`realistic-nominal` on `uc01-drone-circuit`'s route) and `uc01-drone-circuit` as committed. Every jump is detected 1.1 s after it (p95 1.1 s), with an alert 0.1 s after it, by every variant at every size, except one 20 m jump on `uc01-drone-circuit` that `ekf` missed (19/20; `ekf-guard` 20/20). The guard changes what follows detection, not detection. Runs with hazardously misleading epochs, realistic set:
 
 | Jump | `ekf` | `ekf-guard` | `ekf-imu` | `ekf-imu-guard` |
 | --- | --- | --- | --- | --- |

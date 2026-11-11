@@ -1,6 +1,6 @@
 # VOR ablation, uc02-yow-approach-vor
 
-Sim, every error value `TBC`. Commit `46c650c5cfd3`, `python analysis/vor_ablation.py --runs 50 --jobs 3 --out analysis/results/vor-ablation`. Seeds 0-49, paired: towers = the same run with its `vor` records dropped. The scenario has no IMU records, so `ekf-imu` predicts as `ekf` does. Every summary number equal to `ekf`'s (to 1e-9, relative): `ekf-imu`, `ekf-mhss`.
+Sim, every error value `TBC`. Commit `0906beaa400c`, `python analysis/vor_ablation.py --runs 50 --jobs 3 --out analysis/results/vor-ablation`. Seeds 0-49, paired: towers = the same run with its `vor` records dropped. The scenario has no IMU records, so `ekf-imu` predicts as `ekf` does. Every summary number equal to `ekf`'s (to 1e-9, relative): `ekf-imu`, `ekf-mhss`.
 
 | Estimator | Condition | Outage p95, median / worst (seed) (m) | Outage max, worst (seed) (m) | HPL >= error, mean / min | Misleading epochs | NEES median | p95 change with VOR, median [min, max] (m) | Seeds better / worse (sign test p) |
 |---|---|---|---|---|---|---|---|---|

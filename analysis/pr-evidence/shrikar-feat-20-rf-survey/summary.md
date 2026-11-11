@@ -1,6 +1,6 @@
 # RF survey
 
-Analysed at commit `b0f67c8`. Per band: median / peak dB above that site's noise floor / share of bins at least 6 dB above it (TBC). Power only (ADR-0011).
+Analysed at commit `df325f3`. Per band: median / peak dB above that site's noise floor / share of bins at least 6 dB above it (TBC). Power only (ADR-0011).
 
 | Band (MHz) | synthetic |
 | --- | --- |

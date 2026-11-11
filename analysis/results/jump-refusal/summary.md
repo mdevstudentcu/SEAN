@@ -1,8 +1,8 @@
 # Refusing a detected GNSS jump, before and after (#184)
 
-Sim, every value `TBC`. Commit 84401c5, `python analysis/jump_refusal.py --seeds 50 --jobs 2`, 125.0 min. Seeds 0–49, paired: every variant runs on the same records. Nothing was chosen on these seeds: the thresholds are derived in `pnt.integrity.jump_guard`, and the behaviour was looked at on seeds 100–109.
+Sim, every value `TBC`. Commit df46bce, `python analysis/jump_refusal.py --seeds 50 --jobs 2`, 125.0 min. Seeds 0–49, paired: every variant runs on the same records. Nothing was chosen on these seeds: the thresholds are derived in `pnt.integrity.jump_guard`, and the behaviour was looked at on seeds 100–109.
 
-Per-run data (`runs.json`, 7 MB, and `curves.json`, 1 MB) is not committed: the script writes it beside this file, and for this run it was moved to the git-ignored `analysis/results/runs/jump-refusal/`. Re-run the command above at 84401c5 to get it back; `--redraw --out` that folder rebuilds this summary and the figure from it.
+Per-run data (`runs.json`, 7 MB, and `curves.json`, 1 MB) is not committed: the script writes it beside this file, and for this run it was moved to the git-ignored `analysis/results/runs/jump-refusal/`. Re-run the command above at df46bce to get it back; `--redraw --out` that folder rebuilds this summary and the figure from it.
 
 `main` = the estimator with the jump guard off (the code path `main` runs); `undo` = the registered estimator, which now refuses a detected jump until it is undone; `never` and `lr` = the alternative re-admission rules (`ekf` only). `drone` is the `challenge-drone` leg as committed, `many` the same with every sector within 3 km heard, `timing` the `challenge-timing` leg. The jump is east, from 150 s.
 

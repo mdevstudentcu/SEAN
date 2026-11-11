@@ -1,24 +1,24 @@
 # LTE pseudorange error measured on real static captures (#173)
 
-`analysis/lte_measured_noise.py` at `fdb8fde`. Evidence: **real sessions**, static, one RTL-SDR, no GPS fix (no position truth; NTP, not PPS, time). Precision only.
+`analysis/lte_measured_noise.py` at `2408c19`. Evidence: **real sessions**, static, one RTL-SDR, no GPS fix (no position truth; NTP, not PPS, time). Precision only.
 
 | Session | Recorded at | Front end at | IQ length (s) | LTE record span (s) | Cells |
 |---|---|---|---|---|---|
-| 20261110-1305-lte-outside-lte | `4d3598b` | `92e6bac` | 59.53 | 49.4 | 1 |
-| 20261110-1610-static-site1-e2460-lte | `4d3598b` | `92e6bac` | 59.53 | 59.4 | 3 |
-| 20261110-1610-static-site1-e5060-lte | `4d3598b` | `92e6bac` | 59.53 | 59.4 | 4 |
-| 20261110-1610-static-site1-e5145-lte | `4d3598b` | `92e6bac` | 59.53 | 59.4 | 2 |
-| 20261110-1610-static-site1-e5205-lte | `4d3598b` | `92e6bac` | 59.12 | 59.0 | 3 |
-| 20261110-1610-static-site1-e5255-lte | `4d3598b` | `92e6bac` | 59.53 | 49.3 | 2 |
-| 20261110-1623-static-out-e2460-lte | `4d3598b` | `92e6bac` | 59.53 | 52.3 | 2 |
-| 20261110-1623-static-out-e2560-lte | `4d3598b` | `92e6bac` | 59.46 | 59.3 | 2 |
-| 20261110-1623-static-out-e5060-lte | `4d3598b` | `92e6bac` | 59.53 | 59.4 | 3 |
-| 20261110-1623-static-out-e5145-lte | `4d3598b` | `92e6bac` | 59.53 | 59.3 | 4 |
-| 20261110-1623-static-out-e5205-lte | `4d3598b` | `92e6bac` | 59.53 | 59.4 | 3 |
-| 20261110-1623-static-out-e5255-lte | `4d3598b` | `92e6bac` | 59.53 | 59.4 | 2 |
-| 20261110-1759-static-out-long-e5060-lte | `4d3598b` | `0276028` | 1799.65 | 1799.5 | 3 |
-| 20261110-lte-outside-5145-lte | `4d3598b` | `92e6bac` | 29.49 | 29.4 | 3 |
-| 20261110-lte-outside-5255-lte | `4d3598b` | `92e6bac` | 29.49 | 29.3 | 2 |
+| 20261110-1305-lte-outside-lte | `ee20817` | `3e97678` | 59.53 | 49.4 | 1 |
+| 20261110-1610-static-site1-e2460-lte | `ee20817` | `3e97678` | 59.53 | 59.4 | 3 |
+| 20261110-1610-static-site1-e5060-lte | `ee20817` | `3e97678` | 59.53 | 59.4 | 4 |
+| 20261110-1610-static-site1-e5145-lte | `ee20817` | `3e97678` | 59.53 | 59.4 | 2 |
+| 20261110-1610-static-site1-e5205-lte | `ee20817` | `3e97678` | 59.12 | 59.0 | 3 |
+| 20261110-1610-static-site1-e5255-lte | `ee20817` | `3e97678` | 59.53 | 49.3 | 2 |
+| 20261110-1623-static-out-e2460-lte | `ee20817` | `3e97678` | 59.53 | 52.3 | 2 |
+| 20261110-1623-static-out-e2560-lte | `ee20817` | `3e97678` | 59.46 | 59.3 | 2 |
+| 20261110-1623-static-out-e5060-lte | `ee20817` | `3e97678` | 59.53 | 59.4 | 3 |
+| 20261110-1623-static-out-e5145-lte | `ee20817` | `3e97678` | 59.53 | 59.3 | 4 |
+| 20261110-1623-static-out-e5205-lte | `ee20817` | `3e97678` | 59.53 | 59.4 | 3 |
+| 20261110-1623-static-out-e5255-lte | `ee20817` | `3e97678` | 59.53 | 59.4 | 2 |
+| 20261110-1759-static-out-long-e5060-lte | `ee20817` | `060445f` | 1799.65 | 1799.5 | 3 |
+| 20261110-lte-outside-5145-lte | `ee20817` | `3e97678` | 29.49 | 29.4 | 3 |
+| 20261110-lte-outside-5255-lte | `ee20817` | `3e97678` | 29.49 | 29.3 | 2 |
 
 Sim placeholders from `src/pnt/sim/scenarios/sets/challenge-drone.yaml` and `sim/lte_front_end.py` `Dongle`.
 
