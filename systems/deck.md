@@ -1,155 +1,200 @@
-# Deck: 5 minutes, 10 slides
+# The 5-minute deck
 
-- **Status:** Draft, 2026-11-10 (#28). Content for the humans to build slides from; they own the final deck.
-- **Timing:** 30 s a slide. Judges' questions follow (up to 5 min).
-- **Rules:** every number on a slide is in [`results.md`](results.md) with its source. Sim numbers are said as sim. The kickoff deck is not quoted. Undecided items (ADR-0030, ADR-0034, the hop set, the spoof-pitch wording) are said as proposed or open.
-- **The story:** our numbers miss T1. The story is what we found, why, and what fixes it, told with the evidence.
-- **Figures:** a repo path is on `main` at `8987664`. A URL is a PR's evidence image pinned to its commit. Every caption on the slide names the scenario or session, the commit and the kind of evidence (`systems/quality.md`).
+- **Status:** Draft, 2026-11-11 (#28), against `main` at `c21e047`. Written for a presenter who did not build the system.
+- **Format:** 10 slides, 300 s, 643 words of script. Each slide: the headline (the point, as a sentence), what is on it, the figure, the word-for-word script, and where to look if asked. Question answers: [`judge-questions.md`](judge-questions.md). Every number: [`results.md`](results.md).
+- **Three rules on stage.** Say "simulation" whenever a number is simulated. Say "consistent with a registered site", never "identified". Never say "first": say "we found no published…".
+- **Placeholders.** `TBD (#NNN)` lines are filled from that issue before judging. If one is not filled, use the script as written: it does not depend on it.
 
-## 1. The problem and the users
+| # | Slide | Seconds | Words |
+| --- | --- | --- | --- |
+| 1 | The problem and who needs it | 25 | 54 |
+| 2 | What we built | 30 | 63 |
+| 3 | Integrity first: every source can lie | 30 | 67 |
+| 4 | Live demo | 55 | 98 |
+| 5 | What we measured on real signals | 30 | 69 |
+| 6 | The calculation behind the accuracy | 30 | 66 |
+| 7 | The honest scoreboard | 30 | 65 |
+| 8 | What each fix buys | 30 | 67 |
+| 9 | Limits | 20 | 42 |
+| 10 | Roadmap | 20 | 52 |
+| | **Total** | **300** | **643** |
 
-**Headline:** When GPS fails, a drone, an approach and a clock each need position or time with a number they can trust.
+---
 
-| User ([`use-cases.md`](use-cases.md)) | GPS failure in practice | What they need |
-| --- | --- | --- |
-| Drone on an Ottawa corridor | Jammers in cars on nearby roads; spoofing | Stay in the corridor; alert before leaving it |
-| Crewed approach into YOW | Regional jamming and spoofing | A protection level the crew can act on |
-| Timing terminal | Holdover; time spoofing | Time within a bound, honest uncertainty |
+## 1. The problem and who needs it
 
-**Figure:** none (the table is the slide).
+**Headline:** When GPS is jammed or faked, a drone needs a position and an honest answer to whether it can trust it.
 
-**Notes:** The challenge asks for navigation and timing that keep working without GPS, using signals of opportunity, with numerical confidence. We picked three users and wrote their requirements first, with targets we set ourselves; the mentors' answers of 2026-11-10 are folded in (open PR #158). Each target traces to a use case in our systems folder.
+**On the slide:**
+- Users: an inspection drone over Ottawa (first), an aircraft approaching Ottawa airport, a timing receiver.
+- Our mentors' order: location first; tell when GPS is lying; timing second.
+- Our answer: keep position from cell towers already on the air, with a confidence number.
+
+**Figure:** [`analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/outage-1-clean.png`](../analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/outage-1-clean.png) (operator panel, simulation, real tower sites on the map).
+
+**Script (54 words, 25 s):**
+> GPS is easy to jam and easy to fake. When that happens, a drone over Ottawa needs a position, and an honest answer to "can I trust it?" Our Honeywell mentors were clear: location first, and above all, tell when GPS is lying. That is what we built, for drones first, with timing second.
+
+**If asked:** use cases, [`use-cases.md`](use-cases.md); mentors' priorities, call of 2026-11-10 and [`mentor-qa.md`](mentor-qa.md).
 
 ## 2. What we built
 
-**Headline:** A receive-only payload records cell towers, GPS, IMU and barometer; a laptop fuses them with protection levels, live or from a log.
+**Headline:** A receive-only payload records real cell towers, GPS, motion and pressure; a laptop turns them into a position with a confidence number.
 
-- Pi 4B, one RTL-SDR, GPS HAT, MPU6050, BMP180; authenticated link to the laptop (CurveZMQ)
-- LTE sync front end, registry lookup, EKF family with tower and dongle clocks, integrity, operator panel
-- Simulation, replay and live feed the same pipeline (ADR-0004)
+**On the slide:**
+- Payload: Raspberry Pi 4B, low-cost software radio (NESDR SMArt v5), GPS receiver with timing pulse, motion sensor, barometer. It never transmits.
+- Laptop: tower sync signals, matched to the public ISED registry, fused by a Kalman filter, shown on an operator panel.
+- One code path for simulation, recordings and live.
 
-**Figure:** the data-flow diagram in [`architecture.md`](architecture.md) (Mermaid, rendered by GitHub; a PNG export is `TBD`). Photo of the payload: `TBD`.
+**Figure:** [`analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/outage-3-time-pl-alert.png`](../analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/outage-3-time-pl-alert.png) (panel, simulation, the real Rogers sites on the map).
 
-**Notes:** Everything on this slide is built and on our main branch. The payload decodes only broadcast sync signals and never transmits. The same code runs on a simulated scenario, a recorded session or the live stream, so a result in simulation runs unchanged on a recording.
+**Script (63 words, 30 s):**
+> A Raspberry Pi payload with a low-cost software radio, a GPS receiver, a motion sensor and a barometer. It only listens; it never transmits. A laptop picks out the sync signals of real cell towers, looks each tower up in the public Canadian registry, and fuses everything into a position with a confidence number. The same code runs on simulation, recordings and live.
 
-## 3. What makes it different
+**If asked:** Q4 (where towers are), Q10 (legal); [`architecture.md`](architecture.md).
 
-**Headline:** Integrity first: every source, GPS and the towers alike, is treated as something that can fail (ADR-0021).
+## 3. Integrity first: every source can lie
 
-- Learn the towers while GPS is trusted; then keep position and time, catch GPS lying, catch the towers lying
-- Faults grouped by what fails together: one site, one network builder's timing, GPS and everything that depends on it
-- Time comes with a protection level; today it covers oscillator holdover, tower-held time is planned
+**Headline:** Every source can lie, GPS and the towers alike, so only independent evidence may vouch for GPS.
 
-**Figure:** `analysis/pr-evidence/shrikar-feat-90-nav-health-panel/live-tower-step.png`. Caption: sim session `realistic-with-base-long-outage-tower-clock-step`, seed 0, through the live path on loopback with `--insecure`, commit `ce2540d`, sim (#165). It shows HPL against the alert limit, the 95 % ellipse, the time PL, latched alerts naming the tower and per-source trust.
+**On the slide:**
 
-**Notes:** Accuracy-first multi-signal filters are published work, mostly by the Kassas group, and we build on them. What we add is treating towers and their GNSS-disciplined clocks as faults with their own hypotheses. The mentors told us the integrity level is ours to choose and to show confidence several ways; the panel shows several of them. We say "we found no published…", never "first".
-
-## 4. How we scored ourselves
-
-**Headline:** On simulated records shaped like real ones, we miss T1, T3, T5 and the slow spoof; we meet time-spoof detection and false alarms.
-
-| Target (ours, `TBC`) | Sim result, 50 seeds | Verdict |
+| Source | How it can lie | What catches it today |
 | --- | --- | --- |
-| T1: 25 m for 300 s (drone) | Best mean 4,284 m | Not met |
-| T3: 1.5 µs at 10 min | 49 of 50 seeds (`ekf`) | Not met |
-| T4: time ramp / false alarms | 50 of 50, median 3 s / 0.0 per hour | Met |
+| GPS | Jump, slow drag, fake time | Jump flagged in 1.1 s; time drag in 3.3 s median (simulation) |
+| Cell towers | Clock jump, wrong registry entry, fake tower | One fault test per site and per network (simulation) |
+| Aircraft reports (ADS-B) | Carry someone else's GPS | An early warning only (simulation) |
 
-**Figure:** https://github.com/HalfPast9/genocide-hackathon/blob/0a13006040117ce0d663470361ef2ab8eb8d51a6/analysis/results/challenge-baseline/t1_drone.png?raw=true (T1, drone leg, one dot per seed, commit `4e4c9d1`, sim, #170).
+Sky-map check (a satellite that should not be visible): `TBD (#206)`.
 
-**Notes:** We built a benchmark that feeds the filter records exactly as the real front end writes them, with error sizes from the literature, all unconfirmed. The benchmark set is proposed (ADR-0030), not yet adopted. On it, position after 300 s without GPS is kilometres off, not metres. The rest of the talk is why, and what fixes it.
+**Figure:** [`analysis/results/gnss-health-20261111-fullsuite/gnss_health.png`](../analysis/results/gnss-health-20261111-fullsuite/gnss_health.png) (real GPS signal power, 595 s, no jamming flag).
 
-## 5. Why: the accuracy budget
+**Script (67 words, 30 s):**
+> Design rule: every source can lie. GPS can jump, or be dragged slowly. A tower's clock can jump, or the registry can be wrong. Towers take their time from GPS, so they may contradict GPS time but never confirm it. On the right is real GPS signal power from our payload, the baseline our jamming check uses. The sky-map check our mentor suggested is in progress today.
 
-**Headline:** Two things set the error: the front end under-reports its noise, and one carrier hears only 1 to 3 towers.
+If #206 lands, replace the last sentence with one line from its result (same length), and put its figure here.
 
-| What is heard (sim, drone leg) | Masts per 10 s | 120 s, told 2 m | 120 s, told the true noise |
-| --- | --- | --- | --- |
-| 1 carrier | 2 | > 1,000 m | 374 m |
-| Hop 13 carriers | 27 | > 1,000 m | 68 m |
+**If asked:** Q7 (slow ramp), Q8 (false alarms), Q9 (why refuse GPS); [ADR-0024](adr/0024-gnss-dependency-tags.md).
 
-**Figure:** https://github.com/HalfPast9/genocide-hackathon/blob/c0b728aa8a314ca037e2a8b4f7c1d0a0b8a0f6c8/analysis/results/accuracy-budget/error_vs_masts.png?raw=true (error at 120 s and 300 s against masts heard, commit `fb62912`, seeds 0–19, sim, #179).
+## 4. Live demo
 
-**Notes:** The mentors asked us to explain the calculation behind the accuracy, so we built a budget term by term and checked it against Monte Carlo (#178, #179). Told the reported 2 m, the filter trusts towers it should not, and no number of towers helps. Told the honest noise, hopping across 13 carriers takes the error from 374 m to 68 m, still short of 50 m. Which budget the team presents, and the hop set, are open.
+**Headline:** In simulation, the panel says "do not trust this" seconds after GPS is lost, and catches a 300 m GPS jump at once.
 
-## 6. Spoofing: what we catch and what we don't
+**On the slide:** the live panel. Run `deploy/demo/demo.sh stage` ([`deploy/demo/RUNBOOK.md`](../deploy/demo/RUNBOOK.md), pre-flight first). Press Enter when T+ passes 142 (outage → jump). Press Ctrl-C when T+ passes 190: the time-spoof segment is left out (timing is second priority, and the 55 s does not hold it).
 
-**Headline:** Location jumps of 20 m or more are flagged in 1.1 s, but the output then follows them; a slow ramp needs 5 or more sites.
+**Figure:** the live panel. Fallback if the laptop fails: the screenshots in [`analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/`](../analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/), `outage-1` to `jump-3`, with the same script.
 
-| Attack (sim, 50 seeds) | Detected | Then |
+**Script (98 words, 55 s)**, cued by the panel's T+ clock as in the runbook:
+> *[T+0, NOMINAL]* This is simulated, over the real tower sites around Carleton. The circle is our bound on the error. *[T+62]* Now GPS is gone. *[T+65, UNSAFE]* Five seconds later the panel says: do not navigate on this position. *[T+100]* Forty seconds in, we are 321 metres off, and the bound is still larger than the error. *[Enter; T+150]* Now a spoofer moves GPS 300 metres east. Caught at once: GPS rejected. *[T+177, NOMINAL]* But watch: after 27 seconds this default filter lets the fake GPS back in. That was our open bug. The fix is merged as an option; the next slide shows it over fifty runs.
+
+The demo runs plain `ekf`, as rehearsed. Showing `ekf-guard` refusing the jump live is the owners' call and is **not rehearsed** (RUNBOOK, *`ekf-guard`*). Only if it is chosen and rehearsed, replace the last three sentences with "This time the jump is refused: GPS stays out, and the panel says unsafe rather than following it."
+
+**If asked:** one seed is not a statistic: over 50 seeds, `ekf` has hazardous epochs on 7 (#170); Q6 (how the bound is computed).
+
+## 5. What we measured on real signals
+
+**Headline:** On real towers our low-cost radio is precise to under a metre on strong cells, but a slower error of several metres sits on top that it does not report.
+
+**On the slide:**
+- 15 static captures, 2026-11-10: 1 to 4 cells per frequency; most consistent with a registered site, at least one not in the registry.
+- Range noise: 0.63 m on the strongest cells, 24.7 m on the weakest (10 records a second); a slow error of 8.3 m median the radio's own estimate leaves out.
+- No GPS fix in those captures: no real position yet. Real GPS session with timing pulse, 2026-11-11: 18 satellites, no jamming flag.
+
+**Figure:** [`analysis/results/lte-measured-noise/white_vs_snr.png`](../analysis/results/lte-measured-noise/white_vs_snr.png) (real).
+
+**Script (69 words, 30 s):**
+> Real signals. On November tenth we recorded fifteen static captures of real towers. We hear one to four cells per frequency, most matching a registered site. Range noise falls from 25 metres on weak cells to 0.6 metres on strong ones. But a slower error, typically 8 metres, sits on top, and the radio's own estimate misses it. Those captures had no GPS fix, so no real position yet.
+
+**If asked:** Q2 (is any of it real), Q5 (8-bit radio), Q15 (what the sim got wrong); [ADR-0036](adr/0036-lte-measured-error-model.md) (Proposed).
+
+## 6. The calculation behind the accuracy
+
+**Headline:** We add up every error term after GPS loss and check the sum against simulated flights: easy assumptions meet 25 m, realistic ones do not.
+
+**On the slide:**
+- Terms: range noise, multipath, tower and receiver clock drift, geometry; each with its source.
+- Six synthetic towers, easy errors: 95 % of 50 flights within 22 m for 300 s with the motion sensor (budget 15 m). Realistic errors: 713 m.
+- Handover: GPS must be good for 120 s before loss to stay within 25 m.
+
+**Figure:** [budget against Monte Carlo, open PR #178 at `1bd1791`](https://github.com/HalfPast9/genocide-hackathon/blob/1bd1791ac137de2fc92703b92eaae9c2d1f7f687/analysis/results/accuracy-budget/budget_vs_monte_carlo.png?raw=true) (simulation).
+
+**Script (66 words, 30 s):**
+> The mentors asked us to explain the calculation. So we list every error source after GPS loss: range noise, multipath, clock drift, geometry. We add them up and check the total against fifty simulated flights. With six towers and easy error sizes, the motion-sensor version keeps 95 percent of flights within 22 metres for five minutes. With realistic sizes, multipath alone pushes it past 360 metres.
+
+**If asked:** Q1 (why we miss our target), Q3 (three towers); #178 write-up `systems/accuracy-budget.md` (open PR).
+
+## 7. The honest scoreboard
+
+**Headline:** In simulation we detect spoofing on time, but miss the accuracy targets on records shaped like real ones.
+
+**On the slide:**
+
+| Target | Result (simulation) | Verdict |
 | --- | --- | --- |
-| Jump ≥ 20 m (#176) | ≥ 95 % of runs, 1.1 s | Output follows it: 49–50 of 50 seeds at +30 s (25–300 m, #180) |
-| 2 m/s ramp, 1 to 3 cells | 0 of 50 | — |
-| 2 m/s ramp, 17 eNBs, opt-in monitor | 48 of 50, median 131 s | T4's 30 s not reached |
+| Position: 25 m for 5 min; fallback 50 m for 2 min | No simulated flight meets either; agreed statistic `TBD (#187)` | Missed |
+| GPS jump ≥ 20 m flagged within 2 s | 1.1 s, ≥ 95 % of runs | Met |
+| Time drag flagged within 60 s; ≤ 1 false alarm/h | 50 of 50, 3.3 s median; 0.0 /h | Met |
+| Bound holds in 99.9 % of epochs | Worst run 0.22 % to 21 % | Missed |
 
-**Figure:** https://github.com/HalfPast9/genocide-hackathon/blob/dcb9689bd4d9ca27c570f7564c0860e7c02bf2c5/analysis/results/spoof-detection/detection.png?raw=true (detection share and time to alert, commit `220a6fa`, seeds 0–49, sim, #180).
+**Figure:** [T1 per seed, drone leg, open PR #170 at `9b2ed25`](https://github.com/mdevstudentcu/genocide-hackathon/blob/9b2ed253da1c34aee82ffd665a509a37da62d642/analysis/results/challenge-baseline/t1_drone.png?raw=true) (simulation; being regenerated, #187). Replace with #187's figure when it lands.
 
-**Notes:** The mentors said to begin with location jumps, so we did (#176, #180). The gate catches them fast, then lets the spoofed position back in; refusing a detected jump is our next fix (#184). The slow ramp is caught only where many towers are heard, and in minutes; whether to narrow our pitch to that is an open question for the team.
+**Script (65 words, 30 s):**
+> Here is the honest scoreboard, all simulation, on records shaped like our real ones. A GPS jump of 20 metres or more is flagged in 1.1 seconds, a time drag in a median of 3.3 seconds, with no false alarms on clean runs. But no simulated flight meets our 25-metre target or the mentors' 50-metre fallback. Numbers on the agreed statistic are being regenerated today.
 
-## 7. Real signals
+**If asked:** Q1, Q6, Q8; the statistic is ADR-0034's *Amendment* (95th percentile across runs at every second, worst second).
 
-**Headline:** On real towers this week we tracked LTE cells and matched them to the registry, and saw the two problems the sim had flagged: few cells per carrier, reported noise below the observed spread.
+## 8. What each fix buys
 
-| Real, 2026-11-10, static, no GPS truth | Value |
-| --- | --- |
-| Rogers 2460, PCI 244 | Tracked 48.9 s of 59.5 s at 14.8 dB; eNB 30066 |
-| Cells per carrier, two spots | 1 to 3 |
-| Reported σ against observed spread | 1.1–4.3 m against 4–13 m |
+**Headline:** Each fix helps on its own in simulation; the line that counts, all of them together, is `TBD (#218)`.
 
-**Figure:** `TBD` (no capture figure is in a PR yet; a capture-report plot from #175 on session `20261110-1305-lte-outside` would fit).
+**On the slide:**
 
-**Notes:** These are the payload's own captures, one dongle, outside, with no GPS fix, so there is no position truth and no position claim. Every cell tracked at the first spot matched a unique registered tower; three cells at the second spot are not in the table. The front end crashed on two of the first four captures; we found the cause and fixed it with a test (#181). The second-spot numbers are from our capture notes and not yet recorded in a PR.
-
-## 8. Limits and what we'd fix next
-
-**Headline:** Three fixes, in order: honest range noise, more towers by hopping, refuse detected jumps.
-
-| Fix | Evidence it matters | State |
+| Fix | What it buys (simulation) | Status |
 | --- | --- | --- |
-| Range noise sized apart from the reported σ (#147) | LTE worse than none when told 2 m (sim) | Draft #156, not ready |
-| Hop carriers (#179) | 374 to 68 m once noise is honest (sim) | Sim only; real hopping untested |
-| Refuse a detected jump (#184) | Output follows every jump (sim) | Not started |
+| Learn each tower's noise | Median of each run's 5-min p95 error 4,034 → 982 m; dangerous epochs 320 → 0 | Open PR #156, opt-in |
+| Listen on 13 frequencies (noise known) | 2-min error 374 → 68 m | Open PR #179 |
+| Refuse a flagged jump | Dangerous epochs on a held 300 m jump: 5,244 → 3 per run | Merged #191, opt-in |
+| All together, drone leg | `TBD (#218)` | In progress |
 
-**Figure:** none (the table is the slide).
+**Figure:** [`analysis/results/jump-refusal/error_after_jump.png`](../analysis/results/jump-refusal/error_after_jump.png) (simulation, 50 seeds); the #218 ladder `TBD (#218)`.
 
-**Notes:** Every result before this slide is simulation except slide 7, and every simulated error size is a placeholder until real captures replace it (ADR-0015); our overnight IMU session is the first to do so (open PR #157). Not shown: any position from real towers, any real-world integrity level, the approach target, the reference station on hardware. We'd rather show you where it breaks than a number we can't defend.
+**Script (67 words, 30 s):**
+> What does each fix buy, in simulation? Learning each tower's real noise cut the median five-minute error from 4,034 to 982 metres, with no dangerous epochs left. Once the noise is right, listening on thirteen frequencies instead of one cuts the two-minute error from 374 to 68 metres. Refusing a flagged jump cut dangerous epochs from 5,244 per run to 3. All three together is running today.
 
-## 9. Live demo
+If #218 lands, replace the last sentence with "All three together: `TBD (#218)` metres at two minutes, against 50." Read the number from #218's summary, not from memory.
 
-**Headline:** We demo from replay by default (RSK-04); the live stream is a bonus.
+**If asked:** Q9 (why refuse); the guard's cost: after a refused jump the filter dead-reckons (median 1,263 m at +120 s, flagged unsafe).
 
-- Replay (proposed): the panel on a committed scenario with GPS loss and an injected location jump; scenario `TBD` by the owners
-- Real: the 2460 capture's tracked cell and its registry match (session `20261110-1305-lte-outside`)
-- Live, if the link holds: the Pi streaming over CurveZMQ to `pnt live --dash`
+## 9. Limits
 
-**Figure:** the panel itself, live.
+**Headline:** We have not shown a position from real towers, real frequency hopping, or an error model measured on the move.
 
-**Notes:** The demo runs from a recording because Wi-Fi and hardware fail on stage; it is the same pipeline as live (ADR-0004). We streamed from the Pi over the authenticated link on 2026-11-10. If the live stream fails we say so and stay on replay.
+**On the slide:**
+- No real position yet; first real error after GPS loss `TBD (#214)`.
+- Noise measured at rest only; nothing moving; hopping untested on hardware.
+- Reference station, satellites and attacks: simulation only. We never transmit.
 
-## 10. Roadmap to a product
+**Figure:** [`analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/real-dash-today.png`](../analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/real-dash-today.png) (a real session on the panel: NO DATA, no GPS origin). Replace with #214's figure if it lands.
 
-**Headline:** Fix, measure, characterise integrity, then a better receiver and a LEO layer, then certify.
+**Script (42 words, 20 s):**
+> Our limits. No position from real towers yet: those captures had no GPS fix. A replay with GPS cut in software is in progress today. Our noise model is measured at rest, never moving. And every attack is simulated: we never transmit.
 
-| Phase ([`roadmap.md`](roadmap.md)) | Ends with |
-| --- | --- |
-| Fix what the week found | Fallback target met or missed on the drone leg, with the reason; jumps refused |
-| Measure the sensor; characterise integrity | Every sim model `measured`; fault rates per site and builder |
-| Product receiver, LEO layer, certify | Multi-carrier receiver; Iridium/Starlink (sim today); certification route `TBD` with Honeywell |
+If #214 lands, replace the second and third sentences with its one-line result, labelled "real session, GPS removed in software".
 
-**Figure:** https://github.com/HalfPast9/genocide-hackathon/blob/63d87676b1933fe92530f5177217e3d4ec842c98/analysis/pr-evidence/shrikar-feat-97-starlink-doppler/error_curves.png?raw=true (towers against + Iridium, + Starlink, + both, seeds 0–49, local merge `b498c7e`, sim, #172).
+**If asked:** Q2, Q13; [`results.md`](results.md) (e).
 
-**Notes:** Honeywell's alternative-navigation suite lists radios among its modalities, and we found no released terrestrial-communications module: this is that layer, with timing as a second output. In simulation, adding a LEO Doppler layer cuts the towers-only error from 19.8 m to 8.0 m with Iridium and 4.4 m with Starlink, in the kind case with every value unconfirmed. No performance standard exists yet for this kind of navigation, so certification is a route to agree with Honeywell, starting with drones.
+## 10. Roadmap
 
-## Likely judge questions
+**Headline:** Next: measure on the move, earn integrity from real fault statistics, then offer the radio layer Honeywell's suite lists without a product.
 
-| Question | Candid answer |
-| --- | --- |
-| You miss T1 by two orders of magnitude. Why trust the architecture? | We trust the diagnosis, not the number: the budget names the two causes, and fixing the noise model is the precondition for hopping to help (#179). In the kind case, every tower heard with white noise, the same filters meet T1 (10.2 m, sim over real tower positions, #133). Real error sizes decide where between the two we land |
-| Is any of it real? | The payload, front end, registry lookup and live link are real and ran on real signals this week. No position from real towers yet: 1 to 3 cells per carrier and no GPS truth. Every accuracy, integrity and detection number is sim |
-| Can an 8-bit RTL-SDR range on LTE? | It tracks: PCI 244 for 48.9 s at 14.8 dB, white noise 0.73 m (#177). The slow wander is 5.95 m on one cell over 49 s, and that is what the reported σ misses. Not a calibration yet |
-| Why 25 m and 99.9 %? | Ours. The mentors said "≤ 50 m for ~2 min should be OK-ish" for the drone, and the integrity level is ours to choose. We keep the stricter T1 and their figure as a recorded fallback (ADR-0034, open PR #158) |
-| What if a tower lies? | Each site and each network builder is its own fault hypothesis. But `ekf-calibrated` can stay confident on a wrong table (#132), and the solution-separation monitor stays safe by being unavailable. Both are open |
-| Your solution-separation protection level is over the alert limit before any fault. What is it worth? | With the realistic error sizes it is over 50 m in every epoch before the jump (sim, #176). It says plainly that the position can't be used, which is the safe failure. It becomes useful once the filter's tower model is honest (#147) |
-| How good is your timing? | Sim: 49 of 50 seeds within 1.5 µs after 10 min for `ekf` (#170); the time-spoof ramp is caught in a median 3 s. Our time protection level covers oscillator holdover only; tower-held time is planned |
-| Is decoding cell signals legal? | Receive-only, sync and broadcast fields only, device IDs hashed at capture ([`safety.md`](safety.md)). It needs a legal opinion, not our reading |
-| What is new here? | Not the multi-signal filter. The Kassas group pre-empts parts of our tower-clock and solution-separation ideas ([`research.md`](research.md)). Where we found nothing published: the tower-based parts of our time-integrity claims (P3, P5), which are planned, not built (ADR-0021) |
-| What would another month buy? | Phase 0 in [`roadmap.md`](roadmap.md): honest noise, hopping on real captures, refusing jumps, then a re-run of the baseline paired against today |
+**On the slide:**
+- Moving captures with independent truth; one spoofed-or-not decision from signal power and the sky.
+- Fault statistics from many hours of data; a receiver that hears many frequencies at once.
+- Certification: no standard exists yet for this kind of navigation; drones first.
+
+**Figure:** [error against masts heard, open PR #179 at `ff45493`](https://github.com/mdevstudentcu/genocide-hackathon/blob/ff45493df7962050b700aa535e7093283ed76bf7/analysis/results/hopping-study/error_vs_masts.png?raw=true) (simulation).
+
+**Script (52 words, 20 s):**
+> Next: moving captures with an independent truth, and one clear spoofed-or-not decision from signal power and the sky. Then fault statistics from many hours of data, which certification needs, and a receiver that hears many frequencies at once. Honeywell's suite lists radios without a product. This could be that layer. Thank you.
+
+**If asked:** Q13 (a month), Q14 (certification); [`roadmap.md`](roadmap.md).
