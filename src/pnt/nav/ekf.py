@@ -280,6 +280,7 @@ class EKF:
         # the same for records from a real capture only, unless told_sigma_model is set (ADR-0048)
         capture_sigma_model: str | None = "adr0036",
         arc_bias: bool = False,  # a radio cell's new arc (meta.arc) starts a new range bias (#147)
+        arc_settle_s: float = 0.0,  # s: a cell's new arc told ARC_SETTLE_FACTOR x sigma (ADR-0048)
         gnss_readmit: Callable[[], GnssReadmit] | None = None,  # GnssReadmit (#246, ADR-0048)
         heard_cell_radius_m: float | None = None,  # m: a heard cell's coverage bound (ADR-0048)
     ):
@@ -379,6 +380,8 @@ class EKF:
         self.capture_sigma_model = capture_sigma_model  # records from a real capture (ADR-0048)
         self.arc_bias = arc_bias
         self._arc_idx: dict[str, list] = {}  # emitter -> [its arc, its arc state or None, t_ns]
+        self.arc_settle_ns = int(arc_settle_s * 1e9)
+        self._arc_seen: dict[str, tuple] = {}  # emitter -> (its arc, when a later arc began)
         self.readmit = gnss_readmit() if gnss_readmit is not None else None
         self.heard_cell_radius_m = heard_cell_radius_m
         self._bounded: dict[str, int] = {}  # emitter -> last time its coverage bound was applied
@@ -531,6 +534,18 @@ class EKF:
             self.P[i, i] = self.init_emitter_sigma**2
         rec[:] = [arc, i, m.t_ns]
         return i, True
+
+    def arc_settling(self, m: Measurement) -> bool:
+        """With `arc_settle_s`, whether a radio record is in the first `arc_settle_s` of a new arc
+        of a cell already seen (`meta.arc` changed): its range may have stepped there (#214)."""
+        arc = m.meta.get("arc")
+        if not self.arc_settle_ns or arc is None or "rx_clock" not in m.meta:
+            return False
+        seen = self._arc_seen.get(m.emitter)
+        if seen is None or seen[0] != arc:
+            self._arc_seen[m.emitter] = (arc, None if seen is None else m.t_ns)
+            seen = self._arc_seen[m.emitter]
+        return seen[1] is not None and m.t_ns - seen[1] < self.arc_settle_ns
 
     def gnss_trusted(self) -> bool:
         """GNSS position accepted recently, and neither GNSS position nor time rejected since."""
@@ -1179,7 +1194,13 @@ def _pseudorange(ekf: EKF, m: Measurement):
         H[0, i : i + 2] = h_pos
     H[0, idx] = 1.0
     y = m.value[0] - (r + rx + float(np.sum(ekf.x[idx])))
-    return y, H, np.diag(np.square(m.sigma)), not (new or new_arc)
+    R = np.diag(np.square(m.sigma))
+    if ekf.arc_settling(m):
+        R = R * ARC_SETTLE_FACTOR**2
+    return y, H, R, not (new or new_arc)
+
+
+ARC_SETTLE_FACTOR = 10.0  # TBC: sigma scale in a new arc's first `arc_settle_s` (ADR-0048)
 
 
 def _doppler(ekf: EKF, m: Measurement):
