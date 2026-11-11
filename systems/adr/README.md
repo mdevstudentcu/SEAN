@@ -39,4 +39,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0034](0034-targets-after-mentor-answers.md) | Targets after the mentors' answers: our stricter T1, their figure as the fallback | T1 Accepted; T3–T5 Proposed |
 | [0036](0036-lte-measured-error-model.md) | The LTE error model is split into white and correlated parts, sized from real captures | Proposed |
 | [0038](0038-refuse-detected-gnss-jump.md) | Refuse a detected GNSS position jump until the jump is undone (opt-in: `*-guard` estimators) | Proposed |
-| [0039](0039-learned-lte-range-noise.md) | Learn a radio's LTE range noise from its innovations, starting from a prior | Proposed |
+| [0039](0039-learned-lte-range-noise.md) | Learn a radio's LTE range noise from its innovations, starting from a prior (opt-in: `*-learned-noise` estimators) | Proposed |
