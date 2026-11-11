@@ -144,3 +144,15 @@ def test_pair_leaves_out_epochs_below_the_snr_cut():
     assert truth.pair(ref, cell, r_ref, r_cell, snr_min_db=10.0) == {
         k: p[k] for k in ("n_all", "all_robust_m", "all_told_sigma_m")
     } | {"n": 0}
+
+
+def test_longest_arc_gives_the_offset_when_short_arcs_have_not_settled():
+    ref, cell, r_ref, r_cell = _two_cells(drift_mps=0.0)
+    # most epochs in short arcs that sit 3 km off; one long arc on the true 150 m offset
+    short = cell.k >= 2000
+    cell.arc[short] = 10 + (cell.k[short] - 2000) // 30
+    cell.v[short] = (cell.v[short] + 3000.0) % F
+    p = truth.pair(ref, cell, r_ref, r_cell)
+    assert abs(p["offset_m"] - 150.0) > 1000.0  # the median follows the short arcs
+    assert p["offset_longest_arc_us"] * 1e-6 * truth.C == pytest.approx(150.0, abs=1.0)
+    assert p["longest_arc_n"] == 2000
