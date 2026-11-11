@@ -26,9 +26,9 @@
 
 ## 4. How do you know where a tower is, and what if the table is wrong?
 
-> From the ISED registry: the frequency and cell ID we decode map to one registered site, or we drop the cell. From Carleton, no row matched another site; 307 ambiguous rows are dropped. In simulation, a fake tower on a real ID fooled one filter.
+> From the ISED registry: the frequency and cell ID we decode map to one registered site, or we drop the cell. From Carleton, no row matched another site; ambiguous rows are dropped. In simulation, a fake tower on a real ID fooled one filter.
 
-- **Source:** ADR-0023 (Proposed); registry audit of 4,059 rows, #133; wrong-table simulation, #133 and #132 (`ekf-calibrated` 186.5 m, 5,147 hazardous epochs; `ekf-mhss` flags the site, HPL 5.4 km).
+- **Source:** ADR-0023 (Proposed); registry audit of 4,059 rows, #133 (the count of dropped ambiguous rows is in no committed file: `TBD`); wrong-table simulation, #133 and #132 (`ekf-calibrated` 186.5 m, 5,147 hazardous epochs; `ekf-mhss` flags the site, HPL 5.4 km).
 - **Do not claim:** that a tower is "identified": say "consistent with a registered site". The dongle cannot decode the global cell ID (SIB1).
 
 ## 5. Can an 8-bit RTL-SDR range on LTE at all?

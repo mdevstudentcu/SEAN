@@ -19,7 +19,7 @@ Nine slides, 295 s, 631 words of script, 16 numbers spoken. Each slide gives the
 | 9 | Roadmap | 25 | 57 | 2 |
 | | **Total** | **295** | **631** | **16** |
 
-Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); seven-tenths of a metre (4); fifty-metre, none of fifty (5); ninety-five percent of fifty, a hundred and thirty metres, five minutes (6); forty-five percent, one percent, two minutes (7); a hundred and twenty metres, a hundred and seventy dollars (9).
+Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); seven-tenths of a metre (4); fifty-metre, none of fifty (5); ninety-five percent of fifty, a hundred and thirty-two metres, five minutes (6); forty-five percent, one percent, two minutes (7); a hundred and twenty metres, a hundred and seventy dollars (9).
 
 ---
 
@@ -112,7 +112,7 @@ Fallback: the numbers on the agreed statistic (best 10,154 m at 300 s, not met: 
 **Figure:** the stacked-fixes ladder, `analysis/results/stacked-fixes/ladder.png` in draft PR #247 (sim, `challenge-drone-outage` and `challenge-drone-hop-outage`, seeds 0–49, commit 35d061c; 95th percentile across runs at each second, worst second).
 
 **Script (65 words, 30 s):**
-> Why? Our radio reports only its fast noise, so the filter over-trusts the towers; in simulation that is worse than no towers at all. The fixes: learn each tower's real noise, listen on more frequencies, and refuse a flagged jump. Together, ninety-five percent of fifty simulated flights stay within a hundred and thirty metres for five minutes, down from kilometres. Still short of our target.
+> Why? Our radio reports only its fast noise, so the filter over-trusts the towers; in simulation that is worse than no towers at all. The fixes: learn each tower's real noise, listen on more frequencies, and refuse a flagged jump. Together, ninety-five percent of fifty simulated flights stay within a hundred and thirty-two metres for five minutes, down from kilometres. Still short of our target.
 
 Fallback: #247 is a draft on unmerged branches; if a judge asks, say so. Told the true noise the same setup reaches 111 m, so the rest of the gap is the assumed error sizes.
 
