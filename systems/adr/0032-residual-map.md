@@ -1,6 +1,6 @@
 # ADR-0032: Learn a per-place residual map of each tower while GPS is trusted
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-11-11, owners) as opt-in only: never a default estimator until real data shows a repeatable per-place error above the noise (see *Guardrail*)
 - **Date:** 2026-11-10
 - **Deciders:** team
 - **Traces to:** REQ-01, REQ-02, ADR-0015, ADR-0016, ADR-0021 (P11), ADR-0022, ADR-0024
@@ -24,7 +24,17 @@ While GPS is trusted our position is known to a few metres, so a pseudorange inn
 
 Option B, opt-in as `ekf-map` (`residual_map=` on the EKF): per emitter and 25 m cell, the running mean of accepted innovations while `gnss_trusted()`, used once the cell has 2 of them. Each cell's mean is shrunk towards zero by the emitter's own spread of place errors (empirical Bayes: τ² = variance of its cell means less their noise variance v, needing 5 cells; estimate k·mean with variance k·v, k = τ²/(τ² + v)), so an emitter with no place error gets no correction and no added noise. Cell size, counts and the shrinkage form are `TBC`.
 
+The map stays opt-in. Issue #95's guardrail says ray tracing or ML may only lower a tower's weight and never enter the protection-level maths; subtracting a learned per-cell mean goes beyond lowering a weight. The owners accept that only for `ekf-map`, never for a default estimator, until real data shows a repeatable per-place error above the noise (*Guardrail* below).
+
 Shrinkage is part of the decision because without it the map made `gps-outage` (no place error) worse: fault-window p95 19.9 m → 22.2 m over 50 paired runs (`pnt eval gps-outage --runs 50`, sim, seeds 0-49; `ekf` at d17e2b5, `ekf-map` at 7d6dfa7, the map before shrinkage). With shrinkage (d17e2b5) it is 19.9 m, and `residual-map` goes from 38.7 m (`ekf`) to 36.7 m, against 34.7 m without shrinkage.
+
+## Guardrail
+
+- **Opt-in only.** The mean correction runs only when `ekf-map` or `residual_map=` is chosen. Default estimators never use it.
+- **Before any default use**, both must hold, and changing the default needs a new ADR:
+  1. A real repeated-route session shows a repeatable per-place error above the noise (the *Sim validity* row for `place_error` stops being a placeholder).
+  2. The protection level accounts for the correction's common-mode error.
+- **Open issue, not fixed: common-mode error of a cell's correction.** The added variance (k·v) is applied to each reading as if independent, but a cell's estimation error is shared by every reading that uses that cell. Many readings in one cell, over epochs or repeat passes, therefore over-trust that cell's correction, and the protection level can come out too small by an amount not yet measured. Found in review of PR #168.
 
 ## Consequences
 
