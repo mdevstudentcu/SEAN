@@ -942,7 +942,15 @@ class _Track:
                 n_drop = n_host + int((jump - n_host + L) % (2 * L) - L)
                 ambiguous = False
         host_stalled = n_host is not None and n_host >= L  # well beyond the stamps' jitter
-        path_moved = abs(jump) <= cfg.max_path_jump_us * 1e-6 * fs and not host_stalled
+        # Stamps that cover the stretch and show no stall rule a drop out whatever the jump: the
+        # dongle loses whole USB transfers (131,072 samples with rtl_sdr's default -b, 14 half-
+        # frames), which the stamps see. Without this, one cell re-found 12 samples off on
+        # 20261111-0233 (beyond `max_path_jump_us`) was taken for a 19,188-sample drop, which
+        # moved every other cell by 12 samples (1.9 km) for the rest of the hour (lte-reacq).
+        stamps_clear = n_host is not None and not host_stalled
+        path_moved = stamps_clear or (
+            abs(jump) <= cfg.max_path_jump_us * 1e-6 * fs and not host_stalled
+        )
         if path_moved or n_drop <= 0 or good is None:
             # Not a drop: the cell came back somewhere else (another path, or a reused PCI).
             return ("found", k_found, theta_at + resid, True)

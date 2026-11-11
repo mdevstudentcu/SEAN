@@ -300,6 +300,20 @@ def test_path_found_a_little_early_is_not_a_gap(tmp_path, stamped):
     assert {m.meta["arc"] for m in pr} == {0, 1}
 
 
+def test_path_found_far_off_is_not_a_gap_when_the_stamps_show_none(tmp_path):
+    # 20261111-0233: a cell re-found 12 samples early was taken for a 19,188-sample drop
+    # although the host stamps showed no stall; the gap moved every other cell by 12 samples
+    # (1.9 km) for the rest of the capture. The dongle drops whole USB transfers.
+    early = replace(TOWER, delay_s=TOWER.delay_s - 30 / FS)  # 16 µs: past `max_path_jump_us`
+    f = np.arange(0, int(1.3 * FS), 16384)
+    host = T0 + np.round(f * 1e9 / FS + 2e5).astype(int)  # a steady 0.2 ms latency, no stall
+    extra = {"buffers": [[int(a), int(b)] for a, b in zip(f, host, strict=True)]}
+    r = process_file(splice(tmp_path, "far", [TOWER], [early], 0.6, 1.3, 10.0, **extra))
+    assert r.gaps == []
+    pr = [m for m in r.measurements if m.kind == "pseudorange"]
+    assert not any(m.meta["flags"] for m in pr)
+
+
 @pytest.mark.parametrize("stamped", [False, True])
 def test_gap_reaches_every_tracked_cell(tmp_path, stamped):
     at = int(0.6 * FS) + 777
