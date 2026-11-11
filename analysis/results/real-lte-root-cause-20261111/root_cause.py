@@ -98,6 +98,8 @@ def _pairs(r: dict, pr: bool):
         by_cell[c].add(e)
     for a, b in itertools.combinations(sorted(by_cell), 2):
         ep = sorted(by_cell[a] & by_cell[b])
+        if not ep:
+            continue
         ia = np.array([at[(a, e)] for e in ep], dtype=int)
         ib = np.array([at[(b, e)] for e in ep], dtype=int)
         yield a, b, np.array(ep), ia, ib
@@ -671,25 +673,23 @@ def main(argv=None) -> None:
         fix_t, _ = CUT.gps_fixes(meas)
         cuts = cuts_for((fix_t[-1] - t0) / 1e9)
         good = good_cells(r)
-        agg, rows[name] = grid(p, cuts, good, a.jobs)
         mid = cuts[len(cuts) // 2]
-        sessions.append(
-            {
-                "session": name,
-                "commit": commit,
-                "frontend_commit": CUT.session.read_meta(p).get("commit"),
-                "pairs": pair_table(r),
-                "coverage": coverage(r),
-                "good_cells": good,
-                "arc_dd_steps": arc_dd_steps(r),
-                "doppler": doppler_alias(r),
-                "exclusion": exclusion(p),
-                "after_cut_s": mid,
-                "after_cut": after_cut(p, mid),
-                "cuts_s": cuts,
-                "grid": agg,
-            }
-        )
+        s = {
+            "session": name,
+            "commit": commit,
+            "frontend_commit": CUT.session.read_meta(p).get("commit"),
+            "pairs": pair_table(r),
+            "coverage": coverage(r),
+            "good_cells": good,
+            "arc_dd_steps": arc_dd_steps(r),
+            "doppler": doppler_alias(r),
+            "exclusion": exclusion(p),
+            "after_cut_s": mid,
+            "after_cut": after_cut(p, mid),
+            "cuts_s": cuts,
+        }
+        s["grid"], rows[name] = grid(p, cuts, good, a.jobs)
+        sessions.append(s)
     summary = {
         "kind": "replay of real static sessions, GPS cut in software",
         "integration_branch": "tmp/e2e-combined (local only, never pushed)",
