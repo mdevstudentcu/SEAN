@@ -69,12 +69,12 @@ If Enter comes too early in segment 2, carry on and show `jump-3-followed.png` a
 
 ## 4. Real signals
 
-**Headline:** On real towers our low-cost radio is precise on strong cells, but a slower error it does not report sits on top, and we have no real position yet.
+**Headline:** On real towers our low-cost radio is precise on strong cells, but a slower error it does not report sits on top, and on real static sessions the towers have not yet made position better than none.
 
 **On the slide:**
 - Range noise on the strongest cells: 0.63 m (real, 10 records a second).
 - A slower error the radio's own estimate leaves out.
-- No GPS fix in those captures: no real position yet.
+- No GPS fix in those captures. On later static sessions with GPS removed in software, the towers made position worse than none (slide 8).
 
 **Figure:** [`analysis/results/lte-measured-noise/white_vs_snr.png`](../analysis/results/lte-measured-noise/white_vs_snr.png) (real).
 
@@ -138,16 +138,16 @@ Fallback: the sky-map check is merged (#239 via #250, #206; ADR-0041 Accepted). 
 
 ## 8. Limits
 
-**Headline:** In the demo the towers carried almost nothing; on our one real session with GPS removed in software the towers made position worse; the noise model is measured standing still; attacks are simulated.
+**Headline:** In the demo the towers carried almost nothing; on our real static sessions with GPS removed in software the towers made position worse; the noise model is measured standing still; attacks are simulated.
 
 **On the slide:** the four limits as four lines.
 
 **Figure:** [`analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/real-dash-today.png`](../analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/real-dash-today.png) (a real session on the panel: no data, no GPS origin).
 
 **Script (50 words, 25 s):**
-> Plainly, our limits. In the demo, the filter rejected nearly every tower reading. On our one real session with GPS removed in software, the towers made position worse, by kilometres: our front end restarts its tracking. Our noise model is measured standing still. Every attack is simulated; we never transmit.
+> Plainly, our limits. In the demo, the filter rejected nearly every tower reading. On two real sessions with GPS removed in software, the towers made position worse, by kilometres: the filter trusts readings noisier than reported. Our noise model is measured standing still. Every attack is simulated; we never transmit.
 
-Source: #233 (#214), merged via #250 and not re-run by us ([`real-gps-cut-20261111/summary.md`](../analysis/results/real-gps-cut-20261111/summary.md)): real static session, GPS removed in software, 6.6 to 12.4 km at 300 s with LTE against 0.6 m without; cause, the front end's arc steps. If asked for the number, give it with that caveat.
+Source: #245's rerun of #233's GPS cut, not re-run by us ([`lte-reacq-steps/NOTES.md`](../analysis/results/lte-reacq-steps/NOTES.md) *GPS cut*; `results.md` (e)): two real static sessions, GPS removed in software, `ekf` median at 300 s 21,553 m (`20261111-0151`) and 10,718 m (`20261111-0233`) with LTE against 0.6 m and 1.3 m without. #245 fixed the front end's arc steps; the filter still trusts records told 1 to 5 m that are off by tens of metres. Both predate ADR-0047's default (not rerun). If asked for the number, give it with that caveat.
 
 **If asked:** Q2, Q16.
 

@@ -43,7 +43,7 @@ From [`hardware/bom.md`](../hardware/bom.md) (CAD before tax, Amazon.ca, 2026-11
 | Area | State |
 | --- | --- |
 | Built | Payload, LTE front end, tower lookup, estimators, integrity monitor, operator panel, authenticated live link ([`architecture.md`](architecture.md)) |
-| Real signals | LTE range precision measured at rest; a GPS session with timing pulse; no real position yet |
+| Real signals | LTE range precision measured at rest; GPS sessions with timing pulse; on real static sessions with GPS removed in software, the towers made position worse than none |
 | What works (simulation) | Jumps and GPS clock drift detected within seconds; no false alarms on clean runs; a refused jump stays red and recovers when the spoof ends (opt-in guard) |
 | What does not (simulation) | Accuracy after GPS loss misses our 25 m target and the mentors' 50 m fallback; the slow GPS drag is not caught by default; the bound is not honest on the worst runs |
 | Towers in practice | With the noise the radio reports, the filter rejects nearly every tower reading; after GPS loss it flies on the barometer and dead reckoning |
@@ -82,7 +82,7 @@ Durations are proposals, `TBC`; none is committed.
 ## What we will not claim
 
 - A certified, measured or validated accuracy or integrity level.
-- Position from real towers, until a real session shows one.
+- A useful position from real towers: on our real static sessions LTE made position worse than none.
 - Real-world numbers from simulation runs.
 - "First": the wording is "we found no published…" ([ADR-0021](adr/0021-what-we-build-and-pitch.md)).
 
