@@ -87,7 +87,29 @@ Accepted (2026-11-11, owners): option D. Every EKF built on `nav/ekf.py` default
 - **Done (#228, PR #244):**
   - `receiver_clock: true` in the `easy` set, `meaconing` and `time-spoof`. The sim's draws are unchanged; the towers now carry the clock.
   - The `EKF` default is `"observed"`. That covers `ekf`, `ekf-imu`, `ekf-mhss`, `ekf-mhss-beacon` and the `-guard` filters. `ekf-calibrated` and `ekf-base` already had the term on, and `baseline` is a separate model.
-  - Before and after against `main`, 50 paired seeds: `analysis/pr-evidence/228/before-after.md`.
+  - Before and after against `main` (`f15ba13`), 50 seeds: `analysis/pr-evidence/228/before-after.md`.
+- **The bar did not fully hold once implemented (2026-11-11, 50 seeds, sim).**
+  - **Position, as expected:**
+    - T1 p95 mean: `realistic-long-outage` 2,350.8 → 331.7 m (worst-run HPL bound 0.027 → 0.631); `worst-long-outage` 10,404.1 → 2,067.9 m; `challenge-approach-outage` 2,344.0 → 1,448.7 m.
+    - `realistic-outage` p95 2,668.8 → 196.4 m.
+    - Unchanged, as the measurement predicted: `gps-outage`, `nominal`, `spoof-ramp` and the drone and timing legs.
+  - **Position costs that remain**, on the sims that now carry the clock (same draws, so these rows are paired):
+    - `easy-long-outage` T1: +2.2 ± 0.7 m.
+    - `meaconing` misleading epochs: +7.4 ± 3.1 per run.
+    - `meaconing` with `ekf-guard`: p95 +2.0 ± 0.7 m.
+    - `meaconing` with `ekf-spoof`: misleading +5.8 ± 2.6 per run, hazardous 0 → 0.3 per run.
+  - **New cost to time integrity (REQ-03), not in the cost study, which scored position only.** Once GNSS time is gone, the towers steer our clock, and their white-noise model makes the clock overconfident. Time-misleading epochs per run:
+
+    | Scenario | Before | After | Time p95 before → after |
+    | --- | --- | --- | --- |
+    | `realistic-long-outage` | 0 | 268 | 0.17 → 0.44 µs |
+    | `worst-long-outage` | 0.02 | 316 | 0.31 → 1.65 µs |
+    | `realistic-outage` | 0 | 81 | |
+    | `meaconing` | 0 | 293 | |
+    | `challenge-approach-outage` | 0 | 22 | 0.41 → 12.2 µs |
+
+    `time-spoof` improves: 20.9 → 5.2 time-misleading epochs per run. `ekf-calibrated` models the towers' multipath and had 0.0 time-misleading epochs per run on `realistic-long-outage` (`analysis/results/calibrated-measured/`), so the tower model (#77) is the likely fix. It has not been tried here.
+  - The owners decide whether the time-integrity cost is accepted or needs a fix before the default is used for figures.
   - `tests/test_ekf_rx_clock_modes.py` fails if the default reverts.
 - **The numbers above came from commits before the rebase onto `e9a9053`** (`37d66b7` and `8b7cbda`, on `c21e047`). The `analysis/rx_clock_in_towers.py` variants keep the old default explicitly, so they still mean what they did.
 - **A does not make the HPL honest.** With the term on, `ekf`'s T1 HPL bound on the worst `realistic-long-outage` run is 0.631. The tower model is still white noise, while the sim adds 50 m of multipath correlated over 30 s and 100 m told-position errors (#77). In the #228 bisection those two were the rest of the gap: with the sim's multipath and told-position error removed, the bound was 1.000 on 5 seeds. `ekf-calibrated` models both and still reaches only 0.887 on its worst run.
