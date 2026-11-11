@@ -36,7 +36,7 @@ What they show:
 - **`ekf-imu` can diverge after a small detected jump.** With the realistic set, two seeds (6 and 14) detected a 15 or 20 m jump and then drifted to 41 to 83 m, with an alert raised and no hazardous epoch.
 - **`ekf-mhss` has no hazardous epoch only because it is not available.** Its HPL is over the 50 m alert limit in every pre-jump epoch with the realistic set, and in 71 % of them on `uc01`.
 - **A small jump that then drifts is followed like a ramp.** A 5 or 10 m jump, then 0.5 or 2 m/s the same way (2 m/s is T4's ramp), is flagged in at most 19 % of runs by any estimator, the guard included. The output follows the spoofed track to 113 to 433 m, with hazardous epochs in 15 or 16 of 16 runs for every estimator except `ekf-mhss` (unavailable). No estimator in the study runs the spoof detector (#102), which is opt-in.
-- **T4 states no jump target yet** (ADR-0034: from the jump study, `TBD`). A proposed one (`TBC`) is in the jump study's PR (#176); this file does not set it.
+- **T4's jump target is set** (ADR-0034, *Amendment 2026-11-11*, from the jump study #176): a jump of 20 m (`TBC`) or more flagged within 2 s in ≥ 95 % of runs, GNSS excluded while it lasts, no hazardously misleading epoch. The default estimators meet the detection part; the opt-in `-guard` estimators meet all of it (ADR-0038).
 
 ## Ranked attacks per use case
 
@@ -49,7 +49,7 @@ What they show:
 | 3 | Ground reference station fault (moved, clock step, link lost) | M | M | A new single point of failure that every differenced reading inherits (ADR-0020). Likelihood M while it is a hobby-grade box on a mast |
 | 4 | Slow position spoof that drags the drone off course (carry-off) | L | H | Silent; aimed at drones in UC-01's own threat list. Needs a deliberate, illegal transmitter. A filter-aware drift beats per-epoch gates [Shen 2020] |
 | 5 | Forged records on a ground link | L | H | Skips every radio check (ADR-0026). Needs access to the local network |
-| 6 | Crude position takeover (jump) | L | H | Same transmitter as the slow position spoof. The GNSS gate flags a jump of 20 m or more within 1.1 s, then, without the opt-in guard, accepts a held jump of 50 m to 1 km again once the coast has grown past it: hazardously misleading (location jumps above). Impact was M before the studies; the new rating is TBC |
+| 6 | Crude position takeover (jump) | L | H | Same transmitter as the slow position spoof. The GNSS gate flags a jump of 20 m or more within 1.1 s, then, without the opt-in guard, accepts a held jump of 50 m to 1 km again once the coast has grown past it: hazardously misleading (location jumps above). Impact was M before the studies; H confirmed by the owners (2026-11-11) |
 | 7 | Rogue or overshadowed cell posing as a tower | L | M | Demonstrated on phones only; registry and clock checks should catch most (ADR-0023) |
 
 ### UC-02: crewed approach into YOW
