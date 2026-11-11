@@ -112,6 +112,12 @@ CLEAR_HOLD_S = 2.0
 # to the major-axis sigma it is a conservative ANP for an elliptical error.
 K_ANP95 = 2.4477
 C_M_PER_US = 299.792458  # light travel in one microsecond (m): a clock jump in time units
+# Confidence colour of the track and the current position (#207, the mentors' heat map): green
+# while HPL is under this fraction of the alert limit, amber from there up to the limit, red at
+# or over the limit, with no protection level, or with an alarm-severity flag (spoofing, the
+# integrity monitor's alarm). TBC: no requirement sets it; 0.8 matches the panel's HPL gauge.
+CONF_AMBER_FRACTION = 0.8
+CONFIDENT, NEAR_LIMIT, DO_NOT_TRUST = "green", "amber", "red"
 
 
 def hypothesis_words(h: str) -> str:
@@ -207,6 +213,18 @@ def panel_status(est: Estimate, alert_limit_m: float) -> str:
     return est.status
 
 
+def confidence(hpl_m: float | None, flags, alert_limit_m: float) -> str:
+    """How far the position can be trusted, as the map colours it: CONFIDENT, NEAR_LIMIT or
+    DO_NOT_TRUST (see CONF_AMBER_FRACTION). Position only: the time PL is judged apart."""
+    if any(describe(f)[0] == ALARM for f in flags):
+        return DO_NOT_TRUST
+    if hpl_m is None or not np.isfinite(hpl_m) or hpl_m >= alert_limit_m:
+        return DO_NOT_TRUST
+    if hpl_m >= CONF_AMBER_FRACTION * alert_limit_m:
+        return NEAR_LIMIT
+    return CONFIDENT
+
+
 @dataclass
 class Alert:
     id: int
@@ -286,6 +304,7 @@ class HealthMonitor:
         return {
             "t_s": t,
             "status": status,
+            "confidence": confidence(hpl, est.flags, self.al),
             "headline": headline[1],
             "causes": [
                 {"flag": f, "severity": s, "text": txt}

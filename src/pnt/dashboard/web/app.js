@@ -9,6 +9,9 @@ const C = {
   critical: css("--critical"),
 };
 const STATUS_COLOR = { nominal: C.good, degraded: C.warning, unsafe: C.critical };
+// Confidence of the position (health.confidence, #207): the track and the current position
+const CONF_COLOR = { green: C.good, amber: C.warning, red: C.critical };
+const CONF_WORD = { green: "confident", amber: "near the limit", red: "do not trust" };
 const K95 = 2.4477; // 95 % radius of a 2-D Gaussian, in sigmas
 const $ = (id) => document.getElementById(id);
 
@@ -16,8 +19,8 @@ const S = {
   info: null, emitters: new Map(), hist: [], frame: null, heard: new Set(),
   view: "follow", manual: null, done: false, failed: false,
 };
-// history point: [t, e, n, truth_e, truth_n, hpl, tpl_s, status, err_h, clock_err_s]
-const P = { t: 0, e: 1, n: 2, te: 3, tn: 4, hpl: 5, tpl: 6, st: 7, err: 8, cerr: 9 };
+// history point: [t, e, n, truth_e, truth_n, hpl, tpl_s, status, err_h, clock_err_s, confidence]
+const P = { t: 0, e: 1, n: 2, te: 3, tn: 4, hpl: 5, tpl: 6, st: 7, err: 8, cerr: 9, conf: 10 };
 
 // ---- formatting --------------------------------------------------------------------------
 const fm = (v, d = 1) => (v == null ? "—" : `${v.toFixed(d)} m`);
@@ -120,7 +123,21 @@ function drawMap() {
     ctx.stroke(); ctx.setLineDash([]);
   };
   track(P.te, P.tn, C.truth, [6, 5]);
-  track(P.e, P.n, C.est, []);
+  // estimate: each segment in the confidence of the epoch it ends at, one path per colour run
+  ctx.lineWidth = 3; ctx.lineCap = "round";
+  let prev = null, run = null;
+  for (const p of S.hist) {
+    const col = CONF_COLOR[p[P.conf]] || C.est;
+    if (prev && col !== run) { ctx.stroke(); run = null; }
+    if (!run) {
+      const from = prev || p;
+      ctx.strokeStyle = run = col; ctx.beginPath(); ctx.moveTo(X(from[P.e]), Y(from[P.n]));
+    }
+    ctx.lineTo(X(p[P.e]), Y(p[P.n]));
+    prev = p;
+  }
+  if (run) ctx.stroke();
+  ctx.lineCap = "butt";
 
   const f = S.frame;
   if (f) {
@@ -142,12 +159,13 @@ function drawMap() {
       ctx.strokeStyle = C.truth; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(X(f.truth[0]), Y(f.truth[1]), 5, 0, 2 * Math.PI); ctx.stroke();
     }
-    ctx.fillStyle = C.est; ctx.strokeStyle = C.surface; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(x, y, 6, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = CONF_COLOR[f.confidence] || C.est; ctx.strokeStyle = C.surface; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 7, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.ink2; ctx.font = "12px system-ui";
+    const word = CONF_WORD[f.confidence] || "";
     if (f.hpl_m != null) {
-      ctx.fillStyle = C.ink2; ctx.font = "12px system-ui";
-      ctx.fillText(`HPL ${f.hpl_m.toFixed(1)} m`, x + f.hpl_m * v.scale * 0.72 + 4, y - f.hpl_m * v.scale * 0.72 - 4);
-    }
+      ctx.fillText(`HPL ${f.hpl_m.toFixed(1)} m · ${word}`, x + f.hpl_m * v.scale * 0.72 + 4, y - f.hpl_m * v.scale * 0.72 - 4);
+    } else if (word) ctx.fillText(`no HPL · ${word}`, x + 10, y - 10);
   }
   // scale bar + north
   const bar = niceStep(w / v.scale, 5);
@@ -367,7 +385,7 @@ function redraw() {
 function point(f) {
   const tr = f.truth || [null, null];
   const cerr = f.truth_clock_s != null && f.clock_sigma_s != null ? Math.abs(f.clock_bias_s - f.truth_clock_s) : null;
-  return [f.t_s, f.pos[0], f.pos[1], tr[0], tr[1], f.hpl_m, f.health.tpl_s, f.status, f.err_h_m, cerr];
+  return [f.t_s, f.pos[0], f.pos[1], tr[0], tr[1], f.hpl_m, f.health.tpl_s, f.status, f.err_h_m, cerr, f.confidence];
 }
 function addEmitters(list) { for (const em of list) S.emitters.set(em.id, em); }
 
@@ -384,6 +402,10 @@ es.addEventListener("info", (ev) => {
   $("lg-terr").style.display = i.has_truth ? "" : "none";
   $("lg-ref").style.display = i.reference_enu ? "" : "none";
   $("lg-pred").style.display = i.preflight ? "" : "none";
+  const al = i.alert_limit_m, amb = i.confidence_amber_m;
+  $("lg-conf-green").textContent = `HPL < ${amb.toFixed(0)} m`;
+  $("lg-conf-amber").textContent = `${amb.toFixed(0)} to ${al.toFixed(0)} m`;
+  $("lg-conf-red").textContent = `≥ ${al.toFixed(0)} m, no HPL, or spoof / integrity alarm`;
   const notes = [...(i.notes || [])];
   if (i.preflight && i.preflight.dropped_faults.length)
     notes.push(`Pre-flight prediction leaves out unplanned faults: ${i.preflight.dropped_faults.join(", ")}`);
