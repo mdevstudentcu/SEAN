@@ -110,6 +110,8 @@
    "ref_snr_db": 7.220000000000001,
    "offset_m": -354.7154268680606,
    "offset_us": -1.183203304160709,
+   "offset_longest_arc_us": -0.2608397401289881,
+   "longest_arc_n": 11,
    "arcs": 8,
    "arcs_jumped": 8,
    "epochs_in_jumped_arcs": 26,
@@ -137,6 +139,8 @@
    "ref_snr_db": 7.2,
    "offset_m": -11.529198423260823,
    "offset_us": -0.03845726640414958,
+   "offset_longest_arc_us": -0.06968694462438355,
+   "longest_arc_n": 22,
    "arcs": 8,
    "arcs_jumped": 4,
    "epochs_in_jumped_arcs": 20,
@@ -168,6 +172,8 @@
    "ref_snr_db": 7.885,
    "offset_m": -116.08619791036472,
    "offset_us": -0.38722187570964417,
+   "offset_longest_arc_us": -0.38399731851271146,
+   "longest_arc_n": 27,
    "arcs": 4,
    "arcs_jumped": 3,
    "epochs_in_jumped_arcs": 7,
@@ -187,6 +193,6 @@
   }
  ],
  "session": "20261111-0040-static-fullsuite-lte",
- "commit": "b437a3b",
+ "commit": "7a87adc",
  "gnss_fixes": 600
 }
