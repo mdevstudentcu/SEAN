@@ -35,6 +35,11 @@ plot path *args="":
 dash path *args="":
     {{py}} pnt dash {{path}} {{args}}
 
+# The judging demo, one segment at a time: check | outage | jump | time | stage | real | live
+# (deploy/demo/RUNBOOK.md). The script runs without just: deploy/demo/demo.sh <segment>
+demo segment="stage" *args="":
+    bash deploy/demo/demo.sh {{segment}} {{args}}
+
 # Predict protection levels along a scenario's route; --compare 50 checks it against real runs
 preflight scenario *args="":
     {{py}} pnt preflight {{scenario}} {{args}}
