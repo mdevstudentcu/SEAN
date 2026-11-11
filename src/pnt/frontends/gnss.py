@@ -20,9 +20,10 @@ Two inputs, both in gpsd's JSON protocol (https://gpsd.io/gpsd_json.html):
 - `n_sats`: satellites used in the fix. `hdop`: gpsd's, or `NO_FIX_HDOP` when it gives none.
 
 gpsd's SKY `satellites` list is optional (https://gpsd.io/gpsd_json.html). A SKY report without
-one says nothing about C/N0, so it gives no record: in a log, the list is absent; in a recorded
-event, `n_seen` is 0 while `hdop` is given (`has_skyview`). An empty list with no DOPs is a sky
-with nothing in it, and gives indicator 1. If gpsd sends no SKY at all, there is no record.
+one says nothing about C/N0, so it gives no record; an empty list is a sky with nothing in it,
+and gives indicator 1, with or without DOPs. Both inputs go through `sky_event` and decide this
+in `has_skyview`, from the event's `listed` flag, so they agree. If gpsd sends no SKY at all,
+there is no record.
 
 The MediaTek receiver on the GPS HAT reports C/N0 per satellite in NMEA GSV, which gpsd passes
 on as `ss` (dB-Hz); it has no jamming flag of its own (ADR-0014). Only broadcast navigation
@@ -68,9 +69,14 @@ def jam_indicator(
 
 
 def has_skyview(sky: dict) -> bool:
-    """False for a recorded `gnss_sky` event made from a SKY report with DOPs but no satellite
-    list: it carries no C/N0 to judge."""
-    return bool(sky.get("n_seen")) or sky.get("hdop") is None
+    """Whether a `gnss_sky` event came from a SKY report with a satellite list (maybe empty).
+
+    Without one it carries no C/N0 to judge, and gives no record. An event recorded before
+    `listed` existed counts as listed only if it names a satellite: there an empty list and a
+    missing one look the same, and a missing one must not read as a sky with nothing in it."""
+    if "listed" in sky:
+        return bool(sky["listed"])
+    return bool(sky.get("n_seen"))
 
 
 def health(t_ns: int, sky: dict, receiver: str = "payload", **params) -> Measurement:
@@ -119,10 +125,11 @@ def from_gpsd_json(
             last_tpv = msg["time"]
             last_tpv_t = gpsd.parse_time(msg["time"])
             out += gpsd.tpv_measurements(msg, origin_llh)
-        elif cls == "SKY" and "satellites" in msg:
+        elif cls == "SKY":
             t = gpsd.parse_time(msg["time"]) if msg.get("time") else last_tpv_t
-            if t is not None:
-                out.append(health(t, gpsd.sky_event(msg), **params))
+            sky = gpsd.sky_event(msg)
+            if t is not None and has_skyview(sky):
+                out.append(health(t, sky, **params))
     if receiver != "payload":
         out = [msgspec.structs.replace(m, receiver=receiver) for m in out]
     return out
