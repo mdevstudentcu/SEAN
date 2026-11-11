@@ -33,6 +33,8 @@ Attacks (`type` in a scenario's `faults:` list):
 - hostile_moves: a jammer moves from where it was located, at velocity_enu_mps (a honeypot
   that tries to drag a filter using it as a beacon). Its `rssi` records follow the true geometry
   while the told position stays put
+- capture_faults: what a busy payload board does to the data, not an attack: radio sample gaps,
+  radio timestamp jitter and lost stream messages (issue #53)
 
 Any fault may name a `receiver` (`payload` or `reference`) to touch only that receiver's records;
 without one it touches both.
@@ -335,6 +337,55 @@ def spoof_zone(meas, f, ctx, start, end):
     c = ", ".join(f"{x:.4f}" for x in f["center_llh"][:2])
     moved = f"moved {np.linalg.norm(off):.0f} m within {f['radius_m']} m"
     return out, [(start, f"spoof zone at ({c}): {moved}")]
+
+
+# The sources fed by the payload's SDRs (ICD-measurement `source` registry): the ones a radio
+# sample gap or a radio timestamp error reaches
+SDR_SOURCES = ("lte", "nr", "adsb", "vor", "fm", "leo")
+
+
+@attack("capture_faults")
+def capture_faults(meas, f, ctx, start, end):
+    """What a busy payload board does to the data (issue #53), from start_s (default 0) to end_s:
+
+    - gaps_per_min, gap_s: the radios drop samples. Gaps start at seeded random times, Poisson
+      at gaps_per_min, and each removes gap_s of every radio source's records.
+    - timestamp_jitter_ms: each radio record's timestamp moves by a normal draw of this sigma.
+    - stream_loss: this fraction of every source's records is lost, as on a Wi-Fi stream.
+    - radios: the sources gaps and jitter reach. Default SDR_SOURCES.
+    - board: a label for the event log.
+
+    Without `receiver`, only the payload's records change: the reference station is another
+    board.
+    """
+    f = {"receiver": "payload", **f}
+    radios = set(f.get("radios", SDR_SOURCES))
+    hit = [m for m in meas if m.t_ns >= start and (end is None or m.t_ns < end)]
+    last = max((m.t_ns for m in hit), default=start) if end is None else end
+    span_s = (last - start) / 1e9
+    count = int(ctx.rng.poisson(f["gaps_per_min"] * span_s / 60.0))
+    gap_starts = np.sort(start + (ctx.rng.uniform(0.0, span_s, count) * 1e9).astype(np.int64))
+    gap_ns = s_to_ns(f["gap_s"])
+    jitter_s = f["timestamp_jitter_ms"] * 1e-3
+    loss = f["stream_loss"]
+
+    def in_gap(t_ns: int) -> bool:
+        i = int(np.searchsorted(gap_starts, t_ns, side="right"))
+        return i > 0 and t_ns < int(gap_starts[i - 1]) + gap_ns
+
+    out = []
+    for m in meas:
+        if _active(m, {**f, "source": m.source}, start, end):
+            radio = m.source in radios
+            if radio and in_gap(m.t_ns):
+                continue
+            if loss and ctx.rng.random() < loss:
+                continue
+            if radio and jitter_s:
+                m = _replace(m, t_ns=m.t_ns + int(ctx.rng.normal(0.0, jitter_s) * 1e9))
+        out.append(m)
+    board = f.get("board", "board")
+    return out, [(start, f"capture faults ({board}): {count} radio gaps{_window(f, end)}")]
 
 
 # Holdover classes of a tower's timing reference, as the frequency offset it has when it loses

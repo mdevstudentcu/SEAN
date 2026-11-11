@@ -27,3 +27,7 @@ tower-clock-step:   # one tower's clock jumps
   - {type: tower_clock_step, source: lte, emitter: "lte:sim1", start_s: 150, offset_m: 300.0}
 long-outage:   # GPS lost for the last 300 s of the run (T1 asks for >= 300 s, systems/plan.md)
   - {type: outage, source: gnss, start_s: 60}
+capture-pi4b:   # the Pi 4B payload board's capture effects (ADR-0018, issue #53), not an attack
+  # All TBC, unsourced: placeholders until a rehearsal on the board measures them
+  # (deploy/pi/REHEARSAL.md, ADR-0015)
+  - {type: capture_faults, board: pi4b, gaps_per_min: 0.2, gap_s: 0.05, timestamp_jitter_ms: 1.0, stream_loss: 0.0}
