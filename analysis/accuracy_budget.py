@@ -979,6 +979,13 @@ def worst_in(curve: np.ndarray, window_s: float) -> float:
     return float(np.max(curve[: int(window_s) + 1]))
 
 
+def time_to(curve: np.ndarray, limit: float) -> int | None:
+    """First whole second after GPS loss at which a 95 % error curve is over `limit`: how long
+    that error, on its own, stays within it. None if it stays within it over the whole curve."""
+    over = np.flatnonzero(np.asarray(curve) > limit)
+    return int(over[0]) if len(over) else None
+
+
 def min_tcal(curves: dict, window_s: float, limit: float) -> float | None:
     """Least calibration time that meets `limit` over the first `window_s` s, with every longer
     one meeting it too; None if none does."""
@@ -1072,7 +1079,25 @@ def main(argv=None) -> None:
         "imu_alone_r95": {
             str(t): float(next(iter(imu_line.values()))[t]) for t in (10, 20, 30, 60, 120)
         },
+        # The mentors (2026-11-10): how long each error, on its own, takes to reach the limits
+        "time_to": {},
     }
+    limits = sorted({m for m, _ in TARGETS.values()})
+    for (title, line), (e, _) in zip(imu_line.items(), panels, strict=True):
+        v0 = gps_velocity_sigma(env_from_spec(spec_for(e, 120.0)))
+        t_imu = np.arange(H + 1)
+        parts = imu_growth(t_imu, v0, tb[title]["turn_accel"])
+        summary["time_to"][f"imu alone ({e})"] = {
+            name: {f"{m:g}": time_to(Z95_2D * v, m) for m in limits} for name, v in parts.items()
+        } | {"all together": {f"{m:g}": time_to(line, m) for m in limits}}
+    for e in ENVIRONMENTS:
+        for est in ESTIMATORS:
+            b = budget[(e, est, 120.0)]
+            curves = {**b["terms"], "total, every tower heard": b["all_heard"]}
+            curves["total with dropouts"] = b["total"]
+            summary["time_to"][f"{e}/{est}"] = {
+                name: {f"{m:g}": time_to(v, m) for m in limits} for name, v in curves.items()
+            }
     for e in ENVIRONMENTS:
         for est in ESTIMATORS:
             b = budget[(e, est, 120.0)]
