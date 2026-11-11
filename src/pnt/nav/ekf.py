@@ -786,6 +786,13 @@ class EKF:
         self._snaps.clear()
         self._snapshot()
 
+    def _height_fails(self, y, H, R) -> bool:
+        """A GNSS position fix's height alone fails its own gate (`CHI2_999[1]`). The ADR-0045
+        fallback is only for such a fix: a 3-D failure driven by the horizontal (a ramp) with an
+        acceptable height stays rejected whole, as before."""
+        s = float(H[2] @ self.P @ H[2] + R[2, 2])
+        return float(y[2]) ** 2 / s > CHI2_999[1]
+
     def _update(self, key: str, t_ns: int, y, H, R, gate: bool = True) -> bool:
         y = np.atleast_1d(y)
         S = H @ self.P @ H.T + R
@@ -862,8 +869,8 @@ class EKF:
             self.rmap.learn(m.emitter, at, float(y) + corr)  # before the map's correction
         alt_rejected = False
         if key == "gnss" and m.kind == "position_enu":
-            if verdict == "gate" and not used:
-                # ADR-0045: the 3-D gate failed; keep the horizontal if it agrees
+            if verdict == "gate" and not used and self._height_fails(y, H, R):
+                # ADR-0045: the 3-D gate failed on the height; keep the horizontal if it agrees
                 used = alt_rejected = self._update(key, m.t_ns, y[:2], H[:2], R[:2, :2])
             self.gnss_alt_excluded = alt_rejected  # a re-admitted fix is used whole
         if self.calibrated:

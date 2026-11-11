@@ -84,3 +84,26 @@ def test_a_fix_used_whole_after_a_jump_is_not_flagged_as_height_rejected():
     assert all("gnss_alt_excluded" in e.flags for e in before)  # the set-up holds
     assert not any("gnss_excluded" in e.flags for e in after)  # GNSS re-admitted
     assert not any("gnss_alt_excluded" in e.flags for e in after)
+
+
+def test_a_horizontal_offset_is_not_let_in_by_the_height_fallback():
+    # The fallback is for a fix whose height fails. A fix whose 3-D gate fails mostly on its
+    # horizontal (a ramping spoofer), with a vertical innovation its own 1-dof gate accepts,
+    # stays rejected whole, as before ADR-0045.
+    from pnt.nav.ekf import EKF
+
+    f = EKF()
+    for m in static_session(lambda t: 0.0, duration_s=60):
+        f.process(m)
+    t = 60 * NS
+    f.predict(t)
+    S = f.P[:3, :3] + np.diag(np.square(GNSS_SIGMA))
+    # horizontal NIS 12 (passes the 2-dof gate, 13.82), vertical NIS 6 (passes 1 dof, 10.83):
+    # 3-D NIS 18 fails the 3-D gate (16.27)
+    de = np.sqrt(12.0 * S[0, 0])
+    dz = np.sqrt(6.0 * S[2, 2])
+    z = f.x[:3] + np.array([de, 0.0, dz])
+    f.process(Measurement(t_ns=t, source="gnss", kind="position_enu", value=tuple(z),
+                          sigma=GNSS_SIGMA))  # fmt: skip
+    e = f.estimate()
+    assert "gnss_excluded" in e.flags and "gnss_alt_excluded" not in e.flags
