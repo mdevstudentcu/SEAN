@@ -1,0 +1,634 @@
+{
+  "commit": "6e3e0a4",
+  "scans": [
+    {
+      "session": "20261110-1305-lte-outside",
+      "earfcn": 2460,
+      "capture_s": 59.528533333333336,
+      "cells": [
+        {
+          "earfcn": 2460,
+          "pci": 244,
+          "tracked_s": 48.93,
+          "snr_db": 14.769134861307855,
+          "cfo_ppm": -0.29957345251899914,
+          "arcs": 1,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 30066,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "ALBION & HEATHRINGTON",
+                "sectors": 1,
+                "carleton_km": 3.82,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 268,
+          "tracked_s": 0.0,
+          "snr_db": -11.982094272856544,
+          "cfo_ppm": null,
+          "arcs": 2,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 30111,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "OTTAWA AIRPORT PKWY",
+                "sectors": 1,
+                "carleton_km": 4.95,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "session": "20261110-lte-outside-2535",
+      "earfcn": 2535,
+      "capture_s": 29.4912,
+      "cells": []
+    },
+    {
+      "session": "20261110-lte-outside-5145",
+      "earfcn": 5145,
+      "capture_s": 29.4912,
+      "cells": [
+        {
+          "earfcn": 5145,
+          "pci": 188,
+          "tracked_s": 8.975,
+          "snr_db": -11.166932605346197,
+          "cfo_ppm": -0.16525239566203878,
+          "arcs": 15,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 219003,
+                "licensee": "TELUS Communications Inc.",
+                "location": "1245 WALKLEY RD",
+                "sectors": 1,
+                "carleton_km": 3.22,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 5145,
+          "pci": 189,
+          "tracked_s": 27.77,
+          "snr_db": 12.548457950527123,
+          "cfo_ppm": -0.19078768012209638,
+          "arcs": 3,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 219003,
+                "licensee": "TELUS Communications Inc.",
+                "location": "1245 WALKLEY RD",
+                "sectors": 1,
+                "carleton_km": 3.22,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 5145,
+          "pci": 175,
+          "tracked_s": 12.0,
+          "snr_db": 12.776965843765698,
+          "cfo_ppm": 0.523438586798983,
+          "arcs": 15,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 219076,
+                "licensee": "TELUS Communications Inc.",
+                "location": "1501 BANK ST",
+                "sectors": 1,
+                "carleton_km": 2.2,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "session": "20261110-lte-outside-5255",
+      "earfcn": 5255,
+      "capture_s": 29.4912,
+      "cells": [
+        {
+          "earfcn": 5255,
+          "pci": 175,
+          "tracked_s": 29.03,
+          "snr_db": 12.867599926836693,
+          "cfo_ppm": -0.2582213004519966,
+          "arcs": 1,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 219076,
+                "licensee": "TELUS Communications Inc.",
+                "location": "1501 BANK ST",
+                "sectors": 1,
+                "carleton_km": 2.2,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 5255,
+          "pci": 188,
+          "tracked_s": 19.28,
+          "snr_db": 13.96707401568503,
+          "cfo_ppm": -0.2693405967280053,
+          "arcs": 3,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 219003,
+                "licensee": "TELUS Communications Inc.",
+                "location": "1245 WALKLEY RD",
+                "sectors": 1,
+                "carleton_km": 3.22,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "session": "20261110-2307-static-ant-A0-uhf-ground",
+      "earfcn": 2460,
+      "capture_s": 89.4976,
+      "cells": [
+        {
+          "earfcn": 2460,
+          "pci": 204,
+          "tracked_s": 77.195,
+          "snr_db": 14.011226119474545,
+          "cfo_ppm": -0.3025075671733997,
+          "arcs": 1,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 36122,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "MOONEY'S BAY",
+                "sectors": 1,
+                "carleton_km": 2.38,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "session": "20261110-2315-static-ant-A1-uhf-chair",
+      "earfcn": 2460,
+      "capture_s": 89.4976,
+      "cells": [
+        {
+          "earfcn": 2460,
+          "pci": 244,
+          "tracked_s": 13.385,
+          "snr_db": -10.951706261797016,
+          "cfo_ppm": -0.3777946154061264,
+          "arcs": 54,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 30066,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "ALBION & HEATHRINGTON",
+                "sectors": 1,
+                "carleton_km": 3.82,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 204,
+          "tracked_s": 43.5,
+          "snr_db": -11.624057038025102,
+          "cfo_ppm": -0.25340826205308337,
+          "arcs": 27,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 36122,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "MOONEY'S BAY",
+                "sectors": 1,
+                "carleton_km": 2.38,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 220,
+          "tracked_s": 12.23,
+          "snr_db": -10.398294143175338,
+          "cfo_ppm": -0.23650754830405507,
+          "arcs": 21,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 36122,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "MOONEY'S BAY",
+                "sectors": 1,
+                "carleton_km": 2.38,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "session": "20261110-2322-static-ant-B-bingfu-chair-HORIZONTAL",
+      "earfcn": 2460,
+      "capture_s": 89.4976,
+      "cells": [
+        {
+          "earfcn": 2460,
+          "pci": 204,
+          "tracked_s": 16.4,
+          "snr_db": -10.90680409841463,
+          "cfo_ppm": -1.1373724255283162,
+          "arcs": 43,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 36122,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "MOONEY'S BAY",
+                "sectors": 1,
+                "carleton_km": 2.38,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 244,
+          "tracked_s": 2.7,
+          "snr_db": -12.38455932250837,
+          "cfo_ppm": -0.3173887699573623,
+          "arcs": 1,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 30066,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "ALBION & HEATHRINGTON",
+                "sectors": 1,
+                "carleton_km": 3.82,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 220,
+          "tracked_s": 27.26,
+          "snr_db": 5.069316622516057,
+          "cfo_ppm": -0.33095505654084134,
+          "arcs": 10,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 36122,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "MOONEY'S BAY",
+                "sectors": 1,
+                "carleton_km": 2.38,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "session": "20261110-2331-static-ant-B2-bingfu-vertical",
+      "earfcn": 2460,
+      "capture_s": 89.4976,
+      "cells": [
+        {
+          "earfcn": 2460,
+          "pci": 220,
+          "tracked_s": 49.555,
+          "snr_db": 6.1384911014889525,
+          "cfo_ppm": -0.27406531328820616,
+          "arcs": 26,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 36122,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "MOONEY'S BAY",
+                "sectors": 1,
+                "carleton_km": 2.38,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 244,
+          "tracked_s": 4.74,
+          "snr_db": -11.972386533014587,
+          "cfo_ppm": -0.19477705235984735,
+          "arcs": 15,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 30066,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "ALBION & HEATHRINGTON",
+                "sectors": 1,
+                "carleton_km": 3.82,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "session": "20261110-2334-static-ant-C-telescopic-257",
+      "earfcn": 2460,
+      "capture_s": 89.4976,
+      "cells": [
+        {
+          "earfcn": 2460,
+          "pci": 204,
+          "tracked_s": 75.31,
+          "snr_db": 6.064742121892954,
+          "cfo_ppm": -0.2949157986165536,
+          "arcs": 14,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 36122,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "MOONEY'S BAY",
+                "sectors": 1,
+                "carleton_km": 2.38,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 244,
+          "tracked_s": 22.005,
+          "snr_db": -12.01084822327903,
+          "cfo_ppm": -0.3251472809472776,
+          "arcs": 65,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 30066,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "ALBION & HEATHRINGTON",
+                "sectors": 1,
+                "carleton_km": 3.82,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "session": "20261110-2338-static-ant-A2-uhf-chair",
+      "earfcn": 2460,
+      "capture_s": 89.4976,
+      "cells": [
+        {
+          "earfcn": 2460,
+          "pci": 244,
+          "tracked_s": 38.92,
+          "snr_db": -11.235573152708813,
+          "cfo_ppm": -0.29444877908733263,
+          "arcs": 41,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 30066,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "ALBION & HEATHRINGTON",
+                "sectors": 1,
+                "carleton_km": 3.82,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "session": "20261110-2341-static-ant-A0b-uhf-ground-chairspot",
+      "earfcn": 2460,
+      "capture_s": 89.4976,
+      "cells": [
+        {
+          "earfcn": 2460,
+          "pci": 204,
+          "tracked_s": 84.41,
+          "snr_db": 14.109996961664127,
+          "cfo_ppm": -0.3250036168015429,
+          "arcs": 2,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 36122,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "MOONEY'S BAY",
+                "sectors": 1,
+                "carleton_km": 2.38,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 220,
+          "tracked_s": 29.105,
+          "snr_db": -11.19478110885096,
+          "cfo_ppm": -0.2850587077841302,
+          "arcs": 24,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 36122,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "MOONEY'S BAY",
+                "sectors": 1,
+                "carleton_km": 2.38,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "session": "20261111-0040-static-fullsuite",
+      "earfcn": 2460,
+      "capture_s": 582.3146666666667,
+      "cells": [
+        {
+          "earfcn": 2460,
+          "pci": 220,
+          "tracked_s": 128.205,
+          "snr_db": -11.793600248320503,
+          "cfo_ppm": -0.2946156192899581,
+          "arcs": 107,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 36122,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "MOONEY'S BAY",
+                "sectors": 1,
+                "carleton_km": 2.38,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 244,
+          "tracked_s": 73.975,
+          "snr_db": -11.8079494478381,
+          "cfo_ppm": -0.7760013891612991,
+          "arcs": 247,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 30066,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "ALBION & HEATHRINGTON",
+                "sectors": 1,
+                "carleton_km": 3.82,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 92,
+          "tracked_s": 28.94,
+          "snr_db": -10.337250076915552,
+          "cfo_ppm": -0.3366180724989592,
+          "arcs": 45,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 30015,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "BILLINGS BRIDGE",
+                "sectors": 1,
+                "carleton_km": 1.68,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 106,
+          "tracked_s": 0.925,
+          "snr_db": -8.013264148501436,
+          "cfo_ppm": 0.163916421293742,
+          "arcs": 5,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 36118,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "PRINCE OF WALES & DYNES",
+                "sectors": 1,
+                "carleton_km": 2.07,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 90,
+          "tracked_s": 18.335,
+          "snr_db": -11.624162277231102,
+          "cfo_ppm": -0.3446209917084307,
+          "arcs": 27,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 36118,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "PRINCE OF WALES & DYNES",
+                "sectors": 1,
+                "carleton_km": 2.07,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
