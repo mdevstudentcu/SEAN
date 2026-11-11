@@ -12,9 +12,9 @@
 
 ## 2. Is any of it real?
 
-> The payload, the radio captures and the tower matches are real. We measured range noise on fifteen real captures and recorded a GPS session with a timing pulse. Every accuracy and detection number is simulation. With GPS removed in one real session, towers worsened position.
+> The payload, the radio captures and the tower matches are real. We measured range noise on fifteen real captures and recorded a GPS session with a timing pulse. Every accuracy and detection number is simulation. With GPS removed in two real sessions, towers worsened position.
 
-- **Source:** [`results.md`](results.md) (a); ADR-0036; #211. Real error after GPS loss: #233 (merged, #250), [`real-gps-cut-20261111/summary.md`](../analysis/results/real-gps-cut-20261111/summary.md): `ekf` with LTE, median 4,228 m at 120 s and 12,436 m at 300 s over 5 cut times of one static session.
+- **Source:** [`results.md`](results.md) (a); ADR-0036; #211. Real error after GPS loss: #233 (merged, #250) rerun after #245's front-end fixes, [`lte-reacq-steps/NOTES.md`](../analysis/results/lte-reacq-steps/NOTES.md) *GPS cut*: `ekf` with LTE, median 21,553 m (`20261111-0151`) and 10,718 m (`20261111-0233`) at 300 s over 5 cut times each, against 0.6 and 1.3 m without LTE; before ADR-0047's default, not rerun.
 - **Do not claim:** a position from real towers, or any real accuracy, integrity or detection rate. Quote #214's line labelled "real session, GPS removed in software".
 
 ## 3. Why are three towers not enough?
