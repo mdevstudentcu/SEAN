@@ -86,9 +86,27 @@ end (or the sim's imitation of one), whose sigma comes from timing statistics an
 multipath, so it can be far too small. For such records the noise is learned per emitter from
 the innovations, and the reported sigma is only a lower bound:
 - Learned variance: an exponentially weighted mean (memory `noise_tau_s`, TBC) of each
-  innovation's square less the part the state uncertainty explains, with the reported variance
-  counted as one sample. Innovations the gate rejects count too: otherwise a sigma too small
-  would get every large innovation rejected and never be seen to be too small.
+  innovation's square less the part the state uncertainty explains, with a prior variance
+  (`noise_prior_m`, TBC) counted as one sample. Innovations the gate rejects count too:
+  otherwise a sigma too small would get every large innovation rejected and never be seen to be
+  too small.
+- Prior, not the reported sigma: a cell's first records carry `noise_prior_m` (40 m, TBC; ADR-0037
+  Proposed), never their reported sigma. Counted as the reported 2 m, the first two records
+  pinned the dongle clock's drift so tightly that every later record of the cell was rejected
+  (#147). 40 m is above every 1-10 s error measured on real static captures (up to 38 m, weak
+  cells; #173).
+- Weak evidence is skipped: an innovation whose state part (S less the noise) exceeds the
+  variance learned so far says little about the noise. Counted, its large negative sample drove
+  the learned variance down to the reported sigma whenever a state was uncertain (a new clock,
+  a nonlinear geometry), and the filter then believed the next records to 2 m (#147).
+- Without trusted GNSS the learned variance may grow but never shrink: the position is then
+  not known independently, so an innovation small only because the filter agrees with itself
+  is no evidence that the noise is small.
+- Curvature (radio records only): a range is linear in position only while the position and
+  told-tower uncertainty across the line of sight, sigma_perp, is small against the range r.
+  The second-order term, variance sigma_perp^4 / (2 r^2), is added to R. Near a tower with a
+  drifted position estimate, its absence let a few records of one site collapse the stated
+  position sigma to a few metres while the error was hundreds (#147, hazardous epochs).
 - Where the model has a multipath state (`multipath_ratio` > 0) the learned variance is split
   between it and the white noise in the model's own ratio, so a correlated error is not taken as
   white. Its own uncertainty is added back to the innovation, so the split doesn't feed on itself.
@@ -319,6 +337,7 @@ class EKF:
         magnetometer: Mapping | None = None,  # MagModel options: use `heading` records (#276)
         noise_tau_s: float | None = 60.0,  # s: memory of a radio's learned range noise (TBC)
         range_sigma_floor_m: float = 0.0,  # m: least range sigma of a radio's record; 0: off (TBC)
+        noise_prior_m: float = 40.0,  # m: a radio cell's range sigma before learning (TBC)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -429,6 +448,8 @@ class EKF:
         # Range noise of a radio's records (meta.rx_clock): see the module docstring
         self.noise_tau_ns = None if noise_tau_s is None else noise_tau_s * 1e9
         self.range_floor_var = range_sigma_floor_m**2
+        self.noise_prior_var = noise_prior_m**2
+        self._curvature = 0.0  # the curvature part of the last pseudorange's R
         self._noise: dict[str, list[float]] = {}  # emitter -> [last t, weight, weighted sum]
         self._mp_var = 0.0  # the multipath state's variance before the last update
 
@@ -1126,20 +1147,42 @@ class EKF:
         if "rx_clock" not in m.meta:
             return r
         r = max(r, self.range_floor_var)
-        acc = self._noise.get(m.emitter) if self.noise_tau_ns else None
-        if acc is not None:
-            r = max(r, (m.sigma[0] ** 2 + acc[2]) / (1.0 + acc[1]))  # reported: one sample
-        return r
+        if not self.noise_tau_ns:
+            return r
+        acc = self._noise.get(m.emitter, (0, 0.0, 0.0))
+        return max(r, (self.noise_prior_var + acc[2]) / (1.0 + acc[1]))  # prior: one sample
 
     def _learn_noise(self, m: Measurement, R: float) -> None:
         """Add the last innovation to its emitter's learned variance: its square less what the
-        state uncertainty explains (S - R), plus the multipath state's own variance, which is part
-        of the range noise here. Exponentially weighted, memory `noise_tau_s`."""
+        state uncertainty explains. `R` is the white noise and curvature the update used; the
+        multipath state's variance before the update is range noise too. Exponentially weighted,
+        memory `noise_tau_s`. Skipped when the state part exceeds the variance learned so far;
+        without trusted GNSS, kept only if it does not lower the variance (module docstring)."""
         y, S, _ = self._last_innov
-        excess = float(y[0]) ** 2 - (float(S[0, 0]) - R) + self._mp_var
+        before = self.range_variance(m)
+        state = float(S[0, 0]) - R - self._mp_var
+        if state > before:
+            return  # mostly state error: weak evidence about the noise
+        excess = float(y[0]) ** 2 - state - self._curvature
         acc = self._noise.setdefault(m.emitter, [m.t_ns, 0.0, 0.0])
+        old = list(acc)
         decay = np.exp(-(m.t_ns - acc[0]) / self.noise_tau_ns)
         acc[:] = [m.t_ns, acc[1] * decay + 1.0, acc[2] * decay + excess]
+        if not self.gnss_trusted() and self.range_variance(m) < before:
+            acc[:] = old  # may grow, never shrink, without an independent position
+
+    def range_curvature(self, u: np.ndarray, r: float, told_pos: int | None) -> float:
+        """Variance of a range's second-order term, sigma_perp^4 / (2 r^2): sigma_perp^2 is the
+        horizontal position variance across the line of sight `u` (tower to receiver), plus the
+        told-tower position error's when the model has it (state index `told_pos`)."""
+        h = float(np.hypot(u[0], u[1]))
+        if h < 1e-9 or r <= 0.0:
+            return 0.0
+        perp = np.array([-u[1], u[0]]) / h
+        s2 = float(perp @ self.P[0:2, 0:2] @ perp)
+        if told_pos is not None:
+            s2 += float(perp @ self.P[told_pos : told_pos + 2, told_pos : told_pos + 2] @ perp)
+        return s2**2 / (2.0 * r**2)
 
     def range_noise(self, m: Measurement, mp: int | None) -> float:
         """R of this pseudorange. For a radio's record with a multipath state `mp`, the variance
@@ -1301,10 +1344,13 @@ def _pseudorange(ekf: EKF, m: Measurement):
         H[0, i : i + 2] = h_pos
     H[0, idx] = 1.0
     y = m.value[0] - (r + rx + float(np.sum(ekf.x[idx])))
-    R = np.array([[ekf.range_noise(m, mp)]])
+    R = ekf.range_noise(m, mp)
     if ekf.arc_settling(m):
         R = R * ARC_SETTLE_FACTOR**2
-    return y, H, R, not (new or new_arc)
+    ekf._curvature = 0.0
+    if "rx_clock" in m.meta and ekf.noise_tau_ns:
+        ekf._curvature = ekf.range_curvature(u, r, None if pos is None else pos[0])
+    return y, H, np.array([[R + ekf._curvature]]), not (new or new_arc)
 
 
 ARC_SETTLE_FACTOR = 10.0  # TBC: sigma scale in a new arc's first `arc_settle_s` (ADR-0050)
