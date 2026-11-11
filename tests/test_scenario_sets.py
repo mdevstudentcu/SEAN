@@ -22,7 +22,7 @@ def _seconds(m):
 def test_the_environments_exist():
     # realistic-with-base: realistic plus a ground reference station (ADR-0020, issue #80)
     # challenge-*: the challenge benchmark set, one leg per use case (ADR-0030, issue #136)
-    # challenge-drone-hop: the drone leg with one dongle hopping LTE carriers (#173)
+    # challenge-drone-hop: the drone leg hopping LTE carriers, a study leg (#173, ADR-0037)
     assert set_names() == [
         "challenge-approach",
         "challenge-drone",

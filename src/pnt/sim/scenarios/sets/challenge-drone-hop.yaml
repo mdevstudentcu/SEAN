@@ -1,8 +1,8 @@
-# Challenge benchmark, UC-01 leg with carrier hopping (#173): challenge-drone.yaml (ADR-0030,
-# Proposed) with one dongle dwelling on several LTE carriers in turn instead of EARFCN 2460 alone
-# (sim/lte_front_end.py, `Hop`). Everything else, attack menu included, is challenge-drone's,
-# value for value (`extends`). Every value is TBC (ADR-0015). Not a decision: the hop set and the
-# dwell are proposals for the owners (#173).
+# Study leg, not part of the challenge benchmark (ADR-0037, Proposed): the UC-01 leg with carrier
+# hopping (#173), challenge-drone.yaml (ADR-0030, Proposed) with one dongle dwelling on several
+# LTE carriers in turn instead of EARFCN 2460 alone (sim/lte_front_end.py, `Hop`). The payload's
+# recorder cannot hop yet. Everything else, attack menu included, is challenge-drone's, value for
+# value (`extends`). Every value is TBC (ADR-0015); the hop set and the dwell are proposals.
 # - Hop set (TBC): every carrier of data/reference/lte-scan-list-ottawa.csv without a flag, in
 #   that file's order (sites within 3 km of Carleton). A flagged carrier (`tx_rx_swapped`,
 #   `off_raster`, `nonstandard_bw`, data/reference/README.md) may not be on air at its filed
