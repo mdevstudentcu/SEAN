@@ -333,27 +333,21 @@ def plot_t1(data: dict, out: Path) -> None:
     for ax, sc in zip(np.atleast_1d(axes), scs, strict=True):
         for name, a in data["paired"][sc].items():
             curve = a["t1_p95_curve_m"]
-            ax.plot(range(len(curve)), curve, color=COLORS[name], lw=2, label=name)
-            ax.annotate(
-                f"{a['t1_worst_p95_m']:.0f} m",
-                (len(curve) - 1, curve[-1]),
-                xytext=(3, 0),
-                textcoords="offset points",
-                fontsize=7,
-                color=INK,
-                va="center",
-            )
+            k = a["t1_worst_second"]
+            lab = f"{name}: worst {a['t1_worst_p95_m']:.0f} m at {k} s"
+            ax.plot(range(len(curve)), curve, color=COLORS[name], lw=2, label=lab)
+            ax.plot([k], [curve[k]], "o", ms=6, color=COLORS[name], mec="white", mew=1.5)
         ax.axhline(T1_M, color=INK, lw=0.8, ls=":")
         ax.axhline(T1_FALLBACK_M, color=INK, lw=0.8, ls="--")
         ax.set_yscale("log")
         ax.set_title(sc, fontsize=9, loc="left")
+        ax.legend(fontsize=7, frameon=False, loc="lower right")
         ax.set_xlabel("time since GPS loss (s)", fontsize=8)
         ax.grid(True, which="major", color=GRID, lw=0.6)
         ax.tick_params(labelsize=8)
         for side in ("top", "right"):
             ax.spines[side].set_visible(False)
     np.atleast_1d(axes)[0].set_ylabel("95th pct. across runs of horiz. error (m, log)", fontsize=8)
-    np.atleast_1d(axes)[0].legend(fontsize=7, frameon=False, loc="upper left")
     s = data["seeds"]
     fig.suptitle(
         f"T1 statistic (ADR-0034): {len(s)} paired runs, seeds {s[0]}-{s[-1]}, {data['commit']} "
