@@ -3,7 +3,7 @@
 The front end reports a sigma from timing statistics, which can't see multipath; the challenge
 sim's records report 2 m. #147: told that, the filters do worse with LTE than without it. With
 `told_sigma_model="adr0036"` (estimators `ekf-measured-sigma`, `ekf-calibrated-measured-sigma`;
-opt-in, ADR-0043 Proposed) the EKF replaces the reported sigma of every pseudorange from a real
+opt-in, ADR-0044 Proposed) the EKF replaces the reported sigma of every pseudorange from a real
 front end (one with `meta.rx_clock`, `meta.snr_db` and `meta.n_epochs`, as `pnt.frontends.lte`
 and `sim/lte_front_end.py` write them) with the sum of two parts. Every value is TBC.
 

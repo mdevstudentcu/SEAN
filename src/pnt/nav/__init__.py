@@ -52,7 +52,7 @@ ESTIMATORS = {
     "ekf-guard": configured(ekf.run, jump_guard=JumpGuard),
     "ekf-imu-guard": configured(ekf.run, motion="imu", jump_guard=JumpGuard),
     "ekf-calibrated-guard": configured(ekf.run_calibrated, jump_guard=JumpGuard),
-    # Opt-in (#147, ADR-0043 Proposed): a radio's LTE records told ADR-0036's measured sigma
+    # Opt-in (#147, ADR-0044 Proposed): a radio's LTE records told ADR-0036's measured sigma
     # from their SNR instead of the front end's (nav/told_sigma.py)
     "ekf-measured-sigma": configured(ekf.run, told_sigma_model="adr0036"),
     "ekf-calibrated-measured-sigma": configured(ekf.run_calibrated, told_sigma_model="adr0036"),
