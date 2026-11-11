@@ -1,0 +1,110 @@
+# Judge questions
+
+- **Status:** Draft, 2026-11-11 (#28), against `main` at `c21e047`. For the presenter of [`deck.md`](deck.md).
+- **Use:** the 15 hardest questions a navigation engineer is likely to ask. Each answer is at most 45 words and can be said as written. Numbers are simulation unless the answer says real; sources are in [`results.md`](results.md).
+- **If you don't know:** say "I don't have that number; it is in our results file" and move on. Never estimate a number on stage.
+
+## 1. Your own target is 25 m for five minutes. Why do you miss it?
+
+> Mostly the radio's noise. Our front end reports only the fast noise, so the filter over-trusted the towers and LTE made position worse than none. In simulation, learning each tower's noise cut the median five-minute error from 4,034 to 982 metres. Still far from 25.
+
+- **Source:** #137, #147 (LTE worse than none); #156 (open, draft, opt-in; per-run p95, seeds 0–49); ADR-0039 (Proposed). On the easy synthetic route the budget meets 25 m (#178).
+- **Do not claim:** that any fix meets T1 or the 50 m fallback; that #156 is merged or on by default.
+
+## 2. Is any of it real?
+
+> The payload, the radio captures and the tower matches are real. We measured range noise on fifteen real captures and recorded a GPS session with a timing pulse. Every accuracy and detection number is simulation. A real error after GPS loss is in progress.
+
+- **Source:** [`results.md`](results.md) (a); ADR-0036; #211. Real error after GPS loss: `TBD (#214)`.
+- **Do not claim:** a position from real towers, or any real accuracy, integrity or detection rate. If #214 lands, quote its line, labelled "real session, GPS removed in software".
+
+## 3. Why are three towers not enough?
+
+> Each range carries the receiver's clock error. With barometer height, three ranges solve position and clock with nothing left to check them, and a tower with its own unknown clock adds no check. How few towers suffice with the motion sensor is being studied.
+
+- **Source:** [`research.md`](research.md) §1 item 9 (Jia, Khalife & Kassas 2023); this is why tower clocks are learned while GPS is trusted (ADR-0022, Proposed). Study: `TBD (#208)`. Backup (simulation, #179): 2 masts heard per 10 s gives 374 m at 2 min; 27 masts, 68 m, once the noise is right.
+- **Do not claim:** a minimum tower count; that the motion sensor makes three towers enough.
+
+## 4. How do you know where a tower is, and what if the table is wrong?
+
+> From the ISED registry: the frequency and cell ID we decode map to one registered site, or we drop the cell. From Carleton, no row matched another site; 307 ambiguous rows are dropped. In simulation, a fake tower on a real ID fooled one filter.
+
+- **Source:** ADR-0023 (Proposed); registry audit of 4,059 rows, #133; wrong-table simulation, #133 and #132 (`ekf-calibrated` 186.5 m, 5,147 hazardous epochs; `ekf-mhss` flags the site, HPL 5.4 km).
+- **Do not claim:** that a tower is "identified": say "consistent with a registered site". The dongle cannot decode the global cell ID (SIB1).
+
+## 5. Can an 8-bit RTL-SDR range on LTE at all?
+
+> For precision at rest, yes: 0.6 metres of noise on strong cells, 25 on weak ones, at ten records a second. But a slow error, typically 8 metres, sits on top, weak cells drop often, and without truth we measured no bias.
+
+- **Source:** real, ADR-0036 and [`lte-measured-noise/`](../analysis/results/lte-measured-noise/summary.md) (white σ 0.63 m at 13–16 dB, 24.7 m at −14 to −11 dB; correlated S(1 s) median 8.3 m). [`research.md`](research.md) §2: no published real-tower LTE TOA scatter from an RTL-SDR was found.
+- **Do not claim:** an accuracy (no truth), or that it works while moving.
+
+## 6. How is your confidence number computed, and at what integrity risk?
+
+> In the basic filter, 5.33 times the largest horizontal standard deviation: a risk of one in ten million per epoch if errors are Gaussian. The monitor version uses solution separation with fault priors per tower, network and GPS. Risk and priors are proposed, not measured.
+
+- **Source:** `integrity/protection.py` (`K_H` 5.33); `integrity/mhss.py` (`phmi` 1e-7, priors 1e-3 / 1e-4 / 1e-4 / 1e-3, all `TBC`); [`verification.md`](verification.md) *Integrity monitor*. T5 is missed: `ekf` has hazardous epochs on 7 of 50 seeds of the drone outage (#170).
+- **Do not claim:** that the bound always holds, or a certified integrity risk.
+
+## 7. What happens when the spoofer is subtle, a slow ramp?
+
+> Our default filter misses a 2 metre-per-second drag entirely in simulation. An opt-in tower monitor catches it in 48 of 50 runs where 17 sites are heard, after 131 seconds median, not 30. A small jump then drift is caught in at most 24 percent.
+
+- **Source:** #170 (0 of 50); #180 (open, ADR-0037 Proposed; 1 of 50 on the drone leg as committed); #176 (open; jump then drift followed to 110–430 m).
+- **Do not claim:** that we catch slow spoofing within 30 s, or with 1 to 3 cells.
+
+## 8. What about false alarms?
+
+> In simulation, zero per hour on clean runs. The aircraft-based warning gives 1.94 per hour from modelled quality dips. The jump guard has a different cost: after 5 of 46 hard manoeuvres it kept honest GPS out. Real-world false-alarm rates are not measured.
+
+- **Source:** #170 (0.0 /h on `nominal`, four estimators); #166 (ADR-0033 Proposed); ADR-0038 *Consequences* (manoeuvre cases, GNSS at 1 Hz). Real: the C/N0 jamming indicator stayed 0 over one 595 s session (#211).
+- **Do not claim:** a real-world false-alarm rate.
+
+## 9. Why refuse GPS after a jump, rather than trust it again?
+
+> Because a spoofer only has to wait. Once GPS is rejected, the filter's uncertainty grows until the same fake fix passes. The guard keeps GPS out until its own stream steps back. Honest GPS returns 0.1 seconds after the jump ends; meanwhile we dead-reckon.
+
+- **Source:** ADR-0038 (Proposed), #191 (merged, opt-in); [`jump-refusal/summary.md`](../analysis/results/jump-refusal/summary.md). Cost: median error 1,263 m at +120 s after a refused jump on the drone leg, flagged unsafe.
+- **Do not claim:** that the guard is on by default, or that it is free.
+
+## 10. Is this legal? You record cell signals.
+
+> The payload never transmits: no transmit path in code or hardware. We decode only signals meant for everyone, sync and broadcasts, our reading of section 9(2) of the Radiocommunication Act. Wi-Fi identifiers are hashed at capture. Attacks are software only. No legal opinion yet.
+
+- **Source:** REQ-07, REQ-08, ADR-0001, ADR-0011, [`safety.md`](safety.md); `tests/test_hard_rules.py`.
+- **Do not claim:** that a lawyer or regulator has approved it.
+
+## 11. What is new compared with Kassas and colleagues?
+
+> Kassas's group published tower-clock grouping and solution separation with towers. We found no published work that adds a GPS fault shared with tower time, treats towers as adversaries, or bounds time held by towers. That is our reading, not proof.
+
+- **Source:** [`research.md`](research.md) *Novelty check* (P1–P5); IEEE Xplore and ION were not searched in full text.
+- **Do not claim:** "first". Do not claim the tower-time refutation of GPS time is built: it is planned.
+
+## 12. What about timing?
+
+> Second priority, as the mentors asked. In simulation the timing receiver stays within 1.5 microseconds after ten minutes on 49 of 50 runs, and a 50 nanosecond-per-second time drag is caught in a median of 3.3 seconds. Our bound on time is cautious, not certified.
+
+- **Source:** #170 (open; T3 missed on one seed at 1.55 µs; `ekf-calibrated`'s σ bound fails on 13 seeds); RUNBOOK (time PL calls time unsafe early). Real: PPS discipline on the Pi, 769 ns standard deviation (open PR #216).
+- **Do not claim:** that T3 is met, or a real holdover number.
+
+## 13. What would another month buy?
+
+> Moving captures with independent truth, so the error model covers motion; the fixes run together on the agreed statistic; and one spoofed-or-not decision from the sky map and signal power. We have not estimated durations, and we will not promise 25 metres.
+
+- **Source:** [`roadmap.md`](roadmap.md) phases 0–1; #218, #206. Realistic multipath alone exceeds 25 m in the budget (#178).
+- **Do not claim:** a date or a target we expect to meet.
+
+## 14. What is the certification path?
+
+> No performance standard exists for this kind of navigation; RTCA SC-159 covers GNSS equipment. Drones under a specific-operation risk assessment look shorter than crewed aircraft. First we need fault statistics from many hours of data. Route and regulator are to be decided with experts.
+
+- **Source:** [`research.md`](research.md) §3 item 6; [`roadmap.md`](roadmap.md) phase 5.
+- **Do not claim:** a certification plan agreed with anyone, or a design assurance level.
+
+## 15. What did the simulation get wrong, compared with the captures?
+
+> The sim assumed 50 metres of white noise per second; at rest, real white noise is 0.6 to 25 metres, plus a slow 8-metre error. Records told the filter 2 metres. Real cells drop and reacquire often; the sim kept every track.
+
+- **Source:** ADR-0036 (Proposed; the *Sim validity* row is not yet moved); `pnt compare` sim against real (#199: 49.2 m white against 21.3 m smooth); #183 (front-end faults).
+- **Do not claim:** that the simulator is validated, or that the measured model is adopted.
