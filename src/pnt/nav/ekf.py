@@ -81,10 +81,13 @@ These states are learned while GNSS is trusted, like the clocks, and roll back w
 Cost: a slow drag that a reflection could explain is absorbed by the multipath states before
 the towers-vs-GNSS test sees it, so that test loses power against slow ramps (PR evidence).
 
-Range noise of a radio's records (#147). A record with `meta.rx_clock` comes from a real front
-end (or the sim's imitation of one), whose sigma comes from timing statistics and can't see
-multipath, so it can be far too small. For such records the noise is learned per emitter from
-the innovations, and the reported sigma is only a lower bound:
+Range noise of a radio's records (#147; opt-in, ADR-0039). A record with `meta.rx_clock` comes
+from a real front end (or the sim's imitation of one), whose sigma comes from timing statistics
+and can't see multipath, so it can be far too small. With `noise_tau_s` set (estimators
+`ekf-learned-noise` and `ekf-calibrated-learned-noise`) the noise of such records is learned
+per emitter from the innovations, and the reported sigma is only a lower bound. Off by default:
+with `noise_tau_s` None and no `range_sigma_floor_m`, every record keeps its reported sigma,
+exactly as before.
 - Learned variance: an exponentially weighted mean (memory `noise_tau_s`, TBC) of each
   innovation's square less the part the state uncertainty explains, with a prior variance
   (`noise_prior_m`, TBC) counted as one sample. Innovations the gate rejects count too:
@@ -339,7 +342,7 @@ class EKF:
         gnss_readmit: Callable[[], GnssReadmit] | None = None,  # GnssReadmit (#246, ADR-0050)
         heard_cell_radius_m: float | None = None,  # m: a heard cell's coverage bound (ADR-0050)
         magnetometer: Mapping | None = None,  # MagModel options: use `heading` records (#276)
-        noise_tau_s: float | None = 60.0,  # s: memory of a radio's learned range noise (TBC)
+        noise_tau_s: float | None = None,  # s: memory of a radio's learned range noise; None: off
         range_sigma_floor_m: float = 0.0,  # m: least range sigma of a radio's record; 0: off (TBC)
         noise_prior_m: float = 40.0,  # m: a radio cell's range sigma before learning (TBC)
     ):
@@ -1194,8 +1197,10 @@ class EKF:
         """R of this pseudorange. For a radio's record with a multipath state `mp`, the variance
         is split between the two in the model's ratio, and the state's steady-state sigma is set
         to its share (never below `multipath_ratio` times the reported sigma)."""
-        total = self.range_variance(m)
         self._mp_var = 0.0
+        if not self.noise_tau_ns and not self.range_floor_var:
+            return m.sigma[0] ** 2  # both off (the default): the reported sigma, as before
+        total = self.range_variance(m)
         if mp is None or "rx_clock" not in m.meta:
             return total
         k = self.multipath_ratio**2 / (1.0 + self.multipath_ratio**2)
@@ -1500,10 +1505,13 @@ CALIBRATED: dict = {
     "multipath_tau_s": 30.0,  # s (realistic set, TBC)
     "tower_position_sigma_m": 100.0,  # m per axis (realistic set, TBC)
     "seed_site_drift": True,
-    # s: a radio's learned range noise (#147). Longer than `ekf`'s 60 s, so the estimate spans
-    # several multipath correlation times; both picked on tuning seeds 100-109 (TBC)
-    "noise_tau_s": 120.0,
 }
+
+# Memory of a radio's learned range noise (#147), for the opt-in estimators `ekf-learned-noise`
+# and `ekf-calibrated-learned-noise` (ADR-0039). The calibrated one is longer, so the estimate
+# spans several multipath correlation times. Both picked on tuning seeds 100-109 (TBC).
+NOISE_TAU_S = 60.0
+CALIBRATED_NOISE_TAU_S = 120.0
 
 
 def run_calibrated(
