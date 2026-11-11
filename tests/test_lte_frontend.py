@@ -124,7 +124,10 @@ TOWER = synth.Tower(pci=8, delay_s=1.234567e-3, delay_rate=10 / synth.C)  # frac
 @pytest.fixture(scope="module")
 def single(tmp_path_factory):
     tmp = tmp_path_factory.mktemp("lte")
-    return {snr: process_file(write(tmp, f"s{snr}", [TOWER], 1.0, snr)) for snr in (-10, 0, 10)}
+    cfg = Config(doppler=True)  # opt-in since lte-reacq
+    return {
+        snr: process_file(write(tmp, f"s{snr}", [TOWER], 1.0, snr), cfg) for snr in (-10, 0, 10)
+    }
 
 
 @pytest.mark.parametrize("snr", [-10, 0, 10])
@@ -168,6 +171,13 @@ def test_measurements_follow_the_icd_and_carry_the_clock(single):
     v = np.array([m.value[0] for m in pr])
     rate = np.polyfit((t - t[0]) / 1e9, v, 1)[0]
     assert abs(rate - truth) < 5.0
+
+
+def test_no_doppler_records_unless_asked(tmp_path):
+    # The carrier can sit on a whole 100 Hz alias that nothing checks (`Config.doppler`): on the
+    # real 20261111 captures over half of two-cell doppler differences did, told 0.1 m/s.
+    r = process_file(write(tmp_path, "nodop", [TOWER], 1.0, 10.0))
+    assert {m.kind for m in r.measurements} == {"pseudorange"}
 
 
 def test_pseudorange_is_continuous_across_frames_and_matches_truth(single):
