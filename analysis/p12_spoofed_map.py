@@ -18,9 +18,12 @@ starts, the median time to the first, and the seeds with one on the honest circu
   flag cues can fire.
 
 The ground user (`ekf-calibrated`, GPS lost 10 s after switch-on, map age 0): no aid, the honest
-drone's map, the spoofed drone's map, and the spoofed drone's map learned with the jump guard on,
-handed on (`guarded`) or withheld when the drone raised a cue (`guarded + refusal`,
-`tower_map.learn(..., refuse_flagged=True)`: the user then has no aid). Per case, as
+drone's map, the spoofed drone's map built without the guard and handed on whatever the drone saw
+(`tower_map.learn(..., jump_guard=None, refuse_flagged=False)`, the behaviour before ADR-0048),
+and the spoofed drone's map learned with the jump guard on, handed on (`guarded`,
+`refuse_flagged=False`) or withheld when the drone raised a cue (`guarded + refusal`, the default
+export policy of ADR-0048: the user then has no aid). The honest map is built with the default
+policy too. Per case, as
 `p12_map_handoff.py`: ADR-0034's T1 statistic (95th percentile across seeds at each second
 after GPS loss, worst second) over 0-120 s and 0-300 s, the share of 0-300 s epochs where HPL
 bounds the error, the share it flags itself `unsafe` (HPL over the alert limit), and
@@ -135,18 +138,21 @@ def seed_result(seed: int) -> dict:
     def learn(k: str, **kw):
         return tower_map.learn(circuit[k], start, origin_llh=origin, **kw)
 
-    configs = {NO_AID: {}, HONEST: {"tower_map": learn("honest")}}
-    for k in SPOOFS:
-        configs[spoofed(k)] = {"tower_map": learn(k)}
-        configs[guarded(k)] = {"tower_map": learn(k, jump_guard=JumpGuard)}
+    def default(k: str) -> dict:
+        """The map under the default export policy (ADR-0048), or none if it is withheld."""
         try:
-            configs[refused(k)] = {
-                "tower_map": learn(k, jump_guard=JumpGuard, refuse_flagged=True)
-            }
+            config = {"tower_map": learn(k)}
             out["withheld"][k] = False
         except tower_map.MapWithheld:
-            configs[refused(k)] = {}  # no map: the user has no aid
+            config = {}  # no map: the user has no aid
             out["withheld"][k] = True
+        return config
+
+    configs = {NO_AID: {}, HONEST: default("honest")}
+    for k in SPOOFS:
+        configs[spoofed(k)] = {"tower_map": learn(k, jump_guard=None, refuse_flagged=False)}
+        configs[guarded(k)] = {"tower_map": learn(k, jump_guard=JumpGuard, refuse_flagged=False)}
+        configs[refused(k)] = default(k)
 
     loss = gps_loss(user.spec, T0_NS)[0]
     for name, config in configs.items():
@@ -197,8 +203,8 @@ def user_table(runs: list[dict], stats: dict) -> list[str]:
     for name in case_names():
         s = stats[name]
         held = "-"
-        for k in SPOOFS:
-            if name == refused(k):
+        for k in ("honest", *SPOOFS):
+            if name == (HONEST if k == "honest" else refused(k)):
                 held = f"{sum(r['withheld'][k] for r in runs)}/{n}"
         lines.append(
             f"| {name} | {s['t1_120']:.1f} | {s['t1_300']:.1f} | {s['worst_300']:.1f} "
@@ -277,6 +283,9 @@ def main(argv=None) -> None:
         "",
         "## What the map does to the ground user",
         "",
+        "The default export (ADR-0048) is the honest map and the `guarded build + refusal` rows: "
+        "built with the jump guard, withheld if the drone raised a cue.",
+        "",
         *user_table(runs, stats),
         "",
     ]
@@ -288,7 +297,7 @@ def main(argv=None) -> None:
         for k in ("honest", *SPOOFS)
         for name in DETECTORS
     }
-    withheld = {k: [r["withheld"][k] for r in runs] for k in SPOOFS}
+    withheld = {k: [r["withheld"][k] for r in runs] for k in ("honest", *SPOOFS)}
     (out / "summary.json").write_text(
         json.dumps(
             {
