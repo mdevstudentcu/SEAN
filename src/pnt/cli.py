@@ -457,6 +457,7 @@ def _serve_dash(feed, args) -> None:
         alert_limit_m=args.alert_limit,
         time_alert_limit_s=args.time_alert_limit * 1e-6,
         host=args.host,
+        banner=getattr(args, "banner", None),  # `pnt live` has none
     )
     serve(app, host=args.host, port=args.port)
 
@@ -837,6 +838,9 @@ def main(argv=None) -> None:
         add_panel(parser)
         parser.add_argument(
             "--no-preflight", action="store_true", help="skip the predicted HPL strip"
+        )
+        parser.add_argument(
+            "--banner", help="one sentence shown under the panel's top bar (e.g. a demo's label)"
         )
 
     def add_panel(parser) -> None:

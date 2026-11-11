@@ -431,6 +431,8 @@ es.addEventListener("info", (ev) => {
   $("kind").textContent = i.kind.toUpperCase();
   $("name").textContent = i.name;
   $("estimator").textContent = `estimator ${i.estimator}`;
+  $("banner").textContent = i.banner || "";
+  $("banner").hidden = !i.banner;
   $("speed").textContent = i.kind === "live" ? "" : i.speed == null ? "as fast as possible" : `×${i.speed}`;
   $("lg-truth").style.display = i.has_truth ? "" : "none";
   $("lg-err").style.display = i.has_truth ? "" : "none";
