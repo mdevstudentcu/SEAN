@@ -128,3 +128,19 @@ def test_analyse_pairs_only_matched_cells_against_the_strongest():
     md = truth.markdown(res, "synthetic", "abc1234", 600)
     assert "withheld for privacy" in md
     assert str(r_ref) not in md and str(r_cell) not in md  # no true range is written
+
+
+def test_pair_leaves_out_epochs_below_the_snr_cut():
+    """Records below the cut that run away (loss of lock) stay out of the statistics, and show
+    in the all-epoch spread instead."""
+    ref, cell, r_ref, r_cell = _two_cells(drift_mps=0.0)
+    lost = (cell.k >= 1000) & (cell.k < 5000)  # most of the capture, as on 2026-11-11
+    cell.snr[lost] = -12.0
+    cell.v[lost] = (cell.v[lost] + 400.0 * (cell.k[lost] - 1000) * truth.DT) % F  # 400 m/s off
+    p = truth.pair(ref, cell, r_ref, r_cell)
+    assert p["n"] == cell.k.size - lost.sum()
+    assert p["resid_sigma_m"] == pytest.approx(math.sqrt(2), rel=0.1)
+    assert p["all_robust_m"] > 10 * p["resid_robust_m"]
+    assert truth.pair(ref, cell, r_ref, r_cell, snr_min_db=10.0) == {
+        k: p[k] for k in ("n_all", "all_robust_m", "all_told_sigma_m")
+    } | {"n": 0}
