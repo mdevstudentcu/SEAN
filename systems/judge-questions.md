@@ -5,7 +5,7 @@
 
 ## 1. Your own target is 25 m for five minutes. Why do you miss it?
 
-> Mostly the radio's noise. Our front end reports only the fast noise, so the filter rejects nearly every tower reading, and LTE made position worse than none. In simulation, learning each tower's noise cut the median five-minute error from 4,034 to 982 metres. Still far from 25.
+> Mostly the radio's noise. Our front end reports only fast noise, so the filter rejects nearly every tower reading; LTE made position worse than none. In simulation, learning each tower's noise cut the median five-minute error from 4,034 to 982 metres. Still far from 25.
 
 - **Source:** #137, #147 (LTE worse than none); #156 (open, draft, opt-in; per-run p95, seeds 0–49); ADR-0039 (Proposed). On the easy synthetic route the budget meets 25 m (#178).
 - **Do not claim:** that any fix meets T1 or the 50 m fallback; that #156 is merged or on by default.
