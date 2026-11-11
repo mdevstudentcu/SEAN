@@ -80,11 +80,17 @@ class Cell:
     snr: np.ndarray  # meta.snr_db
     arc: np.ndarray
     cfo: np.ndarray  # Hz
-    span_s: float
+    span_s: float  # first to last LTE record of the session
+    capture_s: float | None = None  # the IQ file's length, samples / sample_rate_hz
+
+    @property
+    def base_s(self) -> float:
+        """What availability is measured against: the capture, else the record span."""
+        return self.capture_s or self.span_s
 
     @property
     def tracked(self) -> float:
-        return self.k.size * DT / self.span_s
+        return self.k.size * DT / self.base_s
 
     def segments(self) -> np.ndarray:
         """Contiguous runs: same arc, no missing 10 Hz record."""
@@ -99,6 +105,7 @@ class Sess:
     commit_rec: str
     span_s: float
     cells: list[Cell]
+    capture_s: float | None = None
 
 
 def load(path: Path, raw_root: Path | None) -> Sess:
@@ -119,6 +126,9 @@ def load(path: Path, raw_root: Path | None) -> Sess:
         orig = raw_root / re.sub(r"-partial\d+s$", "", name.removesuffix("-lte"))
         if (orig / session.META_NAME).exists():
             rec = str(session.read_meta(orig).get("commit") or "TBD")
+        capture = _capture_s(orig)
+    else:
+        capture = None
     cells = []
     for emitter, ms in series.items():
         ms.sort(key=lambda m: m.t_ns)
@@ -140,10 +150,21 @@ def load(path: Path, raw_root: Path | None) -> Sess:
                 arc=np.array([m.meta.get("arc", 0) for m in ms])[keep],
                 cfo=np.array([m.meta["cfo_hz"] for m in ms], dtype=float)[keep],
                 span_s=span,
+                capture_s=capture,
             )
         )
     cells.sort(key=lambda c: (c.earfcn, c.pci))
-    return Sess(name, str(meta.get("commit") or "TBD"), rec, span, cells)
+    return Sess(name, str(meta.get("commit") or "TBD"), rec, span, cells, capture)
+
+
+def _capture_s(orig: Path) -> float | None:
+    """The IQ actually on disk, in seconds: the `.cu8` size over 2 bytes per sample and the
+    sidecar's rate. For a partial copy this is the prefix, not what was recorded."""
+    cu8, side = orig / "sdr_a.cu8", orig / "sdr_a.json"
+    if not (cu8.exists() and side.exists()):
+        return None
+    rate = float(json.loads(side.read_text())["sample_rate_hz"])
+    return cu8.stat().st_size / 2 / rate
 
 
 # --- the statistics ---------------------------------------------------------------------------
@@ -273,7 +294,7 @@ def gaps(c: Cell) -> dict:
     g = (c.k[starts] - c.k[starts - 1] - 1) * DT
     g = g[g > 0]
     return {
-        "breaks_per_min": round(starts.size / c.span_s * 60, 2),
+        "breaks_per_min": round(starts.size / c.base_s * 60, 2),
         "median_gap_s": float(np.median(g)) if g.size else None,
     }
 
@@ -836,12 +857,13 @@ def report(sessions, res, sv, commit) -> str:
         f"`analysis/lte_measured_noise.py` at `{commit}`. Evidence: **real sessions**, static, "
         "one RTL-SDR, no GPS fix (no position truth; NTP, not PPS, time). Precision only.",
         "",
-        "| Session | Recorded at | Front end at | Span (s) | Cells |",
-        "|---|---|---|---|---|",
+        "| Session | Recorded at | Front end at | IQ length (s) | LTE record span (s) | Cells |",
+        "|---|---|---|---|---|---|",
     ]
     for s in sessions:
         L.append(
-            f"| {s.name} | `{s.commit_rec}` | `{s.commit_fe}` | {s.span_s:.1f} | {len(s.cells)} |"
+            f"| {s.name} | `{s.commit_rec}` | `{s.commit_fe}` | {_f(s.capture_s, '.2f')} | "
+            f"{s.span_s:.1f} | {len(s.cells)} |"
         )
     for s in sessions:
         if "-partial" in s.name:
@@ -872,7 +894,7 @@ def report(sessions, res, sv, commit) -> str:
         "",
         "## Per cell",
         "",
-        "| Session | Cell | eNB (table) | Tracked | Arcs | Segments | SNR (dB) | "
+        "| Session | Cell | eNB (table) | Tracked (of IQ) | Arcs | Segments | SNR (dB) | "
         "Reported σ (m) | White σ robust (m) | S(1 s) | S(10 s) | S(100 s) | "
         "Code drift (m/s) | Code − carrier (ppb) | CFO − strongest (Hz) | in 200 Hz | "
         "Breaks/min | Median gap (s) |",
@@ -910,6 +932,11 @@ def report(sessions, res, sv, commit) -> str:
             f"{_f(d.get('slope_ppb'), '.2f')} | {_f(d.get('cfo_ppb'), '.1f')} | "
             f"{d.get('pieces', '—')} |"
         )
+    L += [
+        "",
+        "Tracked (of IQ): 10 Hz records × 0.1 s over the IQ length on disk (samples / "
+        "sample_rate_hz), not over the first-to-last record span.",
+    ]
     j = res["jumps"]
     if j:
         y = np.abs([x["jump_m"] for x in j])
@@ -936,7 +963,8 @@ def report(sessions, res, sv, commit) -> str:
             "## Allan deviation of one cell's timing (dongle + tower), long sessions",
             "",
             "σ_y(τ) = √3 S(τ) / (c τ) from the robust S(τ) inside one arc; the sim's dongle "
-            "(`Dongle`) beside it.",
+            "(`Dongle`) beside it. **Bounds only:** it holds the dongle, the tower, multipath "
+            "change and the tracker together.",
             "",
             "| Session | Cell | " + " | ".join(f"τ {t:g} s" for t in TAUS_LONG) + " |",
             "|---|---|" + "---|" * len(TAUS_LONG),
@@ -961,7 +989,11 @@ def report(sessions, res, sv, commit) -> str:
             "",
             "Overlapping Allan deviation σ_y(τ) of y = −CFO / fc (1 s medians; robust MAD "
             "version, RMS in summary.json). A cell holds the dongle and its tower; a pair "
-            "holds the two towers only. Carrier aliases (#183) inflate the RMS.",
+            "holds the two towers only. Carrier aliases (#183) inflate the RMS. **Bounds only:** "
+            "the CFO is the tracker's loop-filtered estimate, so its noise sits on top of the "
+            "clocks (a same-eNB pair, which shares one clock, floors at the same level). These "
+            "rows bound the clocks from above and must not replace `offset_rw_m` or "
+            "`drift_rw_mps`.",
             "",
             "| Session | Cell or pair | " + " | ".join(f"τ {t:g} s" for t in taus) + " |",
             "|---|---|" + "---|" * len(taus),
@@ -1028,6 +1060,7 @@ def main(argv=None) -> None:
                 "recorded_at": s.commit_rec,
                 "front_end_at": s.commit_fe,
                 "span_s": s.span_s,
+                "capture_s": s.capture_s,
             }
             for s in sessions
         ],
