@@ -255,14 +255,22 @@ def test_availability_is_over_the_capture_not_the_record_span(tmp_path):
 
 
 def test_allan_deviation_from_a_30_s_record(tmp_path):
-    long, _ = make_session(tmp_path, "20261110-1300-static-carleton-long", ALONE, 32.0, 3)
-    s = lcr.load(long, None)
-    (clk,) = lcr.analyse([s])["clock"]
-    assert [tau for tau, _ in clk["adev"]] == [1.0, 2.0, 4.0, 8.0]  # up to a third of 31.7 s
-    # Constant 0.4 ppm in the synthetic: only the tracker loop's noise is left (5.6e-11 at
-    # 1 s on this seed); regression guard
+    """32 s of 10 Hz records, constant 0.4 ppm plus white frequency noise at the level the
+    tracker's loop gave on a 32 s synthetic capture (5.6e-11 at 1 s): σ_y(τ) ∝ τ^-1/2."""
+    t = np.arange(317) * 0.1  # 31.6 s from first to last record
+    sd = 5.6e-11 * np.sqrt(1.0 / 0.1)  # white FM: σ_y(τ) = σ_y(τ0) · √(τ0 / τ)
+    eps = PPM * 1e-6 + np.random.default_rng(3).normal(0.0, sd, t.size)
+    long = write_records(tmp_path / "20261110-1300-static-carleton-long-lte", t, -eps * FC)
+    (clk,) = lcr.analyse([lcr.load(long, None)])["clock"]
+    assert [tau for tau, _ in clk["adev"]] == [1.0, 2.0, 4.0, 8.0]  # up to a third of 31.6 s
+    for tau, a in clk["adev"]:
+        assert 0.6 < a / (5.6e-11 / np.sqrt(tau)) < 1.4  # few independent samples at 8 s
     assert all(a < 2e-10 for _, a in clk["adev"])
     assert abs(clk["median_ppm"] - PPM) < 0.005
+    s = lcr.load(  # 29.9 s of record: below ADEV_MIN_S, no Allan deviation
+        write_records(tmp_path / "short-lte", t[:300], -eps[:300] * FC), None
+    )
+    assert "adev" not in lcr.analyse([s])["clock"][0]
 
 
 # --- scan script --------------------------------------------------------------------------
