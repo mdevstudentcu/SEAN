@@ -274,14 +274,8 @@ def aggregate(rows: list[dict]) -> dict:
     agg = {}
     for key, rs in out.items():
         a: dict = {"runs": len(rs), "cuts_s": [r["cut_s"] for r in rs]}
-        for f in (
-            [f"err_{s:g}s_m" for s in AT_S]
-            + [f"p95_{s:g}s_m" for s in SLICES_S]
-            + [
-                "max_m",
-                "pre_p95_m",
-            ]
-        ):
+        at = [f"{k}_{s:g}s_m" for k in ("err", "hpl") for s in AT_S]
+        for f in at + [f"p95_{s:g}s_m" for s in SLICES_S] + ["max_m", "pre_p95_m"]:
             v = np.array([r[f] for r in rs], dtype=float)
             ok = v[~np.isnan(v)]
             a[f] = {
