@@ -37,4 +37,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0031](0031-gnss-jam-indicator.md) | The GNSS jam indicator is the C/N0 drop of the strongest satellites | Proposed |
 | [0033](0033-adsb-raises-gnss-prior.md) | ADS-B interference evidence raises the GNSS fault prior | Proposed |
 | [0034](0034-targets-after-mentor-answers.md) | Targets after the mentors' answers: our stricter T1, their figure as the fallback | T1 Accepted; T3–T5 Proposed |
-| [0038](0038-refuse-detected-gnss-jump.md) | Refuse a detected GNSS position jump until the jump is undone | Proposed |
+| [0038](0038-refuse-detected-gnss-jump.md) | Refuse a detected GNSS position jump until the jump is undone (opt-in: `*-guard` estimators) | Proposed |
