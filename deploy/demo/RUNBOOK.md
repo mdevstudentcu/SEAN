@@ -42,13 +42,14 @@ Commands are in `deploy/demo/demo.sh`; `just demo <segment>` runs the same scrip
 
 | Segment | Command | What it runs |
 | --- | --- | --- |
-| Pre-flight | `deploy/demo/demo.sh check` | Python and panel imports, `lsof`, port 8050 free, the four scenarios load and their estimators exist, the real session is there |
+| Pre-flight | `deploy/demo/demo.sh check` | Python and panel imports, `lsof`, port 8050 free, the four scenarios load and their estimators exist, the two real sessions are there (`realcut`'s only matters for that segment) |
 | **Stage sequence** | `deploy/demo/demo.sh stage` | GPS lost → jump without guard → jump with guard, on port 8050; **Enter** moves on, the page reconnects by itself, the last Enter stops |
 | GPS lost | `deploy/demo/demo.sh outage` | `challenge-drone-outage`, seed 0, `ekf`, ×5 |
 | Location jump | `deploy/demo/demo.sh jump` | `challenge-drone-spoof-jump`, seed 0, `ekf`, ×10; Enter; then `challenge-drone-gps-return`, seed 0, `ekf-guard`, ×10 |
 | Jump with guard only | `deploy/demo/demo.sh guard` | the second half of `jump` alone |
 | Time spoof (Q&A only) | `deploy/demo/demo.sh time` | `challenge-timing-time-spoof`, seed 0, `ekf`, ×10 |
 | Real towers | `deploy/demo/demo.sh real` | the cells heard in session `20261110-1623-static-out-e5060-lte`, each with the registered site it is consistent with |
+| Real GPS cut (optional) | `deploy/demo/demo.sh realcut` | session `20261111-0845-live-laptop-gps`, GPS removed from 35 s, `ekf`, ×3, origin hidden; after `stage`, not in it (*Real GPS cut* below) |
 | Live (bonus) | `deploy/demo/demo.sh live --connect payload=tcp://<pi>:5556 --origin <lat,lon,h>` | `pnt live --dash --estimator ekf` (*Live segment* below) |
 
 Without the repo's `.venv`, set `PNT_PY=/path/to/python`. Real sessions live outside git: `PNT_SESSIONS=/path/to/data/sessions` if they are not in this checkout. `PNT_DEMO_OPEN=0` stops the script opening the browser.
@@ -121,6 +122,7 @@ Segment 2: "A spoofer moves GPS 300 metres. Caught at the first fake fix: red. B
 | Pre-flight `check` | 0.7 |
 | Stage sequence (Enter at T+105, T+188, T+212) | **72.9** and **75.9** |
 | Real towers | 0.4 to print, ~15 to talk |
+| Real GPS cut (optional, Ctrl-C at T+115) | about 41 (first frame 2.3–3.5 s after Enter) |
 
 Measured twice back to back on 2026-11-11 at `ec5da67`, a local commit never pushed, so not reproducible from the repository (the same change before its rebase onto `main` `8892fca`, now `9aed72b`; after the rebase only `demo.sh check`, `demo.sh real` and the two jump segments' outcomes were re-checked, not the timings), clean tree, macOS, this laptop, each run a fresh `demo.sh stage` (Python caches warm, not a rebooted laptop), load average 7.8 from two other jobs. Enter was pressed by a script reading the panel clock, not by hand, and no browser was open: a browser reconnects 0–3 s after each switch, which delays what is visible but not the sequence. The segment switch took 3.1–5.3 s. Event times on the panel clock agreed exactly between runs. A just-booted laptop's first Python start is slower (`TBD`, not measured): hence the warm-up. Re-time the stage sequence at the commit that will be shown (`TBD`).
 
@@ -156,7 +158,41 @@ lte:5060:492        594   10.0    -6.3      9.0  eNB 102790, Vidéotron, <site>
 
 Say: "This is real: a 60-second capture with a low-cost RTL-SDR radio dongle. Three cells tracked ten times a second, two consistent with one registered tower site." Say "consistent with", never "identified": the match is made around Carleton, not around the receiver. The terminal prints the site name where `<site>` is shown here (left out of this file: with the cells heard it hints at where the capture was made).
 
-**What the real segment can show today (2026-11-11):** only this table. `demo.sh real` runs at `9aed72b` (checked after the rebase). One local session now has a GPS fix (`20261111-0845-live-laptop-gps`), and cutting GPS in software on a real session is on `main` (`analysis/real_gps_cut.py`, #233 through #250). A real-session panel segment has not been built or rehearsed, so the real segment on stage is still only this table.
+**What the real segment can show today (2026-11-11):** this table, and optionally the real GPS cut below (#264). `demo.sh real` runs at `9aed72b` (checked after the rebase).
+
+## Real GPS cut (optional, ≈ 40 s, after the stage sequence): `deploy/demo/demo.sh realcut`
+
+Not part of `stage`. Run it after the stage sequence's last Enter (the port is free again): `deploy/demo/demo.sh realcut`, then **Ctrl-C at about T+115**. It replays the real session `20261111-0845-live-laptop-gps` (a laptop with the GPS HAT, barometer and IMU, standing still for 600 s; **no LTE, no towers**) on the panel, with every GPS fix from 35 s after the first record removed in software (the `outage` fault of `pnt replay --inject`, written by `analysis/real_gps_cut.py --dash-out` into a temporary folder that is deleted when the segment stops). Estimator `ekf` (with #241's fix), ×3. The panel runs with `--hide-origin`: no origin, no towers, only metres about the session's first fix (the session origin is that fix, 0.2 m away).
+
+Say: "This one is a real receiver, not a simulation: a laptop GPS standing still for ten minutes. We remove GPS in software at T+35, and the panel turns red on its own within three seconds. No towers in this recording, so after the cut the filter has only the barometer and its last speed."
+
+When the bound reaches kilometres, add: "The bound is honest but far too wide: the real error stays within a couple of metres because the receiver never moved, and the filter does not know that." Do not say the position stays within 2 m without GPS: a stationary receiver says nothing about a moving one.
+
+**Wall** is seconds after pressing Enter on `deploy/demo/demo.sh realcut` (±1 s); **T+** is the panel clock. Measured as for the stage sequence (a script reading the panel stream, no browser, Ctrl-C at T+157): four runs on 2026-11-11, two at the uncommitted change and two at commit `a3190ce`, clean tree, macOS, this laptop, load average 3–7. Every panel-clock time and value below was the same in all four; first frame 2.3–3.5 s after Enter (slower under load).
+
+| Wall | T+ | Panel | Say |
+| --- | --- | --- | --- |
+| 0–4 s | 0–2 | Script writes the cut copy (about 2 s), browser opens. **REPLAY** chip, `20261111-0845-live-laptop-gps-gps-cut-35s · estimator ekf`, ×3. One start-up alarm is already listed, *Protection level over the alert limit, since T+1.6 · cleared at T+1.9*: the filter's first second, ignore it | "Real recording, replayed three times faster." |
+| 3–15 s | 2–34 | Green **NOMINAL**, HPL 20–24 m; *In use* `baro`, `gnss` | "GPS in use, green, bound about 20 metres." |
+| 14–16 s | 36.1 | Amber **DEGRADED**, *GPS not in use* latched *since T+36.0*; `gnss` moves to *Not in use* | "GPS is gone." |
+| 15–16 s | 37.6 | Red **UNSAFE**, HPL 52.9 m; the start-up alarm comes back *since T+37.4 (2 times)* | "Three seconds later it says: do not navigate on this position." |
+| 16–42 s | 40–115 | Red throughout; the HPL circle and the blue line grow: T+64.6 HPL 598 m, error 1.3 m; T+94.6 HPL 1,558 m, error 2.1 m; T+115.2 HPL 2,375 m, error 1.3 m | The two sentences above about the bound. |
+
+*Error against truth* on this segment is the distance to the **GPS fixes we withheld** (the panel says *the session's truth*), which scatter by 0.8 m RMS, 2.5 m at most, on their own. The stage cut is at 35 s so the cut lands 14 s in; it also keeps the pre-cut part free of the 1 s amber at T+49 (*GPS height rejected*: the BMP180 barometer drifts with temperature, and #241 keeps GPS's horizontal while its height is set aside).
+
+**Fallback if it fails** (session missing: the script prints `realcut: session … missing` and exits non-zero, nothing else is affected; or the page never connects): show `realcut-2-cut.png` and `realcut-4-bound.png` from `analysis/pr-evidence/elshoubky-feat-264-real-cut-demo/` and say: "On a real ten-minute GPS recording, removing GPS turns the panel red within three seconds, and the bound stays far above the real error. This laptop is missing that recording, so here are the screenshots."
+
+**The real numbers behind it** (`ekf`, cut at 35 s, error against each withheld fix, horizontal, metres relative to that fix; the fix nearest each instant, which is 0.5 s earlier: the fixes fall at x.54 s; computed with `analysis/real_gps_cut.py`'s `load`, `cut_gnss` and `score_cut(..., horizon_s=600)` over `nav.estimate("ekf", ...)`, estimator code as at `a3190ce`. The script's own `err_30s_m` columns come out empty on this session because its 0.05 s match misses the x.54 s fixes):
+
+| After the cut | Error | HPL |
+| --- | --- | --- |
+| +30 s | 1.3 m | 579 m |
+| +60 s | 2.1 m | 1,533 m |
+| +120 s | 2.1 m | 4,189 m |
+| +300 s | 7.4 m | 16,217 m |
+| whole coast (565 s, 565 fixes) | max 13.6 m (at +561 s) | above the error at every fix; smallest ratio 216 |
+
+Holding the last fix before the cut does as well or better on this stationary receiver (0.6, 0.6 and 1.2 m at +30/+60/+120 s; at most 2.8 m). With GPS left in (no cut), its horizontal is never refused on this session (0 of 6,002 epochs, with #241; without it #241 reports 273 of 601 s refused), while its height is set aside on 2,602 epochs (about T+49–50 and from T+201 on). The status turns unsafe because HPL passes the 50 m alert limit 3 s after the cut, not because the filter sees that it is wrong. `ekf` does not use the IMU (`ekf-imu` does); *In use* shows `baro` only after the cut.
 
 ## Fallbacks
 
@@ -170,7 +206,8 @@ Say: "This is real: a 60-second capture with a low-cost RTL-SDR radio dongle. Th
 | `ekf-guard` missing or `check` fails | `FAIL` lines | *If everything fails* below |
 | Venue Wi-Fi down | — | Nothing needed: the demo uses no network |
 | Laptop dies | — | Same screenshots from a teammate's laptop or the PR page |
-| Questions about real position | — | The demo shows no real position: one local session has a GPS fix, but no real-session panel segment is built; say so (*Real towers* above) |
+| Questions about real position | — | One real session has a GPS fix and is shown only as metres about its first fix (*Real GPS cut*); never show its coordinates |
+| `realcut` prints `session … missing` | Exits non-zero, nothing started | Say the fallback sentence under *Real GPS cut* and show its screenshots |
 
 ## If everything fails: 60 seconds on screenshots
 
@@ -212,3 +249,12 @@ Headless Google Chrome at 1920×1080, panel served by `deploy/demo/demo.sh jump`
 | `guard-3-readmitted.png` | `challenge-drone-gps-return` | `ekf-guard` | T+210.0 | NOMINAL, HPL 6.9 m, error 0.8 m: real GPS back; alerts cleared at T+199.9, still listed |
 
 The 2026-11-10 screenshots in `analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/` (commit `8cea8cf`) still show the time spoof and the real-session panel (`real-dash-today.png`: NO DATA, no origin in a real session). Their wording predates the fix in `ade3bbc` (*GPS lost … towers*, *Low trust*).
+
+Real GPS cut (#264): headless Google Chrome at 1920×1080, panel served by `deploy/demo/demo.sh realcut` (the same code as `a3190ce`, before it was committed). **Real session**, GPS removed in software at 35 s, `ekf`, origin hidden. Files in `analysis/pr-evidence/elshoubky-feat-264-real-cut-demo/`; each was checked by eye for coordinates, a map or a tower: none (only the ENU grid, the session name and relative metres).
+
+| File | Panel time | Shows |
+| --- | --- | --- |
+| `realcut-1-before.png` | T+30.4 | NOMINAL, HPL 22.6 m, error 0.0 m; `baro` and `gnss` in use; the start-up alarm listed, cleared at T+1.9 |
+| `realcut-2-cut.png` | T+36.8 | DEGRADED, *GPS not in use* since T+36.0, HPL 44.0 m, error 0.2 m; `gnss` not in use |
+| `realcut-3-unsafe.png` | T+40.6 | UNSAFE since T+37.4, HPL 91.4 m, error 0.2 m |
+| `realcut-4-bound.png` | T+100.6 | UNSAFE, HPL 1,784 m above the 2.3 m error against the withheld fixes |
