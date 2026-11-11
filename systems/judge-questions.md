@@ -1,34 +1,35 @@
 # Judge questions
 
-- **Use:** for the presenter of [`deck.md`](deck.md): the 18 hardest questions a navigation engineer is likely to ask. Each answer is at most 45 words and can be said as written. Numbers are simulation unless the answer says real; sources are in [`results.md`](results.md).
+- **Use:** for the presenter of [`deck.md`](deck.md): the 20 hardest questions a navigation engineer is likely to ask. Each answer is at most 45 words and can be said as written. Numbers are simulation unless the answer says real; each source line names its PR or file, and [`results.md`](results.md) collects them.
 - **If you don't know:** say "I don't have that number; it is in our results file" and move on. Never estimate a number on stage.
+- **Agreed statistic** (ADR-0034, *Amendment*): at each second after GPS loss, the 95th percentile of error across runs; the worst second of the window counts. "Worst second" below means this.
 
 ## 1. Your own target is 25 m for five minutes. Why do you miss it?
 
-> Mostly the radio's noise. Our front end reports only fast noise, so the filter rejects nearly every tower reading; LTE made position worse than none. In simulation, learning each tower's noise cut the median five-minute error from 4,034 to 982 metres. Still far from 25.
+> Mostly the noise our radio reports: only the fast part, so the filter over-trusts towers, worse than none in simulation. Learning each tower's noise, on a study leg hopping thirteen frequencies, brings the worst second to a hundred and thirty-two metres. Still far from 25.
 
-- **Source:** #137, #147 (LTE worse than none); #156 (open, draft, opt-in; per-run p95, seeds 0–49); ADR-0039 (proposed in #156, not on `main`). On the easy synthetic route the budget meets 25 m (#178).
-- **Do not claim:** that any fix meets T1 or the 50 m fallback; that #156 is merged or on by default.
+- **Source:** agreed statistic, sim, `challenge` drone leg, seeds 0–49, `ekf`, 0–300 s: #247 (open, draft; results re-cited at `31aaca1`): no LTE 2,909 m; today (1 carrier, told 2 m) 12,507 m; learned noise 2,474 m; learned noise + 13 carriers 132 m; ceiling told the true noise 111 m. #262 (open, draft, `7e80092`): LTE white noise measured from our static captures 105 m; multipath as small as measured at rest 51 m; front-end arc restarts added 151 m. Learned noise: #156 (open, opt-in), ADR-0039 (proposed in #156, not on `main`). Thirteen carriers is a study leg: the payload cannot hop (#179, merged, #250; ADR-0040 Proposed). Backup, what limits it now: multipath, measured only at rest (#262).
+- **Do not claim:** that any row meets T1 or the 50 m fallback (closest 51 m against 50 m, only if a moving drone's multipath is as small as at rest and there are no arc restarts); that #156, #247 or #262 is merged or on by default; that the payload hops. Do not quote #156's per-run 4,034 → 982 m: per-run numbers do not score T1 ([`results.md`](results.md), *Two T1 statistics*).
 
 ## 2. Is any of it real?
 
 > The payload, the radio captures and the tower matches are real. We measured range noise on fifteen real captures and recorded a GPS session with a timing pulse. Every accuracy and detection number is simulation. With GPS removed in two real sessions, towers worsened position.
 
-- **Source:** [`results.md`](results.md) (a); ADR-0036; #211. Real error after GPS loss: #233 (merged, #250) rerun after #245's front-end fixes, [`lte-reacq-steps/NOTES.md`](../analysis/results/lte-reacq-steps/NOTES.md) *GPS cut*: `ekf` with LTE, median 21,553 m (`20261111-0151`) and 10,718 m (`20261111-0233`) at 300 s over 5 cut times each, against 0.6 and 1.3 m without LTE; before ADR-0047's default, not rerun.
-- **Do not claim:** a position from real towers, or any real accuracy, integrity or detection rate. Quote #214's line labelled "real session, GPS removed in software".
+- **Source:** [`results.md`](results.md) (a); ADR-0036; #211. Real error after GPS loss: #233 (merged, #250) rerun after #245's front-end fixes, [`lte-reacq-steps/NOTES.md`](../analysis/results/lte-reacq-steps/NOTES.md) *GPS cut*: `ekf` with LTE, median 21,553 m (`20261111-0151`) and 10,718 m (`20261111-0233`) at 300 s over 5 cut times each, against 0.6 and 1.3 m without LTE; before ADR-0047's default, not rerun. The other owner's result, not re-run by us. Same runs, opt-in `ekf-measured-sigma` (#240, merged, #250): 205 / 1,513 m, still worse than no LTE. Our learned-noise and honest-bound filters have not run on real data (#256, blocked on the sessions).
+- **Do not claim:** a position from real towers, or any real accuracy, integrity or detection rate; that any LTE filter beats no LTE on real data. Quote #214's line labelled "real session, GPS removed in software".
 
-## 3. Why are three towers not enough?
+## 3. In a regional jam your towers lose GPS timing too, and at altitude you are above their downtilted beams. What is left?
 
-> Each range carries the receiver's clock error. With barometer height, three ranges solve position and clock with nothing left to check them, and a tower with its own unknown clock adds no check. In simulation, with our error model, no tower count met the target.
+> Tower geometry survives; their clocks drift. We simulated every tower going into holdover mid-outage: our opt-in honest filter behaved as without it. A spoofer who also captures tower timing is outside our design. Altitude reception is unmeasured; then barometer and dead reckoning remain.
 
-- **Source:** [`research.md`](research.md) §1 item 9 (Jia, Khalife & Kassas 2023); this is why tower clocks are learned while GPS is trusted (ADR-0022, Proposed). Study: #232 (merged, #250), [`tower-count/summary.md`](../analysis/results/tower-count/summary.md): with the committed and honest error models no tower count meets T1 or the fallback; with clean errors all 17 sites within 3 km meet T1. Backup (simulation, #179): 2 masts heard per 10 s gives 374 m at 2 min; 27 masts, 68 m, once the noise is right.
-- **Do not claim:** a minimum tower count; that the motion sensor makes three towers enough.
+- **Source:** [`architecture.md`](architecture.md) *Where it stops* (a wide-area time spoof that also captures tower timing is not covered by design); ADR-0024 (towers are GNSS-timed). Sim, `challenge-drone-outage-tower-holdover` (every tower in OCXO holdover from 180 s, `TBC`), 1 carrier, seeds 0–199, #251 (open, draft, verdict Not ready): `ekf-honest` 0.45 % of epochs above HPL from the fault, worst run 18.0 %, 0 hazardous, against 0.45 % / 18.5 % on the plain outage; `ekf` 45.6 %. Altitude: [`roadmap.md`](roadmap.md) *Operating envelope* (downtilt not measured, not studied); real captures on the ground or 0.5 m up (#210).
+- **Do not claim:** any real-tower result in a jam; that reception at altitude is fine; that tower-timing capture is detected; that `ekf-honest` is merged or the default.
 
 ## 4. How do you know where a tower is, and what if the table is wrong?
 
-> From the ISED registry: the frequency and cell ID we decode map to one registered site, or we drop the cell. From Carleton, no row matched another site; ambiguous rows are dropped. In simulation, a fake tower on a real ID fooled one filter.
+> From the ISED registry: the frequency and cell ID we decode map to one registered site, or we drop the cell. Locally, no row matched another site; ambiguous rows are dropped. In simulation, a fake tower on a real ID fooled one filter.
 
-- **Source:** ADR-0023 (Proposed); registry audit of 4,059 rows, #133 (the count of dropped ambiguous rows is in no committed file: `TBD`); wrong-table simulation, #133 and #132 (`ekf-calibrated` 186.5 m, 5,147 hazardous epochs; `ekf-mhss` flags the site, HPL 5.4 km).
+- **Source:** ADR-0023 (Proposed); registry audit of 4,059 rows, #133 (the count of dropped ambiguous rows is in no committed file: `TBD`); wrong-table simulation, #133 and #132 (`ekf-calibrated` 186.5 m, 5,147 hazardous epochs; `ekf-mhss` flags the site, HPL 5.4 km). Backup, table position error (sim, #262, open, draft): with 13 carriers and learned noise, 100 → 20 m of tower position error gives 107 m against 105 m: it barely matters.
 - **Do not claim:** that a tower is "identified": say "consistent with a registered site". The dongle cannot decode the global cell ID (SIB1).
 
 ## 5. Can an 8-bit RTL-SDR range on LTE at all?
@@ -38,33 +39,33 @@
 - **Source:** real, ADR-0036 and [`lte-measured-noise/`](../analysis/results/lte-measured-noise/summary.md) (at `8892fca`, after #245: white σ 0.73 m at 13–16 dB, 22.5 m at −14 to −11 dB on 43 records; correlated S(1 s) median 8.1 m). [`research.md`](research.md) §2: no published real-tower LTE TOA scatter from an RTL-SDR was found.
 - **Do not claim:** an accuracy (no truth), or that it works while moving.
 
-## 6. Your 5.33-sigma bound: how is it computed, and at what integrity risk?
+## 6. Your 5.33-sigma bound: 5.33 is a one-dimensional factor, and with what exposure time? How does 1e-7 square with 45 % escapes?
 
-> It is 5.33 times our filter's largest horizontal standard deviation: a bound under our model, one in ten million per epoch only if errors are Gaussian and the covariance honest. On some simulated flights it is not honest, and the error escapes the bound.
+> 5.33 is the one-dimensional factor, applied to our largest horizontal deviation; a round error needs nearer 5.7. No exposure time is set. But the factor is not what failed: in simulation the filter's own uncertainty was wrong, so the error escaped 45 percent of epochs.
 
-- **Source:** `integrity/protection.py` (`K_H` 5.33); `integrity/mhss.py` (`phmi` 1e-7, priors 1e-3 / 1e-4 / 1e-4 / 1e-3, all `TBC`); [`verification.md`](verification.md) *Integrity monitor*. T5 is missed: `ekf` has hazardous epochs on 7 of 50 seeds of the drone outage (#170).
-- **Do not claim:** that the bound always holds, or a certified integrity risk. Call it "a bound under our model", not a protection level in the certified sense. Where it held: through the demo's outage and guarded jump (seed 0); where it failed: the unguarded jump, and 7 of 50 seeds of the drone outage.
+- **Source:** `integrity/protection.py` (`K_H` 5.33, "a common choice for a ~1e-7 integrity risk under Gaussian errors", `TBC`); `integrity/mhss.py` (`phmi` 1e-7, priors 1e-3 / 1e-4 / 1e-4 / 1e-3, all `TBC`); [`architecture.md`](architecture.md) *How the confidence number is computed*. Arithmetic, not a committed result: the two-sided Gaussian tail beyond 5.33 σ is 9.8e-8; for a circular horizontal error P(r > 5.33 σ) = exp(−5.33²/2) = 6.8e-7, and 1e-7 needs 5.68 σ. No exposure time is defined in REQ-02, ADR-0034 or [`verification.md`](verification.md) (`TBD`). The factor itself: issue #265 (open; options for the owners, no code change before a decision). Why the covariance, not K: #251 (open, draft) *Cause* (d): with the slow error as a state, mean NEES is near 2. The two numbers: 45.3 % = epochs after GPS loss with error above HPL, `ekf`, `challenge-drone-outage`, 1 carrier, seeds 0–199 (#251; #170's T5 figure gives 43.7 % over whole runs, #222); 7 of 50 = seeds with a hazardous epoch (error over the 50 m alert limit while HPL is under it), #170 (merged, #250), seeds 0–49; on #251's 200 seeds, 33 runs. Opt-in `ekf-honest`: 0.45 %, worst run 18.5 %, 0 hazardous; its settings are the sim's own truth; HPL is under the 50 m alert limit on only 9.8 % of epochs.
+- **Do not claim:** that the bound always holds, a certified integrity risk, that 5.33 is the right horizontal factor, or an exposure time. Call it "a bound under our model". Where it held: through the demo's outage and guarded jump (seed 0); where it failed: the unguarded jump, and 7 of 50 seeds of the drone outage.
 
 ## 7. What happens when the spoofer is subtle, a slow ramp?
 
-> Our default filter misses a 2 metre-per-second drag entirely in simulation. An opt-in tower monitor catches it in 48 of 50 runs where 17 sites are heard, after 131 seconds median, not 30. A small jump then drift is caught in at most 24 percent.
+> Our default filter misses a 2 metre-per-second drag in simulation. An opt-in tower monitor catches 1 of 50 on our leg as flown, 48 if every nearby tower is heard, 50 on a study leg hopping thirteen frequencies: two minutes median, not 30 seconds.
 
-- **Source:** #170 (0 of 50); #180 (merged, #250; ADR-0037 Proposed; 1 of 50 on the drone leg as committed); #176 (merged, #250; jump then drift followed to 110–430 m).
-- **Do not claim:** that we catch slow spoofing within 30 s, or with 1 to 3 cells.
+- **Source:** #170 (merged, #250; 0 of 50). #180 (merged, #250; ADR-0037 Proposed): drone leg as committed (1 to 3 cells) 1 of 50; every tower within 3 km heard continuously (17 eNBs) 48 of 50, 131 s median, 313 s worst. #263 (open, ready for review; study leg, the payload cannot hop): 13 carriers 50 of 50, 127 s median, 276 s worst, 0 added false alarms in 100 runs; 6 carriers 2 of 50 and 1 added false alarm; 1 m/s 4 of 10; 0.5 m/s 0 of 10. The bound does not help either: 99.3 % of epochs above HPL on the ramp (#251, draft). Small jump then drift: at most 24 % (#176, merged, #250).
+- **Do not claim:** that we catch slow spoofing within 30 s, on the leg as flown, or below 2 m/s; that the payload hops; that #263 is merged.
 
 ## 8. What about false alarms?
 
-> In simulation, zero per hour on clean runs. The aircraft-based warning gives 1.94 per hour from modelled quality dips. The jump guard has a different cost: after 5 of 46 hard manoeuvres it kept honest GPS out. Real-world false-alarm rates are not measured.
+> In simulation, zero per hour on clean runs; the aircraft-based warning, 1.94 per hour. Real data showed another cost: our default filter refused honest GPS for over four of ten minutes, because the barometer drifted with temperature. A fix is in review.
 
-- **Source:** #170 (0.0 /h on `nominal`, four estimators); #166 (ADR-0033 Proposed); ADR-0038 *Consequences* (manoeuvre cases, GNSS at 1 Hz). Real: the C/N0 jamming indicator stayed 0 over one 595 s session (#211).
-- **Do not claim:** a real-world false-alarm rate.
+- **Source:** #170 (0.0 /h on `nominal`, four estimators); #166 (ADR-0033 Proposed). Real, #241 (open, ready for review; ADR-0045 Proposed): one static 601 s session, honest GPS refused in 262 s (the PR's per-second log; 273 in the reviewer's per-epoch replay); the BMP180, told 0.3 m, read −3.4 to +77.5 m, correlation with its temperature −0.85; with the fix the GPS horizontal is used 600 of 601 s. Backup: the jump guard kept honest GPS out after 5 of 46 hard manoeuvres (ADR-0038 *Consequences*); #263's hop rule adds 0 false alarms in 100 runs at 13 carriers, 1 at 6. Real: the C/N0 jamming indicator stayed 0 over one 595 s session (#211); the sky-map check flagged 0 of 120 real skyviews (#239, merged, #250).
+- **Do not claim:** a real-world false-alarm rate; that #241 is merged.
 
 ## 9. Why refuse GPS after a jump, rather than trust it again?
 
 > Because a spoofer only has to wait. Once GPS is rejected, the filter's uncertainty grows until the same fake fix passes. The guard keeps GPS out until its own stream steps back. Honest GPS returns 0.1 seconds after the jump ends; meanwhile we dead-reckon.
 
-- **Source:** ADR-0038 (Proposed), #191 (merged, opt-in); [`jump-refusal/summary.md`](../analysis/results/jump-refusal/summary.md). Cost: median error 1,263 m at +120 s after a refused jump on the drone leg, flagged unsafe.
-- **Do not claim:** that the guard is on by default, or that it is free.
+- **Source:** ADR-0038 (Proposed), #191 (merged, opt-in); [`jump-refusal/summary.md`](../analysis/results/jump-refusal/summary.md). Cost: median error 1,263 m at +120 s after a refused jump on the drone leg, flagged unsafe; hazardous epochs on 3 of 50 seeds. Backup (#247, open, draft; study leg): held 300 m jump, 13 carriers, worst second over 0–300 s: guard alone 11,103 m; guard with learned noise 120 m, 0 hazardous, 0 of 50 on the spoofed position. After a long outage the guard does not judge returning GPS (Q19).
+- **Do not claim:** that the guard is on by default, that it is free, or that it has no hazardous epochs.
 
 ## 10. Is this legal? You record cell signals.
 
@@ -89,9 +90,9 @@
 
 ## 13. What would another month buy?
 
-> Moving captures with independent truth, so the error model covers motion; the fixes run together on the agreed statistic; and real frequency hopping. We have not estimated durations, and we will not promise 25 metres.
+> Moving captures with independent truth, so the error model covers motion; our noise-learning and honest-bound filters run on real sessions; honest GPS taken back after long outages. No durations estimated; we will not promise 25 metres.
 
-- **Source:** [`roadmap.md`](roadmap.md) *Three milestones*, M1; #218. Realistic multipath alone exceeds 25 m in the budget (#178).
+- **Source:** [`roadmap.md`](roadmap.md) *Three milestones*, M1; moving capture #259; real runs #256; re-admitting GPS #246. Multipath limits the simulated stack (#262, draft: 51 m with at-rest multipath, 105 m without); realistic multipath alone exceeds 25 m in the budget (#178). Already done, not future: the fixes run together on the agreed statistic (#247, draft, #218) and the sky-map spoof decision (#239, merged, #250). Real frequency hopping stays in M1.
 - **Do not claim:** a date or a target we expect to meet.
 
 ## 14. What is the certification path?
@@ -105,21 +106,21 @@
 
 > The sim assumed 50 metres of white noise per second; at rest, real white noise is 0.7 to 23 metres, plus a slow 8-metre error. Records told the filter 2 metres. Real cells drop and reacquire often; the sim kept every track.
 
-- **Source:** ADR-0036 (Proposed; the *Sim validity* row is not yet moved); `pnt compare` sim against real (#199: 49.2 m white against 21.3 m smooth); #183 (front-end faults).
+- **Source:** ADR-0036 (Proposed; the *Sim validity* row is not yet moved); `pnt compare` sim against real (#199: 49.2 m white against 21.3 m smooth); #183 (closed) and #245 (merged): front-end faults. Backup (#262, open, draft): putting the measured white noise into the sim moves the stacked result from 132 to 105 m; adding modelled arc restarts, 151 m.
 - **Do not claim:** that the simulator is validated, or that the measured model is adopted.
 
-## 16. Your panel says LTE is not in use. Did the towers contribute anything to the position I just watched?
+## 16. Your panel says LTE is not in use, yet you say towers make position worse. Which is it?
 
-> Very little: records report only fast noise, so the filter rejects nearly every tower reading; on one simulated run, all but 9 of 5,383 before the spoof. After GPS loss it flies on barometer and dead reckoning. Learning tower noise is the fix in review.
+> Both. Records claim 2 metres where the truth is tens, so almost every reading fails the filter's check. The few that pass are believed to 2 metres: each shrinks the filter's uncertainty while pulling position away. In simulation that is worse than no towers.
 
-- **Source:** #180 description (one seed, `challenge` drone leg: 5,374 of 5,383 tower readings rejected before the spoof); #147; guard demo runbook (PR #220, open: Sources lists `lte` under *Not in use*). Fix: #156, ADR-0039 (proposed in #156, not on `main`; opt-in).
-- **Do not claim:** that the demo's position after GPS loss came from towers; a percentage of epochs (no committed count).
+- **Source:** #251 (open, draft) *Cause* 1: "its gate rejects most LTE records and each one it accepts at 2 m collapses the covariance"; #241 *Not fixed* (sim: a few towers pull the state, the covariance stays tight, the gate never reopens); #147 (told 2 m 6,557 m, told the true 50 m 1,002 m, no LTE 2,513 m; per-run, seeds 0–9). Agreed statistic (#247, draft): no LTE 2,909 m, today 12,507 m. Count: #180 description (one seed, spoof leg: 5,374 of 5,383 tower readings rejected before the spoof). Panel: guard demo runbook (open PR #220: Sources lists `lte` under *Not in use*). Fixes: #156 (open, opt-in), ADR-0039 (proposed in #156, not on `main`); `ekf-measured-sigma` (#240, merged, #250, opt-in).
+- **Do not claim:** that the demo's position after GPS loss came from towers; a percentage of epochs (none is committed); that the 9 of 5,383 is from the outage leg.
 
 ## 17. Is the 8 m slow error multipath, or your dongle's oscillator?
 
 > Not the dongle, nor the tower clock. The slow error remains in differences between two sectors of one site on one frequency, where dongle and shared site clock cancel. That leaves multipath at a static antenna or our tracking loop; which, we have not determined.
 
-- **Source:** real, ADR-0036 *Context* (same-eNB sector pairs, which share a clock, still show S(1 s) of 5.5 to 36 m, 5.5 to 18 m without the one pair whose cell sits on a carrier alias; "so it is not a clock"); [`lte-measured-noise/summary.md`](../analysis/results/lte-measured-noise/summary.md), *Pairs on one carrier (dongle cancels)*.
+- **Source:** real, ADR-0036 *Context* (same-eNB sector pairs, which share a clock, still show S(1 s) of 5.5 to 36 m, 5.5 to 18 m without the one pair whose cell sits on a carrier alias; "so it is not a clock"); [`lte-measured-noise/summary.md`](../analysis/results/lte-measured-noise/summary.md), *Pairs on one carrier (dongle cancels)*. In the sim, multipath is the size that matters (#262, draft).
 - **Do not claim:** that it is multipath: the tracker's loop is not ruled out. A static capture cannot size multipath in motion.
 
 ## 18. Who buys this, and at what altitude does it work, given tower antenna downtilt?
@@ -129,6 +130,20 @@
 - **Source:** UC-01, [`use-cases.md`](use-cases.md); [`roadmap.md`](roadmap.md) *Operating envelope*; real captures on the ground or 0.5 m up (#210). Simulated flights at 40 to 45 m.
 - **Do not claim:** a buyer who has expressed interest, a price for the product, or a working altitude.
 
+## 19. GPS comes back after a long outage, hundreds of metres from your estimate. Does the guard refuse it, and what stops a spoofer stepping back in?
+
+> The guard never judges a fix returning after an outage; only the normal check does. If we have drifted far, that check can reject honest GPS for good: one simulated run reached 54 kilometres. A spoofer who jams first meets that check. Both are open.
+
+- **Source:** `integrity/jump_guard.py` (latches only if GNSS was used within `gnss_timeout_s`, 2 s: "A fix returning after an outage never latches"; "A spoofer that first jams GNSS for longer than `gnss_timeout_s` is judged by the ordinary gate"); ADR-0038 (Proposed; a covariance-based re-admission was rejected because the covariance is not honest after a long coast). Issue #246 (open): `challenge-drone-outage` seed 2, `ekf`, `main` `c21e047`: GNSS refused for all 60 s after it returned, maximum error 54 km; how many seeds: `TBD`. While latched, GPS is re-admitted only when its own stream steps back by the jump; one that ramps while latched and then steps back gets in with the ramp's offset (stated limit).
+- **Do not claim:** that honest GPS is always taken back; that the guard covers jam-then-spoof; a seed count for #246.
+
+## 20. Why believe 132 m? Your real front end restarts cells, real data is kilometres worse, and the figure is the same at 120 s and 300 s.
+
+> Not as a real number. It is simulation, on a study leg the payload cannot fly, and adding modelled track restarts makes it 150. It is flat because the worst second comes early, at 88 seconds. On real data, no tower filter beats none yet.
+
+- **Source:** #247 (open, draft): learned noise + 13 carriers, worst second 132 m at s 88 in both windows, so no later second is worse. #262 (open, draft): arc restarts and steps added, 143 m (0–120 s) and 151 m (0–300 s, at s 177). Real: #240 and #245 (merged; nothing beats no LTE on two static sessions; #245 fixed most arc steps; the filter still trusts records told 1 to 5 m that are off by tens of metres); not reproduced on real data (#256). Backup (sim, #232, merged, #250, [`tower-count/summary.md`](../analysis/results/tower-count/summary.md)): with the committed and honest error models no tower count meets T1 or the fallback; with clean errors all 17 sites within 3 km meet T1.
+- **Do not claim:** that 132 m is a real-world or flight number, that it meets any target, or that the payload hops.
+
 ---
 
-*Status: 2026-11-11, against `main` at `c21e047`; brought up to `c97e09a` (#245, ADR-0041, ADR-0047).*
+*Status: 2026-11-11, against `main` at `c21e047`; brought up to `c97e09a` (#245, ADR-0041, ADR-0047); today's results (#241, #244, #247, #251, #262, #263) and the five questions of #268 added against `2499f87`.*

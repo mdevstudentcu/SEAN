@@ -21,7 +21,7 @@ The source of truth for what we are building and why. When code or another doc d
 | [`roadmap.md`](roadmap.md) | D3 draft: roadmap to a commercial alternative-navigation product: what the week showed, what fixes it, three milestones |
 | [`results.md`](results.md) | The evidence for judges: what is real, the scoreboard on ADR-0034's statistic, what each fix buys, spoofing, what is not shown; each number with its kind and source |
 | [`deck.md`](deck.md) | The 5-minute deck: per slide the headline, content, figure and a word-for-word script, with timings |
-| [`judge-questions.md`](judge-questions.md) | The 18 hardest judge questions: a short answer to say, its source, and what not to claim |
+| [`judge-questions.md`](judge-questions.md) | The 20 hardest judge questions: a short answer to say, its source, and what not to claim |
 | [`sim-plan.md`](sim-plan.md) | What the simulation work will build, in what order, and what is still undecided |
 | [`tower-identity.md`](tower-identity.md) | Explainer: how we know which tower we hear and where it is (ISED register, EARFCN + PCI, timing not strength, clocks learned under GPS, unknown towers) |
 
