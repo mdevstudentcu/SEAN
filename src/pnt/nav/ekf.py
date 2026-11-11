@@ -56,7 +56,8 @@ and published data replace it, ADR-0015). Beyond the white noise each reading re
 - Multipath (`multipath_ratio`, `multipath_tau_s`): a first-order Gauss-Markov state per
   emitter, steady-state sigma `multipath_ratio` times the reported sigma, as `ekf-base` sizes its
   difference bias. A reflection stays wrong for tens of seconds, so treating it as white noise
-  makes the filter overconfident in an outage.
+  makes the filter overconfident in an outage. `multipath_sigma_m` sizes it in metres instead,
+  apart from the reported sigma (ADR-0036's correlated part, `CALIBRATED_MEASURED`).
 - Told position (`tower_position_sigma_m`): the published tower position is off by a constant
   (east, north) error per site. The part along the first line of sight is a constant range bias
   that the site clock already absorbs; the states carry only how the bias changes as the line
@@ -243,6 +244,7 @@ class EKF:
         spoof_learn_s: float = 60.0,  # s: null scale learned this long before arming (TBC)
         multipath_ratio: float = 0.0,  # tower multipath sigma / reported sigma; 0: off (TBC)
         multipath_tau_s: float = 30.0,  # s: tower multipath correlation time (TBC)
+        multipath_sigma_m: float = 0.0,  # m: multipath sigma, not scaled; 0: use the ratio (TBC)
         tower_position_sigma_m: float = 0.0,  # m per horizontal axis: told position; 0: off (TBC)
         seed_site_drift: bool = False,  # seed a new site's drift from the calibrated sites
         site_drift_floor: float = 0.1,  # m/s: least drift sigma of a seeded new site (TBC)
@@ -325,6 +327,7 @@ class EKF:
         # Honest tower error model (see the module docstring): per-emitter multipath and
         # per-site told-position error states, added on first sight
         self.multipath_ratio, self.multipath_tau_s = multipath_ratio, multipath_tau_s
+        self.multipath_sigma_m = multipath_sigma_m
         self.tower_position_sigma_m = tower_position_sigma_m
         self.seed_site_drift, self.site_drift_floor = seed_site_drift, site_drift_floor
         self.multipath_idx: dict[str, int] = {}  # emitter -> its multipath state
@@ -397,17 +400,18 @@ class EKF:
         horizontal line of sight they were added at, adding them on first sight (`los`: the line
         of sight now, tower to receiver); None where that part of the model is off.
         - Multipath: a first-order Gauss-Markov state per emitter, steady-state sigma
-          `multipath_ratio` times the reported `sigma`, time constant `multipath_tau_s`.
+          `multipath_sigma_m` if set, else `multipath_ratio` times the reported `sigma`, time
+          constant `multipath_tau_s`.
         - Told position: a constant (east, north) error per site, prior `tower_position_sigma_m`
           per axis, shared by the site's sectors. It moves the range by -(los - los0) . error:
           the part along the first line of sight, los0, is a constant range bias that the site's
           clock offset already carries. Modelling it twice would let any common position offset
           (a spoof dragging GNSS) be explained as every tower having moved."""
         mp = pos = None
-        if self.multipath_ratio > 0:
+        if self.multipath_sigma_m > 0 or self.multipath_ratio > 0:
             mp = self.multipath_idx.get(emitter)
             if mp is None:
-                s = self.multipath_ratio * sigma
+                s = self.multipath_sigma_m or self.multipath_ratio * sigma
                 mp = self.multipath_idx[emitter] = self._append_states([0.0], [s])
                 self.multipath_sigma[mp] = s
         if self.tower_position_sigma_m > 0:
@@ -1097,6 +1101,41 @@ def run_calibrated(
 ) -> Iterator[Estimate]:
     """`run` with the `CALIBRATED` settings; `config` overrides them."""
     return run(measurements, epoch_ns, origin_llh, **{**CALIBRATED, **config})
+
+
+# `ekf-calibrated-measured` (#118, ADR-0043 Proposed): the calibrated model of `CALIBRATED`, but
+# no value is taken from a sim set. Each is measured on real sessions (ADR-0036) or is the
+# filter's own default, which no scenario was generated from. Every value is TBC; TBD where the
+# data gives no value. Our clock (`h0`, `h_2`) and the tower clock noise (`tower_h0`,
+# `tower_h_2`) keep the literature defaults of `EKF` (TCXO-class; Shamaei et al. 2018): the
+# static captures bound the clocks from above only and may not size them (ADR-0036).
+CALIBRATED_MEASURED: dict = {
+    "clock_model": "calibrated",
+    "pseudorange_receiver_clock": True,
+    # White part: the record's reported sigma, as every estimator. ADR-0036 (1) puts the measured
+    # law (sigma^2 = 0.64^2 + 2.28^2 / SNR_lin at 10 Hz) in the front end's report, not here
+    # Correlated part, at rest: ADR-0036 (1), sigma_corr 10 m (middle of the 4.9 to 18 m same-eNB
+    # S(1 s), 20261110 static sessions) and tau_corr 3 s (S(tau) levels off between 1 and 10 s).
+    # TBC: a moving capture with GPS may show it larger (ADR-0036 (4))
+    "multipath_sigma_m": 10.0,
+    "multipath_tau_s": 3.0,
+    # Told tower position: a static capture cannot see it (ADR-0036) and ASM-02's bound is TBD,
+    # so it is off (the table is trusted), as in `ekf`. TBD
+    "tower_position_sigma_m": 0.0,
+    # Tower drift between eNBs: TBD, up to 6.6 m/s seen (ADR-0036), taken as a wide first-sight
+    # prior, not as a value the data defends. Sectors of one eNB share a clock (within 0.5 m/s)
+    "init_tower_drift_sigma": 6.6,
+    # Not seeded from other sites: eNBs were seen to differ by up to 6.6 m/s (ADR-0036), so one
+    # eNB's drift is no prior for another's
+    "seed_site_drift": False,
+}
+
+
+def run_calibrated_measured(
+    measurements: Iterable[Measurement], epoch_ns: int = 100_000_000, origin_llh=None, **config
+) -> Iterator[Estimate]:
+    """`run` with the `CALIBRATED_MEASURED` settings; `config` overrides them."""
+    return run(measurements, epoch_ns, origin_llh, **{**CALIBRATED_MEASURED, **config})
 
 
 def run(

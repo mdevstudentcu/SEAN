@@ -38,6 +38,8 @@ ESTIMATORS = {
     "baseline": baseline.run,
     "ekf": ekf.run,
     "ekf-calibrated": ekf.run_calibrated,  # opt-in: ADR-0022 clocks and the tower error model
+    # opt-in: the same with no value from a sim set: ADR-0036's measured LTE error (ADR-0043)
+    "ekf-calibrated-measured": ekf.run_calibrated_measured,
     "ekf-base": base_rover.run,
     # ekf-mhss: the same EKF, with solution-separation protection levels and exclusion (#82)
     "ekf-mhss": partial(ekf.run, monitor=MHSS),
