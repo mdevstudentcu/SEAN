@@ -270,7 +270,8 @@ def plot(data: dict, out: Path) -> None:
     xs = {n: masts(runs, n) for n in CARRIERS}
     x = [xs[n] for n in CARRIERS]
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(15, 7.5), dpi=100)
-    ends: dict = {a1: [], a2: []}  # (y at the last point, label, colour, bold) per axis
+    ends: dict = {a1: []}  # (y at the last point, label, colour, bold)
+    drawn = [False]  # any time to alert drawn
     for base, mon in PAIRS:
         colour, marker = COLOURS[base], MARKERS[base]
         for est, on in ((base, False), (mon, True)):
@@ -282,26 +283,31 @@ def plot(data: dict, out: Path) -> None:
             label = f"{base}, monitor {'on' if on else 'off'}"
             a1.plot(x, share, **style)
             ends[a1].append((share[-1], label, colour, on))
-            med = [c["tta_med"] for c in d]
-            worst = [c["tta_max"] for c in d]
-            if all(math.isnan(m) for m in med):
-                continue
-            a2.plot(x, med, **style)
-            for xi, m, w in zip(x, med, worst, strict=True):
-                if not math.isnan(m):
-                    a2.vlines(xi, m, w, color=colour, lw=2, alpha=0.6)
-                    a2.plot(xi, w, "_", color=colour, ms=16, mew=2.5)
-            last = max(i for i, m in enumerate(med) if not math.isnan(m))
-            ends[a2].append((math.log10(med[last]), label, colour, on))
+            # time to alert: markers only (a median over few seeds is not a trend), dodged so
+            # equal values stay visible, each with the seeds it is over
+            k = ESTIMATORS.index(est)
+            dodge = (k - (len(ESTIMATORS) - 1) / 2) * 0.025 * max(x)
+            for xi, c in zip(x, d, strict=True):
+                if math.isnan(c["tta_med"]):
+                    continue
+                xd = xi + dodge
+                a2.vlines(xd, c["tta_med"], c["tta_max"], color=colour, lw=2, alpha=0.6)
+                a2.plot(xd, c["tta_max"], "_", color=colour, ms=16, mew=2.5)
+                a2.plot(xd, c["tta_med"], **{**style, "ls": "none"})
+                a2.annotate(f"{c['detected']}/{c['n']}", (xd, c["tta_med"]),
+                            xytext=(0, -24 - 16 * k), textcoords="offset points",
+                            ha="center", color=colour, fontsize=12)  # fmt: skip
+                drawn[0] = True
     # direct labels right of the last point, pushed apart so equal values stay legible
-    for ax, gap, to_y in ((a1, 9.0, lambda v: v), (a2, 0.12, lambda v: 10**v)):
-        placed: list[float] = []
-        for y, label, colour, on in sorted(ends[ax], key=lambda e: e[0]):
-            y = max([y] + [p + gap for p in placed])
-            placed.append(y)
-            ax.text(x[-1] * 1.04, to_y(y), label, color=colour, fontsize=13, va="center",
-                    fontweight="bold" if on else "normal")  # fmt: skip
-    if not ends[a2]:
+    placed: list[float] = []
+    for y, label, colour, on in sorted(ends[a1], key=lambda e: e[0]):
+        y = max([y] + [p + 9.0 for p in placed])
+        placed.append(y)
+        a1.text(x[-1] * 1.04, y, label, color=colour, fontsize=13, va="center",
+                fontweight="bold" if on else "normal")  # fmt: skip
+    a2.text(0.98, 0.97, "colours and fills as left;\nn/50: seeds the median is over",
+            transform=a2.transAxes, ha="right", va="top", color=INK, fontsize=12)  # fmt: skip
+    if not drawn[0]:
         a2.text(0.5, 0.55, "no seed flagged the ramp:\nno time to alert to show",
                 transform=a2.transAxes, ha="center", va="center", color=INK,
                 fontsize=15)  # fmt: skip
