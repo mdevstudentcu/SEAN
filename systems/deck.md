@@ -13,13 +13,13 @@ Nine slides, 285 s, 612 words of script, 11 numbers spoken. Each slide gives the
 | 3 | Live demo | 80 | 155 | 4 |
 | 4 | Real signals | 25 | 51 | 1 |
 | 5 | The scoreboard | 30 | 69 | 2 |
-| 6 | Why, and what the fixes buy | 30 | 63 | 1 |
-| 7 | Every source can lie | 25 | 57 | 0 |
-| 8 | Limits | 20 | 40 | 0 |
+| 6 | Why, and what the fixes buy | 30 | 65 | 3 |
+| 7 | Every source can lie | 30 | 68 | 2 |
+| 8 | Limits | 25 | 50 | 0 |
 | 9 | Roadmap | 25 | 57 | 2 |
-| | **Total** | **285** | **612** | **11** |
+| | **Total** | **295** | **635** | **15** |
 
-Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); six-tenths of a metre (4); fifty-metre, none of fifty (5); four-fold (6); a hundred and twenty metres, a hundred and seventy dollars (9).
+Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); six-tenths of a metre (4); fifty-metre, none of fifty (5); ninety-five percent of fifty, a hundred and thirty metres, five minutes (6); forty-five percent, one percent (7); a hundred and twenty metres, a hundred and seventy dollars (9).
 
 ---
 
@@ -105,16 +105,16 @@ Fallback: the numbers on the agreed statistic (`TBD (#187)`) do not change this 
 
 ## 6. Why, and what the fixes buy
 
-**Headline:** The radio under-reports its noise, so the filter throws the towers away; honest noise, more frequencies and refusing jumps are the fixes, and the ladder shows what they buy together.
+**Headline:** The radio under-reports its noise, so today the towers hurt more than they help; honest noise, more frequencies and refusing jumps are the fixes, and together they reach 132 m in simulation, short of both targets.
 
-**On the slide:** one ladder figure: before, each fix, all together, against 25 m and 50 m.
+**On the slide:** the three fixes, and the ladder for 0–300 s (`ekf`): no towers 2,909 m; today 12,507 m; learned noise 2,474 m; more frequencies only 11,894 m; both 132 m; against the 25 m line.
 
-**Figure:** the stacked-fixes ladder `TBD (#218)`.
+**Figure:** the stacked-fixes ladder, `analysis/results/stacked-fixes/ladder.png` in draft PR #247 (sim, `challenge-drone-outage` and `challenge-drone-hop-outage`, seeds 0–49, commit 4faf994; 95th percentile across runs at each second, worst second).
 
-**Script (63 words, 30 s):**
-> Why? Our radio reports only its fast noise, so the filter rejects the towers as inconsistent, and after GPS loss it is flying on the barometer and dead reckoning. The fixes: learn each tower's real noise, listen on more frequencies, and refuse a flagged jump. Learning the noise alone cut the median error four-fold in simulation. The ladder shows what they buy together.
+**Script (65 words, 30 s):**
+> Why? Our radio reports only its fast noise, so the filter over-trusts the towers; in simulation that is worse than no towers at all. The fixes: learn each tower's real noise, listen on more frequencies, and refuse a flagged jump. Together, ninety-five percent of fifty simulated flights stay within a hundred and thirty metres for five minutes, down from kilometres. Still short of our target.
 
-Fallback if #218 has not landed: leave the slide with the three fixes listed and no figure, and replace the last sentence with "The combined run is not finished, so we do not quote it." If it has landed, replace the four-fold sentence with its one number.
+Fallback: #247 is a draft on unmerged branches; if a judge asks, say so. Told the true noise the same setup reaches 111 m, so the rest of the gap is the assumed error sizes.
 
 **If asked:** Q1, Q16.
 
@@ -125,29 +125,29 @@ Fallback if #218 has not landed: leave the slide with the three fixes listed and
 **On the slide:**
 - GPS: jump, slow drag, fake time. Towers: clock jump, wrong registry entry, fake tower. Aircraft reports: someone else's GPS.
 - Towers take their time from GPS: they may contradict it, never confirm it.
-- The bound is under our model: not yet honest on the worst simulated flights.
+- The bound is under our model. Sim, `challenge-drone-outage`, 1 carrier, seeds 0–199 (draft PR #251): error above the bound in 45.3 % of epochs after GPS loss for `ekf`, 0.44 % for the opt-in `ekf-honest`; single runs still escape (worst 18.5 %); the 2 m/s ramp is undefended (99.3 %; draft PR #254: 0 of 50 detected with hopping).
 
 **Figure:** [`analysis/results/gnss-health-20261111-fullsuite/gnss_health.png`](../analysis/results/gnss-health-20261111-fullsuite/gnss_health.png) (real GPS signal power, the baseline a jamming check uses).
 
-**Script (57 words, 25 s):**
-> Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so they may contradict GPS time, but never confirm it. And our bound is a bound under our model. You saw it fail once, when the plain filter followed the spoof, and on some simulated flights the error escapes it.
+**Script (68 words, 30 s):**
+> Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so they may contradict GPS time, but never confirm it. And our bound is a bound under our model. In simulation, after GPS loss, the error escaped it forty-five percent of the time. An opt-in fix brings that under one percent, but a slow spoof still defeats every filter we have.
 
-Fallback: if the sky-map check (`TBD (#206)`) lands, add its figure here and nothing to the script.
+Fallback: the sky-map check is open as PR #239 (#206), not merged; if it lands, add its figure here and nothing to the script.
 
 **If asked:** Q6 (how the bound is computed), Q11 (what is new).
 
 ## 8. Limits
 
-**Headline:** In the demo the towers carried almost nothing; there is no position from real towers yet; the noise model is measured standing still; attacks are simulated.
+**Headline:** In the demo the towers carried almost nothing; on our one real session with GPS removed in software the towers made position worse; the noise model is measured standing still; attacks are simulated.
 
 **On the slide:** the four limits as four lines.
 
 **Figure:** [`analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/real-dash-today.png`](../analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/real-dash-today.png) (a real session on the panel: no data, no GPS origin).
 
-**Script (40 words, 20 s):**
-> Plainly, our limits. In the demo, the filter rejected nearly every tower reading: the panel shows towers not in use. No position from real towers yet. Our noise model is measured standing still. Every attack is simulated; we never transmit.
+**Script (50 words, 25 s):**
+> Plainly, our limits. In the demo, the filter rejected nearly every tower reading. On our one real session with GPS removed in software, the towers made position worse, by kilometres: our front end restarts its tracking. Our noise model is measured standing still. Every attack is simulated; we never transmit.
 
-Fallback: if the real session with GPS cut in software (`TBD (#214)`) lands, replace "No position from real towers yet." with its one-line result, said as "real session, GPS removed in software".
+Source: open PR #233 (#214), not merged and not re-run by us: real static session, GPS removed in software, 6.6 to 12.4 km at 300 s with LTE against 0.6 m without; cause, the front end's arc steps. If asked for the number, give it with that caveat.
 
 **If asked:** Q2, Q16.
 
