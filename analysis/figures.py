@@ -177,13 +177,14 @@ def fig_error(runs: list[dict], loss: float, title: str, caption: str):
         verdict = "met" if st["met"] else "missed"
         ax.plot(st["worst_at_s"], st["worst_p95_m"], "o", ms=7, mfc="none", mec=INK)
         ax.text(
-            w,
-            m * 0.82,
+            2,
+            m * (0.8 if name == "T1" else 1.1),
             f"{name}: ≤ {m:g} m for {w:g} s (TBC), worst second "
             f"{st['worst_p95_m']:.1f} m at +{st['worst_at_s']} s: {verdict}",
             color=INK,
             fontsize=8,
-            ha="right",
+            ha="left",
+            va="top" if name == "T1" else "bottom",
         )
     ax.axvline(0, color=INK, lw=1)
     ax.text(2, 1.2, "GPS lost", color=INK, fontsize=8)
@@ -474,7 +475,8 @@ def markdown(s: dict, written: list[Path], out: Path) -> str:
         "",
         f"Commit `{s['commit']}`, seeds 0-{s['runs'] - 1}, sim (each model's status is in the "
         "*Sim validity* table of `systems/verification.md`). Regenerate with `just figures "
-        f"{s['estimator']} {s['runs']}`.",
+        f"{s['estimator']} {s['runs']}` (or `just results {s['runs']} {s['estimator']}` for "
+        "`results/final/`).",
         "",
         "Figures: " + ", ".join(f"`{w.name}`" for w in written),
         "",

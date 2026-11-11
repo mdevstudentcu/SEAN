@@ -111,6 +111,16 @@ def test_commit_label_marks_uncommitted_changes():
     assert label and " " not in label  # e.g. f42d50f or f42d50f-dirty
 
 
+def test_commit_label_is_the_one_just_results_checked(monkeypatch):
+    # `just results` checks the tree is clean, then names that commit for both of its steps
+    from pnt.cli import _commit
+
+    monkeypatch.setenv("PNT_COMMIT", "abc1234")
+    assert _commit() == "abc1234"
+    monkeypatch.delenv("PNT_COMMIT")
+    assert _commit() != "abc1234"
+
+
 def test_plot_adds_the_timing_stanford_plot_when_the_clock_is_estimated(tmp_path):
     pytest.importorskip("matplotlib")
     session = tmp_path / "s.mcap"

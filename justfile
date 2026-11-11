@@ -19,8 +19,16 @@ eval scenario="gps-outage" runs="50":
 # table of systems/verification.md, then the four figures (error after GPS loss scored as T1,
 # Stanford, ablation, timing holdover) with their numbers into analysis/results/final/
 results runs="50" estimator="ekf" jobs=num_cpus():
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+      echo "just results needs a clean tree: every output names its commit (REQ-10)" >&2; exit 1
+    fi
+    # Both steps name this commit: the first step's own output must not mark the second dirty
+    export PNT_COMMIT="$(git describe --always --abbrev=7)"
     {{py}} pnt results --runs {{runs}} --estimator {{estimator}} --jobs {{jobs}}
     {{py}} python analysis/figures.py --estimator {{estimator}} --runs {{runs}} --jobs {{jobs}} --out analysis/results/final
+    echo "results at $PNT_COMMIT: systems/verification.md and analysis/results/final/"
 
 # After a rebase-merge: re-point committed results and docs at main's commits (dry run; --write applies)
 recite *args="":
