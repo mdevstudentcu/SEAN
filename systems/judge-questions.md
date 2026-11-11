@@ -12,16 +12,16 @@
 
 ## 2. Is any of it real?
 
-> The payload, the radio captures and the tower matches are real. We measured range noise on fifteen real captures and recorded a GPS session with a timing pulse. Every accuracy and detection number is simulation. A real error after GPS loss is in progress.
+> The payload, the radio captures and the tower matches are real. We measured range noise on fifteen real captures and recorded a GPS session with a timing pulse. Every accuracy and detection number is simulation. With GPS removed in one real session, towers worsened position.
 
-- **Source:** [`results.md`](results.md) (a); ADR-0036; #211. Real error after GPS loss: `TBD (#214)`.
-- **Do not claim:** a position from real towers, or any real accuracy, integrity or detection rate. If #214 lands, quote its line, labelled "real session, GPS removed in software".
+- **Source:** [`results.md`](results.md) (a); ADR-0036; #211. Real error after GPS loss: #233 (merged, #250), [`real-gps-cut-20261111/summary.md`](../analysis/results/real-gps-cut-20261111/summary.md): `ekf` with LTE, median 4,228 m at 120 s and 12,436 m at 300 s over 5 cut times of one static session.
+- **Do not claim:** a position from real towers, or any real accuracy, integrity or detection rate. Quote #214's line labelled "real session, GPS removed in software".
 
 ## 3. Why are three towers not enough?
 
-> Each range carries the receiver's clock error. With barometer height, three ranges solve position and clock with nothing left to check them, and a tower with its own unknown clock adds no check. How few towers suffice with the motion sensor is being studied.
+> Each range carries the receiver's clock error. With barometer height, three ranges solve position and clock with nothing left to check them, and a tower with its own unknown clock adds no check. In simulation, with our error model, no tower count met the target.
 
-- **Source:** [`research.md`](research.md) §1 item 9 (Jia, Khalife & Kassas 2023); this is why tower clocks are learned while GPS is trusted (ADR-0022, Proposed). Study: `TBD (#208)`. Backup (simulation, #179): 2 masts heard per 10 s gives 374 m at 2 min; 27 masts, 68 m, once the noise is right.
+- **Source:** [`research.md`](research.md) §1 item 9 (Jia, Khalife & Kassas 2023); this is why tower clocks are learned while GPS is trusted (ADR-0022, Proposed). Study: #232 (merged, #250), [`tower-count/summary.md`](../analysis/results/tower-count/summary.md): with the committed and honest error models no tower count meets T1 or the fallback; with clean errors all 17 sites within 3 km meet T1. Backup (simulation, #179): 2 masts heard per 10 s gives 374 m at 2 min; 27 masts, 68 m, once the noise is right.
 - **Do not claim:** a minimum tower count; that the motion sensor makes three towers enough.
 
 ## 4. How do you know where a tower is, and what if the table is wrong?
@@ -49,7 +49,7 @@
 
 > Our default filter misses a 2 metre-per-second drag entirely in simulation. An opt-in tower monitor catches it in 48 of 50 runs where 17 sites are heard, after 131 seconds median, not 30. A small jump then drift is caught in at most 24 percent.
 
-- **Source:** #170 (0 of 50); #180 (open, ADR-0037 Proposed; 1 of 50 on the drone leg as committed); #176 (open; jump then drift followed to 110–430 m).
+- **Source:** #170 (0 of 50); #180 (merged, #250; ADR-0037 Proposed; 1 of 50 on the drone leg as committed); #176 (merged, #250; jump then drift followed to 110–430 m).
 - **Do not claim:** that we catch slow spoofing within 30 s, or with 1 to 3 cells.
 
 ## 8. What about false alarms?
@@ -84,7 +84,7 @@
 
 > Second priority, as the mentors asked. In simulation the timing receiver stays within 1.5 microseconds after ten minutes on 49 of 50 runs, and a 50 nanosecond-per-second time drag is caught in a median of 3.3 seconds. Our bound on time is cautious, not certified.
 
-- **Source:** #170 (open; T3 missed on one seed at 1.55 µs; `ekf-calibrated`'s σ bound fails on 13 seeds); RUNBOOK (time PL calls time unsafe early). Real: PPS discipline on the Pi, 769 ns standard deviation (open PR #216).
+- **Source:** #170 (merged, #250; T3 missed on one seed at 1.55 µs; `ekf-calibrated`'s σ bound fails on 13 seeds); RUNBOOK (time PL calls time unsafe early). Real: PPS discipline on the Pi, 769 ns standard deviation (#216, merged; ASM-04).
 - **Do not claim:** that T3 is met, or a real holdover number.
 
 ## 13. What would another month buy?
