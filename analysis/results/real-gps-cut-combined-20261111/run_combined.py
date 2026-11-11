@@ -12,6 +12,8 @@ withheld GPS fixes) for these estimators, all opt-in here, nothing under `src/` 
 - `ekf+rx`: `ekf` with `pseudorange_receiver_clock=True` (ADR-0045 Proposed, #228).
 - `B`: `ekf-measured-sigma` (#147, ADR-0044 Proposed: LTE records told ADR-0036's measured σ).
 - `B+rx`: `B` with `pseudorange_receiver_clock=True`.
+- `B+arc`: `B` with `arc_bias=True` (#147's opt-in: a cell's new arc gets its own range bias),
+  pseudoranges only. Not one of the three fixes asked for; run because most new arcs step.
 - `no LTE`: `ekf` with every LTE record dropped; and `hold`, the last fix before the cut held.
 
 LTE records as the front end wrote them: pseudoranges only (`told-pr`) and pseudoranges with
@@ -57,12 +59,15 @@ ESTS = {
     "ekf+rx": "e2e:ekf+rx",
     "B": "ekf-measured-sigma",
     "B+rx": "e2e:B+rx",
+    "B+arc": "e2e:B+arc",
 }
 ESTIMATORS["e2e:ekf+rx"] = configured(ekf.run, pseudorange_receiver_clock=True)
 ESTIMATORS["e2e:B+rx"] = configured(
     ekf.run, told_sigma_model="adr0036", pseudorange_receiver_clock=True
 )
+ESTIMATORS["e2e:B+arc"] = configured(ekf.run, told_sigma_model="adr0036", arc_bias=True)
 LTE = {"told-pr": "PR", "told": "PR+doppler"}
+ONLY_PR = ("B+arc",)  # run with pseudoranges only
 HORIZON_S = 300.0
 AT_S = (30.0, 60.0, 120.0, 300.0)
 
@@ -93,7 +98,14 @@ def run_one(path: str, name: str, lte: str, cut_s: float) -> dict:
 # coast with no other source keeps drifting; LTE that carries information pulls it back. TBC:
 # an illustration, not a model of any drone.
 DRIFT_MPS, DRIFT_S, DRIFT_DEG = 1.0, 60.0, 45.0
-STRESS = (("no LTE", "none"), ("ekf", "told"), ("B", "told-pr"), ("B", "told"))
+STRESS = (
+    ("no LTE", "none"),
+    ("ekf", "told-pr"),
+    ("ekf", "told"),
+    ("B", "told-pr"),
+    ("B", "told"),
+    ("B+arc", "told-pr"),
+)
 
 
 def run_stress(path: str, name: str, lte: str, cut_s: float) -> dict:
@@ -130,7 +142,13 @@ def session_summary(path: str, jobs: int) -> tuple[dict, list[dict]]:
     fix_t, fix_pos = CUT.gps_fixes(meas)
     dur = (fix_t[-1] - t0) / 1e9
     cuts = cuts_for(dur)
-    tasks = [(path, n, lte, c) for n in ESTS for lte in LTE for c in cuts]
+    tasks = [
+        (path, n, lte, c)
+        for n in ESTS
+        for lte in LTE
+        for c in cuts
+        if n not in ONLY_PR or lte == "told-pr"
+    ]
     tasks += [(path, "no LTE", "none", c) for c in cuts]
     rows = experiments._map(run_one, tasks, jobs)
     stress = [(path, n, lte, c) for n, lte in STRESS for c in cuts]
@@ -190,9 +208,11 @@ def _fmt(x: float) -> str:
 
 STRESS_ORDER = [
     ("no LTE", "none, drift"),
+    ("ekf", "PR, drift"),
     ("ekf", "PR+doppler, drift"),
     ("B", "PR, drift"),
     ("B", "PR+doppler, drift"),
+    ("B+arc", "PR, drift"),
 ]
 ORDER = [
     ("no LTE", "none"),
@@ -201,6 +221,7 @@ ORDER = [
     ("ekf", "PR+doppler"),
     ("B", "PR"),
     ("B", "PR+doppler"),
+    ("B+arc", "PR"),
     ("ekf+rx", "PR"),
     ("ekf+rx", "PR+doppler"),
     ("B+rx", "PR"),
@@ -302,6 +323,7 @@ SERIES = [  # (estimator, LTE, colour, label): reference categorical palette, fi
     ("ekf", "PR+doppler", "#1baf7a", "ekf, PR+doppler"),
     ("B", "PR", "#eda100", "B, PR"),
     ("B", "PR+doppler", "#e87ba4", "B, PR+doppler"),
+    ("B+arc", "PR", "#008300", "B+arc, PR"),
 ]
 
 
@@ -331,6 +353,9 @@ def plot(all_rows: dict, summary: dict, path: Path) -> None:
             ax.plot(grid, curve(rs, "hpl_m"), color=c, lw=1.2, ls="--", label=f"{label}: HPL")
         hold = [r for r in rows if r["estimator"] == "hold"]
         ax.plot(grid, curve(hold, "err_m"), color="0.35", lw=1, ls=":", label="hold last fix")
+        drift = [r for r in rows if r["estimator"] == "no LTE" and r["variant"] == "none, drift"]
+        ax.plot(grid, curve(drift, "err_m"), color="0.15", lw=1.2, ls="-.",
+                label=f"no LTE, stress {DRIFT_MPS:g} m/s drift: error")  # fmt: skip
         ax.axhspan(0.01, s["gps_scatter"]["max_m"], color="0.93", lw=0)
         ax.text(grid[-1], 0.012, "GPS fix scatter (truth noise)", ha="right", fontsize=7)
         ax.axhline(25.0, color="0.5", lw=0.8)
@@ -346,7 +371,7 @@ def plot(all_rows: dict, summary: dict, path: Path) -> None:
             ax.spines[sp].set_visible(False)
     axes[0].set_ylabel("horizontal error (solid) / HPL (dashed), m")
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=6, fontsize=7, frameon=False)
+    fig.legend(handles, labels, loc="lower center", ncol=5, fontsize=7, frameon=False)
     fig.suptitle(
         "Error after a software GPS cut, real static sessions (replay), #183 + #147 (B) + "
         f"#228 merged, {summary['commit']}. +rx runs are identical to their base and not drawn.",
