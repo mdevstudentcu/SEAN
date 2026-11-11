@@ -54,6 +54,8 @@ import hopping_study  # noqa: E402
 from pnt.cli import _commit  # noqa: E402
 from pnt.experiments import _map, get_param, set_param  # noqa: E402
 from pnt.integrity.jump_guard import JumpGuard  # noqa: E402
+from pnt.integrity.mhss import MHSS  # noqa: E402
+from pnt.integrity.protection import K_H  # noqa: E402
 from pnt.metrics import ALERT_LIMIT_M, gps_loss, score  # noqa: E402
 from pnt.nav import ESTIMATORS, configured, ekf, estimate  # noqa: E402
 from pnt.sim.scenario import T0_NS, generate, load  # noqa: E402
@@ -96,6 +98,9 @@ COMBOS = {
     "ekf-calibrated-learned-noise+guard": configured(
         ekf.run_calibrated, noise_tau_s=ekf.CALIBRATED_NOISE_TAU_S, jump_guard=JumpGuard
     ),
+    # The fix under solution separation (`ekf-mhss`'s monitor): a reference for the GNSS attacks
+    # the fault-free bound cannot cover, not a proposed estimator
+    "ekf-honest-mhss": configured(ekf.run, monitor=MHSS, **ekf.HONEST),
 }
 
 
@@ -152,6 +157,16 @@ def bound_epochs(estimates, truth) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return t, np.hypot(err_h[:, 0], err_h[:, 1]), np.array([e.hpl_m for e, _ in pairs])
 
 
+def horizontal_nees(estimates, truth) -> np.ndarray:
+    """Horizontal NEES at every epoch, as `pnt.metrics.score` computes it (2 on average for an
+    honest covariance; over K_H^2 the error is outside the HPL's ellipse)."""
+    tmap = {g.t_ns: g for g in truth}
+    pairs = [(e, tmap[e.t_ns]) for e in estimates if e.t_ns in tmap]
+    d = np.array([np.subtract(e.pos_enu, g.pos_enu)[:2] for e, g in pairs])
+    c = np.array([np.reshape(e.pos_cov, (3, 3))[:2, :2] for e, _ in pairs])
+    return np.einsum("ij,ij->i", d, np.linalg.solve(c, d[..., None])[..., 0])
+
+
 def per_second(t: np.ndarray, x: np.ndarray, n_s: int) -> np.ndarray:
     """`x` at each whole second 0..n_s-1 from the run's start (nan where no epoch is on it)."""
     out = np.full(n_s, np.nan, np.float32)
@@ -181,6 +196,7 @@ def run_task(key: str, seed: int, names: tuple[str, ...], config: dict | None = 
             )  # fmt: skip
             m = score(est, sim.truth, spec, T0_NS)
             t, err, h = bound_epochs(est, sim.truth)
+            nees = horizontal_nees(est, sim.truth)
         except Exception as exc:  # report the crash, don't work around it
             r["error"] = f"{type(exc).__name__}: {exc}"
             out.append(r)
@@ -196,6 +212,8 @@ def run_task(key: str, seed: int, names: tuple[str, ...], config: dict | None = 
             false_alarms_per_h=float(m.false_alarms_per_h),
             spoof_detected=float(m.spoof_detected),
             under_al_win=int(np.sum((h <= ALERT_LIMIT_M) & win)),
+            nees_sum_win=float(np.sum(nees[win])),
+            nees_over_k2_win=int(np.sum(nees[win] > K_H**2)),
             first_unsafe_s=float("nan"),
             err_s=per_second(t, err, n_s),
             hpl_s=per_second(t, h, n_s),
@@ -301,12 +319,47 @@ def plan_sweep(seeds: list[int]) -> list[tuple]:
 
 
 def plan_mhss(seeds: list[int]) -> list[tuple]:
-    """`ekf-mhss`, the reference that bounds but is too large to use, on 20 seeds."""
-    return [(f"drone/{e}/1c", s, ("ekf-mhss",), None) for e in ("outage", "spoof-jump", "spoof-ramp")
+    """`ekf-mhss`, the reference that bounds but is too large to use, and the fix under the same
+    monitor, on 20 seeds: GPS loss, nominal and the GNSS attacks."""
+    entries = ("nominal", "outage", "spoof-jump", "meaconing", "spoof-ramp")
+    return [(f"drone/{e}/1c", s, ("ekf-mhss", "ekf-honest-mhss"), None) for e in entries
             for s in seeds[:MHSS_SEEDS]]  # fmt: skip
 
 
+# Step 2 (#226), tuning seeds: which term is wrong. Each candidate changes one term of the
+# learned-noise filter: the coasting process noise (q_accel 1 -> 1.5 m/s^2/sqrt(Hz)), the tower
+# clock random walk (q_emitter 0.2 -> 1 m/sqrt(s)), the slow range error as a state (the fix)
+DIAGNOSE = (
+    ("ekf-learned-noise", None),
+    ("ekf-learned-noise", {"q_accel": 1.5}),
+    ("ekf-learned-noise", {"q_emitter": 1.0}),
+    ("ekf-honest", None),
+    ("ekf-honest", {"q_accel": 1.5}),
+)
+
+
+def plan_diagnose(seeds: list[int]) -> list[tuple]:
+    return [(f"drone/{e}/{n}c", s, (name,), cfg) for e in ("outage",) for n in (1, 13)
+            for name, cfg in DIAGNOSE for s in seeds]  # fmt: skip
+
+
+def truth_dynamics(scenario: str = "challenge-drone-outage", seed: int = 1000) -> dict:
+    """The truth trajectory's horizontal acceleration, against the CV model's white
+    acceleration: per axis, var(velocity change over T) / T, which is q_accel^2 for the model."""
+    sim = generate(load(scenario), seed=seed)
+    v = np.array([g.vel_enu[:2] for g in sim.truth])
+    dt = np.median(np.diff([g.t_ns for g in sim.truth])) / 1e9
+    a = np.hypot(*(np.diff(v, axis=0) / dt).T)
+    out = {"accel_rms": float(np.sqrt(np.mean(a**2))), "accel_max": float(a.max()), "psd": {}}
+    for T in (1, 5, 10, 20, 60, 120):
+        k = int(round(T / dt))
+        dv = v[k:] - v[:-k]
+        out["psd"][T] = [float(x) for x in np.mean(dv**2, axis=0) / T]
+    return out
+
+
 PLANS = {
+    "diagnose": plan_diagnose,
     "measure": plan_measure,
     "tune": plan_tune,
     "stress": plan_stress,
@@ -404,6 +457,8 @@ def cell(runs: list[dict]) -> dict:
         "hazardous_runs": sum(r["hazardous"] > 0 for r in runs),
         "misleading": sum(r["misleading"] for r in runs),
         "under_al_win": sum(r["under_al_win"] for r in runs) / nw,
+        "nees_mean_win": sum(r.get("nees_sum_win", np.nan) for r in runs) / nw,
+        "nees_over_k2_win": sum(r.get("nees_over_k2_win", np.nan) for r in runs) / nw,
         "false_alarms_per_h": float(np.mean([r["false_alarms_per_h"] for r in runs])),
         "run_s": float(np.mean([r["run_s"] for r in runs])),
     }
@@ -445,6 +500,230 @@ def table(path: Path) -> None:
               f"{100 * c['above_win']:6.2f}% {100 * c['worst_run']:6.2f}% {c['hazardous']:6d} "
               f"{c.get('tightness', float('nan')):6.2f} {c.get('p95_worst', float('nan')):7.1f} "
               f"{100 * c['under_al_win']:5.1f}% {c.get('unsafe_median_s', float('nan')):6.1f}")
+
+
+# --- report -------------------------------------------------------------------------------------
+def load_plans(runs_dir: Path) -> dict:
+    """{plan: {"docs": [plan docs], "cells": {(key, estimator, config): cell}}}, every pickle of a
+    plan (its parts) merged."""
+    out: dict = {}
+    for path in sorted(runs_dir.glob("*.pkl.gz")):
+        doc = load_plan(path)
+        p = out.setdefault(doc["plan"], {"docs": [], "runs": []})
+        p["docs"].append({k: v for k, v in doc.items() if k != "runs"})
+        p["runs"] += doc["runs"]
+    for p in out.values():
+        p["groups"] = group(p["runs"])
+        p["cells"] = {k: cell(v) for k, v in p["groups"].items()}
+        p["errors"] = [r for r in p["runs"] if "error" in r]
+    return out
+
+
+def _pct(x: float, nd: int = 2) -> str:
+    return "–" if x is None or (isinstance(x, float) and math.isnan(x)) else f"{100 * x:.{nd}f} %"
+
+
+def _num(x: float, fmt: str = ".2f") -> str:
+    return "–" if x is None or (isinstance(x, float) and math.isnan(x)) else format(x, fmt)
+
+
+def _provenance(p: dict) -> str:
+    parts = []
+    for d in p["docs"]:
+        s = d["seeds"]
+        parts.append(f"`{d['command']}` at `{d['commit']}`{'' if d['clean'] else ' (DIRTY TREE)'} "
+                     f"on {d['host']} (Python {d['python']}), seeds {s[0]}–{s[-1]}, "
+                     f"{d['elapsed_min']:.0f} min")  # fmt: skip
+    return "; ".join(parts)
+
+
+ROW_HEAD = ("| Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run "
+            "| hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | "
+            "unsafe after loss (median s) |\n|---|---|---|---|---|---|---|---|---|---|---|---|")
+
+
+def row(key: str, label: str, c: dict) -> str:
+    at = f" (s {c['p95_worst_at']})" if "p95_worst_at" in c else ""
+    return (f"| `{key}` | `{label}` | {c['runs']} | {_pct(c['above'])} | {_pct(c['above_win'])} | "
+            f"{_pct(c['worst_run'], 1)} (seed {c['worst_seed']}) | {c['hazardous']:,} "
+            f"({c['hazardous_runs']}) | {_num(c['nees_mean_win'], '.1f')} | "
+            f"{_num(c.get('tightness', math.nan))} | {_pct(c['under_al_win'], 1)} | "
+            f"{_num(c.get('p95_worst', math.nan), ',.0f')}{at} | "
+            f"{_num(c.get('unsafe_median_s', math.nan), '.1f')} |")  # fmt: skip
+
+
+def label_of(name: str, cfg: str) -> str:
+    return name if cfg == "{}" else f"{name} {cfg}"
+
+
+def rows_of(p: dict, keys=None, names=None) -> list[str]:
+    out = []
+    for (key, name, cfg), c in sorted(p["cells"].items(), key=lambda kv: _order(kv[0])):
+        if (keys is None or key in keys) and (names is None or name in names):
+            out.append(row(key, label_of(name, cfg), c))
+    return out
+
+
+def _order(k: tuple) -> tuple:
+    key, name, cfg = k
+    parts = key.split("/")
+    leg = {"drone": 0, "timing": 1, "approach": 2}[parts[0]]
+    entry = DRONE_ENTRIES.index(parts[1]) if parts[1] in DRONE_ENTRIES else 99
+    n = int(parts[2].removesuffix("c")) if leg == 0 else 0
+    names = list(FIX + FIX_GUARD + BASE + GUARD) + ["ekf-mhss", "ekf-honest-mhss"]
+    return (leg, len(parts), n, entry, names.index(name) if name in names else 99, cfg)
+
+
+def fix_pair(name: str) -> tuple[str, str]:
+    """(the same estimator without the fix, the default) for a fix estimator."""
+    return {"ekf-honest": ("ekf-learned-noise", "ekf"),
+            "ekf-honest-guard": ("ekf-learned-noise+guard", "ekf-guard")}[name]  # fmt: skip
+
+
+def bars(p: dict, keys: list[str]) -> list[dict]:
+    """#226's bars for the fix on each scenario key (guarded entries: `ekf-honest-guard`)."""
+    out = []
+    for key in keys:
+        entry = key.split("/")[1]
+        name = "ekf-honest-guard" if entry in GUARDED_ENTRIES else "ekf-honest"
+        c = p["cells"].get((key, name, "{}"))
+        if c is None:
+            continue
+        unfixed, default = fix_pair(name)
+        u = p["cells"].get((key, unfixed, "{}"), {})
+        d = p["cells"].get((key, default, "{}"), {})
+        honest = (c["above_win"] <= ESCAPE_POOLED and c["worst_run"] <= ESCAPE_WORST_RUN
+                  and c["hazardous"] == 0)  # fmt: skip
+        tight = c.get("tightness", math.nan)
+        harm_ratio = c.get("p95_worst", math.nan) / u.get("p95_worst", math.nan)
+        fa = c["false_alarms_per_h"] - u.get("false_alarms_per_h", math.nan)
+        out.append({
+            "key": key, "name": name, "c": c, "u": u, "d": d, "honest": honest,
+            "t5": c["above_win"] <= 1 - T5_BOUND,
+            "useful": None if math.isnan(tight) else tight <= TIGHTNESS_MAX,
+            "harm_ratio": harm_ratio,
+            "no_harm": bool(harm_ratio <= P95_HARM) if not math.isnan(harm_ratio) else None,
+            "fa_added": fa,
+        })  # fmt: skip
+    return out
+
+
+def _yn(v) -> str:
+    return "–" if v is None else ("met" if v else "**not met**")
+
+
+def bars_table(bs: list[dict]) -> list[str]:
+    lines = [
+        "| Scenario | Fix | above HPL from fault (pooled) | worst run | hazardous | Honest "
+        "(≤ 1 %, ≤ 5 %, 0) | T5 99.9 % | tightness | Useful (≤ 3) | HPL ≤ 50 m | p95 worst: fix / "
+        "unfixed / default (m) | No harm (≤ 1.05×) | false alarms /h added |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for b in bs:
+        c, u, d = b["c"], b["u"], b["d"]
+        lines.append(
+            f"| `{b['key']}` | `{b['name']}` | {_pct(c['above_win'])} | {_pct(c['worst_run'], 1)} | "
+            f"{c['hazardous']:,} | {_yn(b['honest'])} | {_yn(b['t5'])} | "
+            f"{_num(c.get('tightness', math.nan))} | {_yn(b['useful'])} | "
+            f"{_pct(c['under_al_win'], 1)} | {_num(c.get('p95_worst', math.nan), ',.0f')} / "
+            f"{_num(u.get('p95_worst', math.nan), ',.0f')} / "
+            f"{_num(d.get('p95_worst', math.nan), ',.0f')} | "
+            f"{_num(b['harm_ratio'], '.3f')} {_yn(b['no_harm'])} | {_num(b['fa_added'], '+.2f')} |"
+        )  # fmt: skip
+    return lines
+
+
+FIG_CELLS = (  # (scenario key, panel row label, default, fix)
+    ("drone/outage/1c", "GPS lost 600 s\n(outage, 1 carrier)", "ekf", "ekf-honest"),
+    ("drone/spoof-jump/1c", "GNSS held 300 m off\n(spoof-jump, 1 carrier)", "ekf-guard",
+     "ekf-honest-guard"),
+)
+
+
+def figure(p: dict, out: Path, tail: str) -> str | None:
+    """Q: does the HPL bound the true error, default against the fix? Error against HPL at every
+    epoch of every run (the T5 figure's density); above the diagonal the error escaped."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import LogNorm
+
+    g = p["groups"]
+    if not all((k, d, "{}") in g and (k, f, "{}") in g for k, _, d, f in FIG_CELLS):
+        return None
+    lo, hi, al = 1.0, 1e5, ALERT_LIMIT_M
+    edges = HIST_EDGES
+    plt.rcParams.update({"font.family": "DejaVu Sans"})
+    fig, axes = plt.subplots(2, 2, figsize=(13, 12.5), dpi=110, sharex=True, sharey=True)
+    for r, (key, rlabel, dflt, fix) in enumerate(FIG_CELLS):
+        for c, name in enumerate((dflt, fix)):
+            ax = axes[r, c]
+            runs = g[(key, name, "{}")]
+            st = cell(runs)
+            count = sum(x["hist"] for x in runs)
+            ax.fill_between([lo, hi], [lo, hi], hi, color="#fbe3d6", lw=0, zorder=0)
+            ax.fill_between([lo, al], [al, al], hi, color="#f2b694", lw=0, zorder=0)
+            ax.pcolormesh(edges, edges, np.ma.masked_equal(count.T, 0), cmap="Blues",
+                          norm=LogNorm(1, 2e5), zorder=1, rasterized=True)  # fmt: skip
+            ax.plot([lo, hi], [lo, hi], color="black", lw=2, zorder=2)
+            color = "#b2182b" if st["above"] > ESCAPE_POOLED else "#1a1a1a"
+            ax.text(0.04, 0.96, f"{100 * st['above']:.1f} %", transform=ax.transAxes, va="top",
+                    fontsize=40, weight="bold", color=color, zorder=3)  # fmt: skip
+            ax.text(0.04, 0.80, "of epochs: error above HPL", transform=ax.transAxes, va="top",
+                    fontsize=15, zorder=3)  # fmt: skip
+            ax.text(0.97, 0.03, f"worst run {100 * st['worst_run']:.1f} % above\n"
+                    f"hazardous epochs {st['hazardous']:,}", transform=ax.transAxes, ha="right",
+                    va="bottom", fontsize=14, color="#333333", zorder=3)  # fmt: skip
+            if r == 0:
+                ax.set_title(("before: " if c == 0 else "after: ") + name, fontsize=20,
+                             weight="bold", color="#2a78d6" if c == 0 else "#1b7837")  # fmt: skip
+            if c == 0:
+                ax.set_ylabel("true horizontal error (m)", fontsize=16)
+                ax.annotate(rlabel, (0, 0.5), xycoords="axes fraction", xytext=(-95, 0),
+                            textcoords="offset points", rotation=90, ha="right", va="center",
+                            fontsize=17, weight="bold")  # fmt: skip
+            if r == 1:
+                ax.set_xlabel("protection level HPL (m)", fontsize=16)
+            ax.set_xscale("log")
+            ax.set_yscale("log")
+            ax.set_xlim(lo, hi)
+            ax.set_ylim(lo, hi)
+            ax.set_aspect("equal")
+            ticks = [1, 10, 100, 1e3, 1e4, 1e5]
+            labels = ["≤1", "10", "100", "1k", "10k", "100k"]
+            ax.set_xticks(ticks, labels)
+            ax.set_yticks(ticks, labels)
+            ax.minorticks_off()
+            ax.tick_params(labelsize=14)
+    axes[0, 1].text(2e3, 1.5e4, "error > HPL:\nbound escaped", fontsize=13, ha="center",
+                    color="#8c4a2f", zorder=3)  # fmt: skip
+    axes[0, 1].text(3, 2e2, "hazardous:\nerror > 50 m,\nHPL ≤ 50 m", fontsize=12,
+                    color="#8c4a2f", zorder=3)  # fmt: skip
+    n = cell(g[(FIG_CELLS[0][0], FIG_CELLS[0][3], "{}")])["runs"]
+    fig.suptitle(f"Does the protection level bound the true error? Drone leg, {n} runs each,\n"
+                 f"every 0.1 s epoch of each 720 s run · {tail}", fontsize=18, y=0.985)  # fmt: skip
+    fig.text(0.01, 0.005, f"{KIND} · analysis/honest_bound.py; numbers in summary.md · darker "
+             "blue: more epochs · ekf-honest: learned LTE noise with its slow part as a state "
+             "(ADR-0041)", fontsize=11, color="#555555")  # fmt: skip
+    fig.subplots_adjust(left=0.15, right=0.98, top=0.88, bottom=0.07, wspace=0.06, hspace=0.12)
+    name = "bound_before_after.png"
+    _save_png(fig, out / name)
+    plt.close(fig)
+    return name
+
+
+def _save_png(fig, path: Path) -> None:
+    """A 256-colour PNG (as the challenge baseline's figures), to keep the committed folder small."""
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+    img = Image.open(buf).convert("RGB")
+    img.quantize(colors=256, method=Image.Quantize.MEDIANCUT).save(path, optimize=True)
 
 
 def main(argv=None) -> None:
