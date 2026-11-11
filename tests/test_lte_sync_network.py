@@ -85,7 +85,7 @@ def test_faded_cell_does_not_walk_onto_its_neighbours_sync_signals(tmp_path):
     # see and averaging does not lower. Before the fix the first-path check took bumps of that
     # floor for earlier paths: the track moved 4 to 6 samples earlier every 200 ms, each move a
     # new arc, 2 km off within 1.5 s. On the real static captures 20261111-0151 and -0233 this
-    # was 93 % of the new arcs, and the ~700 m "re-acquisition" steps of #214.
+    # was 87 to 93 % of the new arcs, and the ~700 m "re-acquisition" steps of #214.
     cell = synth.Tower(pci=8, delay_s=DELAY)
     others = [
         synth.Tower(pci=13, delay_s=DELAY + 1.1e-6, phase=1.0),
