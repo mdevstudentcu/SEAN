@@ -20,9 +20,10 @@ The truth carries the fixes' own error (a few metres): an error that small is tr
 Cuts (seconds after the first measurement, as `pnt replay --inject` counts them): every GNSS
 record from the cut on is removed with `pnt.sim.attacks`' `outage` (software fault injection,
 ADR-0015). Picked from the times where the receiver has had >= `PRE_S` s of good fixes just
-before, is moving (speed from the fixes >= `MOVING_MPS`, TBC), is moving for >= `MIN_MOVING` of
-the next `HORIZON_S` s, and has truth at `HORIZON_S` s; `--cuts N` of them spread evenly at
-least `MIN_SPACING_S` apart. `--cut-at` gives the times instead (any session, static included).
+before, is moving (speed from the fixes >= `MOVING_MPS`, TBC) at the cut and for >= `MIN_MOVING`
+of the `PRE_S` s before and the `HORIZON_S` s after it, and has truth at `HORIZON_S` s;
+`--cuts N` of them spread evenly at least `MIN_SPACING_S` apart. `--cut-at` gives the times
+instead (any session, static included).
 
 Per run: horizontal error at 60, 120 and 300 s after the cut, the p95 over [cut, cut + s), the
 share of scored epochs with HPL >= error, misleading epochs, the moving share of the window,
@@ -198,6 +199,9 @@ def select_cuts(
             continue
         if moving_at(fix_t, moving, T + grid).mean() < min_moving:
             continue
+        # moving before it too: the filter has a walking velocity and the IMU a chance to align
+        if moving_at(fix_t, moving, T - grid[grid <= pre]).mean() < min_moving:
+            continue
         cand.append(T)
     if not cand:
         return []
@@ -344,15 +348,16 @@ def score(
     out["hpl_bound_at_fixes"] = (
         float(np.mean(hpl[on_fix] >= err[on_fix])) if on_fix.any() else math.nan
     )
-    # 1 s curve for the figure (not written to JSON)
-    sec = np.round(after).astype(int)
-    first = np.unique(sec, return_index=True)[1]
-    near = np.abs(after[first] - sec[first]) <= AT_TOL_NS / 1e9
-    out["_curve"] = (
-        sec[first][near].tolist(),
-        err[first][near].tolist(),
-        hpl[first][near].tolist(),
-    )
+    # 1 s curve for the figure (not written to JSON): the estimate nearest each whole second
+    grid = np.arange(0, int(horizon_s) + 1)
+    if len(after):
+        k = np.clip(np.searchsorted(after, grid), 0, len(after) - 1)
+        k0 = np.maximum(k - 1, 0)
+        k = np.where(np.abs(after[k0] - grid) < np.abs(after[k] - grid), k0, k)
+        near = np.abs(after[k] - grid) <= 0.5
+        out["_curve"] = (grid[near].tolist(), err[k][near].tolist(), hpl[k][near].tolist())
+    else:
+        out["_curve"] = ([], [], [])
     return out
 
 
@@ -669,8 +674,10 @@ def main(argv=None) -> None:
         cuts, mode = sorted(args.cut_at), "given with --cut-at"
     else:
         cuts = select_cuts(tr["t"], tr["pos"], d["t0"], args.cuts)
-        mode = (f"picked in the moving part: >= {PRE_S:g} s of good GPS before, moving at the "
-                f"cut and >= {MIN_MOVING:.0%} of the window")  # fmt: skip
+        mode = (
+            f"picked in the moving part: >= {PRE_S:g} s of good GPS before, moving at the cut "
+            f"and >= {MIN_MOVING:.0%} of the {PRE_S:g} s before and the window"
+        )
     if not cuts:
         raise SystemExit(
             "no cut time qualifies (moving, >= 60 s of good GPS before, truth for 300 s after); "
