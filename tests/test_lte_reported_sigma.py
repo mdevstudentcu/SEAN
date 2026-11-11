@@ -68,8 +68,8 @@ def outage_stats(estimates, truth):
     ("run", "observed"),
     [
         # (mean NEES, HPL bound rate) observed in the outage, seed 1: learned / reported believed
-        (ekf.run, ((4.46, 1.0), (59.7, 0.42))),
-        (ekf.run_calibrated, ((1.43, 1.0), (82.7, 0.27))),
+        (ekf.run, ((1.68, 1.0), (59.7, 0.42))),
+        (ekf.run_calibrated, ((1.46, 1.0), (82.7, 0.27))),
     ],
 )
 def test_an_optimistic_reported_sigma_no_longer_makes_the_filter_overconfident(run, observed):
@@ -81,14 +81,80 @@ def test_an_optimistic_reported_sigma_no_longer_makes_the_filter_overconfident(r
     assert learned[0] < 10.0 and learned[1] > 0.95
 
 
-def test_an_honest_reported_sigma_is_kept():
+def test_an_honest_reported_sigma_is_learned_down_to():
     records, _ = stream(told_m=1.0, white_m=1.0, multipath_m=0.0)
     f = ekf.EKF()
     for m in records:
         f.process(m)
-    # Innovations no larger than the reported sigma: the learned noise stays at it
+    # Innovations no larger than the reported 1 m: the learned variance falls from the prior's
+    # 40^2 towards 1; what is left is the prior's one-sample share of the learned memory
     r = f.range_variance([m for m in records if m.kind == "pseudorange"][-1])
-    assert r == pytest.approx(1.0)  # observed: exactly 1.0
+    assert r < 0.05 * 40.0**2  # observed: 46.2 m^2 (3 % of the prior)
+
+
+def lte(records):
+    return [m for m in records if m.kind == "pseudorange"]
+
+
+def test_a_cells_first_records_carry_the_prior_not_the_reported_sigma():
+    """The reported 2 m counted as a sample let the first two records pin the dongle clock's
+    drift, after which the gate rejected the cell for good (#147)."""
+    records, _ = stream()
+    assert ekf.EKF().range_variance(lte(records)[0]) == pytest.approx(40.0**2)
+    assert ekf.EKF(noise_prior_m=25.0).range_variance(lte(records)[0]) == pytest.approx(25.0**2)
+
+
+def test_an_uncertain_state_does_not_pull_the_learned_noise_down():
+    """An innovation that the state uncertainty explains says nothing about the noise. Counted,
+    its large negative sample collapsed the learned variance to the reported sigma (#147)."""
+    records, _ = stream()
+    gps = [m for m in records if m.t_ns / 1e9 < 60.0]
+    f = ekf.EKF()
+    for m in gps:
+        f.process(m)
+    m = next(m for m in lte(records) if m.t_ns / 1e9 >= 60.0)
+    before = f.range_variance(m)
+    # 20 m of range error in the stream: learned, not pinned at the reported 2 m by the
+    # start-up innovations, which the new clocks' uncertainty explains
+    assert before > 10.0**2  # observed: 13.1 m of sigma; the draft held 2 m
+    f.P[0:2, 0:2] += np.eye(2) * 1e8  # as after a reset or near a tower: position unknown
+    f.process(m)
+    assert f.range_variance(m) >= before  # observed: unchanged
+
+
+def test_without_gnss_the_learned_noise_never_shrinks():
+    records, _ = stream()
+    f = ekf.EKF()
+    last: dict[str, float] = {}
+    for m in records:
+        f.process(m)
+        if m.kind != "pseudorange" or m.t_ns / 1e9 < OUTAGE_S[0] + ekf.EKF().gnss_timeout_ns / 1e9:
+            continue
+        r = f.range_variance(m)
+        assert r >= last.get(m.emitter, 0.0) - 1e-9
+        last[m.emitter] = r
+    assert last  # the outage had radio records
+
+
+def test_a_range_near_a_tower_with_an_uncertain_position_carries_its_curvature():
+    """Close to a tower, a range is far from linear across the line of sight. Without the
+    second-order term a few records of one site collapsed the stated position sigma to metres
+    while the error was hundreds (#147, hazardous epochs)."""
+    records, _ = stream()
+    f = ekf.EKF()
+    for m in [m for m in records if m.t_ns / 1e9 < 30.0]:
+        f.process(m)
+    m = next(m for m in lte(records) if m.t_ns / 1e9 >= 30.0 and m.emitter == "lte:0")
+    f.predict(m.t_ns)
+    f.P[0:2, 0:2] += np.eye(2) * 300.0**2
+    d = f.x[:3] - np.asarray(m.meta["emitter_enu"])
+    r = float(np.linalg.norm(d))
+    perp = np.array([-d[1], d[0]]) / np.hypot(d[0], d[1])
+    sigma_perp2 = perp @ f.P[0:2, 0:2] @ perp
+    _, _, R, _ = ekf.MODELS["pseudorange"](f, m)
+    extra = R[0, 0] - f.range_variance(m)
+    assert extra == pytest.approx(sigma_perp2**2 / (2 * r**2))  # the second-order term
+    assert np.sqrt(extra) > 10.0  # observed: 31.9 m of sigma at r = 1,994 m
 
 
 def test_records_without_rx_clock_are_untouched():
