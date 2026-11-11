@@ -12,18 +12,14 @@ Legs, each from committed scenarios (no scenario file is added):
 - `drone`: the `challenge-drone` leg as committed (1 to 3 cells heard per epoch).
 - `drone-many`: the same spec with `sources.lte.hearing` = {model: range, hearing_km: 3}, every
   sector within 3 km heard (about 50 sectors on 17 eNBs after the cell lookup).
-- `timing`: the `challenge-timing` leg (static receiver), for the jump characterisation.
 - `realistic`: the `realistic` set (synthetic towers).
 
-Runs, every estimator pair being the unchanged estimator and the same one with
-`integrity.spoof_monitor` (`ekf` / `ekf-spoof`, `ekf-calibrated` / `ekf-calibrated-spoof`),
-paired on the same seeds; `ekf-mhss` on `--mhss-seeds` (3 to 20 s a run):
-1. Table: `nominal`, `outage`, `spoof-ramp`, `spoof-jump` (300 m), `time-spoof` on drone,
-   drone-many and realistic.
-2. Jumps: 25, 50, 100 and 300 m east on drone, drone-many and timing (`ekf`, `ekf-spoof`; all
-   four at 300 m), and the 300 m jump ended at 300 s (150 s of spoof) to see recovery (`ekf`,
-   `ekf-spoof`, `ekf-calibrated`). Fewer estimators there to keep the run near 1.5 h at 2
-   workers.
+Runs: `nominal`, `outage`, `spoof-ramp`, `spoof-jump` (300 m) and `time-spoof` on each leg, every
+estimator pair being the unchanged estimator and the same one with `integrity.spoof_monitor`
+(`ekf` / `ekf-spoof`, `ekf-calibrated` / `ekf-calibrated-spoof`), paired on the same seeds;
+`ekf-mhss` on `--mhss-seeds`. The monitor is for the slow ramp; the jump and the time spoof are
+controls (it must not lose what the filter already catches). Jumps are studied in #176, and
+refusing a detected jump is #184.
 
 Seeds 0 to N-1 are the reported seeds. The monitor's settings were chosen on seeds 100-109.
 """
@@ -43,7 +39,7 @@ from pathlib import Path
 import numpy as np
 
 from pnt.cli import _commit
-from pnt.metrics import ALARM_FLAGS, SPOOF_ATTACKS, score
+from pnt.metrics import SPOOF_ATTACKS, score
 from pnt.nav import ESTIMATORS, estimate
 from pnt.sim.scenario import T0_NS, generate, load
 
@@ -53,20 +49,9 @@ RUNS = RESULTS / "runs" / "spoof-detection.json"  # git-ignored: one row per run
 PAIRS = (("ekf", "ekf-spoof"), ("ekf-calibrated", "ekf-calibrated-spoof"))
 FAST = tuple(e for p in PAIRS for e in p)
 MHSS = "ekf-mhss"
-SWEEP_ESTS = ("ekf", "ekf-spoof")  # jump sizes other than the table's 300 m
-END_ESTS = ("ekf", "ekf-spoof", "ekf-calibrated")  # the recovery variant
-LEGS = {
-    "drone": "challenge-drone",
-    "drone-many": "challenge-drone",
-    "timing": "challenge-timing",
-    "realistic": "realistic",
-}
-TABLE_LEGS = ("drone", "drone-many", "realistic")
+LEGS = {"drone": "challenge-drone", "drone-many": "challenge-drone", "realistic": "realistic"}
+TABLE_LEGS = tuple(LEGS)
 TABLE_ENTRIES = ("nominal", "outage", "spoof-ramp", "spoof-jump", "time-spoof")
-JUMP_LEGS = ("drone", "drone-many", "timing")
-JUMP_SIZES = (25.0, 50.0, 100.0, 300.0)
-JUMP_END_S = 300.0  # the recovery variant: the 300 m jump ends here (it starts at 150 s)
-OFFSETS_S = (1.0, 3.0, 5.0, 10.0, 30.0, 120.0)  # after the spoof starts
 MANY_HEARING = {"model": "range", "hearing_km": 3}
 # Categorical slots 1-4 in a fixed order, and recessive ink (analysis/lte_table_audit.py)
 COLOURS = {"ekf": "#2a78d6", "ekf-spoof": "#eb6834", "ekf-calibrated": "#1baf7a",
@@ -74,29 +59,16 @@ COLOURS = {"ekf": "#2a78d6", "ekf-spoof": "#eb6834", "ekf-calibrated": "#1baf7a"
 INK, GRID = "#52514e", "#e4e3df"
 
 
-def case_id(leg: str, entry: str, size: float | None = None, end_s: float | None = None) -> str:
-    out = f"{leg}:{entry}"
-    if size is not None:
-        out += f":{size:g}m"
-    if end_s is not None:
-        out += f":end{end_s:g}"
-    return out
+def case_id(leg: str, entry: str) -> str:
+    return f"{leg}:{entry}"
 
 
 def spec_of(case: str) -> dict:
     """The scenario spec of a case id, built from the committed environment."""
-    leg, entry, *mods = case.split(":")
+    leg, entry = case.split(":")
     spec = copy.deepcopy(load(f"{LEGS[leg]}-{entry}"))
     if leg == "drone-many":
         spec["sources"]["lte"]["hearing"] = dict(MANY_HEARING)
-    for mod in mods:
-        for f in spec["faults"]:
-            if f["type"] != "spoof_jump":
-                continue
-            if mod.endswith("m"):
-                f["offset_enu_m"] = [float(mod[:-1]), 0.0, 0.0]
-            elif mod.startswith("end"):
-                f["end_s"] = float(mod[3:])
     spec["name"] = case
     return spec
 
@@ -147,52 +119,24 @@ def run_one(case: str, estimator: str, seed: int) -> dict:
     )
     cpu_s = time.process_time() - cpu0
     m = score(est, run.truth, spec, T0_NS)
-    tmap = {g.t_ns: g for g in run.truth}
-    pairs = [(e, tmap[e.t_ns]) for e in est if e.t_ns in tmap]
-    t = np.array([(e.t_ns - T0_NS) / 1e9 for e, _ in pairs])
-    err = np.array([math.dist(e.pos_enu[:2], g.pos_enu[:2]) for e, g in pairs])
-    hpl = np.array([e.hpl_m for e, _ in pairs])
-    excluded = np.array(["gnss_excluded" in e.flags for e, _ in pairs])
-    spoof_flag = np.array(["spoof_suspected" in e.flags for e, _ in pairs])
-    alarm = np.array([bool(ALARM_FLAGS & set(e.flags)) for e, _ in pairs])
     row = {
         "case": case,
         "estimator": estimator,
         "seed": seed,
         "cpu_s": cpu_s,
         "detect_delay_s": m.detect_delay_s,
-        "spoof_detected": m.spoof_detected,
         "false_alarms_per_h": m.false_alarms_per_h,
         "hazardous_epochs": m.hazardous_epochs,
         "misleading_epochs": m.misleading_epochs,
-        "fault_h_p95_m": m.fault_h_p95_m,
-        "h_p95_m": m.h_p95_m,
     }
     spoofs = [f for f in spec.get("faults", []) if f["type"] in SPOOF_ATTACKS]
-    if spoofs:
+    if spoofs and not math.isnan(m.detect_delay_s):
+        tmap = {g.t_ns: g for g in run.truth}
+        pairs = [(e, tmap[e.t_ns]) for e in est if e.t_ns in tmap]
+        t = np.array([(e.t_ns - T0_NS) / 1e9 for e, _ in pairs])
+        err = np.array([math.dist(e.pos_enu[:2], g.pos_enu[:2]) for e, g in pairs])
         s0 = float(spoofs[0].get("start_s", 0.0))
-        for o in OFFSETS_S:
-            row[f"err_{o:g}s"] = _at(t, err, s0 + o)
-            row[f"hpl_{o:g}s"] = _at(t, hpl, s0 + o)
-        d = m.detect_delay_s
-        if not math.isnan(d):
-            row["err_at_alert"] = _at(t, err, s0 + d)
-            row["hpl_at_alert"] = _at(t, hpl, s0 + d)
-            pre = (t >= s0) & (t < s0 + d)
-            row["err_pre_alert_max"] = float(err[pre].max()) if pre.any() else float("nan")
-            row["hpl_pre_alert_max"] = float(hpl[pre].max()) if pre.any() else float("nan")
-        w30 = (t >= s0) & (t < s0 + 30.0)
-        row["gnss_excluded_share_30s"] = float(excluded[w30].mean()) if w30.any() else math.nan
-        hit = np.flatnonzero(spoof_flag & (t >= s0))
-        row["spoof_flag_delay_s"] = float(t[hit[0]] - s0) if hit.size else float("nan")
-        if "end_s" in spoofs[0]:
-            e0 = float(spoofs[0]["end_s"])
-            row["err_end_30s"] = _at(t, err, e0 + 30.0)
-            row["err_end_120s"] = _at(t, err, e0 + 120.0)
-            late = t >= e0 + 120.0
-            row["alarm_share_after_end_120s"] = (
-                float(alarm[late].mean()) if late.any() else math.nan
-            )
+        row["err_at_alert"] = _at(t, err, s0 + m.detect_delay_s)
     if log:
         for key in log[0][1]:
             vals = [r[key] for _, r in log if r.get(key) is not None]
@@ -204,27 +148,9 @@ def run_one(case: str, estimator: str, seed: int) -> dict:
 
 
 def plan(seeds: int, mhss_seeds: int) -> list[tuple[str, str, int]]:
-    cases_fast, cases_mhss = [], []
-    for leg in TABLE_LEGS:
-        for entry in TABLE_ENTRIES:
-            cases_fast.append(case_id(leg, entry))
-            cases_mhss.append(case_id(leg, entry))
-    for leg in JUMP_LEGS:
-        for size in JUMP_SIZES:
-            cid = case_id(leg, "spoof-jump", None if size == 300.0 else size)
-            if cid not in cases_fast:
-                cases_fast.append(cid)
-        cid = case_id(leg, "spoof-jump")
-        if cid not in cases_mhss:
-            cases_mhss.append(cid)
-        cases_fast.append(case_id(leg, "spoof-jump", end_s=JUMP_END_S))
-        cases_mhss.append(case_id(leg, "spoof-jump", end_s=JUMP_END_S))
-    table = {case_id(leg, entry) for leg in TABLE_LEGS for entry in TABLE_ENTRIES}
-    tasks = []
-    for c in cases_fast:  # the jump sweep and recovery cases with fewer estimators, for time
-        ests = FAST if c in table else SWEEP_ESTS if ":end" not in c else END_ESTS
-        tasks += [(c, e, s) for e in ests for s in range(seeds)]
-    tasks += [(c, MHSS, s) for c in cases_mhss for s in range(mhss_seeds)]
+    cases = [case_id(leg, entry) for leg in TABLE_LEGS for entry in TABLE_ENTRIES]
+    tasks = [(c, e, s) for c in cases for e in FAST for s in range(seeds)]
+    tasks += [(c, MHSS, s) for c in cases for s in range(mhss_seeds)]
     return tasks
 
 
@@ -297,6 +223,10 @@ def summary(data: dict) -> str:
         "`pnt.metrics` (any of `gnss_excluded`, `spoof_suspected`, `time_spoof_suspected` held "
         "1 s); false alarms per hour are on `nominal` and `outage` runs.",
         "",
+        "The monitor is for the slow ramp. The 300 m jump and the time spoof are controls: the "
+        "monitor must not lose what the filter already catches. Jumps (sizes, directions, what "
+        "the output does after one) are studied in #176; refusing a detected jump is #184.",
+        "",
         "## Detection per attack",
         "",
         "| Leg | Attack | Estimator | Detected | TTA median (s) | TTA worst (s) | "
@@ -335,85 +265,6 @@ def summary(data: dict) -> str:
                     f"| {leg} | {entry} | `{est}` | {_f(_mean(fa), 2)} | "
                     f"{len(seeds)}/{len(rs)}{' (' + listed + ')' if listed else ''} |"
                 )
-    lines += [
-        "",
-        "## Jumps: what happens in the first seconds, and after",
-        "",
-        "Medians over seeds. Follows: error 30 s after the jump over half its size. "
-        "GNSS excluded: share of the first 30 s with `gnss_excluded`.",
-        "",
-        "| Leg | Jump (m) | Estimator | Detected | TTA median / worst (s) | "
-        "Error, HPL at +1 s (m) | Error, HPL at +3 s (m) | GNSS excluded, first 30 s | "
-        "Follows | Error at +30 s / +120 s (m) |",
-        "|---|---|---|---|---|---|---|---|---|---|",
-    ]
-    smallest, tried = {}, {}
-    for leg in JUMP_LEGS:
-        for size in JUMP_SIZES:
-            cid = case_id(leg, "spoof-jump", None if size == 300.0 else size)
-            for est in ests_in(runs):
-                rs = _rows(runs, cid, est)
-                if not rs:
-                    continue
-                d = detection(rs)
-                follows = sum(r["err_30s"] > size / 2 for r in rs)
-                tried.setdefault((leg, est), []).append(size)
-                if d["detected"] == d["n"]:
-                    smallest.setdefault((leg, est), size)
-                    smallest[(leg, est)] = min(smallest[(leg, est)], size)
-                lines.append(
-                    f"| {leg} | {size:g} | `{est}` | {d['detected']}/{d['n']} | "
-                    f"{_f(d['tta_med'], 1)} / {_f(d['tta_max'], 1)} | "
-                    f"{_f(_med([r['err_1s'] for r in rs]))}, "
-                    f"{_f(_med([r['hpl_1s'] for r in rs]))} | "
-                    f"{_f(_med([r['err_3s'] for r in rs]))}, "
-                    f"{_f(_med([r['hpl_3s'] for r in rs]))} | "
-                    f"{_f(_med([r['gnss_excluded_share_30s'] for r in rs]), 2)} | "
-                    f"{follows}/{len(rs)} | {_f(_med([r['err_30s'] for r in rs]))} / "
-                    f"{_f(_med([r['err_120s'] for r in rs]))} |"
-                )
-    lines += [
-        "",
-        "### Smallest jump detected on every seed",
-        "",
-        "Of the sizes tried (" + ", ".join(f"{s:g}" for s in JUMP_SIZES) + " m). Detected by "
-        "the filter's own GNSS gate or by the monitor; whether the output then follows the jump "
-        "is in the table above. In brackets, the sizes run for that estimator. A seed whose "
-        "filter raised a false alarm before the spoof starts and still holds it is scored as "
-        "missed by `pnt.metrics` (an alarm already running is not a response).",
-        "",
-        "| Leg | " + " | ".join(f"`{e}`" for e in ests_in(runs)) + " |",
-        "|---|" + "---|" * len(ests_in(runs)),
-    ]
-    for leg in JUMP_LEGS:
-        cells = []
-        for e in ests_in(runs):
-            if (leg, e) not in tried:
-                cells.append("not run")
-                continue
-            sizes = ", ".join(f"{x:g}" for x in tried[(leg, e)])
-            best = _f(smallest[(leg, e)]) if (leg, e) in smallest else "none"
-            cells.append(f"{best} ({sizes})")
-        lines.append(f"| {leg} | " + " | ".join(cells) + " |")
-    lines += [
-        "",
-        f"## Recovery: the 300 m jump ended at {JUMP_END_S:g} s",
-        "",
-        "| Leg | Estimator | Error at end +30 s / +120 s (m, median) | Share of epochs alarmed "
-        "from 120 s after the end (median) |",
-        "|---|---|---|---|",
-    ]
-    for leg in JUMP_LEGS:
-        for est in ests_in(runs):
-            rs = _rows(runs, case_id(leg, "spoof-jump", end_s=JUMP_END_S), est)
-            if not rs:
-                continue
-            up = [r.get("alarm_share_after_end_120s", math.nan) for r in rs]
-            lines.append(
-                f"| {leg} | `{est}` | {_f(_med([r['err_end_30s'] for r in rs]))} / "
-                f"{_f(_med([r['err_end_120s'] for r in rs]))} | "
-                f"{_f(_med(up), 2)} |"
-            )
     lines += [
         "",
         "## What the towers can see: the monitor's own uncertainty",
