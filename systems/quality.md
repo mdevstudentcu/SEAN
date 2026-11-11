@@ -35,6 +35,7 @@ Stop when the evidence is sufficient. Do not invent extra tests to look thorough
 - **Compare paired runs.** `pnt eval` uses seeds `0` to `N-1`, so the same scenario and run count gives both sides the same draws, and a difference in an estimator change is a real effect on those runs, not noise. A change to the sim alters the draws and breaks the pairing: say so, and do not read a small difference as better or worse.
 - **One seed shows that it runs.** It does not show that it is better. Use at least the `just eval` default of 50 runs for any claim of improvement.
 - **Every number is reproducible** as REQ-10 and `AGENTS.md` require.
+- **Re-cite after a rebase-merge.** "Rebase and merge" gives each commit a new hash on `main`, so a result citing the branch commit points at a commit that is not on `main`. While a PR is under review, cite its branch commit. Once it is merged, whoever merged it, or the author's agent if the author did not merge, runs `just recite` on an up-to-date `main`, reads every change it makes, fixes by hand or lists in the PR what it cannot map, and opens a docs PR with the result. Never leave a result citing a commit that is not on `main`.
 - **Say what kind of evidence it is:** sim, replay of a real session, real session with injected faults, or hardware.
 - **Describe a sim result by its model's status** in the *Sim validity* table of `verification.md` (ADR-0015): a `placeholder` result is never called validated or real-world.
 - **Report the bad cases too:** worst run, misleading epochs and false alarms, not only the average.

@@ -78,5 +78,6 @@ These apply to every coding agent working in this repo, whoever is driving it.
 - **No AI attribution:** no `Co-Authored-By: Claude`, `Claude-Session:` or "Generated with" lines in commits or PR descriptions.
 - PRs: title in Conventional Commit form, body follows `.github/pull_request_template.md` and links the issue (`Closes #n`). CI must be green. `CODEOWNERS` requests a review from the other owner; `icd` PRs need their approval. New issues use the Task or Bug template.
 - Merge with "Rebase and merge" (or "Squash and merge" for messy branches); delete the branch after.
+- **After a rebase-merge, re-cite:** run `just recite` on `main` and open a docs PR with the result (who runs it: *Re-cite after a rebase-merge* in [`systems/quality.md`](systems/quality.md)). Until the merge, cite the branch commit.
 - Keep branches current by rebasing on `origin/main`; never merge `main` into a branch, and don't use GitHub's "Update branch" button (it makes a merge commit).
 - Check `git status` before committing so stray files (sessions, PDFs) don't get swept in.
