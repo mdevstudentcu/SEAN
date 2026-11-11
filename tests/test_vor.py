@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from pnt.core.measurement import Measurement, validate
+from pnt.frontends import vor as vor_frontend
 from pnt.nav import ekf as ekf_mod
 from pnt.nav import estimate
 from pnt.sim import models
@@ -93,3 +94,22 @@ def test_scenario_feeds_vor_to_the_ekf():
     assert vor and {m.kind for m in vor} == {"bearing"}
     est = list(estimate("ekf", run.measurements, origin_llh=spec["origin_llh"]))
     assert est and np.all(np.isfinite([e.pos_enu for e in est]))
+
+
+def test_scenario_vors_are_the_real_stations_and_only_yow_is_heard():
+    spec = load("uc02-yow-approach-vor")
+    stations = vor_frontend.load_stations()
+    np.testing.assert_allclose(
+        spec["sources"]["vor"]["emitters_llh"], [[s.lat, s.lon, s.h] for s in stations]
+    )
+    assert [s.ident for s in stations][0] == "YOW"
+    run = generate(spec, seed=0)
+    assert {m.emitter for m in run.measurements if m.source == "vor"} == {"vor:sim0"}  # YOW
+    m = next(m for m in run.measurements if m.source == "vor")
+    assert m.meta["emitter_llh"] == pytest.approx([stations[0].lat, stations[0].lon, 137.16])
+
+
+def test_vor_variant_keeps_every_other_record_of_the_approach():
+    vor = generate(load("uc02-yow-approach-vor"), seed=3).measurements
+    base = generate(load("uc02-yow-approach"), seed=3).measurements
+    assert [m for m in vor if m.source != "vor"] == base  # paired: the ablation relies on it
