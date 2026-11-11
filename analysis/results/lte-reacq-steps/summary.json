@@ -1,7 +1,7 @@
 {
  "commits": {
-  "before": "09e7fbd (#245 head)",
-  "after": "ea72f6a (front end at this branch)",
+  "before": "b26fec2 (main; run at its #245 branch twin, same front end)",
+  "after": "9e7728a (main; run at its #245 branch twin, same front end)",
   "gps_cut_eval": "origin/shrikar/integration/20261111 f15ba13 (analysis/real_gps_cut.py, ekf-measured-sigma)"
  },
  "front_end": {
@@ -480,7 +480,7 @@
    }
   }
  },
- "sim_hash": "32 challenge-* scenarios, seed 0: measurements and ekf estimates identical, 09e7fbd vs ea72f6a",
+ "sim_hash": "32 challenge-* scenarios, seed 0: measurements and ekf estimates identical, b26fec2 vs 9e7728a",
  "gps_cut_rows": [
   {
    "session": "before-0151",

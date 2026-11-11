@@ -1,6 +1,6 @@
 # LTE re-acquisition steps and doppler aliases (#183, #214)
 
-Evidence: **real static sessions** `20261111-0151-static-fullsuite2` (600 s) and `20261111-0233-static-lte-1h` (1 h), one NESDR (`sdr_a`), EARFCN 2460. Before: the front end at `09e7fbd` (#245 head). After: `ea72f6a` (this branch's front end). Truth: the mean of the session's GPS fixes (the receiver does not move). Every number is a double difference (DD) of two cells at one 0.1 s epoch after removing each one's true range, which cancels our dongle clock (definitions of `real-lte-root-cause-20261111`). Errors and residuals only.
+Evidence: **real static sessions** `20261111-0151-static-fullsuite2` (600 s) and `20261111-0233-static-lte-1h` (1 h), one NESDR (`sdr_a`), EARFCN 2460. Before: the front end at `b26fec2` (#183's three fixes, before the re-acquisition fix). After: `9e7728a` (the re-acquisition fix; the front end of #245's merge `8892fca` but for comments). Both were run at their twins on the #245 branch (same patch), whose `src/pnt/frontends`, `core`, `sources`, `cli.py` and these scripts are identical to the commits named here. Truth: the mean of the session's GPS fixes (the receiver does not move). Every number is a double difference (DD) of two cells at one 0.1 s epoch after removing each one's true range, which cancels our dongle clock (definitions of `real-lte-root-cause-20261111`). Errors and residuals only.
 
 ![Before/after on both captures](before_after.png)
 
@@ -18,7 +18,7 @@ A second, smaller cause on 0233 (seen once the walks stopped): a cell re-found 1
 
 1. `first_path_floor` (TBC, 10): an earlier path must clear 10× the profile's interference floor (median of the whole delay grid / ln 2), and be the largest value within the code gate around it.
 2. Stamps that cover the stretch and show no stall rule a drop out: the re-find is a path move (new arc), not a gap. Without stamps, nothing changes.
-3. Doppler records are opt-in (`Config.doppler`, off by default, TBC). The carrier is only known modulo the half-frame rate, and a whole 100 Hz alias fits as well if subframes 0 and 5 reach us with different phases (a synthetic 2.8 rad offset put the loop 90 Hz off). Nothing checks the record against the code rate. Resolving it was tried (10 ms same-subframe aiding with a 12.5 Hz lock threshold): it worked on the synthetic case, but delayed aiding past 1 s at 0 dB and was not checked on a real capture, so it is not in this branch. Turning the records off is the smallest honest change; the sim's front-end-shaped records carry pseudoranges only already.
+3. Doppler records are opt-in (`Config.doppler`, off by default, TBC). The carrier is only known modulo the half-frame rate, and a whole 100 Hz alias fits as well if subframes 0 and 5 reach us with different phases (a synthetic 2.8 rad offset put the loop 90 Hz off). Nothing checks the record against the code rate. Resolving it was tried (10 ms same-subframe aiding with a 12.5 Hz lock threshold): it worked on the synthetic case, but delayed aiding past 1 s at 0 dB and was not checked on a real capture, so it is not in #245. Turning the records off is the smallest honest change; the sim's front-end-shaped records carry pseudoranges only already.
 
 ## Before → after (`summary.json`)
 
@@ -32,7 +32,7 @@ A second, smaller cause on 0233 (seen once the walks stopped): a cell re-found 1
 | Epochs with two cells ≥ −8 dB, DD within 100 m | 10.6 % | 88.0 % | 8.5 % | 79.9 % |
 | Doppler differences on a 100 Hz alias (non-zero) | 68.6 % (49.4 %), told 0.10 m/s | none emitted | 72.4 % (52.1 %), told 0.09 m/s | none emitted |
 
-On 0233 with fix 1 alone (run at `656827a`): 61.6 % of epochs with two strong cells within 100 m; fix 2 lifts it to 79.9 %.
+On 0233 with fix 1 alone (run at `deba684`): 61.6 % of epochs with two strong cells within 100 m; fix 2 lifts it to 79.9 %.
 
 ## GPS cut (pseudoranges only), median (worst) error in m
 
