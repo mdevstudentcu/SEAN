@@ -46,4 +46,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0042](0042-record-iq-to-usb-drive.md) | Record the radios' IQ to a USB drive, not the SD card | Accepted |
 | [0043](0043-calibrated-from-measured-values.md) | A calibrated EKF sized from measured values, not from the sim it is scored on (opt-in: `ekf-calibrated-measured`) | Accepted |
 | [0044](0044-told-sigma-for-radio-records.md) | Tell radio LTE records ADR-0036's measured sigma, opt-in, beside learned noise (opt-in: `*-measured-sigma` estimators; `arc_bias` option) | Accepted |
-| [0046](0046-ekf-models-our-clock-in-tower-ranges.md) | `ekf` models our receiver clock in the tower ranges by default | Proposed |
+| [0047](0047-ekf-models-our-clock-in-tower-ranges.md) | `ekf` models our receiver clock in the tower ranges by default | Proposed |

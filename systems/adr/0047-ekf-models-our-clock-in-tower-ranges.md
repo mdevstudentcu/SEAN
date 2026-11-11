@@ -1,4 +1,4 @@
-# ADR-0046: `ekf` models our receiver clock in the tower ranges by default
+# ADR-0047: `ekf` models our receiver clock in the tower ranges by default
 
 - **Status:** Proposed
 - **Date:** 2026-11-11
