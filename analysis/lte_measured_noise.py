@@ -1029,8 +1029,41 @@ def report(sessions, res, sv, commit) -> str:
     return "\n".join(L) + "\n"
 
 
+def _round(o, sig: int = 4):
+    """Floats to `sig` significant figures, recursively, so the committed JSON stays small."""
+    if isinstance(o, float):
+        return o if not math.isfinite(o) or o == 0 else float(f"{o:.{sig}g}")
+    if isinstance(o, dict):
+        return {k: _round(v, sig) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_round(v, sig) for v in o]
+    return o
+
+
 def _jsonable(res: dict) -> dict:
-    return json.loads(json.dumps(res, default=lambda o: o.tolist() if hasattr(o, "tolist") else o))
+    """The results for summary.json: rounded, and the per-break list replaced by its summary
+    (the full list is a re-run away and made the file several times larger)."""
+    out = json.loads(json.dumps(res, default=lambda o: o.tolist() if hasattr(o, "tolist") else o))
+    j = out.pop("jumps", [])
+    if j:
+        y = np.abs([x["jump_m"] for x in j])
+        same = np.array([x["same_arc"] for x in j])
+        strong = np.array([min(x["snr_before"], x["snr_after"]) >= 0 for x in j])
+        out["breaks"] = {
+            lab: {
+                "n": int(sel.sum()),
+                "within_land_m": float(np.mean(y[sel] < LAND_M)) if sel.any() else None,
+                "median_m": float(np.median(y[sel])) if sel.any() else None,
+                "p90_m": float(np.percentile(y[sel], 90)) if sel.any() else None,
+            }
+            for lab, sel in (
+                ("same_arc", same),
+                ("new_arc", ~same),
+                ("same_arc_snr_ge_0", same & strong),
+                ("new_arc_snr_ge_0", ~same & strong),
+            )
+        }
+    return _round(out)
 
 
 def main(argv=None) -> None:
@@ -1066,7 +1099,9 @@ def main(argv=None) -> None:
             for s in sessions
         ],
     }
-    (a.out / "summary.json").write_text(json.dumps({**meta, **_jsonable(res)}, indent=1))
+    (a.out / "summary.json").write_text(
+        json.dumps({**meta, **_jsonable(res)}, separators=(",", ":"))
+    )
     if not a.no_figures:
         figures(sessions, res, sv, a.out, commit)
     print(text)
