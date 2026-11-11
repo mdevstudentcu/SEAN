@@ -271,6 +271,11 @@ def pair(
     resid = wrap(d - c0) - c1
     arc_pair = cell.arc[i][gate] * 100_000 + ref.arc[j][gate]
     arc_meds = {int(a): float(np.median(resid[arc_pair == a])) for a in np.unique(arc_pair)}
+    # The longest arc pair: its cells have been tracked longest without a break, so it is the
+    # least likely to hold a track that has not settled or is running off.
+    labels, counts = np.unique(arc_pair, return_counts=True)
+    longest = labels[np.argmax(counts)]
+    off_long = float(wrap(offset + arc_meds[int(longest)]))
     jumped = {a for a, med in arc_meds.items() if abs(med) > JUMP_M}
     keep = ~np.isin(arc_pair, list(jumped))
     one = np.zeros(k.size, np.int64)  # one label: S(τ) spans arcs (they share a constant)
@@ -283,6 +288,8 @@ def pair(
         ref_snr_db=snr_r,
         offset_m=offset,
         offset_us=offset / C * 1e6,
+        offset_longest_arc_us=off_long / C * 1e6,
+        longest_arc_n=int(counts.max()),
         arcs=len(arc_meds),
         arcs_jumped=len(jumped),
         epochs_in_jumped_arcs=int((~keep).sum()),
@@ -396,6 +403,7 @@ def markdown(res: dict, name: str, commit: str, n_fix: int) -> str:
     head = [
         "Pair (cell − ref)", "Same eNB", "Common epochs, all", "All: robust σ (m)",
         "All: told σ (m)", f"Both ≥ {cut:g} dB", "Span (s)", "Frame offset after truth (µs)",
+        "Same, longest arc pair (µs, epochs)",
         "Arcs (jumped)", "Resid σ (m)", "Robust σ (m)", "White σ (m)", "Told σ (m)",
         "ADR-0036 white (m)", *(f"S({t:g} s) (m)" for t in taus), "Drift (m/s)",
         "GM fit: white, s (m), T (s)",
@@ -412,6 +420,7 @@ def markdown(res: dict, name: str, commit: str, n_fix: int) -> str:
             dr, gm = p["drift"], p["gm_fit"]
             row += [
                 _f(p["span_s"], 1), f"{p['offset_us']:+.3f}",
+                f"{p['offset_longest_arc_us']:+.3f} ({p['longest_arc_n']})",
                 f"{p['arcs']} ({p['arcs_jumped']})", _f(p["resid_sigma_m"]),
                 _f(p["resid_robust_m"]), _f(p["white_m"]), _f(p["told_sigma_m"]),
                 _f(p["adr36_white_m"]), *(_f(p["S_m"].get(t)) for t in taus),
