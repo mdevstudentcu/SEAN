@@ -1,0 +1,272 @@
+{
+  "commit": "cb386ca",
+  "estimator": "ekf",
+  "runs": 50,
+  "outage_scenario": "realistic-long-outage",
+  "gps_loss_s": 60,
+  "t1": {
+    "target_m": 25.0,
+    "window_s": 300.0,
+    "worst_p95_m": 677.2812286376952,
+    "worst_at_s": 90,
+    "met": false
+  },
+  "fallback": {
+    "target_m": 50.0,
+    "window_s": 120.0,
+    "worst_p95_m": 677.2812286376952,
+    "worst_at_s": 90,
+    "met": false
+  },
+  "outage_summary": {
+    "n": 3599.0,
+    "h_rmse_m": 154.4408701876402,
+    "h_p95_m": 317.6372970217455,
+    "h_max_m": 452.7337892004432,
+    "fault_h_p95_m": 331.67853124077965,
+    "fault_h_max_m": 452.7337892004432,
+    "hpl_bound_frac": 0.9330036121144762,
+    "misleading_epochs": 0.0,
+    "detect_delay_s": NaN,
+    "spoof_detected": NaN,
+    "false_alarms_per_h": 0.0,
+    "h_nees_mean": 12.85094305200334,
+    "time_err_p95_us": 0.44312628873067056,
+    "fault_time_err_p95_us": 0.4617441308602552,
+    "time_1sigma_bound_frac": 0.371764378994165,
+    "hazardous_epochs": 0.0,
+    "time_pl_bound_frac": 0.9254404001111419,
+    "time_misleading_epochs": 268.34,
+    "time_hazardous_epochs": 0.0,
+    "time_to_alert_s": 1.9000000000000004,
+    "alerted": 1.0,
+    "resilience_level": 2.0,
+    "pos_resilience_level": 2.0,
+    "time_resilience_level": 2.98,
+    "recovery_tested": 0.0,
+    "outage_h_p95_60s_m": 173.57862769522228,
+    "outage_h_p95_120s_m": 282.84779942548687,
+    "outage_h_p95_300s_m": 331.67853124077965,
+    "outage_hpl_bound_300s": 0.9196266666666666,
+    "outage_time_err_600s_us": NaN,
+    "outage_time_sigma_bound_600s": NaN,
+    "worst_fault_h_max_m": 906.1989455280597,
+    "min_hpl_bound_frac": 0.6924145595998888,
+    "tta_median_s": 1.9,
+    "tta_worst_s": 1.9,
+    "min_time_pl_bound_frac": 0.6018338427340928,
+    "resilience_level_worst": 2.0,
+    "pos_level_worst": 2.0,
+    "time_level_worst": 2.0,
+    "runs": 50
+  },
+  "ablation": [
+    {
+      "variant": "all sources",
+      "dropped": [],
+      "mean_m": 331.67853124077965,
+      "se_m": 20.52817736031152,
+      "worst_m": 787.4192669110749,
+      "added_m": 0.0,
+      "added_se_m": 0.0
+    },
+    {
+      "variant": "no SoOP (lte)",
+      "dropped": [
+        "lte"
+      ],
+      "mean_m": 2292.335727135851,
+      "se_m": 26.520563444908586,
+      "worst_m": 2757.5429970573527,
+      "added_m": 1960.6571958950715,
+      "added_se_m": 33.34190567483113
+    },
+    {
+      "variant": "no baro",
+      "dropped": [
+        "baro"
+      ],
+      "mean_m": 409.38996822353397,
+      "se_m": 33.93838821368574,
+      "worst_m": 1407.8529310792842,
+      "added_m": 77.71143698275438,
+      "added_se_m": 27.776921746416463
+    },
+    {
+      "variant": "no imu",
+      "dropped": [
+        "imu"
+      ],
+      "mean_m": 331.67853124077965,
+      "se_m": 20.52817736031152,
+      "worst_m": 787.4192669110749,
+      "added_m": 0.0,
+      "added_se_m": 0.0
+    }
+  ],
+  "stanford": [
+    {
+      "scenario": "realistic-nominal",
+      "epochs": 179950,
+      "nominal": 179850,
+      "misleading": 0,
+      "hazardous": 0,
+      "unavailable": 100,
+      "unavailable_misleading": 0
+    },
+    {
+      "scenario": "realistic-outage",
+      "epochs": 179950,
+      "nominal": 120086,
+      "misleading": 0,
+      "hazardous": 0,
+      "unavailable": 59864,
+      "unavailable_misleading": 5211
+    },
+    {
+      "scenario": "realistic-gps-no-fix",
+      "epochs": 179950,
+      "nominal": 120086,
+      "misleading": 0,
+      "hazardous": 0,
+      "unavailable": 59864,
+      "unavailable_misleading": 5211
+    },
+    {
+      "scenario": "realistic-gps-low-sats",
+      "epochs": 179950,
+      "nominal": 179850,
+      "misleading": 0,
+      "hazardous": 0,
+      "unavailable": 100,
+      "unavailable_misleading": 0
+    },
+    {
+      "scenario": "realistic-gps-return",
+      "epochs": 179950,
+      "nominal": 155740,
+      "misleading": 0,
+      "hazardous": 0,
+      "unavailable": 24210,
+      "unavailable_misleading": 2135
+    },
+    {
+      "scenario": "realistic-spoof-ramp",
+      "epochs": 179950,
+      "nominal": 76563,
+      "misleading": 10933,
+      "hazardous": 92354,
+      "unavailable": 100,
+      "unavailable_misleading": 0
+    },
+    {
+      "scenario": "realistic-spoof-jump",
+      "epochs": 179950,
+      "nominal": 77300,
+      "misleading": 0,
+      "hazardous": 17042,
+      "unavailable": 85608,
+      "unavailable_misleading": 5246
+    },
+    {
+      "scenario": "realistic-time-spoof",
+      "epochs": 179950,
+      "nominal": 179850,
+      "misleading": 0,
+      "hazardous": 0,
+      "unavailable": 100,
+      "unavailable_misleading": 0
+    },
+    {
+      "scenario": "realistic-meaconing",
+      "epochs": 179950,
+      "nominal": 77250,
+      "misleading": 102032,
+      "hazardous": 0,
+      "unavailable": 668,
+      "unavailable_misleading": 0
+    },
+    {
+      "scenario": "realistic-jamming-zone",
+      "epochs": 176150,
+      "nominal": 152181,
+      "misleading": 0,
+      "hazardous": 0,
+      "unavailable": 23969,
+      "unavailable_misleading": 543
+    },
+    {
+      "scenario": "realistic-baro-drift",
+      "epochs": 179950,
+      "nominal": 113227,
+      "misleading": 0,
+      "hazardous": 0,
+      "unavailable": 66723,
+      "unavailable_misleading": 5311
+    },
+    {
+      "scenario": "realistic-tower-loss",
+      "epochs": 179950,
+      "nominal": 179850,
+      "misleading": 0,
+      "hazardous": 0,
+      "unavailable": 100,
+      "unavailable_misleading": 0
+    },
+    {
+      "scenario": "realistic-tower-clock-step",
+      "epochs": 179950,
+      "nominal": 179850,
+      "misleading": 0,
+      "hazardous": 0,
+      "unavailable": 100,
+      "unavailable_misleading": 0
+    },
+    {
+      "scenario": "realistic-long-outage",
+      "epochs": 179950,
+      "nominal": 32300,
+      "misleading": 0,
+      "hazardous": 0,
+      "unavailable": 147650,
+      "unavailable_misleading": 12056
+    },
+    {
+      "scenario": "realistic-capture-pi4b",
+      "epochs": 179950,
+      "nominal": 179850,
+      "misleading": 0,
+      "hazardous": 0,
+      "unavailable": 100,
+      "unavailable_misleading": 0
+    }
+  ],
+  "holdover": {
+    "time_err_p95_us": 0.44312628873067056,
+    "fault_time_err_p95_us": 0.4617441308602552,
+    "time_1sigma_bound_frac": 0.371764378994165,
+    "min_time_pl_bound_frac": 0.6018338427340928
+  },
+  "real_sessions": [
+    {
+      "figure": "Error after GPS loss (REQ-01)",
+      "result": "TBD",
+      "waiting_on": "#21 (LTE ranging go/no-go on real captures), #30 (sim-to-real validation)"
+    },
+    {
+      "figure": "Stanford plot (REQ-02)",
+      "result": "TBD",
+      "waiting_on": "#30: real sessions with faults injected (`pnt replay --inject`)"
+    },
+    {
+      "figure": "Ablation (REQ-06)",
+      "result": "TBD",
+      "waiting_on": "#21, #30"
+    },
+    {
+      "figure": "Timing holdover (REQ-03)",
+      "result": "TBD",
+      "waiting_on": "#30: a real session with PPS logged but hidden from the filter"
+    }
+  ]
+}
