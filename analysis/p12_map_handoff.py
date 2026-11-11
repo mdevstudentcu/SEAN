@@ -3,7 +3,9 @@
 For each seed of the scenario (default `p12-drone-map-handoff`):
 - The drone flies a circuit of `handoff.circuit_s` with GPS, ending at the map's epoch, and its
   `ekf-calibrated` filter learns the tower clocks; the map is exported there
-  (`pnt.nav.tower_map`), and goes through its JSON form as a hand-off would.
+  (`pnt.nav.tower_map`, under its export policy, ADR-0048: built with the jump guard, withheld
+  if the drone raised a spoof cue, and the user then has no aid), and goes through its JSON
+  form as a hand-off would.
 - The ground user (`ground_user:`, the same world: towers, told positions and tower clocks) runs
   `ekf-calibrated` over the same records: with no aid (tower clocks unknown, the filter's wide
   priors), with no aid but a tower drift prior equal to the sim's own spread (a prior nobody has
@@ -17,7 +19,8 @@ second after GPS loss, worst second of the window) over the first 120 s and 300 
 systems/plan.md, and the mentors' 50 m / 120 s fallback), the p95 pooled over seeds and epochs
 for comparison, the worst seed, the share of those 300 s where HPL bounds the error, and misleading
 (error > HPL, not flagged unsafe) and hazardous (error > alert limit, HPL within it) epochs over
-the user's whole run. Writes a figure and seed 0's freshest map as JSON.
+the user's whole run, and the seeds whose map was withheld. Writes a figure and seed 0's freshest
+map as JSON.
 
     python analysis/p12_map_handoff.py --runs 50 --out fig.png
 """
@@ -64,20 +67,27 @@ def cases(spec: dict, run) -> dict[str, dict]:
         if first < T0_NS:
             raise ValueError(f"map age {age} s: the circuit would start before the run")
         drone = [m for m in run.measurements if m.t_ns >= first]
-        learned = tower_map.learn(drone, epoch, origin_llh=spec["origin_llh"])
+        try:
+            learned = tower_map.learn(drone, epoch, origin_llh=spec["origin_llh"])
+        except tower_map.MapWithheld:
+            out[age_case(age)] = {}  # withheld (ADR-0048): the user has no aid
+            continue
         out[age_case(age)] = {"tower_map": tower_map.TowerMap.from_json(learned.to_json())}
     return out
 
 
 def seed_result(scenario: str, seed: int) -> dict:
-    """Per case: the run's metrics, and (time since GPS loss, error, HPL) over T1_S."""
+    """Per case: the run's metrics, and (time since GPS loss, error, HPL) over T1_S; under
+    `_withheld`, the map cases whose map the drone withheld."""
     spec = load(scenario)
     run = generate(spec, seed=seed)
     user = run.ground_user
     loss = gps_loss(user.spec, T0_NS)[0]
     truth = {t.t_ns: np.asarray(t.pos_enu[:2]) for t in user.truth}
-    out = {}
+    out: dict = {"_withheld": set()}
     for name, config in cases(spec, run).items():
+        if name.startswith("map") and "tower_map" not in config:
+            out["_withheld"].add(name)
         fn = configured(ekf.run_calibrated, **config)
         est = list(estimate(fn, user.measurements, origin_llh=spec["origin_llh"]))
         rows = np.array(
@@ -92,7 +102,7 @@ def seed_result(scenario: str, seed: int) -> dict:
             ]
         )
         out[name] = (score(est, user.truth, user.spec, T0_NS), rows)
-        if seed == 0 and name == age_case(spec["handoff"]["map_ages_s"][0]):
+        if seed == 0 and name == age_case(spec["handoff"]["map_ages_s"][0]) and config:
             out["_map_json"] = config["tower_map"].to_json()
     return out
 
@@ -145,25 +155,28 @@ def main(argv=None) -> None:
     ages = spec["handoff"]["map_ages_s"]
     names = [NO_AID, SIM_PRIOR, *map(age_case, ages)]
     stats = {n: summary(runs, n) for n in names}
+    held = {n: sum(n in r["_withheld"] for r in runs) for n in names}
 
     print(f"{args.scenario}, ekf-calibrated, {args.runs} seeds (sim), pooled over seeds")
     print(
         f"| case | T1 stat 0-{FALLBACK_S} s (m) | T1 stat 0-{T1_S} s (m) "
         f"| pooled p95 0-{FALLBACK_S} s (m) | pooled p95 0-{T1_S} s (m) "
-        f"| worst seed p95 0-{T1_S} s (m) | HPL >= error, 0-{T1_S} s | misleading | hazardous |"
+        f"| worst seed p95 0-{T1_S} s (m) | HPL >= error, 0-{T1_S} s | misleading | hazardous "
+        "| map withheld |"
     )
-    print("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+    print("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
     for n in names:
         s = stats[n]
         print(
             f"| {n} | {s['t1_120']:.1f} | {s['t1_300']:.1f} "
             f"| {s['p95_120']:.1f} | {s['p95_300']:.1f} | {s['worst_300']:.1f} "
             f"(seed {s['worst_seed']}) | {s['bound_300']:.3f} | {s['misleading']} "
-            f"| {s['hazardous']} |"
+            f"| {s['hazardous']} | {held[n] if n.startswith('map') else '-'} |"
         )
 
     out = Path(args.out)
-    (out.parent / f"{out.stem}-map-seed0.json").write_text(runs[0]["_map_json"] + "\n")
+    if "_map_json" in runs[0]:  # not if seed 0's drone withheld it
+        (out.parent / f"{out.stem}-map-seed0.json").write_text(runs[0]["_map_json"] + "\n")
 
     fig, (ax, bx) = plt.subplots(1, 2, figsize=(13, 6.0), dpi=150, width_ratios=(3, 2))
     # categorical slots 1-3
