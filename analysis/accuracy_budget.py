@@ -219,6 +219,17 @@ class FilterModel:
 CONFIGS = {"ekf": {}, "ekf-calibrated": CALIBRATED, "ekf-imu": {"motion": "imu"}}
 
 
+def _rx_in_ranges(mode, env: Env) -> bool:
+    """Whether the filter puts our clock in the tower ranges here (ADR-0047): always (True), never
+    (False), or once GNSS time is used ("observed", the default), so only with a time source.
+    "gnss_out" (only while GNSS is lost) is not modelled by this budget."""
+    if mode == "observed":
+        return env.gnss_time_sigma_m is not None
+    if mode == "gnss_out":
+        raise ValueError("the budget does not model pseudorange_receiver_clock='gnss_out'")
+    return bool(mode)
+
+
 def filter_model(estimator: str, env: Env) -> FilterModel:
     """The estimator's settings, read from `EKF`'s defaults and its registry configuration."""
     cfg = {k: p.default for k, p in inspect.signature(EKF).parameters.items()}
@@ -228,7 +239,7 @@ def filter_model(estimator: str, env: Env) -> FilterModel:
         name=estimator,
         motion=cfg["motion"],
         calibrated=cal,
-        rx_in_ranges=bool(cfg["pseudorange_receiver_clock"]),
+        rx_in_ranges=_rx_in_ranges(cfg["pseudorange_receiver_clock"], env),
         offset_q=C**2 * cfg["tower_h0"] / 2.0 if cal else cfg["q_emitter"] ** 2,
         drift_q=C**2 * 2.0 * math.pi**2 * cfg["tower_h_2"] if cal else 0.0,
         calib_offset_q=cfg["calib_q_offset"] ** 2 if cal else 0.0,
