@@ -4,7 +4,7 @@ Evidence: **real sessions**, static, payload Pi, one NESDR SMArt v5, recorded on
 
 ## Commands
 
-Analysis at `2408c19`. Front end at `3e97678` for the 60 s and 30 s sessions and at `060445f` for the 1,800 s one; no file under `src/` differs between the three. These are the commits on `main`. The runs were made on the branch before it was rebased twice and rebase-merged; each commit named here has the same change as the branch commit it ran at (`git patch-id`, `just recite`). The second rebase brought in #171's coherent LTE integration. #171 changed `src/pnt/frontends/lte/tracker.py` and `frontend.py`; its default output was checked identical on 10 real captures in #171. Re-run at the twice-rebased branch head, whose `src/` and `analysis/lte_measured_noise.py` are those of `9b129aa`, on the three sessions on the laptop (`20261110-1305-lte-outside`, `20261110-lte-outside-5145`, `-5255`): their 13 rows in `summary.md` (3 session, 6 cell, 4 pair) came out identical but for the commit columns, as they did after the first rebase. The other 12 sessions are on the Pi only: **regenerate everything at the merged commit** with the commands below, so that `summary.md` names a commit on `main`.
+Front end and analysis at `e9a9053` on `main`, on all 15 sessions (run on the laptop, 2026-11-11). Each session's `meta.yaml` names the payload Pi's local commit, which is not on `main`; `summary.md` and `summary.json` cite its twin on `main`, `ee20817` (same patch by `git patch-id`), as `python analysis/recite.py --write` rewrites it (last line below; it re-cites every other result that needs it too).
 
 ```bash
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1
@@ -15,13 +15,16 @@ for s in 20261110-1305-lte-outside 20261110-lte-outside-{5145,5255} \
   pnt frontend lte data/sessions/$s/sdr_a.cu8 --out <out>/$s-lte
 done
 python analysis/lte_measured_noise.py <out>/*-lte --raw-root data/sessions
+python analysis/recite.py --write
 ```
 
 Every session uses the recorder's own `sdr_a.json`. Carriers with no cell found (nothing written): 2535 (both spots and the first spot), 5035, 5085, 68611.
 
+Against the first results (analysis at `2408c19`, front end at `3e97678` and `060445f`, run on the branch before its rebase-merge; under `src/` only the dashboard, `payload/gpsd.py` and `_attacks.yaml` differ from `e9a9053`): every SNR bin, cell, pair, track-break and Allan value is the same except the fit (below) and three values in the fourth significant figure: `20261110-1610-static-site1-e5255` PCI 175 white σ robust 10.08 → 10.09 m, `20261110-1759-static-out-long-e5060` PCI 4 white σ RMS 3.194 → 3.195 m (`summary.json`), and its 492 − 4 drift −0.1751 → −0.175 m/s (`summary.json`).
+
 ## The white-σ fit: SNR ≥ −8 dB only
 
-`summary.md`, `summary.json` and `white_vs_snr.png` still show the first fit, over every SNR bin: σ² = 0.51² + 2.46² / SNR_lin. Below −8 dB it read 7.8 m against the measured 12.4 m (−11 to −8 dB) and 9.5 m against 24.7 m (−14 to −11 dB), so the script now fits only the bins at or above `FIT_MIN_SNR_DB` (−8 dB, `TBC`; from `ff51d65`) and keeps each weaker bin's measured σ. The per-bin values the fit uses (`snr_median_db`, `white_robust_m`, `n`) are in `summary.json`, so the same `fit_white` gives the new fit without the sessions: σ² = 0.64² + 2.28² / SNR_lin (m, 10 Hz), within 0.79 to 1.23 of each fitted bin. The same call on every bin returns 0.507 and 2.460, the committed fit, so the rounded JSON values do not move it at this precision.
+The script fits only the bins at or above `FIT_MIN_SNR_DB` (−8 dB, `TBC`; from `ff51d65`) and keeps each weaker bin's measured σ: σ² = 0.64² + 2.28² / SNR_lin (m, 10 Hz), within 0.79 to 1.23 of each fitted bin. The first fit, over every bin, was σ² = 0.51² + 2.46² / SNR_lin; below −8 dB it read 7.8 m against the measured 12.4 m (−11 to −8 dB) and 9.5 m against 24.7 m (−14 to −11 dB). Both come back from the per-bin values in `summary.json` (`snr_median_db`, `white_robust_m`, `n`) without the sessions:
 
 ```bash
 PYTHONPATH=src python -c "
@@ -32,7 +35,7 @@ b = json.load(open('analysis/results/lte-measured-noise/summary.json'))['snr_bin
 print(m.fit_white(b), m.fit_white(b, snr_min_db=-1e9))"
 ```
 
-A regeneration (above) replaces the three files with the −8 dB fit.
+It prints 0.642 and 2.280, then 0.507 and 2.460.
 
 ## Buffer stamps and the 1,800 s capture
 

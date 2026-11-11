@@ -1,24 +1,24 @@
 # LTE pseudorange error measured on real static captures (#173)
 
-`analysis/lte_measured_noise.py` at `2408c19`. Evidence: **real sessions**, static, one RTL-SDR, no GPS fix (no position truth; NTP, not PPS, time). Precision only.
+`analysis/lte_measured_noise.py` at `e9a9053`. Evidence: **real sessions**, static, one RTL-SDR, no GPS fix (no position truth; NTP, not PPS, time). Precision only.
 
 | Session | Recorded at | Front end at | IQ length (s) | LTE record span (s) | Cells |
 |---|---|---|---|---|---|
-| 20261110-1305-lte-outside-lte | `ee20817` | `3e97678` | 59.53 | 49.4 | 1 |
-| 20261110-1610-static-site1-e2460-lte | `ee20817` | `3e97678` | 59.53 | 59.4 | 3 |
-| 20261110-1610-static-site1-e5060-lte | `ee20817` | `3e97678` | 59.53 | 59.4 | 4 |
-| 20261110-1610-static-site1-e5145-lte | `ee20817` | `3e97678` | 59.53 | 59.4 | 2 |
-| 20261110-1610-static-site1-e5205-lte | `ee20817` | `3e97678` | 59.12 | 59.0 | 3 |
-| 20261110-1610-static-site1-e5255-lte | `ee20817` | `3e97678` | 59.53 | 49.3 | 2 |
-| 20261110-1623-static-out-e2460-lte | `ee20817` | `3e97678` | 59.53 | 52.3 | 2 |
-| 20261110-1623-static-out-e2560-lte | `ee20817` | `3e97678` | 59.46 | 59.3 | 2 |
-| 20261110-1623-static-out-e5060-lte | `ee20817` | `3e97678` | 59.53 | 59.4 | 3 |
-| 20261110-1623-static-out-e5145-lte | `ee20817` | `3e97678` | 59.53 | 59.3 | 4 |
-| 20261110-1623-static-out-e5205-lte | `ee20817` | `3e97678` | 59.53 | 59.4 | 3 |
-| 20261110-1623-static-out-e5255-lte | `ee20817` | `3e97678` | 59.53 | 59.4 | 2 |
-| 20261110-1759-static-out-long-e5060-lte | `ee20817` | `060445f` | 1799.65 | 1799.5 | 3 |
-| 20261110-lte-outside-5145-lte | `ee20817` | `3e97678` | 29.49 | 29.4 | 3 |
-| 20261110-lte-outside-5255-lte | `ee20817` | `3e97678` | 29.49 | 29.3 | 2 |
+| 20261110-1305-lte-outside-lte | `ee20817` | `e9a9053` | 59.53 | 49.4 | 1 |
+| 20261110-1610-static-site1-e2460-lte | `ee20817` | `e9a9053` | 59.53 | 59.4 | 3 |
+| 20261110-1610-static-site1-e5060-lte | `ee20817` | `e9a9053` | 59.53 | 59.4 | 4 |
+| 20261110-1610-static-site1-e5145-lte | `ee20817` | `e9a9053` | 59.53 | 59.4 | 2 |
+| 20261110-1610-static-site1-e5205-lte | `ee20817` | `e9a9053` | 59.12 | 59.0 | 3 |
+| 20261110-1610-static-site1-e5255-lte | `ee20817` | `e9a9053` | 59.53 | 49.3 | 2 |
+| 20261110-1623-static-out-e2460-lte | `ee20817` | `e9a9053` | 59.53 | 52.3 | 2 |
+| 20261110-1623-static-out-e2560-lte | `ee20817` | `e9a9053` | 59.46 | 59.3 | 2 |
+| 20261110-1623-static-out-e5060-lte | `ee20817` | `e9a9053` | 59.53 | 59.4 | 3 |
+| 20261110-1623-static-out-e5145-lte | `ee20817` | `e9a9053` | 59.53 | 59.3 | 4 |
+| 20261110-1623-static-out-e5205-lte | `ee20817` | `e9a9053` | 59.53 | 59.4 | 3 |
+| 20261110-1623-static-out-e5255-lte | `ee20817` | `e9a9053` | 59.53 | 59.4 | 2 |
+| 20261110-1759-static-out-long-e5060-lte | `ee20817` | `e9a9053` | 1799.65 | 1799.5 | 3 |
+| 20261110-lte-outside-5145-lte | `ee20817` | `e9a9053` | 29.49 | 29.4 | 3 |
+| 20261110-lte-outside-5255-lte | `ee20817` | `e9a9053` | 29.49 | 29.3 | 2 |
 
 Sim placeholders from `src/pnt/sim/scenarios/sets/challenge-drone.yaml` and `sim/lte_front_end.py` `Dongle`.
 
@@ -37,7 +37,9 @@ Sim placeholders from `src/pnt/sim/scenarios/sets/challenge-drone.yaml` and `sim
 | 10 to 13 | 760 | 1.00 | 1.26 | 1.17 | 0.85 |
 | 13 to 16 | 1002 | 0.63 | 1.30 | 1.34 | 0.47 |
 
-Fit: σ² = 0.51² + 2.46² / SNR_lin (m, 10 Hz).
+Fit on the bins at SNR ≥ -8 dB only (`TBC`): σ² = 0.64² + 2.28² / SNR_lin (m, 10 Hz).
+
+Below it the fit is not used; each bin's measured robust σ stands: -14 to -11 dB: 24.74 m; -11 to -8 dB: 12.38 m.
 
 ## Per cell
 
@@ -57,7 +59,7 @@ Fit: σ² = 0.51² + 2.46² / SNR_lin (m, 10 Hz).
 | 20261110-1610-static-site1-e5205-lte | lte:5205:309 | 202790 | 97% | 8 | 8 | 8.8 | 1.45 | 1.31 | 5.05 | — | — | 145.97 | 119.6 | — | — | 7.1 | 1.1 |
 | 20261110-1610-static-site1-e5205-lte | lte:5205:325 | 202790 | 80% | 38 | 47 | 4.9 | 2.99 | 2.83 | 10.64 | — | — | 146.57 | -137.8 | -195 | -0.98 | 46.7 | 0.2 |
 | 20261110-1610-static-site1-e5255-lte | lte:5255:85 | 219129 | 52% | 14 | 15 | 12.0 | 1.03 | 0.70 | 3.32 | — | — | 143.41 | -2.7 | — | — | 14.1 | 1.4 |
-| 20261110-1610-static-site1-e5255-lte | lte:5255:175 | 219076 | 12% | 13 | 20 | -11.1 | 24.45 | 10.08 | — | — | — | — | — | 52 | 0.26 | 19.1 | 0.1 |
+| 20261110-1610-static-site1-e5255-lte | lte:5255:175 | 219076 | 12% | 13 | 20 | -11.1 | 24.45 | 10.09 | — | — | — | — | — | 52 | 0.26 | 19.1 | 0.1 |
 | 20261110-1623-static-out-e2460-lte | lte:2460:220 | 36122 | 63% | 19 | 36 | 5.5 | 10.21 | 1.95 | 6.06 | — | — | 85.70 | 52.0 | — | — | 35.3 | 0.2 |
 | 20261110-1623-static-out-e2460-lte | lte:2460:244 | 30066 | 19% | 9 | 24 | -11.9 | 30.55 | 11.35 | — | — | — | — | — | -416 | -2.08 | 23.2 | 0.1 |
 | 20261110-1623-static-out-e2560-lte | lte:2560:175 | TBD | 79% | 20 | 42 | -11.0 | 20.84 | 12.40 | 22.77 | — | — | 109.14 | -19.5 | 1 | 0.00 | 41.4 | 0.2 |
