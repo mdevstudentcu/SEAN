@@ -76,7 +76,7 @@ How estimator `ekf-mhss` computes its HPL (REQ-02) and excludes faults (REQ-04).
 
 `just figures <estimator> 50` (`analysis/figures.py`) draws the four results figures from committed scenarios at seeds 0–49, with the numbers behind them in `summary.md`: error after GPS loss (REQ-01), a Stanford plot pooled over the `realistic` set (REQ-02), the ablation (REQ-06) and timing holdover (REQ-03). It is re-run on the final commit with the estimator we present; until then this file quotes none of its numbers.
 
-**Real sessions: placeholder.** No real session has been recorded yet. Replayed results of named sessions (REQ-10) go beside the sim figures once the first captures exist (#30).
+**Real sessions: placeholder.** Real sessions exist: the 2026-11-10 static captures with no position or time truth (*First real-air sessions* above), the overnight IMU bench session (*Sim validity*, IMU row) and a 2026-11-11 GPS HAT session ([`analysis/results/gnss-health-20261111-fullsuite/`](../analysis/results/gnss-health-20261111-fullsuite/summary.md)). None is in these figures yet. Replayed results of named sessions (REQ-10) go beside the sim figures (#30).
 
 ## Results
 
