@@ -19,6 +19,10 @@ eval scenario="gps-outage" runs="50":
 results runs="50":
     {{py}} pnt results --runs {{runs}}
 
+# After a rebase-merge: re-point committed results and docs at main's commits (dry run; --write applies)
+recite *args="":
+    {{py}} python analysis/recite.py {{args}}
+
 # Results figures (error after GPS loss, Stanford, ablation, holdover) -> analysis/results/figures-<estimator>/
 figures estimator="ekf" runs="50":
     {{py}} python analysis/figures.py --estimator {{estimator}} --runs {{runs}}
