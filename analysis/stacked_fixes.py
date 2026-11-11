@@ -321,9 +321,18 @@ def summary(data: dict) -> str:
         )
     lines += [
         "",
-        "Hazardous seeds list at most the first six. The ceiling row is told the sim's true LTE "
-        "noise (white and multipath together), which no real receiver knows: an upper bound on "
-        "what better noise knowledge could buy, not a result.",
+        "Notes:",
+        "",
+        "- Hazardous seeds list at most the first six.",
+        "- The ceiling row is told the sim's true LTE noise (white and multipath together), which "
+        "no real receiver knows: an upper bound on what better noise knowledge could buy, not a "
+        "result.",
+        "- On the outage rows the jump guard has nothing to refuse (no GNSS fix arrives before "
+        "the cut), so *all three* equals the stack.",
+        "- Jump rows: the clock starts at the jump (150 s), GPS stays on (spoofed), and the error "
+        "includes following the jump (about 300 m). *On spoof*: within half the jump of where the "
+        "spoofer puts the receiver. A guarded estimate can land there while coasting with GNSS "
+        "excluded: seen on tuning seed 105; the reported seeds' cases were not inspected.",
         "",
         "## Not checked",
         "",
