@@ -36,6 +36,20 @@ Option B (team, 2026-11-10). We aim for our stricter goal; the mentors' figure i
 | T4, spoofing | Location jumps first (mentors): a jump target from the jump study, `TBD`; the ramp targets stay (ours, `TBC`) | — |
 | T5, integrity | Ours, now ours to set (mentors): protection level bounds the error in ≥ 99.9 % of epochs, no hazardously misleading epochs on fault scenarios (`TBC`) | — |
 
+### Amendment 2026-11-10: how the 95 % is taken (T1 and its fallback)
+
+"95 % horizontal error ≤ X m for ≥ T s" is scored across Monte Carlo runs, per epoch:
+
+1. Paired runs of one scenario, seeds declared, each losing GPS at the same point.
+2. At each second t after GPS loss, take the 95th percentile of the horizontal error across the runs.
+3. The target holds if that curve stays ≤ X for every second of 0 to T s: the worst second of the window decides.
+
+So T1 reads "at any moment of the first 300 s, 95 % of flights are within 25 m" (likewise the fallback: 50 m, 120 s). This is the usual reading of a navigation accuracy figure (95 % probability at each epoch, held over the interval), and it is what the accuracy budget predicts, so the budget and the Monte Carlo compare like for like.
+
+Not used: each run's own 95th percentile over time with every seed required to pass. It drops the worst 5 % of each run's coast, which is its end, where the error is largest, and requiring every seed makes the verdict depend on how many seeds are run.
+
+Report the number of runs with every result: with 50 runs the per-second 95th percentile moves by a few metres from one second to the next.
+
 ## Consequences
 
 - T1 is reported against both numbers. Falling back to the mentors' figure is a recorded decision (an amendment here naming the evidence), never a silent change. "Explain the calculations" becomes a deliverable: an accuracy budget per error term with its source, growing with time since GPS loss, checked against Monte Carlo.
