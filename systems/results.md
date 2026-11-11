@@ -7,19 +7,20 @@
 
 ## 1. The challenge baseline: where we stand
 
-**Sim.** Every estimator on every entry of the three `challenge` legs ([ADR-0030](adr/0030-challenge-benchmark-set.md), Proposed): records shaped as the real front end writes them, the `realistic` set's error sizes (50 m range noise, 50 m multipath, `TBC`), 60 s of GPS, a 600 s outage. Source: open PR #170, `python analysis/challenge_baseline.py --seeds 50 --jobs 3` at `4e4c9d1`, seeds 0–49 (`ekf-mhss` 0–19 on six entries per leg).
+**Sim.** Every estimator on every entry of the three `challenge` legs ([ADR-0030](adr/0030-challenge-benchmark-set.md), Proposed): records shaped as the real front end writes them, the `realistic` set's error sizes (50 m range noise, 50 m multipath, `TBC`), 60 s of GPS, a 600 s outage. Source: open PR #170, `python analysis/challenge_baseline.py --seeds 50 --jobs 3` at `ff5ee58`, seeds 0–49 (`ekf-mhss` 0–19 on six entries per leg; regenerated 2026-11-10 after review, #187).
 
 | Target (`TBC`) | Result | Verdict |
 | --- | --- | --- |
 | T1, 25 m for 300 s (drone, `outage`) | Best mean 4,284 m (`ekf-calibrated`); no seed of any estimator meets it | **Not met** |
-| T2, 556 m alert limit (approach, synthetic towers) | No metric scores it; 300 s error 1,313 to 2,467 m, for reference only | **Not scored** |
+| T1 fallback, 50 m for 120 s (mentors; ADR-0034, open PR #158) | Best mean 1,580 m | **Not met** |
+| T2, 556 m alert limit (approach, synthetic towers) | No metric scores it; 300 s error 1,313 to 2,344 m, for reference only | **Not scored** |
 | T3, 1.5 µs at 10 min with an honest σ (timing, `outage`) | `ekf`, `ekf-imu`: 49 of 50 seeds (one at 1.55 µs). `ekf-calibrated`: 0.15 µs mean, but its σ bound fails on 13 seeds | **Not met** |
 | T4, 2 m/s position ramp within 30 s | 0 of 50, every estimator, every leg | **Not met** |
-| T4, 50 ns/s time ramp within 60 s | 50 of 50 for `ekf`, `ekf-calibrated`, `ekf-imu` (median 3 s); `baseline` 0 | **Met** by those and `ekf-mhss` |
+| T4, 50 ns/s time ramp within 60 s | 50 of 50 for `ekf`, `ekf-calibrated`, `ekf-imu` (median 3 s); `baseline` 0 | **Met** by `ekf`, `ekf-calibrated`, `ekf-imu`; `ekf-mhss` ran a reduced set |
 | T4, ≤ 1 false alarm per hour (`nominal`) | 0.0 /h for the four fast estimators; `ekf-mhss` 1.3 /h on the timing leg | **Met** except `ekf-mhss` on timing |
 | T5, HPL bounds the error in ≥ 99.9 % of epochs | Worst runs 0.2 % to 21 % for the fast estimators; `ekf-mhss` 0 hazardous epochs but a worst bound of 78 to 85 % | **Not met** |
 
-Worst case worth naming: `ekf-imu` under the IMU bias entry reaches 81,955 m (`challenge-drone-outage-imu-bias`, 5 runs, #170).
+Worst case worth naming: `ekf-imu` under the IMU bias entry reaches 77,906 m (`challenge-drone-outage-imu-bias`, 5 runs; 50 seeds: mean 77,213 m; #170).
 
 **The first cause: LTE told the front end's reported sigma makes position worse than no LTE.** Sim, drone leg, 300 s p95, #137 (merged), commit `af2efce`, seeds 0–9:
 
@@ -144,14 +145,14 @@ First spot (short bundle antenna):
 
 | EARFCN (licensee) | Cells tracked | Registered eNB | Source |
 | --- | --- | --- | --- |
-| 2460 (Rogers) | PCI 244, 48.9 s of 59.5 s at 14.8 dB; PCI 268 found, never tracked | 30066 | #182, #183; length 59.5 s from the summary |
-| 5255 (TELUS) | PCIs 175, 188 | 219076, 219003 | #182, #177 |
-| 5145 (TELUS) | PCIs 189, 175, 188 (175 and 188 break into 15 arcs each in 30 s) | 219003, 219076, 219003 | #177, #183 |
-| 2535 (TELUS, Bell) | None | — | #177 |
+| 2460 (Rogers) | PCI 244, 48.9 s of a 59.5 s capture at 14.8 dB; PCI 268 found, never tracked | 30066 | #182, #183; session `20261110-1305-lte-outside` |
+| 5255 (TELUS) | PCIs 175, 188 (29.5 s capture) | 219076, 219003 | #182, #177; session `20261110-lte-outside-5255` |
+| 5145 (TELUS) | PCIs 189, 175, 188 (29.5 s capture; 175 and 188 break into 13 and 15 arcs) | 219003, 219076, 219003 | #177, #183; session `20261110-lte-outside-5145` |
+| 2535 (TELUS, Bell) | None (29.5 s capture) | — | #177; session `20261110-lte-outside-2535` |
 
 - **Every tracked cell matched a unique registered eNB** (summary; each (EARFCN, PCI) above appears once in the table).
 - **Reported against observed noise** (summary): reported σ 1.1 to 4.3 m, observed spread 4 to 13 m at 10 Hz, a ratio of 3 to 8. For PCI 244 alone (#177): epoch-to-epoch white noise 0.73 m against 1.26 m reported, and 5.95 m residual from a quadratic fit (tower clock, dongle clock and multipath wander together). The white part is small; the slow part, which the reported σ does not include, is not. This is #147 on real data.
-- **Dongle frequency:** the summary gives a dongle frequency error of +0.26 to +0.29 ppm. #177 and #183 give the measured carrier offsets as -0.17 to -0.30 ppm (-120 to -260 Hz), with one outlier, PCI 175 on 5145, at +0.52 ppm (#183: a sign flip or a wrong-carrier lock, open). The sign convention between the two is `TBC`.
+- **Dongle frequency:** the measured carrier offsets are -0.17 to -0.30 ppm (-120 to -260 Hz; #177, #183), with one outlier, PCI 175 on 5145, at +0.52 ppm (#183: a sign flip or a wrong-carrier lock, open). The capture report (open PR #175) states the same thing as the dongle's frequency error ε = -CFO / f_c, positive when the dongle runs fast: +0.29 ppm on 2460 and +0.26 ppm on 5255 (sessions `20261110-1305-lte-outside` and `20261110-lte-outside-5255`, analysed at `cbbf6ab`). It mixes the dongle's error with each tower's own carrier error.
 - **Timing chain cross-check** (#177): PCI 244's pseudorange slope, 86.8 m/s, agrees with its measured carrier offset (0.30 ppm of c is 90 m/s).
 
 Second spot (13-carrier scan, 60 s each; summary only):
