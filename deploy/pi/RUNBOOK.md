@@ -117,7 +117,24 @@ What the first capture must measure, with one dongle, and which `TBC` each numbe
 
 The Pi records raw IQ; the decoders run on the file afterwards. `setup.sh` installs readsb (owner's approval, 2026-11-10); Voracious is not installed by it.
 
-16. ADS-B, record: `.venv/bin/pnt record --platform static --place <site> --duration 60 --sdr a:1090e6:rate=2.4e6:dev=0 --notes "ADS-B IQ, <antenna, where>"` (as `rf_survey.sh` does). At 2 bytes per sample, 60 s at 2.4 MS/s is 288 MB.
+16. ADS-B, check the FlightStick chain for impulsive interference first (open finding below). With nothing else using the FlightStick (`<dev>`: its index from A4 `rtl_test -t`), take 10 s and check it:
+
+    ```bash
+    rtl_sdr -d <dev> -f 1090e6 -s 2.4e6 -g 38.6 -n 24000000 /tmp/check.cu8
+    .venv/bin/python analysis/iq_impulse_check.py /tmp/check.cu8; rm /tmp/check.cu8
+    ```
+
+    Good output: `frac_gt_10x` below `0.01` (`TBC`; Gaussian noise gives 0.001, the NESDR at 1090 MHz gave 0.0045 on 2026-11-11). Above it, an ADS-B capture is not worth recording: note the numbers in #22.
+16a. ADS-B, record at a **fixed gain**, never the dongle's auto gain: `.venv/bin/pnt record --platform static --place <site> --duration 60 --sdr a:1090e6:rate=2.4e6:dev=<dev>:gain=38.6 --notes "ADS-B IQ, <antenna, where>"`. At 2 bytes per sample, 60 s at 2.4 MS/s is 288 MB. `rf_survey.sh` and `day1.sh` still record ADS-B at auto gain.
+
+    The gain is 38.6 dB, `TBC`: one of the R820T's own steps (`rtl_test -t` lists them) and the highest in the sweep with no clipped samples (43.9 dB clipped 0.02 %). It is chosen for no clipping, not for best decoding: nothing decoded at any gain on 2026-11-11 (below). FlightStick, 1 s of IQ per gain, two passes, outdoors, 2026-11-11 01:11:
+
+    | Gain (dB) | 20.7 | 28.0 | 33.8 | 38.6 | 43.9 | 49.6 | auto (tuner AGC) |
+    | --- | --- | --- | --- | --- | --- | --- | --- |
+    | Clipped samples (%) | 0 | 0 | 0 | 0 | 0.02 | 0.10–0.14 | 2.1–2.3 |
+    | RMS (LSB) | 1.7 | 3.9 | 6.5 | 8.7 | 14.7 | 18.8 | 43 |
+
+    **Open finding (2026-11-11): the FlightStick chain decodes nothing, and the cause is not gain.** 40 s records decoded with readsb at 28.0, 33.8, 38.6, 43.9 and 49.6 dB and at auto, two passes (01:15–01:25), and one more at 38.6 dB at 01:29: 0 frames every time, while a public feed showed 5 aircraft within 100 nm, the nearest 36 nm away at FL300. The `20261111-0040-static-fullsuite` capture (auto gain) also gave 0 frames. The IQ is full of impulses: about 66–78 thousand bursts per second, mostly one sample (0.42 µs) long, median gap 3.3 µs, broadband across the 2.4 MHz; 8.6 % of samples are above 10x the median power and 4.9 % above 30x. At the same frequency and gain, the NESDR (on the Pi directly, Bingfu antenna) gave 0.45 % above 10x; the FlightStick (behind the USB 2 hub, NooElec 1090 antenna, built-in LNA) gave 8.6 %. It comes in through the antenna, not over USB: with the antenna unscrewed (01:46, 10 s at 38.6 dB) samples above 30x the median fell from 5.0 % to 0.02 % and the median power from 20.5 to 0.5. The NESDR has no LNA, so the same pickup stays below its floor. The emitter (the Pi, the hub, or something nearby) is `TBD`; the antenna could not be moved more than about 10 cm further away. Next: the FlightStick and antenna 2–3 m from the Pi on a USB extension, in daytime.
 17. ADS-B, decode on the Pi with **readsb**, installed by `setup.sh` from Debian (package `3.14.1630+git20240609.adc080d-1` on the payload Pi, 2026-11-10). Its service stays **disabled** (`systemctl is-enabled readsb` → `disabled`): nothing listens on the radio at boot. This build has no RTL-SDR support (supported device types: `modesbeast`, `gnshulc`, `ifile`, `none`), so it cannot decode live; it reads the capture as a file:
 
     ```bash
