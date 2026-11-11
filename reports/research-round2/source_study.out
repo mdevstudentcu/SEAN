@@ -1,0 +1,31 @@
+[run] waiting for resources: slice 3529 MB, avail 4733 MB, load 13.56 (14:01:28)
+[run] admitted after 10s
+
+variant                                                    runs  p95@60  p95@120  p95@300  worst0-120  worst0-300  HPL>=err
+dead reckoning (IMU+baro)                                    20     824     2119     6095        2119        6095      100%
+LTE realistic, ekf-imu                                       20     254      465      370         502         502       92%
+LTE realistic, ekf-calibrated                                20     172      425      392         425         488      100%
+LTE 12 sites, ekf-calibrated                                 20     107      106      159         129         185      100%
+LTE + chip-scale atomic clock                                20     157      412      372         412         479      100%
+precise ranging 8 sites (5G PRS / carrier-phase class)       20      14       17       25          22          32      100%
+Iridium Doppler                                              20      15       28       57          28          72      100%
+Iridium + Starlink Doppler                                   20       2        2        2           2           3      100%
+tactical IMU alone                                           20    1686     3278     7876        3278        7877       88%
+optical flow (3 deg heading)                                 20      33       27       38          34          49       30%
+optical flow + heading ref (1 deg)                           20      11        9       11          12          17       67%
+visual-inertial odometry                                     20       3        2        3           3           5       84%
+map-matching fixes, sparse (30 %)                            20     826      762     1133         826        1224      100%
+map-matching fixes (70 %)                                    20      61      155      100         163         163      100%
+flow+heading + LTE realistic                                 20      11        9       11          12          17       67%
+flow+heading + Iridium                                       20      11        9       11          12          17       67%
+flow+heading + sparse map fixes                              20      11        9       11          12          16       68%
+VIO + map fixes (70 %)                                       20       3        2        3           3           4       83%
+tactical IMU + VIO + map fixes + precise ranging             20       3        2        3           3           4       83%
+[leg] dead reckoning                                         20     279      875     9644         983        9644      100%
+[leg] Iridium Doppler                                        20      13       27       56          27          72      100%
+[leg] optical flow (3 deg heading)                           20      53       85      209          85         209        8%
+[leg] optical flow + heading ref (1 deg)                     20      19       33       83          33          83       15%
+[leg] visual-inertial odometry                               20       6       10       23          10          23       20%
+[leg] flow+heading + sparse map fixes                        20      19       33       79          33          79       15%
+[leg] flow+heading + Iridium                                 20      19       33       82          33          82       16%
+[leg] VIO + map fixes (70 %)                                 20       6        9       18           9          18       21%
