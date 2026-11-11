@@ -20,8 +20,18 @@ towers fixed it. This script measures that, paired by seed (seeds 0..runs-1):
 3. Figure: horizontal error and HPL after GPS loss on `--mechanism`'s worst `ekf` run, for `ekf`
    and for `ekf` with our clock in the tower model.
 
-Writes summary.md, summary.json, error_vs_hpl.png and drift.png into `--out`. Sim only; every
-model in these sets is a placeholder (systems/verification.md, *Sim validity*).
+Writes summary.md, summary.json, error_vs_hpl.png and drift.png into `--out`.
+
+With `--costs` it runs only the cost study instead (ADR-0045's follow-up): can the term be kept
+without its costs on the base sets? `COST_VARIANTS` over `COST_SCENARIOS`, paired with `ekf`
+(mean difference and its standard error over the seeds): the term always on, on only once GNSS
+time has been used (`observed`) or only while GNSS position is lost (`gnss_out`), with a smaller
+clock frequency wander (`h_2`), and with the jump guard. Then the scenarios whose payload has a
+clock but whose towers leave it out (`COST_SIM_RX`) are rerun with it in the towers
+(`receiver_clock: true`, a sim change, so those rows pair only with each other). Writes
+costs.md and costs.json.
+
+Sim only; every model in these sets is a placeholder (systems/verification.md, *Sim validity*).
 """
 
 from __future__ import annotations
@@ -36,6 +46,7 @@ from pathlib import Path
 import numpy as np
 
 from pnt import metrics, nav
+from pnt.integrity.jump_guard import JumpGuard
 from pnt.nav import cells, ekf
 from pnt.sim.scenario import T0_NS, generate, load
 
@@ -63,6 +74,27 @@ VARIANTS = {
     "ekf-calibrated -rx clock": {**ekf.CALIBRATED, "pseudorange_receiver_clock": False},
     "baseline": None,
 }
+COST_VARIANTS = {
+    "ekf": {},
+    "ekf +rx clock": RX,
+    "ekf rx clock observed": {"pseudorange_receiver_clock": "observed"},
+    "ekf rx clock gnss_out": {"pseudorange_receiver_clock": "gnss_out"},
+    "ekf +rx clock, h_2 2e-22": {**RX, "h_2": 2e-22},
+    "ekf-guard": {"jump_guard": JumpGuard},
+    "ekf-guard +rx clock": {"jump_guard": JumpGuard, **RX},
+}
+CONFIGS = {**VARIANTS, **COST_VARIANTS}  # every variant name -> its config
+COST_SCENARIOS = (
+    "gps-outage",
+    "spoof-ramp",
+    "meaconing",
+    "easy-long-outage",
+    "realistic-long-outage",
+    "realistic-outage",
+)
+# Scenarios whose payload clock (`clock:`, with GNSS time) is left out of their tower readings
+COST_SIM_RX = ("meaconing", "easy-long-outage")
+COST_SIM_VARIANTS = ("ekf", "ekf +rx clock", "ekf-guard", "ekf-guard +rx clock")
 SHORT = ("ekf", "ekf +rx clock")  # the variants run on every scenario; the rest on --mechanism
 DRIFTS_PPB = (0.0, 20.0, 40.0)
 KEYS = (
@@ -106,14 +138,18 @@ def _run_ekf(meas, origin_llh, config, epoch_ns=100_000_000):
     return out, f.updates
 
 
-def one(scenario: str, variant: str, seed: int, drift_ppb=None, drop_lte=False, curve=False):
+def one(
+    scenario: str, variant: str, seed: int, drift_ppb=None, drop_lte=False, curve=False, rx=False
+):
     spec = load(scenario)
+    if rx:
+        spec["sources"]["lte"]["receiver_clock"] = True
     if drift_ppb is not None:
         spec["clock"] = {**spec["clock"], "drift_ppb": drift_ppb}
     run = generate(spec, seed=seed)
     meas = [m for m in run.measurements if not (drop_lte and m.source == "lte")]
     origin = spec.get("origin_llh")
-    config = VARIANTS[variant]
+    config = CONFIGS[variant]
     if config is None:
         est, updates = list(nav.estimate(variant, meas, origin_llh=origin)), []
     else:
@@ -238,6 +274,74 @@ def _figures(out: Path, curves: dict, seed: int, drift: list[dict], scenario: st
     plt.close(fig)
 
 
+def _paired(rows: list[dict], base: list[dict], key: str) -> tuple[float, float]:
+    d = np.array([r[key] - b[key] for r, b in zip(rows, base, strict=True)], float)
+    d = d[np.isfinite(d)]
+    if not d.size:
+        return float("nan"), float("nan")
+    return float(d.mean()), float(d.std(ddof=1) / np.sqrt(d.size)) if d.size > 1 else 0.0
+
+
+def costs(args, commit: str) -> None:
+    seeds = range(args.runs)
+    tasks = {}
+    for scn in COST_SCENARIOS:
+        for v in COST_VARIANTS:
+            for s in seeds:
+                tasks[(scn, v, s, False)] = (scn, v, s, None, False, False, False)
+    for scn in COST_SIM_RX:
+        for v in COST_SIM_VARIANTS:
+            for s in seeds:
+                tasks[(scn, v, s, True)] = (scn, v, s, None, False, False, True)
+    with ProcessPoolExecutor(args.jobs) as pool:
+        results = dict(zip(tasks, pool.map(_star, tasks.values()), strict=True))
+    groups = [(scn, False, list(COST_VARIANTS)) for scn in COST_SCENARIOS]
+    groups += [(scn, True, list(COST_SIM_VARIANTS)) for scn in COST_SIM_RX]
+    table = []
+    for scn, rx, variants in groups:
+        base = [results[(scn, "ekf", s, rx)] for s in seeds]
+        for v in variants:
+            rows = [results[(scn, v, s, rx)] for s in seeds]
+            row = {"scenario": scn, "towers_carry_our_clock": rx, "variant": v, **_summary(rows)}
+            for k in ("h_p95_m", "outage_h_p95_300s_m", "misleading_epochs", "hazardous_epochs"):
+                row[f"d_{k}"] = _paired(rows, base, k)
+            table.append(row)
+    (args.out / "costs.json").write_text(
+        json.dumps({"commit": commit, "runs": args.runs, "table": table}, indent=1)
+    )
+
+    def pm(x):
+        return "—" if x[0] != x[0] else f"{x[0]:+.1f} ± {x[1]:.1f}"
+
+    lines = [
+        "# Keeping our clock in the tower ranges without its costs (#228, ADR-0045)",
+        "",
+        f"Commit `{commit}`, seeds 0-{args.runs - 1} (paired), sim with placeholder models. "
+        "Δ: mean paired difference from `ekf` in the same rows ± its standard error. "
+        "Rows marked *sim: towers carry our clock* rerun that scenario with "
+        "`receiver_clock: true` (a sim change: they pair only with each other).",
+        "",
+        "| Scenario | Variant | p95 mean (m) | Δ p95 (m) | T1 p95 mean (m) | Δ T1 (m) "
+        "| T1 HPL bound, worst run | Misleading / run | Δ misleading | Hazardous / run "
+        "| Δ hazardous |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for r in table:
+        scn = f"`{r['scenario']}`" + (
+            " (sim: towers carry our clock)" if r["towers_carry_our_clock"] else ""
+        )
+        lines.append(
+            f"| {scn} | `{r['variant']}` | {_fmt(r['p95_mean_m'])} | {pm(r['d_h_p95_m'])} "
+            f"| {_fmt(r['t1_p95_mean_m'])} | {pm(r['d_outage_h_p95_300s_m'])} "
+            f"| {_fmt(r['t1_hpl_bound_worst'], '{:.3f}')} | {r['misleading_per_run']:.1f} "
+            f"| {pm(r['d_misleading_epochs'])} | {r['hazardous_per_run']:.1f} "
+            f"| {pm(r['d_hazardous_epochs'])} |"
+        )
+    lines.append("")
+    (args.out / "costs.md").write_text("\n".join(lines))
+    print("\n".join(lines))
+
+
 def main(argv=None) -> None:
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--runs", type=int, default=50)
@@ -245,10 +349,14 @@ def main(argv=None) -> None:
     p.add_argument("--scenarios", nargs="+", default=list(SCENARIOS))
     p.add_argument("--mechanism", default="realistic-long-outage")
     p.add_argument("--out", type=Path, default=Path("analysis/results/rx-clock"))
+    p.add_argument("--costs", action="store_true", help="run only the cost study (costs.md)")
     args = p.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=True)
     seeds = range(args.runs)
     commit = _commit()
+    if args.costs:
+        costs(args, commit)
+        return
 
     tasks = {}
     for scn in args.scenarios:
