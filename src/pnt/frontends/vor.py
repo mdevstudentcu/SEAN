@@ -20,8 +20,9 @@ documents them for 0.4.1:
 - `signal_quality`: kept in `meta` as given. Voracious says these are relative within one run,
   so nothing here thresholds them.
 
-**Stations.** A radial is only a bearing with the station's position and magnetic variation,
-which the caller passes (`Station`; `data/reference/navaids.csv` is `TBD`). A record is matched
+**Stations.** A radial is only a bearing with the station's position and magnetic variation.
+By default they come from `data/reference/navaids.csv` (`load_stations`: the VORs within 150 km
+of Carleton, from OurAirports); a caller may pass its own `Station`s instead. A record is matched
 by its ident; with no ident, by its frequency if one station has it. A record whose ident and
 frequency name different stations, or no known station, is dropped and counted.
 
@@ -36,10 +37,12 @@ The receiver only listens to the VOR broadcast (ADR-0001); Voracious runs outsid
 
 from __future__ import annotations
 
+import csv
 import json
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
 
 from pnt.core.measurement import Measurement
 from pnt.core.time import unix_ns_to_gps_ns
@@ -51,6 +54,9 @@ from pnt.core.time import unix_ns_to_gps_ns
 BEARING_SIGMA_DEG = 2.0
 # VOR channels are 50 kHz apart: a frequency within half of that names the channel.
 FREQ_TOL_MHZ = 0.025
+NAVAIDS = Path(__file__).resolve().parents[3] / "data" / "reference" / "navaids.csv"
+VOR_TYPES = ("VOR", "VOR-DME", "VORTAC")  # the navaids that broadcast a VOR signal
+FT_TO_M = 0.3048
 
 
 @dataclass(frozen=True)
@@ -61,6 +67,29 @@ class Station:
     lon: float
     h: float  # m, WGS84 ellipsoid
     magvar_deg: float  # the station's magnetic variation, east positive
+
+
+def load_stations(path: str | Path | None = None) -> list[Station]:
+    """The VOR stations in the navaids table (default `NAVAIDS`), in its order.
+
+    `magvar_deg` is the slaved variation, the one the station's radials are aligned to, or the
+    magnetic variation where no slaved variation is published. `h` is the published elevation
+    above sea level, not the ellipsoid height `Station` asks for: the geoid (-34 m near Ottawa)
+    is not applied. That moves the station along its own vertical, which leaves the bearing from
+    it unchanged."""
+    with open(Path(path) if path is not None else NAVAIDS, newline="", encoding="utf-8") as f:
+        rows = [r for r in csv.DictReader(f) if r["type"] in VOR_TYPES]
+    return [
+        Station(
+            ident=r["ident"].strip().upper(),
+            freq_mhz=float(r["frequency_khz"]) / 1000.0,
+            lat=float(r["lat"]),
+            lon=float(r["lon"]),
+            h=float(r["elevation_ft"]) * FT_TO_M,
+            magvar_deg=float(r["slaved_variation_deg"] or r["magnetic_variation_deg"]),
+        )
+        for r in rows
+    ]
 
 
 @dataclass
@@ -82,14 +111,17 @@ def _match(rec: dict, stations: dict[str, Station]) -> Station | None:
 
 def process(
     lines: Iterable[str],
-    stations: Iterable[Station],
+    stations: Iterable[Station] | None = None,
     receiver: str = "payload",
     file_t0: tuple[float, int] | None = None,
 ) -> Result:
-    """Voracious JSON Lines -> `bearing` records, for the stations given.
+    """Voracious JSON Lines -> `bearing` records, for the stations given (default: the
+    VORs in `data/reference/navaids.csv`).
 
     `file_t0` = (the Unix seconds Voracious took as the file's start, GPS ns of its sample 0)
     re-times records from a file; without it, `timestamp` is taken as UTC as it stands."""
+    if stations is None:
+        stations = load_stations()
     table = {s.ident.upper(): s for s in stations}
     out: list[Measurement] = []
     unmatched = unreadable = 0
