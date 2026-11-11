@@ -122,7 +122,7 @@ Segment 2: "A spoofer moves GPS 300 metres. Caught at the first fake fix: red. B
 | Stage sequence (Enter at T+105, T+188, T+212) | **72.9** and **75.9** |
 | Real towers | 0.4 to print, ~15 to talk |
 
-Measured twice back to back on 2026-11-11 at commit `ec5da67` (the same change before its rebase onto `main` `8892fca`, now `d3beadd`; after the rebase only `demo.sh check`, `demo.sh real` and the two jump segments' outcomes were re-checked, not the timings), clean tree, macOS, this laptop, each run a fresh `demo.sh stage` (Python caches warm, not a rebooted laptop), load average 7.8 from two other jobs. Enter was pressed by a script reading the panel clock, not by hand, and no browser was open: a browser reconnects 0–3 s after each switch, which delays what is visible but not the sequence. The segment switch took 3.1–5.3 s. Event times on the panel clock agreed exactly between runs. A just-booted laptop's first Python start is slower (`TBD`, not measured): hence the warm-up.
+Measured twice back to back on 2026-11-11 at `ec5da67`, a local commit never pushed, so not reproducible from the repository (the same change before its rebase onto `main` `8892fca`, now `d3beadd`; after the rebase only `demo.sh check`, `demo.sh real` and the two jump segments' outcomes were re-checked, not the timings), clean tree, macOS, this laptop, each run a fresh `demo.sh stage` (Python caches warm, not a rebooted laptop), load average 7.8 from two other jobs. Enter was pressed by a script reading the panel clock, not by hand, and no browser was open: a browser reconnects 0–3 s after each switch, which delays what is visible but not the sequence. The segment switch took 3.1–5.3 s. Event times on the panel clock agreed exactly between runs. A just-booted laptop's first Python start is slower (`TBD`, not measured): hence the warm-up. Re-time the stage sequence at the commit that will be shown (`TBD`).
 
 ## Numbers you may quote
 
@@ -170,7 +170,7 @@ Say: "This is real: a 60-second capture with a low-cost RTL-SDR radio dongle. Th
 | `ekf-guard` missing or `check` fails | `FAIL` lines | *If everything fails* below |
 | Venue Wi-Fi down | — | Nothing needed: the demo uses no network |
 | Laptop dies | — | Same screenshots from a teammate's laptop or the PR page |
-| Questions about real position | — | Real sessions on this laptop have no GPS fix; say so (*Real towers* above) |
+| Questions about real position | — | The demo shows no real position: one local session has a GPS fix, but no real-session panel segment is built; say so (*Real towers* above) |
 
 ## If everything fails: 60 seconds on screenshots
 
@@ -211,4 +211,4 @@ Headless Google Chrome at 1920×1080, panel served by `deploy/demo/demo.sh jump`
 | `guard-2-before-end.png` | `challenge-drone-gps-return` | `ekf-guard` | T+193.9 | UNSAFE, HPL 947.6 m above the 254.6 m error, just before the spoofer stops at T+200 |
 | `guard-3-readmitted.png` | `challenge-drone-gps-return` | `ekf-guard` | T+210.0 | NOMINAL, HPL 6.9 m, error 0.8 m: real GPS back; alerts cleared at T+199.9, still listed |
 
-The 2026-11-10 screenshots in `analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/` (commit `8cea8cf`) still show the time spoof and the real-session panel (`real-dash-today.png`: NO DATA, no origin in a real session). Their wording predates the fix in `7f6596f` (*GPS lost … towers*, *Low trust*).
+The 2026-11-10 screenshots in `analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/` (commit `8cea8cf`) still show the time spoof and the real-session panel (`real-dash-today.png`: NO DATA, no origin in a real session). Their wording predates the fix in `6ddb001` (*GPS lost … towers*, *Low trust*).
