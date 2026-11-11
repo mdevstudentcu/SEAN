@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Date:** 2026-11-10
 - **Deciders:** team (the owners accept or change each point below)
-- **Traces to:** REQ-02, REQ-04, ADR-0021, ADR-0022, ADR-0024, ADR-0030, ADR-0034, #147, #170, #173, #189
+- **Traces to:** REQ-02, REQ-04, ADR-0021, ADR-0022, ADR-0024, ADR-0030, ADR-0034, ADR-0038, #147, #170, #173, #189
 
 ## Context
 
@@ -11,7 +11,7 @@ ADR-0021 pitches towers catching a GPS position spoof. In the challenge baseline
 
 `src/pnt/integrity/spoof_monitor.py` (#173) tests the towers against the GNSS fix outside the filter. Once a second, per (lag, window) pair, it removes every clock and each site's constant bias by a two-way fit, fits how far the GNSS position moved against the towers over the lag, and tests that displacement with an F-test. Nothing the filter learned while GNSS steered it can hide a spoof from it. It is wired as new estimator names (`ekf-spoof`, `ekf-calibrated-spoof`, `ekf-imu-spoof`); existing estimators are byte-identical.
 
-Its settings are values we chose, not requirements, so adopting it is a decision. Results: `analysis/results/spoof-detection/summary.md` (sim, seeds 0–49, `python analysis/spoof_detection.py --seeds 50 --mhss-seeds 5 --jobs 2`).
+Its settings are values we chose, not requirements, so adopting it is a decision. Results: `analysis/results/spoof-detection/summary.md` (sim, seeds 0–49, `python analysis/spoof_detection.py --seeds 50 --mhss-seeds 5 --jobs 5`; the summary names the commit and host).
 
 ## Options
 
@@ -43,7 +43,7 @@ Each point is proposed; the owners accept or change it.
    - **The ramp within T4's 30 s** (kept by ADR-0034, `TBC`). It is not reachable with these error sizes: in 30 s the ramp moves the fix 60 m, against about 34 m (1σ) of the towers' own uncertainty over that lag.
    - **Anything with 1 to 3 cells,** which is the drone leg as committed (1 of 50 seeds) and the `realistic` set (4 towers, 0 of 50): with fewer than 5 sites it has no opinion.
    - Spoofers slower than 2 m/s were not run (threat model, *Slower or filter-aware position drift*).
-4. **Response:** an alarm calls `EKF.raise_spoof_alarm`, the filter's own response (GNSS position excluded until it agrees again, a calibrated filter's tower clocks roll back). Jumps are the filter's own gate's job; refusing a detected jump is #184, the jump study #176.
+4. **Response:** an alarm calls `EKF.raise_spoof_alarm`, the filter's own response (GNSS position excluded until it agrees again, a calibrated filter's tower clocks roll back). Jumps are the filter's own gate's job; refusing a detected jump is the opt-in jump guard ([ADR-0038](0038-refuse-detected-gnss-jump.md), `ekf-guard`, #191), the jump study #176. The monitor is not combined with the guard here.
 5. **Assumption to check on real captures:** each site's error is independent of the others' with one shared variance. Correlated multipath across sites would make the F-test overconfident (more false alarms than the bound).
 6. **Pitch:** what is shown is "towers catch a slow position spoof where at least 5 sites are heard, in minutes for 2 m/s". ADR-0021's wording would need an amendment for the narrower claim; that is an open question for the owners, not part of this ADR.
 7. **Reopen** if real captures show correlated per-site errors, if #147 makes the filter use the towers, or if the hearing on the real drone leg is below 5 sites.
