@@ -84,7 +84,7 @@ How estimator `ekf-mhss` computes its HPL (REQ-02) and excludes faults (REQ-04).
 ## Results
 
 <!-- results:start -->
-Estimator: `ekf`. Commit `cb386ca`, 2026-11-11 16:54. Regenerate with `just results`.
+Estimator: `ekf`. Commit `b74010e`, 2026-11-11 16:54. Regenerate with `just results`.
 
 | Scenario | Runs | H RMSE (m) | Fault H p95 (m) | Fault H max (m) | HPL bounds error | Misleading epochs | Spoof detect (s) | False alarms (/h) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
