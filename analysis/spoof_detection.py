@@ -132,8 +132,12 @@ def alarm_context(t: np.ndarray, alarm: np.ndarray, suspected: np.ndarray, s0: f
 
 
 def run_one(case: str, estimator: str, seed: int) -> dict:
-    spec = spec_of(case)
-    run = generate(spec, seed=seed)
+    return run_spec(spec_of(case), case, estimator, seed)
+
+
+def run_spec(spec: dict, case: str, estimator: str, seed: int, run=None) -> dict:
+    """One run's row for a built `spec` (`run`: its generated scenario, if already made)."""
+    run = generate(spec, seed=seed) if run is None else run
     log: list = []
     # CPU time of this process, not wall time: a wall clock also counts the machine sleeping
     # (#189: two runs logged 1,870 s, of which 1,859 s was the laptop asleep) and other jobs
