@@ -2,7 +2,7 @@
 
 - **Status:** Draft, 2026-11-10
 - **Traces to:** REQ-01, T1 in [`plan.md`](plan.md), UC-01. The mentors asked for this on 2026-11-10: "You will need to explain the calculations that lead to this accuracy", and "handover timing … must remain within the overall timing/accuracy budget".
-- **Judged against:** T1 first, our goal: 95 % horizontal error ≤ 25 m for ≥ 300 s after GPS loss. Then the fallback, the mentors' figure: ≤ 50 m for ~2 min (taken as 120 s). Both `TBC` (ADR-0034, Proposed). A target holds only if the whole window is within it.
+- **Judged against:** T1 first, our goal: 95 % horizontal error ≤ 25 m for ≥ 300 s after GPS loss. Then the fallback, the mentors' figure: ≤ 50 m for ~2 min (taken as 120 s). Both values `TBC`; T1 and its fallback were accepted by the team on 2026-11-10 (ADR-0034), and its amendment sets the statistic: the 95th percentile across runs at each second after GPS loss. A target holds only if the whole window is within it.
 - **Script:** [`analysis/accuracy_budget.py`](../analysis/accuracy_budget.py) computes every number here. Tests: [`tests/test_accuracy_budget.py`](../tests/test_accuracy_budget.py).
 - **Kind of evidence:** analysis and sim. Every tower and clock value is a `placeholder` in the *Sim validity* table of [`verification.md`](verification.md), so none of this is a real-world result. Numbers from commit `f736bda` (clean tree), seeds 0–19 (REQ-10). 20 seeds, not 50: the rerun after rebasing on main had to fit the time left. With 20 runs the per-second 95th percentile lies between the two worst runs, so the Monte Carlo reads higher than a 50-run figure would; a 50-seed run before the rebase gave `ekf-imu` 22 m where this gives 26 m, and that difference mixes the seed count with main's changes since. Rerun at 50 seeds before quoting a Monte Carlo number to the judges (about 70 min on 3 workers).
 
@@ -12,8 +12,8 @@ Worst 95 % error over each target's window (sim, seeds 0–19, GPS good for 120 
 
 | Scenario | Estimator | T1: ≤ 25 m for 300 s | Fallback: ≤ 50 m for 120 s | Term that sets it |
 | --- | --- | --- | --- | --- |
-| `uc01` | `ekf` | **Missed.** Budget 25.2 m, Monte Carlo 36 m | Met: 24 m, 36 m | Range noise after handover (20 m per reading): 21 m of the 22 m budget |
-| `uc01` | `ekf-imu` | **Missed by 1 m** in the Monte Carlo (26 m; 25.5 m with 120 s of GPS, 26.0 m with 300 s). Budget 16 m | Met: 15 m, 26 m | Range noise after handover: 14 m of 14 m |
+| `uc01` | `ekf` | **Missed** in the Monte Carlo (36 m). Budget 24.6 m, just within | Met: 24 m, 36 m | Range noise after handover (20 m per reading): 21 m of the 22 m budget |
+| `uc01` | `ekf-imu` | **Missed by 0.5 m** in the Monte Carlo (25.5 m; 26.0 m with 300 s of GPS). Budget 16 m | Met: 15 m, 26 m | Range noise after handover: 14 m of 14 m |
 | `uc01` | `ekf-calibrated` | **Missed.** Budget 58 m, Monte Carlo 41 m | Met: 36 m, 41 m | Range noise during calibration, left in the learned tower drifts and multiplied by t: 51 m alone at +300 s |
 | `uc01-realistic` | `ekf-calibrated` | **Missed by 20×.** Budget 501 m, Monte Carlo 488 m | Missed: 324 m, 425 m | Multipath (50 m, 30 s, `TBC`): 215 m alone at +120 s, 360 m at +300 s. Four more terms are each over 25 m on their own |
 | `uc01-realistic` | `ekf`, `ekf-imu` | **Missed by km.** Budget 7.2 km, Monte Carlo 3.9 / 3.3 km | Missed: 3.6 km; 1.9 / 1.9 km | Receiver clock: they do not model our clock in the tower ranges, so its 20 ppb drift (6 m/s) goes into the position: 1.1 km alone at +120 s |
@@ -183,8 +183,8 @@ What the filter learns before GPS is lost sets how fast its error grows after. G
 
 | Scenario | Estimator | Window | 30 s of GPS | 60 s | 120 s | 300 s |
 | --- | --- | --- | --- | --- | --- | --- |
-| `uc01` | `ekf` | T1, 300 s | 25 / 33 | 25 / 41 | 25 / 36 | 25 / 31 |
-| | | fallback, 120 s | 25 / 28 | 24 / 32 | 24 / 36 | 24 / 28 |
+| `uc01` | `ekf` | T1, 300 s | 25 / 33 | 25 / 41 | 25 / 36 | 24 / 31 |
+| | | fallback, 120 s | 25 / 27 | 24 / 32 | 24 / 36 | 24 / 28 |
 | `uc01` | `ekf-imu` | T1, 300 s | 17 / 31 | 16 / 33 | 16 / 25.5 | 16 / 26.0 |
 | | | fallback, 120 s | 16 / 30 | 15 / 33 | 15 / 25.5 | 15 / 26 |
 | `uc01` | `ekf-calibrated` | T1, 300 s | 154 / 117 | 97 / 86 | 58 / 41 | 31 / 44 |

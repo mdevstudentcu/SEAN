@@ -86,7 +86,8 @@ TCALS = (30.0, 60.0, 120.0, 300.0)  # s of good GPS before it is lost (Monte Car
 TCAL_FINE = tuple(float(t) for t in range(30, 301, 15))  # budget only
 HORIZON_S = 300  # T1 asks for >= 300 s (systems/plan.md)
 # What the budget is judged against, first to last (TBC):
-# - T1, our goal (ADR-0034, Proposed): 95 % horizontal error <= 25 m for >= 300 s after GPS loss
+# - T1, our goal (ADR-0034, accepted 2026-11-10): 95 % horizontal error <= 25 m for >= 300 s
+#   after GPS loss
 # - the fallback, the mentors' figure (2026-11-10): <= 50 m for ~2 min, "OK-ish"
 TARGETS = {"T1": (25.0, 300.0), "fallback": (50.0, 120.0)}
 REPORT_AT = (30, 60, 120, 300)
