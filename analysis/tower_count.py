@@ -348,6 +348,18 @@ def _cell(r: dict) -> str:
     return f"{r['worst_p95_m']:,.0f} / {h25} / {h50}"
 
 
+def _recited(meta: dict) -> str:
+    """The provenance sentence when the runs were computed at an earlier commit
+    (`meta.recited_from`) and checked identical on seed 0 at `meta.commit`."""
+    if not meta.get("recited_from"):
+        return ""
+    return (
+        f" The runs were computed at {meta['recited_from']}, the pre-rebase twin of "
+        f"{meta['commit']}, and seed 0 rerun at {meta['commit']} gave identical error curves "
+        "for all three error models."
+    )
+
+
 def summary(data: dict, meta: dict) -> str:
     rows, geo = data["rows"], data["geometry"]
     out = [
@@ -359,7 +371,7 @@ def summary(data: dict, meta: dict) -> str:
         "records. The leg, the tower rules, the aiding and the error models are in the script's "
         "docstring. The LTE model is `placeholder` (`verification.md`, *Sim validity*): these "
         "numbers compare tower counts with each other, they are not a prediction of the real "
-        "drone.",
+        "drone." + _recited(meta),
         "",
         "Each cell: **worst-second p95 (m) / s the p95 holds ≤ 25 m / s it holds ≤ 50 m**, the "
         f"T1 statistic of ADR-0034 over {meta['seeds']} runs, window 0–300 s after GPS loss. "
