@@ -12,9 +12,10 @@ For each seed of the scenario (default `p12-drone-map-handoff`):
 - Map age: time from the map's epoch to the user's switch-on (`ground_user.start_s`); the user
   loses GPS 10 s later. Each age has its own circuit of the same length.
 
-Prints, per case, the p95 horizontal error pooled over seeds over the first 120 s and 300 s
-after GPS loss (T1 in systems/plan.md, TBC; the 50 m / 120 s fallback is ADR-0034, proposed on
-PR #158), the worst seed, the share of those 300 s where HPL bounds the error, and misleading
+Prints, per case, T1's statistic (ADR-0034 amendment: the 95th percentile across seeds at each
+second after GPS loss, worst second of the window) over the first 120 s and 300 s (T1 in
+systems/plan.md, and the mentors' 50 m / 120 s fallback), the p95 pooled over seeds and epochs
+for comparison, the worst seed, the share of those 300 s where HPL bounds the error, and misleading
 (error > HPL, not flagged unsafe) and hazardous (error > alert limit, HPL within it) epochs over
 the user's whole run. Writes a figure and seed 0's freshest map as JSON.
 
@@ -36,7 +37,7 @@ from pnt.nav import configured, ekf, estimate, tower_map
 from pnt.sim.scenario import T0_NS, generate, load
 
 T1_M, T1_S = 25.0, 300  # TBC: T1 in systems/plan.md, p95 horizontal error for 300 s after loss
-FALLBACK_M, FALLBACK_S = 50.0, 120  # TBC: ADR-0034's fallback (proposed, PR #158)
+FALLBACK_M, FALLBACK_S = 50.0, 120  # TBC: ADR-0034's fallback (the mentors' figure)
 NO_AID = "no aid"
 SIM_PRIOR = "no aid, sim's drift spread as prior"
 
@@ -101,8 +102,14 @@ def summary(runs: list[dict], name: str) -> dict:
     hpl = np.stack([r[name][1][:, 2] for r in runs])
     t = runs[0][name][1][:, 0]
     first = t < FALLBACK_S
+    # T1's statistic (ADR-0034 amendment): at each whole second, the 95th percentile across
+    # seeds; the worst second of the window decides
+    whole = np.isclose(t, np.round(t), atol=1e-6)
+    per_second = np.percentile(err[:, whole], 95, axis=0)
     per_seed = [r[name][0].outage_h_p95_300s_m for r in runs]
     return {
+        "t1_120": float(per_second[t[whole] < FALLBACK_S].max()),
+        "t1_300": float(per_second.max()),
         "p95_120": float(np.percentile(err[:, first], 95)),
         "p95_300": float(np.percentile(err, 95)),
         "worst_300": float(np.max(per_seed)),
@@ -141,14 +148,16 @@ def main(argv=None) -> None:
 
     print(f"{args.scenario}, ekf-calibrated, {args.runs} seeds (sim), pooled over seeds")
     print(
-        f"| case | p95 0-{FALLBACK_S} s (m) | p95 0-{T1_S} s (m) | worst seed p95 0-{T1_S} s (m) "
-        f"| HPL >= error, 0-{T1_S} s | misleading | hazardous |"
+        f"| case | T1 stat 0-{FALLBACK_S} s (m) | T1 stat 0-{T1_S} s (m) "
+        f"| pooled p95 0-{FALLBACK_S} s (m) | pooled p95 0-{T1_S} s (m) "
+        f"| worst seed p95 0-{T1_S} s (m) | HPL >= error, 0-{T1_S} s | misleading | hazardous |"
     )
-    print("| --- | --- | --- | --- | --- | --- | --- |")
+    print("| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
     for n in names:
         s = stats[n]
         print(
-            f"| {n} | {s['p95_120']:.1f} | {s['p95_300']:.1f} | {s['worst_300']:.1f} "
+            f"| {n} | {s['t1_120']:.1f} | {s['t1_300']:.1f} "
+            f"| {s['p95_120']:.1f} | {s['p95_300']:.1f} | {s['worst_300']:.1f} "
             f"(seed {s['worst_seed']}) | {s['bound_300']:.3f} | {s['misleading']} "
             f"| {s['hazardous']} |"
         )
@@ -177,8 +186,8 @@ def main(argv=None) -> None:
     ax.legend(fontsize=8, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.14), ncol=3)
 
     for key, ls, label in (
-        ("p95_120", "-", f"0-{FALLBACK_S} s"),
-        ("p95_300", "--", f"0-{T1_S} s"),
+        ("t1_120", "-", f"0-{FALLBACK_S} s"),
+        ("t1_300", "--", f"0-{T1_S} s"),
     ):
         bx.plot(ages, [stats[age_case(a)][key] for a in ages], color="#2a78d6", lw=2, ls=ls,
                 marker="o", label=f"map, {label}")  # fmt: skip
@@ -187,7 +196,7 @@ def main(argv=None) -> None:
                        label=f"{short[name]}, {label}")  # fmt: skip
     bx.axhline(T1_M, color="#52514e", lw=1, ls=":")
     bx.set_xlabel("map age at hand-off (s)")
-    bx.set_ylabel("p95 horizontal error, pooled over seeds (m)")
+    bx.set_ylabel("p95 across seeds, worst second of the window (m)")
     bx.set_title("how long the map stays useful", fontsize=10)
     bx.set_ylim(bottom=0)
     bx.legend(fontsize=8, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.14), ncol=2)
