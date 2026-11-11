@@ -3,7 +3,7 @@
 - **Date:** 2026-11-11
 - **Kind:** research and planning only. No code, ADR or ICD in the repo was changed. Nothing here is a decision; every "do X" is a proposal for the owners and each new approach needs its ADR.
 - **Repo state read:** `main` at `7c20323` (equal to `origin/main` at the time).
-- **In the repo:** this report only. The supporting agent reports it cites in `reports/research-round2/` are kept locally and are not committed yet.
+- **In the repo:** this report and the supporting agent reports it cites, in `reports/research-round2/`. The scratch script there was only re-formatted to pass the repo's lint; its logic is unchanged.
 - **What this file is:** the whole of one working session, written up to be read start to finish: what was looked at, one scratch experiment, five research reports, and what they add up to.
 
 ## Contents
@@ -188,7 +188,7 @@ All values in metres.
 - The velocity records are in ENU directly, so they skip the body-frame coupling a real sensor has.
 - Every error model is a placeholder; several are from memory.
 
-**Files:** the script and results (`source_study.py`, `source_study.json`, `source_study.out`) were copied into `reports/research-round2/`, which is not in the repo yet (section 17).
+**Files:** the script and results (`source_study.py`, `source_study.json`, `source_study.out`) are in `reports/research-round2/` (section 17).
 
 ---
 
