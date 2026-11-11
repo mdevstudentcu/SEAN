@@ -37,7 +37,7 @@ sources:
     sigma_m: 50.0   # TBC: the realistic set's true range noise
     # TBC: what the front end reports, not the true noise. Its sigma comes from timing statistics
     # and can't see multipath (#118, #130). 2.0 m is the range noise PR #133's dense check
-    # measured on tracked cells (commit 2444589, synthetic baseband, no multipath): per-cell
+    # measured on tracked cells (commit fc31d76, synthetic baseband, no multipath): per-cell
     # medians 1.5 to 3.8 m where more than one cell was tracked, p50 1.9 m (5 equal cells) and
     # 2.3 m (5 km from every tower); 0.1 m for the lone strong cell at Carleton. It may make the
     # filter overconfident (ADR-0030, open question).

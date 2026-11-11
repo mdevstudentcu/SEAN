@@ -44,7 +44,7 @@ Checked 2026-11-09 evening, updated 2026-11-10. Everything else in this file is 
 | LoRa HAT, 915 MHz | HON | Team, 2026-11-10 | **In hand, not using** (*Not using*) |
 | Adafruit Ultimate GPS HAT | HON | Team | ADR-0014 |
 | GPS active antenna, Adafruit product 960 | HON | Team | The 28 dB, 5 m SMA antenna in section 1 |
-| MPU6050 IMU | HON (sensor kit) | Team; on the payload Pi at `0x68` (`i2cdetect`, 2026-11-10) | ADR-0014. Records at 100 Hz: session `20261110-0301-static-bench`, commit `25ce8ba` |
+| MPU6050 IMU | HON (sensor kit) | Team; on the payload Pi at `0x68` (`i2cdetect`, 2026-11-10) | ADR-0014. Records at 100 Hz: session `20261110-0301-static-bench`, at the change that is `7763667` on `main` |
 | **BMP180** barometer | HON (sensor kit) | Team | **Not a BMP280**: see ADR-0014. `pnt.payload.i2c` finds either part and names it in `meta.yaml`. Check on the Pi: `i2cdetect -y 1` shows `77`, and register `0xD0` reads `0x55` |
 | Raspberry Pi Zero 2 W | `TBC` (team) | Team | The ADR-0018 hub fallback; nothing to buy |
 | VL53L1X ToF breakout | HON | Team | Still not used (*Not using*) |
