@@ -177,3 +177,14 @@ def test_a_target_holds_over_its_whole_window():
     assert ab.min_tcal(curves, 300, 25.0) == 60.0
     assert ab.min_tcal(curves, 120, 25.0) == 30.0
     assert ab.min_tcal({30.0: curve}, 300, 5.0) is None
+
+
+def test_time_to_a_limit_is_the_first_second_over_it():
+    # The mentors' "how long until X m": a 1 m/s growth passes 25 m after 25 s, so 26 s is the
+    # first whole second over it; a flat curve under the limit never reaches it
+    assert ab.time_to(np.arange(301.0), 25.0) == 26
+    assert ab.time_to(np.full(301, 10.0), 25.0) is None
+    assert ab.time_to(np.full(301, 30.0), 25.0) == 0
+    # the IMU's velocity term alone: 2.45 v0 t reaches 25 m at 25 / (2.45 v0)
+    v = ab.Z95_2D * ab.imu_growth(np.arange(301), 0.15, 0.0)["velocity at handover"]
+    assert ab.time_to(v, 25.0) == math.floor(25.0 / (ab.Z95_2D * 0.15)) + 1
