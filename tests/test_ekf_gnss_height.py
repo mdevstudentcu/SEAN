@@ -64,3 +64,23 @@ def test_a_horizontal_jump_is_still_rejected_while_the_height_disagrees():
 def test_an_agreeing_barometer_changes_nothing():
     est = per_second(list(ESTIMATORS["ekf"](static_session(lambda t: 0.0))))
     assert not any(f in e.flags for e in est for f in ("gnss_excluded", "gnss_alt_excluded"))
+
+
+def test_a_fix_used_whole_after_a_jump_is_not_flagged_as_height_rejected():
+    # The jump guard re-admits GNSS once the jump is undone (ADR-0038): those fixes skip the
+    # gate and are used whole, height included, so `gnss_alt_excluded` must not stay on from
+    # the fixes before the jump. Jump from 60 s to 90 s, barometer wandering throughout.
+    meas = static_session(wander, duration_s=130, jump_at_s=60)
+    back = [
+        m
+        if m.source != "gnss" or m.t_ns < 90 * NS
+        else Measurement(t_ns=m.t_ns, source="gnss", kind="position_enu",
+                         value=tuple(np.subtract(m.value, (300.0, 0.0, 0.0))), sigma=m.sigma)
+        for m in meas
+    ]  # fmt: skip
+    est = per_second(list(ESTIMATORS["ekf-guard"](back)))
+    before = [e for e in est if 40 * NS <= e.t_ns < 60 * NS]
+    after = [e for e in est if e.t_ns >= 95 * NS]
+    assert all("gnss_alt_excluded" in e.flags for e in before)  # the set-up holds
+    assert not any("gnss_excluded" in e.flags for e in after)  # GNSS re-admitted
+    assert not any("gnss_alt_excluded" in e.flags for e in after)
