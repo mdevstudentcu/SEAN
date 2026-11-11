@@ -440,8 +440,14 @@ def plot(res: dict, path: Path, caption: str, all_pairs: list[dict]) -> None:
             ax.spines[side].set_visible(False)
     for n, p in enumerate(all_pairs):
         a0.plot(p["t"], p["d_km"], ".", ms=2, color=PALETTE[n % len(PALETTE)], label=p["label"])
+    vals = np.concatenate([p["d_km"] for p in all_pairs]) if all_pairs else np.zeros(1)
+    lim = 1.2 * float(np.percentile(np.abs(vals), 99)) + 0.1
+    off = int(np.sum(np.abs(vals) > lim))
+    a0.set_ylim(-lim, lim)
     a0.set_xlabel("time since first LTE record (s)")
     a0.set_ylabel("pair error after truth, every epoch (km)")
+    if off:
+        a0.text(0.01, 0.01, f"{off} epoch(s) off scale", transform=a0.transAxes, fontsize=8)
     a0.set_title("all records", loc="left", fontsize=10)
     a0.legend(fontsize=8, markerscale=5, frameon=False)
     for n, p in enumerate(res["pairs"]):
@@ -449,6 +455,8 @@ def plot(res: dict, path: Path, caption: str, all_pairs: list[dict]) -> None:
             continue
         col = PALETTE[n % len(PALETTE)]
         lab = f"{p['emitter']} − {p['ref']}"
+        if p["_k"].size == 0:
+            continue
         a1.plot(p["_k"] * DT, p["_resid"], ".", ms=3, color=col, label=lab)
         t = sorted(p["S_m"])
         a2.plot(t, [p["S_m"][x] for x in t], "o-", ms=4, lw=2, color=col, label=lab)
