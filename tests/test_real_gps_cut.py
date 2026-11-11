@@ -181,3 +181,21 @@ def test_main_writes_the_summary_and_figure(tmp_path):
     assert agg["err_30s_m"]["median"] == pytest.approx(100.0, abs=1.0)  # the withheld fixes
     assert "## HPL at the same instants" in text and "| hold | last fix |" in text
     assert (out / "error_after_cut.png").stat().st_size > 0
+
+
+def test_dash_session_cuts_gnss_and_gives_truth_on_every_epoch(tmp_path):
+    from pnt.io.mcap_log import read_session
+
+    path = _session(tmp_path)
+    out = tmp_path / "dash"
+    rgc.load.cache_clear()
+    rgc.write_dash_session(str(path), out, 60.0)
+    rgc.load.cache_clear()
+    recs = list(read_session(out / session.MCAP_NAME))
+    gnss = [r.t_ns for topic, r in recs if topic == "/meas/gnss"]
+    truth = [r for topic, r in recs if topic == "/truth"]
+    assert max(gnss) < T0 + 60 * S and len(gnss) == 60
+    assert len(truth) == 3991 and all(t.t_ns % (S // 10) == 0 for t in truth)
+    # halfway between the fix at 59 s (0 m) and at 60 s (100 m east)
+    mid = next(t for t in truth if t.t_ns == T0 + 59 * S + S // 2)
+    assert mid.pos_enu[0] == pytest.approx(50.0)
