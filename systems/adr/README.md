@@ -40,3 +40,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0036](0036-lte-measured-error-model.md) | The LTE error model is split into white and correlated parts, sized from real captures | Proposed |
 | [0038](0038-refuse-detected-gnss-jump.md) | Refuse a detected GNSS position jump until the jump is undone (opt-in: `*-guard` estimators) | Proposed |
 | [0044](0044-told-sigma-for-radio-records.md) | Tell radio LTE records ADR-0036's measured sigma, opt-in, beside learned noise (opt-in: `*-measured-sigma` estimators; `arc_bias` option) | Proposed |
+| [0045](0045-ekf-models-our-clock-in-tower-ranges.md) | `ekf` models our receiver clock in the tower ranges by default | Proposed |
