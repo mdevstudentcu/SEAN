@@ -1,6 +1,6 @@
 # Results
 
-- **Status:** Draft, 2026-11-11 (#28), against `main` at `c21e047`; PR states, placeholders and the numbers that #245 and ADR-0047 moved brought up to `main` at `c97e09a`; the seven-slide deck's numbers and today's open PRs added against `2499f87` (#268). Collected from committed results and PR descriptions; nothing was re-run for this file.
+- **Status:** Draft, 2026-11-11 (#28), against `main` at `c21e047`; PR states, placeholders and the numbers that #245 and ADR-0047 moved brought up to `main` at `c97e09a`; the seven-slide deck's numbers and today's open PRs added against `2499f87` (#268). Slide 7's row and section (g) added for #273. Collected from committed results and PR descriptions; nothing was re-run for this file.
 - **Kinds.** **Real**: a recorded session. **Sim**: committed scenarios whose models are `placeholder` except where [`verification.md`](verification.md) *Sim validity* says `measured`; never real-world accuracy. **Synthetic**: generated baseband through the real front end. **Registry**: the ISED tower table, no radio.
 - **Open PRs.** A number from an open PR is that PR's evidence, not reviewed or merged. It is marked *open*.
 - **Commits** are on `main` (or, for an open PR, on its branch). Where the source names a pre-rebase hash that is not on `origin`, its twin on `main` (same commit subject) is given instead.
@@ -123,4 +123,19 @@ Each number in [`deck.md`](deck.md), where it comes from. Rows above give the de
 | 5 (fallback) | 111 m, 105 m, 151 m; slow drag 1 of 50 as flown, 50 of 50 hopped, 127 s median | Sim, *open* | (c) *The same ladder on measured LTE noise* (draft PR #262); (d) *2 m/s position ramp* |
 | 6 | 59 of 59 fake sky reports flagged; 0 false alarms in 120 real skyviews | Real, fake sky injected in software | (d) *Satellite that should not be visible* |
 | 6 | Error above HPL after GPS loss 45.3 % (`ekf`), 0.45 % (`ekf-honest`); worst run 18.5 %; ramp 99.3 % | Sim, *open* | (c) *Honest bound* (draft PR #251) |
-| 7 | Below 120 m; radios and antennas under CAD 170 (169.54); payload price, weight and draw `TBD` | Assumption; BOM | [`roadmap.md`](roadmap.md) *Operating envelope*; [`hardware/bom.md`](../hardware/bom.md) |
+| 7 | Radios and antennas under CAD 170 (169.54); payload price, weight and draw `TBD` | BOM | [`hardware/bom.md`](../hardware/bom.md); [`roadmap.md`](roadmap.md) *The payload today* |
+| 7 | No number: we found no spoof detector on sale that cross-checks GPS against cell towers, and no vendor publishing false alarms per flight hour; first buyers; the proof needed | Market search by another session, 2026-11-11; an absence in a search, not a measurement | Research report, sections 10.1 (*checked*), 10.2, 10.5, 17.10 (see (g)) |
+
+## (g) Figures from the research report that the judge answers speak
+
+None of these is our result. Source: `reports/sources-research-20261111.md` on `main` (#271, at `3493cfb`), research by another session, with the label it gives each claim. Only *checked* claims (a research agent read the cited primary source on 2026-11-11) are spoken; nobody on the team has re-read those sources.
+
+| Answer | Figure | Kind | Report section and label |
+| --- | --- | --- | --- |
+| Q21 | Nearest product: a 10 g receive-only board on Iridium's positioning chip | Vendor figure (datasheet) | 10.1, 17.3, *checked, vendor* |
+| Q21 (source line) | Iridium's paid service: 26.6 m horizontal at 95 % over 100 days, static | Independent test, literature | 17.3, *checked* |
+| Q22 | Iridium-only fixes from open bursts, static, over minutes, with height aiding: 198 m, 163 m, about 132 m, 130 to 140 m ("100 to 200 metres") | Literature | 6.1, *checked* |
+| Q14 | The DHS resilient-PNT framework has four levels; its IEEE version is a draft | Standards | 10.4, *checked*. That our cross-checking maps onto the upper two is the report's reading, not assessed |
+| Q23 | University of California patents on LTE opportunistic navigation to about 2038, on a LEO Doppler receiver to about 2040 | Patent database estimate | 10.4, 17.8, no label there; three patents marked read at source in `reports/research-round2/gnss-integrity-algorithms-market.md` *Topic 12* |
+| Q13 (source line) | LTE carrier phase on a drone: 0.37 to 0.89 m horizontal RMSE, with line of sight, a GPS-disciplined receiver oscillator and the drone inside one sector | Literature | 6.3, *checked* |
+| Q24 | Held 300 m jump, 13 carriers (study leg): guard alone 11,103 m; guard with learned noise 120 m, 0 hazardous epochs, 0 of 50 on the spoofed position (A34, 0–300 s) | Sim, *open* | Ours, not the report's: draft PR #247 description, results at `31aaca1`, seeds 0–49 |
