@@ -32,6 +32,7 @@ _RANK = {CAUTION: 0, WARNING: 1, ALARM: 2}
 
 # Every flag raised on main (grep `flags.append` in src/pnt/nav and src/pnt/integrity):
 #   ekf / baseline: gnss_unavailable, gnss_excluded, time_spoof_suspected, spoof_suspected (#102)
+#   ekf-guard and the other `-guard` estimators (ADR-0038): gnss_jump_latched (#206)
 #   ekf-base (#107): base_excluded, tower_fault:<emitter>:<jump m> (in `describe`)
 #   ekf-mhss (#108): mhss_alarm:<hypothesis>, mhss_excluded:<hypothesis> (in `describe`)
 FLAGS: dict[str, tuple[str, str]] = {
@@ -47,6 +48,11 @@ FLAGS: dict[str, tuple[str, str]] = {
         ALARM,
         "GPS spoofing suspected: the towers' geometry contradicts the GPS position. GPS position "
         "excluded until it agrees with the towers again.",
+    ),
+    "gnss_jump_latched": (
+        WARNING,
+        "GPS position jumped away from its own track and from the solution: GPS is refused until "
+        "it steps back (jump guard). A spoofing cue.",
     ),
     "time_spoof_suspected": (
         ALARM,
