@@ -38,6 +38,11 @@ recite *args="":
 figures estimator="ekf" runs="50":
     {{py}} python analysis/figures.py --estimator {{estimator}} --runs {{runs}}
 
+# Software GPS cuts across a moving session (handheld walk): error after the cut, LTE vs none
+# -> analysis/results/<session>/ (runs the LTE front end first if the session has no LTE records)
+walk-cut session *args="":
+    {{py}} python analysis/walk_gps_cut.py {{session}} {{args}}
+
 # Re-run the estimator over a recorded MCAP (sim or real session)
 replay path:
     {{py}} pnt replay {{path}}
