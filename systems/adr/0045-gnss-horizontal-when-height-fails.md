@@ -44,3 +44,12 @@ Option C, for every estimator built on `EKF` (it is the filter's gate, not an op
 - The height: when GNSS and barometer disagree the estimate's height follows the barometer and its VPL is the barometer's. Status judges HPL only, so this is flagged (`gnss_alt_excluded`, a caution on the panel), not alarmed. Option D is the fix for the height; proposed separately, not decided here.
 - Not addressed: the `drone-many` lock-out of #227 (seeds 36 and 39) is horizontal (NIS 21 to 25 at 1.4 to 2.2 s with a 1.4 m filter sigma), driven by LTE records told 2 m against 50 m white noise, 50 m multipath and 100 m table error; ADR-0036 already proposes the told sigma.
 - Reopen when the barometer gets an honest sigma or a bias state (D), or a vertical requirement needs GNSS height to win over the barometer.
+
+## Owner decision (Shrikar, 2026-11-11)
+
+Both review options are adopted on this PR:
+
+- **The fallback applies only when the height alone fails its own 1-dof gate** (`CHI2_999[1]`), not after any 3-D failure. A fix that fails mostly on its horizontal, with an ordinary height, stays rejected whole. Over 50 runs this restores `main`'s `spoof-ramp` numbers (detected 0.26, delay 104.1 s, hazardous epochs 1,621) and `nominal`'s false alarms (4.20 /h), and keeps the real-session case (its height fails its own gate). Test: `test_a_horizontal_offset_is_not_let_in_by_the_height_fallback`.
+- **The calibration gate stays shut while GNSS height is rejected**, because the barometer check then agrees by construction (ADR-0024). Test: `test_a_rejected_height_keeps_the_calibration_gate_shut`.
+
+Still open: the interaction with the opt-in `GnssReadmit` (ADR-0050), and the jump guard's recovery during a barometer excursion.
