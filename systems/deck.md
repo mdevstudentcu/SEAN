@@ -29,7 +29,7 @@ Numbers spoken: three hundred metres (1); five seconds, three hundred metres, ha
 
 **On the slide:** one screenshot, green NOMINAL with a 7 m bound and a 300 m true error (simulation). One line under it: "A navigation layer that knows when it is wrong."
 
-**Figure:** `jump-3-followed.png` in the guard demo evidence (`analysis/pr-evidence/elshoubky-docs-28-demo-guard/`, draft PR #220); until it merges, [`analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/jump-3-followed.png`](../analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/jump-3-followed.png) shows the same moment.
+**Figure:** `jump-3-followed.png` in the guard demo evidence (`analysis/pr-evidence/elshoubky-docs-28-demo-guard/`, PR #220 (open)); until it merges, [`analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/jump-3-followed.png`](../analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/jump-3-followed.png) shows the same moment.
 
 **Script (60 words, 25 s):**
 > Picture a drone whose navigation display is green, with a tight error bound, while it is three hundred metres off course. That is worse than losing GPS: nobody knows to stop. A spoofer only has to wait for the filter to take the fake GPS back. We built a navigation layer that knows when it is wrong, and says so.
@@ -56,7 +56,7 @@ Numbers spoken: three hundred metres (1); five seconds, three hundred metres, ha
 
 **Headline:** In simulation: GPS lost, red within 5 s; a 300 m jump without the guard ends green and wrong; with the guard it stays red and recovers when the spoof ends.
 
-**On the slide:** the live panel. Run `deploy/demo/demo.sh stage` from the guard demo runbook (`deploy/demo/RUNBOOK.md` in draft PR #220; pre-flight first). Press Enter when T+ passes 105, then 188, then 212 (stops). The stage run takes 73 to 76 s.
+**On the slide:** the live panel. Run `deploy/demo/demo.sh stage` from the guard demo runbook (`deploy/demo/RUNBOOK.md` in PR #220 (open); pre-flight first). Press Enter when T+ passes 105, then 188, then 212 (stops). The stage run takes 73 to 76 s.
 
 **Figure:** the live panel. If the laptop fails: the nine screenshots in the guard demo evidence folder, with the runbook's 60-second screenshot path.
 
@@ -125,12 +125,12 @@ Fallback: #247 is a draft on unmerged branches; if a judge asks, say so. Told th
 **On the slide:**
 - GPS: jump, slow drag, fake time. Towers: clock jump, wrong registry entry, fake tower. Aircraft reports: someone else's GPS.
 - Towers take their time from GPS: they may contradict it, never confirm it.
-- The bound is under our model. Sim, `challenge-drone-outage`, 1 carrier, seeds 0–199 (draft PR #251): error above the bound in 45.3 % of epochs after GPS loss for `ekf`, 0.44 % for the opt-in `ekf-honest`; single runs still escape (worst 18.5 %); the 2 m/s ramp escapes every default filter (99.3 %); with 13 carriers hopped the opt-in tower monitor flags it on 50 of 50 seeds, median 127 s, worst 276 s, 0 added false alarms, against T4's 30 s (PR #263, sim, study leg: the payload cannot hop yet).
+- The bound is under our model. Sim, `challenge-drone-outage`, 1 carrier, seeds 0–199 (draft PR #251): error above the bound in 45.3 % of epochs after GPS loss for `ekf`, 0.45 % for the opt-in `ekf-honest`; single runs still escape (worst 18.5 %); the 2 m/s ramp escapes every default filter (99.3 %); with 13 carriers hopped the opt-in tower monitor flags it on 50 of 50 seeds, median 127 s, worst 276 s, 0 added false alarms, against T4's 30 s (PR #263, sim, study leg: the payload cannot hop yet).
 
 **Figure:** [`analysis/results/gnss-health-20261111-fullsuite/gnss_health.png`](../analysis/results/gnss-health-20261111-fullsuite/gnss_health.png) (real GPS signal power, the baseline a jamming check uses).
 
 **Script (70 words, 30 s):**
-> Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so they may contradict GPS time, but never confirm it. And our bound is a bound under our model. In simulation, after GPS loss, the error escaped it forty-five percent of the time. An opt-in fix brings that under one percent. A slow spoof we catch only in simulation, after two minutes.
+> Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so they may contradict GPS time, but never confirm it. And our bound is a bound under our model. In simulation, after GPS loss, the error escaped it forty-five percent of the time. A proposed fix brings that under one percent. A slow spoof we catch only in simulation, after two minutes.
 
 Fallback: the sky-map check is merged (#239 via #250, #206; ADR-0041 Accepted). Its figure, [`spoof-decision-real-sky.png`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/spoof-decision-real-sky.png), can be added here; nothing changes in the script.
 
@@ -169,4 +169,4 @@ Source: #245's rerun of #233's GPS cut, not re-run by us ([`lte-reacq-steps/NOTE
 
 ---
 
-*Status: 2026-11-11, against `main` at `c21e047`; PR states and placeholders brought up to `8892fca`; demo cues from draft PR #220.*
+*Status: 2026-11-11, against `main` at `c21e047`; PR states and placeholders brought up to `c97e09a`; demo cues from PR #220 (open).*
