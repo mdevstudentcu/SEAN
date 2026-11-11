@@ -98,3 +98,8 @@ def test_header_without_mhss_seeds():
     meta = {"commit": "abc1234", "command": "x", "minutes": 1.0, "seeds": 1, "mhss_seeds": 0}
     head = sd.summary({"meta": meta, "runs": []}).splitlines()[2]
     assert "`ekf-mhss` not run" in head and "0–-1" not in head
+
+
+def test_monitor_adding_a_detection_is_not_a_defect():
+    lines = sd.during_alarm([_row("ekf", NAN, NAN), _row("ekf-spoof", 131.0, NAN)])
+    assert lines == []
