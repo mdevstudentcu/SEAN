@@ -1,4 +1,4 @@
-# ADR-0037: LTE carrier hopping with one dongle is a modelled option and a study leg, not part of the benchmark
+# ADR-0040: LTE carrier hopping with one dongle is a modelled option and a study leg, not part of the benchmark
 
 - **Status:** Proposed
 - **Date:** 2026-11-10

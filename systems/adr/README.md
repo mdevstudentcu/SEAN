@@ -41,4 +41,5 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0036](0036-lte-measured-error-model.md) | The LTE error model is split into white and correlated parts, sized from real captures | Proposed |
 | [0037](0037-lte-carrier-hopping.md) | LTE carrier hopping with one dongle is a modelled option and a study leg, not part of the benchmark | Proposed |
 | [0038](0038-refuse-detected-gnss-jump.md) | Refuse a detected GNSS position jump until the jump is undone (opt-in: `*-guard` estimators) | Proposed |
+| [0040](0040-lte-carrier-hopping.md) | LTE carrier hopping with one dongle is a modelled option and a study leg, not part of the benchmark | Proposed |
 | [0042](0042-record-iq-to-usb-drive.md) | Record the radios' IQ to a USB drive, not the SD card | Proposed |

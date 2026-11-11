@@ -1,6 +1,6 @@
 """Carrier hopping study for UC-01 (#173): error 120 s and 300 s after GPS loss against masts
 heard. A sensitivity sweep over what one dongle hears, not the per-term accuracy budget
-(`analysis/accuracy_budget.py`, #178). The hop leg and its TBC values: ADR-0037 (Proposed).
+(`analysis/accuracy_budget.py`, #178). The hop leg and its TBC values: ADR-0040 (Proposed).
 
 The drone leg's `outage` entry, with what the dongle hears varied and everything else as
 committed (sim, every value TBC):
