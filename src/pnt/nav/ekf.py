@@ -16,15 +16,17 @@ State (metres and metres per second throughout, so the matrix stays well conditi
   value, Jacobian row(s) and noise. Unknown kinds are ignored, so new sources add a model only.
 
 Receiver clock in pseudoranges: a real radio's tower ranges all carry our clock offset (c*dt).
-The realistic and worst sets add it (`receiver_clock: true`); the base scenarios don't, and
-`pseudorange_receiver_clock` defaults to False to match them. Left off against data that has the
-term, every tower's clock has to absorb our clock's drift. Turned on, the clock that all towers
-share is one more unknown: without GNSS time it is observable only as one common term across the
-towers, which costs one tower's worth of geometry, as a GNSS receiver needs a fourth satellite
-for its clock. While GNSS time is trusted it anchors the split between our clock and the towers'.
-Two switched modes are opt-in (#228, measured in `analysis/rx_clock_in_towers.py --costs`):
-"observed" puts the term in once GNSS time has been used, and "gnss_out" only while GNSS position
-is lost or excluded. Each switch re-references the tower clocks, so no prediction jumps.
+Every scenario whose payload has a clock and GNSS time adds it (`receiver_clock: true`); the base
+scenarios have no clock at all. Left out against data that has the term, every tower's clock has
+to absorb our clock's drift, and in a GNSS outage the position follows it (#228). Put in, the
+clock that all towers share is one more unknown: without GNSS time it is observable only as one
+common term across the towers, which costs one tower's worth of geometry, as a GNSS receiver
+needs a fourth satellite for its clock. While GNSS time is trusted it anchors the split between
+our clock and the towers'.
+`pseudorange_receiver_clock` (ADR-0047, Accepted): "observed" (default) puts the term in once
+GNSS time has been used, so a run with no time source is modelled as before; True always, False
+never; "gnss_out" (opt-in, measured worse) only while GNSS position is lost or excluded. A switch
+re-references the tower clocks, so no prediction jumps.
 
 A real record names its radio's clock in `meta.rx_clock` (#121). An RTL-SDR is its own oscillator,
 not the GNSS-disciplined clock above, so each name gets its own (offset, drift) block, used in
@@ -192,8 +194,9 @@ GNSS_TIME = "gnss:time"  # health key for GNSS time, separate from GNSS position
 POS, VEL, CLK, DRIFT = slice(0, 3), slice(3, 6), 6, 7
 N_CORE = 8
 CLOCK_MODELS = ("independent", "calibrated")
-# Switched `pseudorange_receiver_clock` modes (#228): our clock in the towers only once GNSS time
-# has been used ("observed"), or only while GNSS position is lost or excluded ("gnss_out")
+# Switched `pseudorange_receiver_clock` modes (ADR-0047): our clock in the towers once GNSS time
+# has been used ("observed", the default), or only while GNSS position is lost or excluded
+# ("gnss_out", opt-in)
 RX_CLOCK_MODES = ("observed", "gnss_out")
 MOTIONS = ("cv", "imu")
 SNAPSHOT_NS = 1_000_000_000  # clock snapshots for rollback, about 1 Hz
@@ -235,7 +238,7 @@ class EKF:
         init_emitter_sigma: float = 2000.0,
         alert_limit_m: float = 50.0,  # TBC: REQ-01/REQ-02
         gnss_timeout_s: float = 2.0,
-        pseudorange_receiver_clock: bool | str = False,  # or RX_CLOCK_MODES (#228)
+        pseudorange_receiver_clock: bool | str = "observed",  # or RX_CLOCK_MODES (ADR-0047)
         clock_model: str = "independent",  # or "calibrated" (ADR-0022, Proposed)
         sites: Mapping[str, str] | None = None,  # emitter -> site; default one site per emitter
         builders: Mapping[str, str] | None = None,  # site -> network builder; default none
@@ -519,6 +522,23 @@ class EKF:
         rec[:] = [arc, i, m.t_ns]
         return i, True
 
+    def gnss_trusted(self) -> bool:
+        """GNSS position accepted recently, and neither GNSS position nor time rejected since."""
+        never = -(10**18)
+        used = self.last_used.get("gnss", never)
+        return (
+            self.t_ns - used <= self.gnss_timeout_ns
+            and self.last_rejected.get("gnss", never) <= used
+            and self.last_rejected.get(GNSS_TIME, never) <= self.last_used.get(GNSS_TIME, never)
+        )
+
+    def gnss_flagged(self) -> bool:
+        """GNSS position excluded or GNSS time alarmed: the alarms that trigger a rollback."""
+        never = -(10**18)
+        return self.last_rejected.get("gnss", never) > self.last_used.get(
+            "gnss", never
+        ) or self.last_rejected.get(GNSS_TIME, never) > self.last_used.get(GNSS_TIME, never)
+
     def rx_clock_in_towers(self) -> bool:
         """Whether our clock (c*dt) is in the tower ranges now. A switched mode (RX_CLOCK_MODES)
         re-references every root tower clock block when it turns on or off (offset minus or plus
@@ -548,23 +568,6 @@ class EKF:
             self.P = T @ self.P @ T.T
             self.pr_rx_clock = on
         return on
-
-    def gnss_trusted(self) -> bool:
-        """GNSS position accepted recently, and neither GNSS position nor time rejected since."""
-        never = -(10**18)
-        used = self.last_used.get("gnss", never)
-        return (
-            self.t_ns - used <= self.gnss_timeout_ns
-            and self.last_rejected.get("gnss", never) <= used
-            and self.last_rejected.get(GNSS_TIME, never) <= self.last_used.get(GNSS_TIME, never)
-        )
-
-    def gnss_flagged(self) -> bool:
-        """GNSS position excluded or GNSS time alarmed: the alarms that trigger a rollback."""
-        never = -(10**18)
-        return self.last_rejected.get("gnss", never) > self.last_used.get(
-            "gnss", never
-        ) or self.last_rejected.get(GNSS_TIME, never) > self.last_used.get(GNSS_TIME, never)
 
     def calibration_allowed(self) -> bool:
         """The calibration gate: GNSS trusted for `calib_gate_s` and the checks agree."""
