@@ -10,12 +10,16 @@
 #   deploy/demo/demo.sh stage      outage -> jump (ekf) -> jump (ekf-guard) on one port; Enter
 #                                  moves on. The time spoof is left out (location first)
 #   deploy/demo/demo.sh real       terminal: real LTE cells heard, and the registered sites they fit
+#   deploy/demo/demo.sh realcut    panel: a real GPS session replayed with GPS cut in software at
+#                                  35 s (not in stage: run it after stage ends). Location hidden
 #   deploy/demo/demo.sh live [..]  panel: the Pi's live stream (bonus; extra args go to pnt live)
 #
-# Panel segments are simulations of committed scenarios (nothing recorded, nothing on the
-# network): the same seed gives the same screen on every run. Environment:
+# Panel segments other than realcut are simulations of committed scenarios (nothing recorded,
+# nothing on the network): the same seed gives the same screen on every run. realcut replays a
+# real session (git-ignored), the same on every run. Environment:
 #   PNT_PY        Python to use (default: .venv/bin/python, else `uv run python`)
 #   PNT_SESSIONS  real sessions folder (default: data/sessions)
+#   PNT_DEMO_CUT_SESSION  the real GPS session realcut replays (default below)
 #   PNT_DEMO_PORT panel port (default 8050)
 #   PNT_DEMO_OPEN 1 opens the panel in the default browser when a segment starts (default 1)
 set -euo pipefail
@@ -24,6 +28,14 @@ repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 port="${PNT_DEMO_PORT:-8050}"
 sessions="${PNT_SESSIONS:-$repo/data/sessions}"
 real_session="${PNT_DEMO_REAL:-20261110-1623-static-out-e5060-lte}"
+# realcut (#264): a static laptop capture with GPS, barometer and IMU (no LTE), about 600 s. GPS
+# is withheld from CUT_S after its first record by `analysis/real_gps_cut.py --dash-out` (the
+# `outage` fault of `pnt replay --inject`, ADR-0015) into a temporary session that holds the
+# origin, so it never goes under the repo; the panel runs with --hide-origin. At x3 the cut lands
+# 13 s into the replay.
+cut_session="${PNT_DEMO_CUT_SESSION:-20261111-0845-live-laptop-gps}"
+CUT_S=35
+CUT_SPEED=3
 url="http://127.0.0.1:$port"
 export PYTHONPATH="$repo/src${PYTHONPATH:+:$PYTHONPATH}"
 # Single-threaded BLAS: the panel needs one core, and other jobs share the laptop
@@ -53,13 +65,34 @@ speed() { case "$1" in outage) echo 5 ;; *) echo 10 ;; esac; }
 
 port_free() { ! lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; }
 
+cut_dir=""
+cut_prepare() {  # write the realcut replay session into a temporary folder; sets $cut_dir
+  [ -d "$sessions/$cut_session" ] || {
+    echo "realcut: session $sessions/$cut_session missing: copy it from the capture laptop or set"
+    echo "PNT_SESSIONS / PNT_DEMO_CUT_SESSION. Nothing started; say the fallback sentence instead."
+    exit 1
+  }
+  cut_dir="$(mktemp -d "${TMPDIR:-/tmp}/pnt-realcut.XXXXXX")"
+  "${py[@]}" "$repo/analysis/real_gps_cut.py" "$sessions/$cut_session" \
+    --dash-out "$cut_dir/$cut_session-gps-cut-${CUT_S}s" --dash-cut "$CUT_S" >/dev/null \
+    || { echo "realcut: could not write the replay session"; exit 1; }
+}
+
 panel() {  # start one panel segment in the background; sets $server
   local seg="$1"
   port_free || { echo "port $port is in use: stop the other panel (lsof -iTCP:$port)"; exit 1; }
-  echo "== $seg: $(scen "$seg") seed $SEED, estimator $(estimator "$seg"), x$(speed "$seg")  ($url)"
   # Started directly, not through the pnt function, so $! is the server itself and kill stops it
-  "${py[@]}" -m pnt.cli sim "$(scen "$seg")" --seed "$SEED" --estimator "$(estimator "$seg")" --dash \
-    --speed "$(speed "$seg")" --port "$port" &
+  if [ "$seg" = realcut ]; then
+    cut_prepare
+    echo "== realcut: real session $cut_session, GPS cut at ${CUT_S} s, estimator ekf," \
+      "x$CUT_SPEED, origin hidden  ($url)"
+    "${py[@]}" -m pnt.cli dash "$cut_dir/$cut_session-gps-cut-${CUT_S}s" --estimator ekf \
+      --hide-origin --speed "$CUT_SPEED" --port "$port" &
+  else
+    echo "== $seg: $(scen "$seg") seed $SEED, estimator $(estimator "$seg"), x$(speed "$seg")  ($url)"
+    "${py[@]}" -m pnt.cli sim "$(scen "$seg")" --seed "$SEED" --estimator "$(estimator "$seg")" \
+      --dash --speed "$(speed "$seg")" --port "$port" &
+  fi
   server=$!
   for _ in $(seq 1 60); do  # up to 15 s for the server to listen
     port_free || break
@@ -79,6 +112,7 @@ stop() {  # stop the running panel and wait until its port is free again; never 
     for _ in $(seq 1 20); do port_free && break; sleep 0.25; done
   fi
   server=""
+  if [ -n "$cut_dir" ]; then rm -rf "$cut_dir"; cut_dir=""; fi  # it holds the session origin
 }
 trap stop EXIT INT TERM
 
@@ -115,9 +149,11 @@ from pnt.nav import ESTIMATORS; assert '$(estimator "$seg")' in ESTIMATORS" 2>/d
     done
     [ -d "$sessions/$real_session" ] && ok "real session $real_session" \
       || bad "real session $sessions/$real_session missing (copy it from the capture laptop)"
+    [ -f "$sessions/$cut_session/session.mcap" ] && ok "realcut session $cut_session" \
+      || bad "realcut session $sessions/$cut_session missing (only demo.sh realcut needs it)"
     [ "$fail" = 0 ] && echo "pre-flight passed" || { echo "pre-flight FAILED"; exit 1; }
     ;;
-  outage|guard|time)
+  outage|guard|time|realcut)
     panel "$1"
     echo "Ctrl-C to stop"
     wait "$server"
@@ -137,7 +173,7 @@ from pnt.nav import ESTIMATORS; assert '$(estimator "$seg")' in ESTIMATORS" 2>/d
     pnt live --dash --estimator ekf --port "$port" "$@"
     ;;
   *)
-    sed -n '2,13p' "$0"
+    sed -n '2,15p' "$0"
     exit 2
     ;;
 esac
