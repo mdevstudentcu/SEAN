@@ -1,6 +1,6 @@
 # Slow GNSS drag with carrier hopping: the tower monitor against masts heard (#221)
 
-Sim, study leg (ADR-0040: the payload cannot hop yet), every value `TBC`. Commit 9e784ed, `python analysis/drag_with_hopping.py --seeds 50 --jobs 6`, 296.5 min on Darwin, arm, Python 3.14.6. Seeds 0–49, paired; the monitor's settings are as committed (ADR-0037, chosen on seeds 100–109), not re-tuned.
+Sim, study leg (ADR-0040: the payload cannot hop yet), every value `TBC`. Commit 7a6ae41, `python analysis/drag_with_hopping.py --seeds 50 --jobs 6`, 296.5 min on Darwin, arm, Python 3.14.6. Seeds 0–49, paired; the monitor's settings are as committed (ADR-0037, chosen on seeds 100–109), not re-tuned.
 
 Entries `spoof-ramp` (2 m/s at 45°, from 150 s), `nominal` and `outage` of `challenge-drone` (1 carrier, EARFCN 2460) and `challenge-drone-hop` (the first 6 carriers of its hop set, and all 13), as committed; `-spoof` is the same filter with the opt-in tower monitor. Detection and false alarms are `pnt.metrics` (`analysis/spoof_detection.py`'s rows). Masts: distinct masts heard per 10 s after the cell lookup, median over seeds of each run's median.
 
