@@ -4,13 +4,25 @@ of the three `challenge` legs (ADR-0030, Proposed), as the "before" table that f
     python analysis/challenge_baseline.py --seeds 50 --jobs 3
 
 Writes to `--out` (default `analysis/results/challenge-baseline/`):
-- summary.md: the verdict per target (T1 to T5, systems/plan.md, all TBC; T1 also against
-  ADR-0034's fallback), then the full table of leg x entry x estimator, with the commit,
-  seeds, command and runtime. The committed results are written only from a clean tree.
-- runs.json: the per-run metrics behind it (a subset of `pnt.metrics.RunMetrics`, 6 significant
-  digits), so the summary and figures can be redrawn without re-running (`--redraw`) and an
-  interrupted run can carry on (`--resume`, same commit only)
+- summary.md: the verdict per target (T1 to T5, systems/plan.md; T1 also against ADR-0034's
+  fallback), the jump guard against the default filters, then the full table of leg x entry x
+  estimator, with the commit, seeds, command and runtime. The committed results are written
+  only from a clean tree.
 - t1_drone.png, t3_timing.png, t4_detection.png: one question each (see the fig_* functions)
+- t1_curves.json: the across-run p95 curve per second of the drone `outage` entry, per estimator
+  (small, so the T1 figure can be redrawn for a slide)
+
+Per-run data goes to the git-ignored `analysis/results/runs/challenge-baseline/runs.json` (or
+into `--out` when it is not the committed folder): a subset of `pnt.metrics.RunMetrics` per run
+(6 significant digits) and, on every entry with a GPS loss, the run's horizontal error at each
+second 0..300 s after the loss. From it the summary and figures can be redrawn without
+re-running (`--redraw`), and an interrupted run can carry on (`--resume`, same commit only).
+
+T1 and its fallback are scored as ADR-0034's amendment (2026-11-10, adf24d7) says: at each
+second after GPS loss, the 95th percentile of the horizontal error across the runs; the target
+holds only if that curve stays within the limit for every second of the window (T1: 25 m over
+0-300 s; fallback: 50 m over 0-120 s). The worst second and the number of runs are reported.
+Each run's own 300 s p95 is kept as an extra column; it is not ADR-0034's statistic.
 
 Each (scenario, seed) is generated once and every estimator runs on the same measurements, so
 estimators are paired, and seeds 0..N-1 are those of `pnt eval` (systems/quality.md). Scoring is
@@ -21,7 +33,9 @@ Estimators: `ekf-base` and `ekf-base-imu` need a reference station (ADR-0020). T
 legs have none (the script checks), and without one `nav/base_rover.py` is `ekf` with the
 payload's clock, so they are not run. `ekf-mhss` takes several seconds a run, so by default it
 runs fewer seeds on only the entries where its monitor matters (`--mhss-seeds`,
-`--mhss-entries`); the summary says what was cut.
+`--mhss-entries`). The opt-in jump-guard estimators (ADR-0038, Proposed) run only on the
+held-jump and meaconing entries and on `nominal` and `outage` (`--guard-entries`), to show what
+they change and that they change nothing without a jump. The summary says what was cut.
 
 The approach leg is synthetic geometry (ADR-0030 point 3): its towers are a synthetic ring and
 its T1 slice does not measure LTE. It is labelled so wherever its numbers appear.
@@ -40,13 +54,15 @@ from pathlib import Path
 import numpy as np
 
 from pnt.cli import _commit
+from pnt.core.time import s_to_ns
 from pnt.experiments import _map
-from pnt.metrics import score
+from pnt.metrics import gps_loss, score
 from pnt.nav import estimate
 from pnt.sim.scenario import T0_NS, expand, generate, load
 
 REPO = Path(__file__).resolve().parents[1]
 OUT = REPO / "analysis" / "results" / "challenge-baseline"
+RUNS = REPO / "analysis" / "results" / "runs" / "challenge-baseline"  # git-ignored
 
 LEGS = ("drone", "timing", "approach")
 LEG_LABEL = {
@@ -54,7 +70,27 @@ LEG_LABEL = {
     "timing": "timing (UC-03)",
     "approach": "approach (UC-02, synthetic geometry)",
 }
-ESTIMATOR_ORDER = ("baseline", "ekf", "ekf-calibrated", "ekf-imu", "ekf-mhss")
+# The default filters first, then the opt-in jump-guard ones (ADR-0038, Proposed)
+ESTIMATOR_ORDER = (
+    "baseline",
+    "ekf",
+    "ekf-calibrated",
+    "ekf-imu",
+    "ekf-mhss",
+    "ekf-guard",
+    "ekf-calibrated-guard",
+    "ekf-imu-guard",
+)
+# Each jump-guard estimator and the default filter it guards
+GUARDED = {
+    "ekf-guard": "ekf",
+    "ekf-calibrated-guard": "ekf-calibrated",
+    "ekf-imu-guard": "ekf-imu",
+}
+# Where the guard matters: the held GNSS jump and meaconing entries, and `nominal` and `outage` to
+# show it changes nothing without a jump
+GUARD_ENTRIES = ("nominal", "outage", "spoof-jump", "meaconing")
+JUMP_ENTRIES = ("spoof-jump", "meaconing")
 # Need a reference station (ADR-0020); not run when the legs have none (checked in main)
 NEEDS_REFERENCE = ("ekf-base", "ekf-base-imu")
 SLOW = "ekf-mhss"
@@ -70,10 +106,12 @@ MHSS_ENTRIES = (
 )
 MHSS_SEEDS = 20
 
-# Targets, systems/plan.md (all TBC until the mentors answer Q1 to Q3)
-T1_M = 25.0  # 95 % horizontal error over the first 300 s after GPS loss
-# ADR-0034 (open PR #158): the mentors' figure, T1's declared fallback
-T1_FALLBACK_M = 50.0  # horizontal error over the first 120 s after GPS loss
+# Targets, systems/plan.md and ADR-0034 (T1 Accepted with its value TBC; T3 to T5 Proposed)
+# T1 and its fallback, scored as ADR-0034's amendment (adf24d7) says: the 95th percentile across
+# runs at each second after GPS loss, held for every second of the window
+T1_M, T1_WINDOW_S = 25.0, 300
+T1_FALLBACK_M, T1_FALLBACK_WINDOW_S = 50.0, 120  # the mentors' figure, T1's declared fallback
+CURVE_S = 300  # each run's horizontal error is kept at every second 0..CURVE_S after GPS loss
 T2_AL_M = 556.0  # RNP 0.3 alert limit, terminal phase: no RunMetrics field scores it
 T3_US = 1.5  # time error after 10 min without GPS
 T3_SIGMA = 0.68  # reported 1-sigma bounds the time error in this share of epochs
@@ -110,6 +148,9 @@ COLORS = {
     "ekf-imu": "#1baf7a",
     "ekf-mhss": "#eda100",
 }
+# A guard estimator takes its default filter's colour and is drawn hatched
+for _g, _d in GUARDED.items():
+    COLORS[_g] = COLORS[_d]
 INK, GRID = "#52514e", "#e4e3df"
 KIND = "sim, every value TBC (ADR-0015, ADR-0030 Proposed)"
 
@@ -122,12 +163,35 @@ def _round(v) -> float | int | None:
     return float(f"{float(v):.6g}")
 
 
-def run_one(scenario: str, seed: int, estimators: tuple[str, ...]) -> dict:
+def error_curve(estimates, truth, spec: dict) -> list | None:
+    """The run's horizontal error (m) at each second 0..CURVE_S after GPS loss: the estimate at
+    the first epoch at or after loss + k s, paired with truth as `pnt.metrics.score` pairs them.
+    None if the scenario has no GPS loss; nan for a second past the run or the outage."""
+    loss = gps_loss(spec, T0_NS)
+    if loss is None:
+        return None
+    start, end = loss
+    tmap = {g.t_ns: g for g in truth}
+    pairs = [(e, tmap[e.t_ns]) for e in estimates if e.t_ns in tmap]
+    t = np.array([e.t_ns for e, _ in pairs])
+    err = np.array([math.hypot(*np.subtract(e.pos_enu, g.pos_enu)[:2]) for e, g in pairs])
+    out = []
+    for k in range(CURVE_S + 1):
+        at = start + s_to_ns(k)
+        i = int(np.searchsorted(t, at))
+        ok = i < len(t) and (end is None or t[i] < end) and t[i] - at < s_to_ns(1)
+        out.append(_round(err[i]) if ok else None)
+    return out
+
+
+def run_one(scenario: str, seed: int, estimators: tuple[str, ...]) -> tuple[dict, dict]:
     """One seed of one scenario, generated once, through each estimator. Returns
-    {estimator: [FIELDS values]} or {estimator: "Error: message"} if it raised."""
+    ({estimator: [FIELDS values] or "Error: message" if it raised},
+     {estimator: error_curve} for the estimators that ran, on an entry with a GPS loss)."""
     spec = load(scenario)
     run = generate(spec, seed=seed)
     out: dict = {}
+    curves: dict = {}
     for name in estimators:
         try:
             est = list(
@@ -140,9 +204,34 @@ def run_one(scenario: str, seed: int, estimators: tuple[str, ...]) -> dict:
             )
             m = score(est, run.truth, spec, T0_NS).as_dict()
             out[name] = [_round(m[k]) for k in FIELDS]
+            curve = error_curve(est, run.truth, spec)
+            if curve is not None:
+                curves[name] = curve
         except Exception as exc:  # report the crash, don't work around it
             out[name] = f"{type(exc).__name__}: {exc}"
+    return out, curves
+
+
+def across_run_p95(curves: list) -> np.ndarray:
+    """ADR-0034's amendment, step 2: at each second after GPS loss, the 95th percentile of the
+    horizontal error across the runs (rows: runs, columns: seconds). nan where no run has one."""
+    a = np.array([[np.nan if v is None else v for v in c] for c in curves], float)
+    out = np.full(a.shape[1] if a.ndim == 2 else 0, np.nan)
+    have = ~np.all(np.isnan(a), axis=0) if a.size else np.zeros(0, bool)
+    if have.any():
+        out[have] = np.nanpercentile(a[:, have], 95, axis=0)
     return out
+
+
+def worst_in(curve: np.ndarray, window_s: int) -> tuple[float, int]:
+    """ADR-0034's amendment, step 3: (largest value, its second) of the curve over every second
+    0..window_s; the target holds only if that value is within the limit. nan if any second of
+    the window has no value, since the window is then not covered."""
+    w = np.asarray(curve, float)[: window_s + 1]
+    if w.size < window_s + 1 or np.any(np.isnan(w)):
+        return math.nan, -1
+    i = int(np.argmax(w))
+    return float(w[i]), i
 
 
 def entries(leg: str) -> list[str]:
@@ -169,10 +258,18 @@ def plan_tasks(data: dict) -> list[tuple[str, int, tuple[str, ...]]]:
     return tasks
 
 
+def subset(data: dict, estimator: str) -> tuple[int, list[str] | None]:
+    """(seeds, entries or None for every entry) that one estimator runs."""
+    if estimator == SLOW:
+        return data["mhss_seeds"], data["mhss_entries"]
+    if estimator in GUARDED:
+        return data["seeds"], data["guard_entries"]
+    return data["seeds"], None
+
+
 def seeds_for(data: dict, estimator: str, entry: str) -> int:
-    if estimator != SLOW:
-        return data["seeds"]
-    return data["mhss_seeds"] if entry in data["mhss_entries"] else 0
+    n, ents = subset(data, estimator)
+    return n if ents is None or entry in ents else 0
 
 
 # ---------------------------------------------------------------- reading the runs
@@ -184,6 +281,24 @@ def values(data: dict, scn: str, est: str, field: str) -> np.ndarray:
     i = FIELDS.index(field)
     seeds = sorted((int(s) for s, r in runs.items() if isinstance(r, list)))
     return np.array([np.nan if runs[str(s)][i] is None else runs[str(s)][i] for s in seeds], float)
+
+
+def curve_p95(data: dict, scn: str, est: str) -> tuple[np.ndarray, int]:
+    """(across-run p95 per second after GPS loss, number of runs) for one entry and estimator;
+    an empty curve and 0 if it has no curves."""
+    runs = data.get("curves", {}).get(scn, {}).get(est, {})
+    if not runs:
+        return np.zeros(0), 0
+    return across_run_p95([runs[s] for s in sorted(runs, key=int)]), len(runs)
+
+
+def t1_cell(data: dict, scn: str, est: str, window_s: int) -> tuple[float, int, int]:
+    """(worst second's across-run p95, that second, runs) over 0..window_s."""
+    curve, n = curve_p95(data, scn, est)
+    if not n:
+        return math.nan, -1, 0
+    v, s = worst_in(curve, window_s)
+    return v, s, n
 
 
 def _nanmean(v):
@@ -227,6 +342,64 @@ def _est_cols(data) -> list[str]:
     return [e for e in ESTIMATOR_ORDER if e in data["estimators"]]
 
 
+def jump_cell(data: dict, scn: str, est: str) -> str | None:
+    """Detection, hazardous epochs and fault-window error on one jump or meaconing entry."""
+    det = values(data, scn, est, "spoof_detected")
+    if not det.size:
+        return None
+    delay = values(data, scn, est, "detect_delay_s")
+    haz = values(data, scn, est, "hazardous_epochs")
+    med = float(np.nanmedian(delay)) if not np.all(np.isnan(delay)) else math.nan
+    return (
+        f"{int(np.nansum(det == 1))} of {det.size}, "
+        f"{'—' if math.isnan(med) else f'{med:.1f} s'}; "
+        f"{_nanmean(haz):,.0f} /run, {int(np.sum(haz > 0))} of {haz.size}; "
+        f"{fmt_m(_nanmean(values(data, scn, est, 'fault_h_p95_m')))} m"
+    )
+
+
+def identical(data: dict, scn: str, a: str, b: str) -> tuple[int, int]:
+    """(seeds where b's metrics and error curve equal a's exactly, seeds both ran)."""
+    ra = data["runs"].get(scn, {}).get(a, {})
+    rb = data["runs"].get(scn, {}).get(b, {})
+    ca = data.get("curves", {}).get(scn, {}).get(a, {})
+    cb = data.get("curves", {}).get(scn, {}).get(b, {})
+    both = [s for s in ra if s in rb]
+    same = [s for s in both if ra[s] == rb[s] and ca.get(s) == cb.get(s)]
+    return len(same), len(both)
+
+
+def guard_rows(data: dict) -> list[list[str]]:
+    """Default against guard, per leg x guard entry x guarded filter."""
+    rows = []
+    for leg in data["legs"]:
+        for entry in data["guard_entries"]:
+            if entry not in data["entries"][leg]:
+                continue
+            scn = f"challenge-{leg}-{entry}"
+            for g, d in GUARDED.items():
+                if g not in data["estimators"] or d not in data["estimators"]:
+                    continue
+                same, n = identical(data, scn, d, g)
+                if not n:
+                    continue
+                cells = []
+                for e in (d, g):
+                    haz = values(data, scn, e, "hazardous_epochs")
+                    mis = values(data, scn, e, "misleading_epochs")
+                    hpl = values(data, scn, e, "hpl_bound_frac")
+                    cells.append(
+                        f"{int(np.sum(haz > 0))} of {haz.size}; {_nanmean(haz):,.0f}; "
+                        f"{_nanmean(mis):,.0f}; "
+                        f"{fmt_m(_nanmean(values(data, scn, e, 'fault_h_p95_m')))}; "
+                        f"{fmt_pct(_nanmin(hpl))}"
+                    )
+                rows.append(
+                    [f"{LEG_LABEL[leg]}", f"`{entry}`", f"`{d}` → `{g}`", *cells, f"{same} of {n}"]
+                )
+    return rows
+
+
 def verdict_rows(data: dict) -> list[tuple[str, str, str, dict, str]]:
     """(target, where, measure, {estimator: cell}, verdict) per target row."""
     rows = []
@@ -236,16 +409,20 @@ def verdict_rows(data: dict) -> list[tuple[str, str, str, dict, str]]:
         return leg in data["legs"] and entry in data["entries"][leg]
 
     def cut(leg, row_entries) -> dict:
-        """{estimator: why} for `ekf-mhss` when it ran fewer seeds or entries than the row."""
-        if SLOW not in ests:
-            return {}
-        ran = [e for e in row_entries if e in data["mhss_entries"]]
-        why = []
-        if len(ran) < len(row_entries):
-            why.append(f"{len(ran)} of {len(row_entries)} entries")
-        if data["mhss_seeds"] < data["seeds"]:
-            why.append(f"{seeds_text(data['mhss_seeds'])}, not {data['seeds']}")
-        return {SLOW: ", ".join(why)} if why else {}
+        """{estimator: why} for each estimator that ran fewer seeds or entries than the row
+        (`ekf-mhss`, the guard estimators)."""
+        out = {}
+        for e in ests:
+            n, sub = subset(data, e)
+            ran = [x for x in row_entries if sub is None or x in sub]
+            why = []
+            if len(ran) < len(row_entries):
+                why.append(f"{len(ran)} of {len(row_entries)} entries")
+            if ran and n < data["seeds"]:
+                why.append(f"{seeds_text(n)}, not {data['seeds']}")
+            if why:
+                out[e] = ", ".join(why)
+        return out
 
     def verdict(oks: list[bool | None], partial: dict | None = None) -> str:
         """`partial`: {estimator: why} for estimators that ran only some of the entries or seeds
@@ -264,33 +441,34 @@ def verdict_rows(data: dict) -> list[tuple[str, str, str, dict, str]]:
             return f"**partial / not scored**: {tail}"
         return "**not met**"
 
-    # T1 (ours) and ADR-0034's fallback (the mentors' figure): drone leg, outage entry. The
-    # statistic is each run's own p95 over the slice, and every seed must pass. The p95 across
-    # seeds of those per-run values is shown too: ADR-0034 is to settle which one T1 means.
+    # T1 (ours) and ADR-0034's fallback (the mentors' figure): drone leg, outage entry, scored
+    # as ADR-0034's amendment says (the 95th percentile across runs at each second after GPS
+    # loss; the worst second of the window decides). Each run's own p95 over the slice is shown
+    # after it, labelled: the amendment names it as not used.
     if has("drone", "outage"):
         scn = "challenge-drone-outage"
-        for target, field, limit_m, slice_s in (
-            ("T1", "outage_h_p95_300s_m", T1_M, 300),
-            ("T1 fallback (ADR-0034, #158)", "outage_h_p95_120s_m", T1_FALLBACK_M, 120),
+        for target, field, limit_m, window_s in (
+            ("T1", "outage_h_p95_300s_m", T1_M, T1_WINDOW_S),
+            ("T1 fallback (ADR-0034)", "outage_h_p95_120s_m", T1_FALLBACK_M, T1_FALLBACK_WINDOW_S),
         ):
             cells, oks = {}, []
             for e in ests:
-                v = values(data, scn, e, field)
-                if not v.size:
+                worst, at, n = t1_cell(data, scn, e, window_s)
+                if not n:
                     cells[e], oks = "not run", [*oks, None]
                     continue
-                n = int(np.sum(v <= limit_m))
-                across = float(np.nanpercentile(v, 95)) if not np.all(np.isnan(v)) else math.nan
+                per_run = values(data, scn, e, field)
                 cells[e] = (
-                    f"{fmt_m(_nanmean(v))} / {fmt_m(_nanmax(v))} m; {n} of {v.size}; "
-                    f"across seeds {fmt_m(across)} m"
+                    f"**{fmt_m(worst)} m** at {at} s; {n} runs (per-run {window_s} s p95, not "
+                    f"the ADR's statistic: mean {fmt_m(_nanmean(per_run))} m)"
                 )
-                oks.append(n == v.size)
+                oks.append(bool(worst <= limit_m))
             rows.append(
                 (
                     target,
                     "drone, `outage`",
-                    f"{slice_s} s p95 mean / worst; seeds ≤ {limit_m:g} m; p95 across seeds",
+                    f"95th percentile across runs at each second after GPS loss: worst second of "
+                    f"0–{window_s} s (≤ {limit_m:g} m to meet), its second, runs",
                     cells,
                     verdict(oks, cut("drone", ["outage"])),
                 )
@@ -367,6 +545,30 @@ def verdict_rows(data: dict) -> list[tuple[str, str, str, dict, str]]:
                 verdict(oks, cut(leg, [entry])),
             )
         )
+    # T4, location jumps (the mentors' first attack): the held 300 m jump and meaconing on each
+    # leg. No jump target yet (plan.md T4: `TBD`), so not scored; the cells show detection and
+    # whether the output then misleads (hazardous epochs), default filters beside the guard.
+    for leg in data["legs"]:
+        for entry in JUMP_ENTRIES:
+            if not has(leg, entry):
+                continue
+            scn = f"challenge-{leg}-{entry}"
+            cells = {}
+            for e in ests:
+                c = jump_cell(data, scn, e)
+                cells[e] = c if c else "not run"
+            rows.append(
+                (
+                    "T4 (jump)",
+                    f"{LEG_LABEL[leg]}, `{entry}`",
+                    "seeds detected, median delay; hazardous epochs per run, runs with any; "
+                    "fault-window p95 mean",
+                    cells,
+                    "**not scored**: jump target `TBD` (plan.md T4)"
+                    if entry == "spoof-jump"
+                    else "**not scored**: no T4 target for meaconing",
+                )
+            )
     for leg in data["legs"]:
         if not has(leg, "nominal"):
             continue
@@ -429,7 +631,8 @@ FULL_COLS = (
     ("seeds", None),
     ("60 s p95 (m)", "outage_h_p95_60s_m"),
     ("120 s p95 (m)", "outage_h_p95_120s_m"),
-    ("300 s p95 mean / worst (m)", "outage_h_p95_300s_m"),
+    ("300 s p95 mean / worst (m; per run, not ADR-0034's statistic)", "outage_h_p95_300s_m"),
+    ("across-run p95, worst second of 0–300 s (m, at s)", None),
     ("fault p95 (m)", "fault_h_p95_m"),
     ("HPL bound worst", "hpl_bound_frac"),
     ("hazardous", "hazardous_epochs"),
@@ -455,11 +658,13 @@ def full_row(data, scn, est) -> list[str] | None:
         det_txt = f"{int(np.nansum(det))} of {n}" + ("" if math.isnan(med) else f" / {med:.1f} s")
     p300 = v["outage_h_p95_300s_m"]
     t600 = v["outage_time_err_600s_us"]
+    worst, at, nc = t1_cell(data, scn, est, T1_WINDOW_S)
     return [
         str(n),
         fmt_m(_nanmean(v["outage_h_p95_60s_m"])),
         fmt_m(_nanmean(v["outage_h_p95_120s_m"])),
         "—" if np.all(np.isnan(p300)) else f"{fmt_m(_nanmean(p300))} / {fmt_m(_nanmax(p300))}",
+        "—" if not nc or math.isnan(worst) else f"{fmt_m(worst)} at {at} s",
         fmt_m(_nanmean(v["fault_h_p95_m"])),
         fmt_pct(_nanmin(v["hpl_bound_frac"])),
         f"{int(np.nansum(v['hazardous_epochs'])):,}",
@@ -485,6 +690,15 @@ def cut_lines(data: dict) -> list[str]:
             f"- `{SLOW}`: {seeds_text(data['mhss_seeds'])} (not {data['seeds']}), and only "
             f"the entries {', '.join(f'`{e}`' for e in ran)} of each leg. It takes 3 to 10 s a "
             f"run against about 1 s for the others; its cells elsewhere read *not run*."
+        )
+    guards = [e for e in GUARDED if e in data["estimators"]]
+    if guards:
+        lines.append(
+            f"- {', '.join(f'`{e}`' for e in guards)} (opt-in jump guard, ADR-0038 Proposed): "
+            f"{seeds_text(data['seeds'])}, only the entries "
+            f"{', '.join(f'`{e}`' for e in data['guard_entries'])} of each leg (the held 300 m "
+            "GNSS jump from 150 s and meaconing, and two entries without a jump); their cells "
+            "elsewhere read *not run*."
         )
     for e in NEEDS_REFERENCE:
         lines.append(
@@ -541,18 +755,21 @@ def write_summary(data: dict, out: Path, figures: list[str]) -> Path:
         "",
         "## Verdict per target",
         "",
-        "Targets from `systems/plan.md`, all `TBC`. A target is **met** by an estimator only if "
-        "every seed meets it (false alarms: the pooled rate). Cells read *mean / worst* over "
-        "seeds; *of* counts seeds (or runs) meeting the target. An estimator that ran fewer "
-        "seeds or entries than the row covers (`ekf-mhss`) does not score it: where it alone "
-        "meets the target the row reads *partial / not scored*.",
+        "Targets from `systems/plan.md` and ADR-0034 (T1 Accepted, its value `TBC`; T3 to T5 "
+        "Proposed). T3 is **met** by an estimator only if every seed meets it, T4 detection "
+        "likewise, false alarms on the pooled rate. Cells read *mean / worst* over seeds; *of* "
+        "counts seeds (or runs) meeting the target. An estimator that ran fewer seeds or entries "
+        "than the row covers (`ekf-mhss`, the guard estimators) does not score it: where only "
+        "such an estimator meets the target the row reads *partial / not scored*.",
         "",
-        "**T1 statistic:** each run's own 95th percentile of horizontal error over the slice "
-        "after GPS loss, and every seed must pass. *Across seeds* gives the 95th percentile of "
-        "those per-run values over the seeds, for comparison. ADR-0034 (open PR #158) is to "
-        "settle which of the two T1 means; until then the verdict uses the first. The "
-        "*T1 fallback* row is ADR-0034's declared fallback, the mentors' figure (≤ "
-        f"{T1_FALLBACK_M:g} m for 120 s), scored the same way.",
+        "**T1 statistic** (ADR-0034's amendment of 2026-11-10, adf24d7 on `main`): at each "
+        "second after GPS loss, the 95th percentile of the horizontal error across the runs; "
+        f"T1 holds only if that curve stays ≤ {T1_M:g} m for every second of 0–{T1_WINDOW_S} s. "
+        "The cell gives the worst second's value, that second, and the number of runs. The "
+        f"*T1 fallback* row is ADR-0034's declared fallback, the mentors' figure (≤ "
+        f"{T1_FALLBACK_M:g} m over 0–{T1_FALLBACK_WINDOW_S} s), scored the same way. Each run's "
+        "own p95 over the slice is shown after it in brackets: the amendment names it as not "
+        "used, and no verdict rests on it.",
         "",
         "| Target | Leg, entry | Measure | " + " | ".join(f"`{e}`" for e in ests) + " | Verdict |",
         "|---" * (4 + len(ests)) + "|",
@@ -570,10 +787,32 @@ def write_summary(data: dict, out: Path, figures: list[str]) -> Path:
         "`ALERT_LIMIT_M` = 50 m), so its 300 s error is given only for reference, and it is "
         "synthetic geometry.",
         "",
+    ]
+    grows = guard_rows(data)
+    if grows:
+        lines += [
+            "## Jump guard: default against guard",
+            "",
+            "The opt-in guard estimators (ADR-0038, Proposed) beside the default filter they "
+            "guard, paired on the same runs. `spoof-jump` holds a 300 m GNSS jump east from "
+            "150 s to the end; `meaconing` replays GNSS 5 s late from 150 s to the end. "
+            "Each cell: runs with a hazardously misleading epoch (error over the 50 m alert "
+            "limit with HPL under it); hazardous epochs per run (mean); misleading epochs per "
+            "run (mean); fault-window p95 (m, mean); HPL bound, worst run. *Identical*: runs "
+            "whose metrics and error curve equal the default's exactly.",
+            "",
+            "| Leg | Entry | Default → guard | Default | Guard | Identical |",
+            "|---|---|---|---|---|---|",
+            *[f"| {' | '.join(r)} |" for r in grows],
+            "",
+        ]
+    lines += [
         "## Full table",
         "",
         "Means over seeds unless marked; *worst* is the worst seed. Slices count from GPS loss "
-        "(60 s); a slice is — when the entry has no GPS loss. HPL bound worst: the worst run's "
+        "(60 s); a slice is — when the entry has no GPS loss. The 60, 120 and 300 s p95 are "
+        "each run's own; *across-run p95* is ADR-0034's statistic (the worst second of the "
+        "per-second 95th percentile across runs). HPL bound worst: the worst run's "
         "share of epochs with HPL ≥ error. Hazardous and misleading: epochs summed over seeds. "
         "Detected: seeds with a sustained alarm after a spoof starts, and the median delay. "
         "False alarms: alarms outside spoof windows per hour.",
@@ -598,8 +837,10 @@ def write_summary(data: dict, out: Path, figures: list[str]) -> Path:
     lines += [
         "## Reproduce",
         "",
-        f"From commit `{data['commit']}`, a clean tree: `{data['command']}`. "
-        "`--redraw` rewrites this file and the figures from `runs.json` without running.",
+        f"From commit `{data['commit']}`, a clean tree: `{data['command']}`. The per-run data "
+        "(`runs.json`: metrics, and each run's error at every second after GPS loss) goes to "
+        "the git-ignored `analysis/results/runs/challenge-baseline/`; it is not committed. "
+        "`--redraw` rewrites this file and the figures from it without running.",
         "",
     ]
     path = out / "summary.md"
@@ -609,12 +850,34 @@ def write_summary(data: dict, out: Path, figures: list[str]) -> Path:
 
 # ---------------------------------------------------------------- figures
 
+# Slide-sized (16:9) and legible from the back of a room
+FIG_SIZE, FIG_DPI = (13.33, 7.5), 110
+FS_TITLE, FS_LABEL, FS_TICK, FS_NOTE = 19, 15, 13, 11
+
 
 def _style(ax) -> None:
-    ax.grid(True, which="major", color=GRID, lw=0.6)
-    ax.tick_params(labelsize=8)
+    ax.grid(True, which="major", color=GRID, lw=0.8)
+    ax.tick_params(labelsize=FS_TICK)
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
+
+
+def _defaults(data) -> list[str]:
+    """The estimator columns without the guard estimators (drawn only where they differ)."""
+    return [e for e in _est_cols(data) if e not in GUARDED]
+
+
+def _guard_note(data, scn: str) -> str:
+    """'guard estimators identical on N of N runs' for one entry, or '' if none ran there."""
+    pairs = [identical(data, scn, d, g) for g, d in GUARDED.items() if g in data["estimators"]]
+    pairs = [p for p in pairs if p[1]]
+    if not pairs:
+        return ""
+    same, n = sum(p[0] for p in pairs), sum(p[1] for p in pairs)
+    head = "jump-guard estimators (ADR-0038): identical to their default on"
+    return (
+        f"{head} all {n} runs, not drawn" if same == n else f"{head} {same} of {n} runs, not drawn"
+    )
 
 
 def _strip(ax, data, scn, field, ests, scale=1.0) -> list:
@@ -625,133 +888,174 @@ def _strip(ax, data, scn, field, ests, scale=1.0) -> list:
         v = values(data, scn, e, field) * scale
         v = v[~np.isnan(v)]
         if not v.size:
-            ax.text(i, 0.02, "not run", ha="center", va="bottom", fontsize=7, color=INK,
+            ax.text(i, 0.02, "not run", ha="center", va="bottom", fontsize=FS_NOTE, color=INK,
                     transform=ax.get_xaxis_transform(), rotation=90)  # fmt: skip
             continue
-        x = i + rng.uniform(-0.18, 0.18, v.size)
-        ax.plot(x, v, "o", ms=3, color=COLORS[e], alpha=0.6, label=e)
-        ax.plot([i - 0.3, i + 0.3], [np.median(v)] * 2, color=COLORS[e], lw=2.5)
+        x = i + rng.uniform(-0.2, 0.2, v.size)
+        ax.plot(x, v, "o", ms=5, color=COLORS[e], alpha=0.55, mew=0)
+        ax.plot([i - 0.32, i + 0.32], [np.median(v)] * 2, color=COLORS[e], lw=3.5)
         allv += list(v)
     ax.set_xticks(range(len(ests)), [""] * len(ests))
     ax.set_xlim(-0.6, len(ests) - 0.4)
     return allv
 
 
-def _legend(fig, ests, extra=()) -> None:
+def _legend(fig, ests, extra=(), marker="o") -> None:
     from matplotlib.lines import Line2D
 
-    handles = [Line2D([], [], marker="o", ls="", color=COLORS[e], label=e) for e in ests]
+    handles = [Line2D([], [], marker=marker, ls="", ms=10, color=COLORS[e], label=e) for e in ests]
     handles += list(extra)
-    fig.legend(handles=handles, loc="lower center", ncol=len(handles), fontsize=8,
-               frameon=False, bbox_to_anchor=(0.5, 0.035))  # fmt: skip
-
-
-def _panels(n: int, ncol: int = 3):
-    import matplotlib.pyplot as plt
-
-    nrow = math.ceil(n / ncol)
-    fig, axes = plt.subplots(
-        nrow, ncol, figsize=(11, 0.8 + 3.0 * nrow), dpi=130, sharey=True, squeeze=False
-    )
-    for ax in list(axes.flat)[n:]:
-        ax.set_visible(False)
-    return fig, axes
+    fig.legend(handles=handles, loc="lower center", ncol=len(handles), fontsize=FS_LABEL,
+               frameon=False, bbox_to_anchor=(0.5, 0.03))  # fmt: skip
 
 
 def _caption(fig, text: str) -> None:
-    fig.text(0.01, 0.005, text, fontsize=7, color=INK)
+    fig.text(0.01, 0.008, text, fontsize=FS_NOTE, color=INK)
+
+
+def _title(fig, title: str, sub: str) -> None:
+    fig.text(0.01, 0.975, title, fontsize=FS_TITLE, weight="bold", va="top")
+    fig.text(0.01, 0.915, sub, fontsize=FS_NOTE + 1, color=INK, va="top")
+
+
+def _spread(y: list[float], gap: float) -> list[float]:
+    """Label positions (axes fraction) near `y`, at least `gap` apart, order kept."""
+    order = sorted(range(len(y)), key=lambda i: y[i])
+    out = list(y)
+    for k in range(1, len(order)):
+        a, b = order[k - 1], order[k]
+        out[b] = max(out[b], out[a] + gap)
+    top = max(out) if out else 0
+    if top > 0.98:  # shift the stack down if it runs off the top
+        for i in range(len(out)):
+            out[i] -= top - 0.98
+    return out
 
 
 def fig_t1(data: dict, title_tail: str, caption: str):
-    """Q: does any estimator keep the drone leg's 300 s error within T1, on each outage entry?"""
-    from matplotlib.lines import Line2D
+    """Q: at each second after GPS loss, is the 95 % error across runs within T1 (and the
+    fallback), on the drone leg's `outage` entry? (ADR-0034's statistic)"""
+    if "drone" not in data["legs"] or "outage" not in data["entries"]["drone"]:
+        return None
+    import matplotlib.pyplot as plt
 
-    if "drone" not in data["legs"]:
+    scn = "challenge-drone-outage"
+    ests = [e for e in _defaults(data) if curve_p95(data, scn, e)[1]]
+    if not ests:
         return None
-    ents = [e for e in data["entries"]["drone"] if e.startswith("outage")]
-    ests = _est_cols(data)
-    if not ents:
-        return None
-    fig, axes = _panels(len(ents))
-    allv = []
-    for ax, entry in zip(axes.flat, ents, strict=False):
-        allv += _strip(ax, data, f"challenge-drone-{entry}", "outage_h_p95_300s_m", ests)
-        ax.axhline(T1_M, color=INK, lw=1, ls=":")
-        ax.set_yscale("log")
-        ax.set_title(entry, fontsize=9, loc="left")
-        _style(ax)
-    for ax in axes[:, 0]:
-        ax.set_ylabel("p95 horizontal error over the\nfirst 300 s after GPS loss (m)", fontsize=8)
-    if allv:
-        axes[0, 0].set_ylim(min([*allv, T1_M]) / 2, max(allv) * 2)
-    t1 = Line2D([], [], color=INK, lw=1, ls=":", label=f"T1 {T1_M:g} m (TBC)")
-    _legend(fig, ests, [t1])
-    fig.suptitle(
-        f"T1: 300 s error after GPS loss, challenge-drone (UC-01), one dot per seed, bar at "
-        f"median\n{title_tail}",
-        fontsize=10,
-        x=0.01,
-        ha="left",
+    fig, ax = plt.subplots(figsize=FIG_SIZE, dpi=FIG_DPI)
+    t = np.arange(CURVE_S + 1)
+    ends, labels, ymax, ymin = [], [], T1_FALLBACK_M, T1_M
+    for e in ests:
+        curve, n = curve_p95(data, scn, e)
+        ax.plot(t[: curve.size], curve, color=COLORS[e], lw=3.2, solid_capstyle="round")
+        worst, at = worst_in(curve, T1_WINDOW_S)
+        ax.plot(at, worst, "o", ms=9, color=COLORS[e], mec="white", mew=1.5, zorder=5)
+        ymax, ymin = max(ymax, np.nanmax(curve)), min(ymin, np.nanmin(curve[curve > 0]))
+        ends.append(curve[min(T1_WINDOW_S, curve.size - 1)])
+        runs = f", {n} runs" if n != data["seeds"] else ""
+        labels.append((e, f"{e}: worst {fmt_m(worst)} m{runs}"))
+    ax.set_yscale("log")
+    ax.set_ylim(max(ymin / 2, 0.5), ymax * 2.5)
+    ax.set_xlim(0, CURVE_S)
+    # The targets, each drawn over its own window
+    ax.hlines(T1_M, 0, T1_WINDOW_S, color=INK, lw=2, ls=(0, (2, 2)))
+    ax.hlines(T1_FALLBACK_M, 0, T1_FALLBACK_WINDOW_S, color=INK, lw=2, ls=(0, (6, 3)))
+    # Labelled where the curves are far above the lines, so no curve crosses the text
+    ax.text(T1_WINDOW_S - 3, T1_M / 1.12, f"T1: {T1_M:g} m, every second 0–{T1_WINDOW_S} s",
+            fontsize=FS_LABEL, color=INK, va="top", ha="right")  # fmt: skip
+    ax.text(T1_FALLBACK_WINDOW_S - 2, T1_FALLBACK_M * 1.1,
+            f"fallback: {T1_FALLBACK_M:g} m, 0–{T1_FALLBACK_WINDOW_S} s",
+            fontsize=FS_LABEL, color=INK, va="bottom", ha="right")  # fmt: skip
+    # Direct labels at the right end of each curve, spread so they do not overlap
+    lo, hi = (math.log10(v) for v in ax.get_ylim())
+    frac = [(math.log10(max(v, 1e-9)) - lo) / (hi - lo) for v in ends]
+    for (e, text), y in zip(labels, _spread(frac, 0.055), strict=True):
+        ax.text(1.01, y, text, transform=ax.transAxes, fontsize=FS_LABEL, color=COLORS[e],
+                va="center", weight="bold")  # fmt: skip
+    ax.set_xlabel("time since GPS loss (s)", fontsize=FS_LABEL)
+    ax.set_ylabel("95th percentile across runs of\nhorizontal error at that second (m)",
+                  fontsize=FS_LABEL)  # fmt: skip
+    _style(ax)
+    note = _guard_note(data, scn)
+    _title(
+        fig,
+        "T1: 95 % of runs' horizontal error at each second after GPS loss (drone, outage)",
+        f"ADR-0034 statistic; a dot marks each curve's worst second · {title_tail}"
+        + (f"\n{note}" if note else ""),
     )
     _caption(fig, caption)
-    fig.tight_layout(rect=(0, 0.08, 1, 0.93))
+    fig.subplots_adjust(left=0.09, right=0.67, top=0.82, bottom=0.12)
     return fig
 
 
 def fig_t3(data: dict, title_tail: str, caption: str):
     """Q: is the timing receiver within T3 at 10 min without GPS, on each outage entry?"""
+    import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
     if "timing" not in data["legs"]:
         return None
     ents = [e for e in data["entries"]["timing"] if e.startswith("outage")]
     # `baseline` has no clock state, so no time error
-    ests = [e for e in _est_cols(data) if e != "baseline"]
+    ests = [e for e in _defaults(data) if e != "baseline"]
     if not ents or not ests:
         return None
-    fig, axes = _panels(len(ents))
+    ncol = 3
+    nrow = math.ceil(len(ents) / ncol)
+    fig, axes = plt.subplots(nrow, ncol, figsize=FIG_SIZE, dpi=FIG_DPI, sharey=True,
+                             squeeze=False)  # fmt: skip
+    for ax in list(axes.flat)[len(ents) :]:
+        ax.set_visible(False)
     allv = []
     for ax, entry in zip(axes.flat, ents, strict=False):
         allv += _strip(ax, data, f"challenge-timing-{entry}", "outage_time_err_600s_us", ests)
-        ax.axhline(T3_US, color=INK, lw=1, ls=":")
+        ax.axhline(T3_US, color=INK, lw=2, ls=(0, (2, 2)))
         ax.set_yscale("log")
-        ax.set_title(entry, fontsize=9, loc="left")
+        ax.set_title(entry, fontsize=FS_LABEL, loc="left")
         _style(ax)
     for ax in axes[:, 0]:
-        ax.set_ylabel("|time error| at 600 s after\nGPS loss, p95 of last 10 s (µs)", fontsize=8)
+        ax.set_ylabel("|time error| 600 s after\nGPS loss (µs)", fontsize=FS_LABEL)
     if allv:
         axes[0, 0].set_ylim(min([*allv, T3_US]) / 2, max([*allv, T3_US]) * 2)
-    t3 = Line2D([], [], color=INK, lw=1, ls=":", label=f"T3 {T3_US:g} µs (TBC)")
+    t3 = Line2D([], [], color=INK, lw=2, ls=(0, (2, 2)), label=f"T3 {T3_US:g} µs")
     _legend(fig, ests, [t3])
-    fig.suptitle(
-        "T3: time error 10 min after GPS loss, challenge-timing (UC-03), one dot per seed, bar "
-        f"at median (baseline: no clock)\n{title_tail}",
-        fontsize=10,
-        x=0.01,
-        ha="left",
+    note = _guard_note(data, "challenge-timing-outage")
+    _title(
+        fig,
+        "T3: time error 10 min after GPS loss — timing leg, one dot per seed, bar at median",
+        f"p95 of the last 10 s; baseline has no clock · {title_tail}"
+        + (f"\n{note} (outage entry)" if note else ""),
     )
     _caption(fig, caption)
-    fig.tight_layout(rect=(0, 0.08, 1, 0.93))
+    fig.subplots_adjust(left=0.08, right=0.99, top=0.8, bottom=0.17, hspace=0.35, wspace=0.08)
     return fig
 
 
 SPOOF_ENTRIES = (
-    ("spoof-ramp", T4_RAMP_S, f"spoof-ramp\n≤ {T4_RAMP_S:g} s (T4)"),
-    ("time-spoof", T4_TIME_S, f"time-spoof\n≤ {T4_TIME_S:g} s (T4)"),
-    ("spoof-jump", math.inf, "spoof-jump\nany delay"),
+    ("spoof-ramp", T4_RAMP_S, f"ramp\n≤ {T4_RAMP_S:g} s"),
+    ("time-spoof", T4_TIME_S, f"time ramp\n≤ {T4_TIME_S:g} s"),
+    ("spoof-jump", math.inf, "300 m jump\nany delay"),
     ("meaconing", math.inf, "meaconing\nany delay"),
 )
 
 
 def fig_t4(data: dict, title_tail: str, caption: str):
-    """Q: which GNSS spoofs does each estimator detect, on each leg?"""
+    """Q: which GNSS spoofs does each estimator detect, and after a held jump or meaconing,
+    does the output mislead, with and without the jump guard?"""
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+
     legs = data["legs"]
-    ests = _est_cols(data)
+    ests = _defaults(data)
     if not legs:
         return None
-    fig, axes = _panels(len(legs))
+    guards = [g for g in GUARDED if g in data["estimators"]]
+    nrow = 2 if guards else 1
+    fig, axes = plt.subplots(nrow, len(legs), figsize=FIG_SIZE, dpi=FIG_DPI, sharey="row",
+                             squeeze=False)  # fmt: skip
     width = 0.8 / len(ests)
-    for ax, leg in zip(axes.flat, legs, strict=False):
+    for ax, leg in zip(axes[0], legs, strict=True):
         spoofs = [s for s in SPOOF_ENTRIES if s[0] in data["entries"][leg]]
         for j, e in enumerate(ests):
             for i, (entry, window, _) in enumerate(spoofs):
@@ -760,31 +1064,89 @@ def fig_t4(data: dict, title_tail: str, caption: str):
                 if total:
                     ax.bar(x, n / total, width, color=COLORS[e])
                     # a dot on top, so a share of 0 still shows that the estimator ran
-                    ax.plot(x, n / total, "o", ms=4, color=COLORS[e], clip_on=False)
+                    ax.plot(x, n / total, "o", ms=5, color=COLORS[e], clip_on=False)
                 else:
-                    ax.text(x, 0.02, "not run", rotation=90, ha="center", va="bottom",
-                            fontsize=6, color=INK)  # fmt: skip
-        ax.set_xticks(range(len(spoofs)), [s[2] for s in spoofs], fontsize=7)
+                    ax.text(x, 0.03, "not run", rotation=90, ha="center", va="bottom",
+                            fontsize=FS_NOTE - 2, color=INK)  # fmt: skip
+        ax.set_xticks(range(len(spoofs)), [s[2] for s in spoofs], fontsize=FS_NOTE)
         ax.set_ylim(0, 1.05)
-        ax.set_title(LEG_LABEL[leg], fontsize=9, loc="left")
+        ax.set_title(LEG_LABEL[leg].replace(" geometry", ""), fontsize=FS_LABEL, loc="left")
         _style(ax)
-    for ax in axes[:, 0]:
-        ax.set_ylabel("share of seeds detected\n(sustained alarm)", fontsize=8)
-    from matplotlib.patches import Patch
-
+        ax.tick_params(axis="x", labelsize=FS_NOTE)
+    axes[0, 0].set_ylabel("share of seeds\ndetected", fontsize=FS_LABEL)
+    if guards:
+        pairs = [(GUARDED[g], g) for g in guards]
+        jumps = [e for e in JUMP_ENTRIES]
+        w = 0.8 / (2 * len(pairs))
+        for ax, leg in zip(axes[1], legs, strict=True):
+            for i, entry in enumerate(jumps):
+                scn = f"challenge-{leg}-{entry}"
+                for j, (d, g) in enumerate(pairs):
+                    for k, e in enumerate((d, g)):
+                        haz = values(data, scn, e, "hazardous_epochs")
+                        x = i - 0.4 + w * (2 * j + k + 0.5)
+                        if not haz.size:
+                            continue
+                        share = float(np.mean(haz > 0))
+                        ax.bar(x, share, w, color=COLORS[e] if k == 0 else "white",
+                               edgecolor=COLORS[e], hatch="//" if k else None, lw=1.5)  # fmt: skip
+                        ax.plot(x, share, "o", ms=5, color=COLORS[e], clip_on=False)
+            ax.set_xticks(range(len(jumps)), ["300 m jump", "meaconing"], fontsize=FS_NOTE)
+            ax.set_ylim(0, 1.05)
+            _style(ax)
+            ax.tick_params(axis="x", labelsize=FS_NOTE)
+        axes[1, 0].set_ylabel("share of runs with a\nhazardous epoch", fontsize=FS_LABEL)
     handles = [Patch(color=COLORS[e], label=e) for e in ests]
-    fig.legend(handles=handles, loc="lower center", ncol=len(handles), fontsize=8,
-               frameon=False, bbox_to_anchor=(0.5, 0.035))  # fmt: skip
-    fig.suptitle(
-        f"T4: GNSS spoofs detected, every challenge leg (approach: synthetic geometry)\n"
-        f"{title_tail}",
-        fontsize=10,
-        x=0.01,
-        ha="left",
+    if guards:
+        handles.append(
+            Patch(facecolor="white", edgecolor=INK, hatch="//", label="with jump guard")
+        )
+    fig.legend(handles=handles, loc="lower center", ncol=len(handles), fontsize=FS_LABEL - 1,
+               frameon=False, bbox_to_anchor=(0.5, 0.03))  # fmt: skip
+    _title(
+        fig,
+        "T4: GNSS spoofs detected; after a held jump, does the output mislead?",
+        "top: sustained alarm within the T4 window (jump, meaconing: any delay) · bottom: "
+        "error over 50 m with HPL under it, default solid, guard hatched\n"
+        f"approach leg: synthetic geometry · {title_tail}",
     )
     _caption(fig, caption)
-    fig.tight_layout(rect=(0, 0.08, 1, 0.92))
+    fig.subplots_adjust(left=0.08, right=0.99, top=0.82, bottom=0.17, hspace=0.45, wspace=0.08)
     return fig
+
+
+def _save_png(fig, path: Path) -> None:
+    """A 256-colour PNG: the figures are flat colour, and this keeps the committed folder small."""
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+    img = Image.open(buf).convert("RGB")
+    img.quantize(colors=256, method=Image.Quantize.MEDIANCUT).save(path, optimize=True)
+
+
+def write_t1_curves(data: dict, out: Path) -> str | None:
+    """The across-run p95 per second on the drone `outage` entry, small enough to commit."""
+    scn = "challenge-drone-outage"
+    curves = {}
+    for e in _est_cols(data):
+        c, n = curve_p95(data, scn, e)
+        if n:
+            curves[e] = {"runs": n, "p95_m": [None if math.isnan(v) else _round(v) for v in c]}
+    if not curves:
+        return None
+    doc = {
+        "what": "95th percentile across runs of the horizontal error at each second 0..300 s "
+        "after GPS loss, challenge-drone-outage (ADR-0034 amendment); sim",
+        "commit": data["commit"],
+        "command": data["command"],
+        "curves": curves,
+    }
+    (out / "t1_curves.json").write_text(json.dumps(doc, separators=(",", ":"), allow_nan=False))
+    return "t1_curves.json"
 
 
 def write_figures(data: dict, out: Path) -> list[str]:
@@ -795,9 +1157,9 @@ def write_figures(data: dict, out: Path) -> list[str]:
 
     seeds = seeds_text(data["seeds"])
     if SLOW in data["estimators"]:
-        seeds += f" (ekf-mhss {seeds_text(data['mhss_seeds'])}, some entries)"
-    tail = f"{seeds} · commit {data['commit']}"
-    caption = f"{KIND} · analysis/challenge_baseline.py, numbers in summary.md and runs.json"
+        seeds += f" (ekf-mhss {seeds_text(data['mhss_seeds'])[6:]})"
+    tail = f"sim · {seeds} · commit {data['commit']}"
+    caption = f"{KIND} · analysis/challenge_baseline.py; numbers in summary.md"
     written = []
     for name, fn in (
         ("t1_drone.png", fig_t1),
@@ -807,7 +1169,7 @@ def write_figures(data: dict, out: Path) -> list[str]:
         fig = fn(data, tail, caption)
         if fig is None:
             continue
-        fig.savefig(out / name)
+        _save_png(fig, out / name)
         plt.close(fig)
         written.append(name)
     return written
@@ -841,6 +1203,12 @@ def main(argv=None) -> None:
     p.add_argument("--entries", nargs="+", help="only these entries of each leg (default: all)")
     p.add_argument("--mhss-seeds", type=int, default=MHSS_SEEDS, help="ekf-mhss seeds 0..M-1")
     p.add_argument("--mhss-entries", nargs="+", default=list(MHSS_ENTRIES))
+    p.add_argument(
+        "--guard-entries",
+        nargs="+",
+        default=list(GUARD_ENTRIES),
+        help="entries the jump-guard estimators run on",
+    )
     p.add_argument("--out", default=str(OUT))
     g = p.add_mutually_exclusive_group()
     g.add_argument(
@@ -852,10 +1220,14 @@ def main(argv=None) -> None:
     args = p.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    json_path = out / "runs.json"
+    committed = out.resolve() == OUT.resolve()
+    # Per-run data is not committed: beside the committed results it goes to the ignored folder
+    runs_dir = RUNS if committed else out
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    json_path = runs_dir / "runs.json"
     commit = _commit()
     # REQ-10: the committed results name a commit they can be regenerated from
-    if not args.redraw and out.resolve() == OUT.resolve() and not _clean(commit):
+    if not args.redraw and committed and not _clean(commit):
         raise SystemExit(
             f"tree is {commit}: commit first, the committed results must name a clean commit "
             "(or write elsewhere with --out)"
@@ -880,13 +1252,16 @@ def main(argv=None) -> None:
             "seeds": args.seeds,
             "mhss_seeds": args.mhss_seeds if SLOW in ests else 0,
             "mhss_entries": list(args.mhss_entries) if SLOW in ests else [],
+            "guard_entries": list(args.guard_entries) if set(GUARDED) & set(ests) else [],
             "estimators": ests,
             "legs": legs,
             "entries": ents,
             "jobs": args.jobs,
             "fields": list(FIELDS),
             "runtime_s": 0.0,
+            "curve_s": CURVE_S,
             "runs": {},
+            "curves": {},
             "errors": {},
         }
         if args.resume and json_path.exists():
@@ -896,6 +1271,7 @@ def main(argv=None) -> None:
                     f"runs.json is from {old['commit']}, this is {commit}: one commit per table"
                 )
             data["runs"], data["errors"] = old["runs"], old["errors"]
+            data["curves"] = old.get("curves", {})
             data["runtime_s"] = old["runtime_s"]
         # The base/rover filters need a reference station; `generate` makes one only from a
         # `reference:` block, so check every entry has none before leaving them out
@@ -909,11 +1285,13 @@ def main(argv=None) -> None:
             print(f"{leg}: {len(tasks)} (scenario, seed) tasks", flush=True)
             t_leg = time.time()
             results = _map(run_one, tasks, args.jobs)
-            for (scn, seed, _), res in zip(tasks, results, strict=True):
+            for (scn, seed, _), (res, curves) in zip(tasks, results, strict=True):
                 for est, r in res.items():
                     data["runs"].setdefault(scn, {}).setdefault(est, {})[str(seed)] = r
                     if isinstance(r, str):
                         data["errors"][f"{scn} {est} seed {seed}"] = r
+                for est, c in curves.items():
+                    data["curves"].setdefault(scn, {}).setdefault(est, {})[str(seed)] = c
             data["runtime_s"] += time.time() - t_leg
             _save(data, json_path)
             print(f"{leg}: done in {time.time() - t_leg:.0f} s", flush=True)
@@ -921,7 +1299,8 @@ def main(argv=None) -> None:
 
     figures = write_figures(data, out)
     path = write_summary(data, out, figures)
-    print(f"wrote {path}, {json_path} and {len(figures)} figure(s)")
+    curves = write_t1_curves(data, out)
+    print(f"wrote {path}, {json_path}, {curves} and {len(figures)} figure(s)")
 
 
 if __name__ == "__main__":
