@@ -93,7 +93,7 @@ Registry: `pnt.nav.ESTIMATORS`.
 | `ekf-map` | `ekf` with a residual map: each tower's error per 25 m cell, learned while GPS is trusted, frozen whenever it is not (P11, [ADR-0032](adr/0032-residual-map.md) Accepted as opt-in only, #95) |
 | `ekf-measured-sigma`, `ekf-calibrated-measured-sigma` | `ekf` and `ekf-calibrated` that tell a radio's LTE records ADR-0036's measured sigma from their SNR instead of the front end's ([ADR-0044](adr/0044-told-sigma-for-radio-records.md), Accepted, #147; opt-in) |
 
-Work in review adds, opt-in: learned LTE range noise (ADR-0039), the tower spoof monitor (`ekf-spoof`, ADR-0037), carrier hopping in the sim (ADR-0040). All three ADRs are Proposed.
+Also opt-in: the tower spoof monitor (`ekf-spoof`, ADR-0037) and carrier hopping in the sim (ADR-0040), both merged through #250; learned LTE range noise (ADR-0039) is in review (#156). All three ADRs are Proposed.
 
 ## Integrity layer
 
@@ -114,7 +114,7 @@ Design: [`verification.md`](verification.md) *Integrity monitor: solution separa
 
 **Where it stops** ([`results.md`](results.md) (b), (d)):
 - A detected jump is followed by default; only the opt-in guard refuses it, at the cost of dead reckoning afterwards.
-- A slow position ramp is not detected on `main`; the tower monitor in review catches it where at least 5 sites are heard, in minutes, not 30 s.
+- A slow position ramp is not detected on `main`; the opt-in tower monitor catches it where at least 5 sites are heard continuously, in minutes, not 30 s; on hopped carriers it does not (draft #254, fix in #258).
 - MHSS is safe but unavailable with the `realistic` error sizes: the filter's tower model is not honest for that sim.
 - `ekf-calibrated` can stay confident on a wrong tower table.
 - Two faults in different groups at once, and a wide-area time spoof that also captures tower timing, are not covered by design.

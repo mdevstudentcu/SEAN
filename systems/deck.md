@@ -2,7 +2,7 @@
 
 **The pitch in one line:** a navigation layer that knows when it is wrong, and tells the operator not to trust it.
 
-Nine slides, 285 s, 612 words of script, 11 numbers spoken. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md).
+Nine slides, 295 s, 629 words of script, 15 numbers spoken. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md).
 
 **Three rules on stage.** Say "simulated" whenever a number is simulated. Say "consistent with a registered site", never "identified". Never say "first": say "we found no published…".
 
