@@ -1,6 +1,6 @@
 # ADR-0047: `ekf` models our receiver clock in the tower ranges by default
 
-- **Status:** Accepted (option D)
+- **Status:** Accepted (option D, 2026-11-11, owners; time-integrity cost accepted, fix on the roadmap)
 - **Date:** 2026-11-11 (proposed and accepted)
 - **Deciders:** owners
 - **Traces to:** REQ-01, REQ-02, REQ-04, ADR-0022 (amendment 1), ADR-0030, ADR-0034, #228
@@ -109,7 +109,7 @@ Accepted (2026-11-11, owners): option D. Every EKF built on `nav/ekf.py` default
     | `challenge-approach-outage` | 0 | 22 | 0.41 → 12.2 µs |
 
     `time-spoof` improves: 20.9 → 5.2 time-misleading epochs per run. `ekf-calibrated` models the towers' multipath and had 0.0 time-misleading epochs per run on `realistic-long-outage` (`analysis/results/calibrated-measured/`), so the tower model (#77) is the likely fix. It has not been tried here. Our clock's noise is not the cause: raising `h0` to the sim's 2 ns/√s (8e-18) left it at 87 time-misleading epochs per run against 93 (`realistic-long-outage`, 10 seeds, scratch run).
-  - The owners decide whether the time-integrity cost is accepted or needs a fix before the default is used for figures.
+  - **The owners accepted this time-integrity cost (2026-11-11)**, for the position gain: the mentors (2026-11-10) put location ahead of timing. Figures made with the new default carry it, and its fix, a tower error model with the multipath and correlation `ekf-calibrated` already uses (#77), is on the roadmap (`systems/roadmap.md`, phase 2).
   - `tests/test_ekf_rx_clock_modes.py` fails if the default reverts.
 - **The numbers above came from commits before the rebase onto `e9a9053`** (`37d66b7` and `8b7cbda`, on `c21e047`). The `analysis/rx_clock_in_towers.py` variants keep the old default explicitly, so they still mean what they did.
 - **A does not make the HPL honest.** With the term on, `ekf`'s T1 HPL bound on the worst `realistic-long-outage` run is 0.631. The tower model is still white noise, while the sim adds 50 m of multipath correlated over 30 s and 100 m told-position errors (#77). In the #228 bisection those two were the rest of the gap: with the sim's multipath and told-position error removed, the bound was 1.000 on 5 seeds. `ekf-calibrated` models both and still reaches only 0.887 on its worst run.
