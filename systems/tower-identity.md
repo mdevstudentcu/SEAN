@@ -24,7 +24,7 @@ A plain-words explainer for the mentor's question of 2026-11-10: "how can you id
   - **one eNB in the table uses it**: matched. The record gets that mast's latitude, longitude and antenna height, and its site name (`enb:<id>`).
   - **more than one eNB uses it** (a PCI collision): not used. 152 of the table's 3,904 (EARFCN, PCI) pairs are reused by more than one eNB. A receiver that has moved could hear either, so the lookup never guesses (#138).
   - **no eNB in the table uses it**: not used, counted as unknown (section 6).
-- **Grouping sectors into one mast uses the eNB ID, not PCI / 3.** The eNB ID comes from the registered cell ID (ECI >> 8). #87 and ADR-0023 step 3 proposed grouping by `PCI // 3`, a common planning convention. In Ottawa it never holds: of the 1,370 (carrier, eNB) groups with more than one PCI, none keeps its PCIs in one `PCI // 3` group (`tests/test_tower_identity.py`). The sectors of one mast share one clock (ADR-0022), so the grouping matters. *Open for the owners:* ADR-0023 step 3 still names `PCI // 3`.
+- **Grouping sectors into one mast uses the eNB ID, not PCI / 3.** The eNB ID comes from the registered cell ID (ECI >> 8). #87 and ADR-0023 step 3 proposed grouping by `PCI // 3`, a common planning convention. In Ottawa it never holds: of the 1,370 (carrier, eNB) groups with more than one PCI, none keeps its PCIs in one `PCI // 3` group (`tests/test_tower_identity.py`). The sectors of one mast share one clock (ADR-0022), so the grouping matters. *Open for the owners:* ADR-0023 step 3 still names `PCI // 3` (section 7).
 - A match is a hypothesis, not a fact: an eNB beyond 10 km, a moved mast or one missing from the register can reuse a PCI. ADR-0023 lists these as integrity fault modes, caught by range residuals and clock consistency.
 
 ## 4. How far away it is: timing, not signal strength
@@ -48,13 +48,35 @@ A plain-words explainer for the mentor's question of 2026-11-10: "how can you id
 
 ## 7. What we have heard so far
 
-Real captures, static. Only the cells and their table match are listed; the receiver's position is never committed (the captures were made at a private location, REQ-08).
+Real captures, static, one RTL-SDR on one carrier at a time. Only the cells and their table match are listed. The receiver's position, and any distance or bearing from it, is never committed: the captures were made at a private location (REQ-08).
 
-| Carrier (EARFCN, operator) | PCIs heard → eNB in the table | Where the result is |
+Laptop captures, front end on main (`analysis/lte_scan_table.py`):
+
+| Carrier | PCIs heard → eNB (registered site) | Result |
 | --- | --- | --- |
-| SCAN_ROWS_TBD | | |
+| 2460, Rogers (850 MHz, band 5) | 204, 220 → 36122 (Mooney's Bay); 244 → 30066 (Albion & Heathrington); 92 → 30015 (Billings Bridge); 90, 106 → 36118 (Prince of Wales & Dynes); 268 → 30111 (Ottawa Airport Pkwy), found but never tracked | [`lte-scan-20261110`](../analysis/results/lte-scan-20261110/summary.md), [`lte-scan-20261111`](../analysis/results/lte-scan-20261111/summary.md) |
+| 2535, TELUS (band 5) | none found in 29.5 s | `lte-scan-20261110` |
+| 5145, TELUS (band 12) | 188, 189 → 219003 (1245 Walkley Rd); 175 → 219076 (1501 Bank St) | `lte-scan-20261110` |
+| 5255, TELUS (band 13) | 175 → 219076 (1501 Bank St); 188 → 219003 (1245 Walkley Rd) | `lte-scan-20261110` |
 
-So far the 850 MHz layer (Rogers EARFCN 2460, band 5) is on air and heard on every capture tuned to it.
+Every cell above is a `unique` match: one eNB in the table uses it. The 9.7-minute capture of 2026-11-11 (`20261111-0040-static-fullsuite`) heard four Rogers masts on 2460 (five cells), all weak (SNR −8 to −12 dB, up to 247 re-acquisitions).
+
+Carrier scan on the Pi (Mo, 2026-11-10, sessions `1610-*`, `1623-*`, `1759-*`). Its cells are in PR #190's `analysis/results/lte-measured-noise/summary.md`, **unmerged and not reproduced here** (the IQ is on the Pi only). The eNBs below are this file's lookup of those cells:
+
+| Carrier | PCIs heard → eNB (registered site) |
+| --- | --- |
+| 2460, Rogers | 90 → 36118; 92 → 30015; 220 → 36122; 244 → 30066 |
+| 5060, Vidéotron (band 12) | 4, 492 → 102790 (Walkley Square Apts); 92, 204 not in the table |
+| 5145, TELUS | 85 → 219129 (2660 Norberry Cres); 175, 347 → 219076; 188, 189 → 219003 |
+| 5205, Vidéotron (band 13) | 20 → 202753 (1365 Bank St); 309, 325 → 202790 (Walkley Square Apts); 330 → 202754 (2660 Norberry Cres); 32 is a collision (two eNBs) |
+| 5255, TELUS | 85 → 219129; 175, 347 → 219076 |
+| 2560, TELUS (band 5) | 175, 347 not in the table on 2560 (on 5145 and 5255 these PCIs are 219076, 1501 Bank St: possibly a carrier the register does not list there, `TBC`) |
+
+Its other carriers (2535, 5035, 5085 and the band 71 carriers 68611 to 68761) have no row in that summary: `TBC` whether nothing was found or they were not processed. Never scanned: 9690, 9740, 2572, 2598, 68811, 68861, 68911.
+
+- The 850 MHz layer (Rogers EARFCN 2460, band 5) is on air: it was heard on every capture tuned to it.
+- Real data agrees with section 3: sectors of one mast carry PCIs in different `PCI // 3` groups (204 and 220 on eNB 36122, 90 and 106 on 36118, 188 and 189 on 219003).
+- **For the owners:** ADR-0023 step 3 (and #87's text) groups sectors by `PCI // 3`. The table (0 of 1,370 groups) and these captures say to group by the registered eNB ID instead, as `pnt.nav.cells` already does. ADR-0023 is not amended here.
 
 ## Files
 
