@@ -180,8 +180,9 @@ def _start(
             return cell, st
         cell.arc += 1
         cell.n0 = f.boundary
-        nu = -f.f_hz / fc
-        return cell, State(0.0, nu, 0.3**2, 0.0, (f.sigma_f_hz / fc) ** 2, 0)
+        # The rate is the dongle's clock and the tower's, which a new arc does not reset: keep
+        # the loop's, not the search's (good to `search_cfo_sigma_hz` only, #183).
+        return cell, State(0.0, st.nu, 0.3**2, 0.0, st.p11, 0)
     cell = CellTrack(earfcn=seg.earfcn, fc=fc, pci=f.pci, n0=f.boundary)
     nu = -f.f_hz / fc
     return cell, State(0.0, nu, 0.3**2, 0.0, (f.sigma_f_hz / fc) ** 2, 0)
@@ -201,7 +202,7 @@ def emit(
         a = {
             name: np.array([getattr(e, name) for e in ep])
             for name in ("k", "c_ref", "theta_meas", "nu", "sigma", "snr_post", "psi", "n_ref",
-                         "locked", "arc", "n0")
+                         "locked", "arc", "n0", "n_sync")
         }  # fmt: skip
         arc_shift, marks = _gap_effects(a["n_ref"], gaps)
         a["arc"] = a["arc"] + arc_shift
@@ -250,7 +251,7 @@ def _outputs(cell, g, flags, cap, gaps, cfg, receiver, L) -> list[Measurement]:
     sigma_crb = float(1 / math.sqrt(np.sum(w)))
     sigma_obs = float(np.std(aligned - value, ddof=1) / math.sqrt(n)) if n >= 5 else float("nan")
     sigma = max(sigma_crb, sigma_obs) if not math.isnan(sigma_obs) else sigma_crb
-    snr = float(np.mean(g["snr_post"])) / (2 * sig.N_SYNC)
+    snr = float(np.mean(g["snr_post"] / g["n_sync"]))  # per resource element
     nu = float(np.mean(g["nu"]))
     emitter = f"lte:{cell.earfcn}:{cell.pci}" if cell.earfcn is not None else f"lte::{cell.pci}"
     f_idx = int(gaps.to_file(np.int64(math.floor(g["c_ref"][ref])))[0])

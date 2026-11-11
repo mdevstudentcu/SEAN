@@ -62,6 +62,17 @@ class Config:
     acq_ms: float = 80.0  # search window (16 half-frames), TBC
     max_ppm: float = 5.0  # dongle offset searched (TCXO spec ±1 ppm, cold start more), TBC
     cfo_step_hz: float = 2000.0  # carrier-offset bins: ≤ 1 kHz off costs a 67 µs PSS < 0.1 dB
+    # Smallest 1σ given to the search's carrier offset, TBC (#183). The SSS-to-PSS phase it
+    # comes from assumes the PSS is the cell's own: in a frame-synchronised network every cell
+    # sharing the PSS root (N_ID2) adds to it, and eNBs need not send PSS and SSS through one
+    # antenna. On 20261110-lte-outside-5145 that phase was 0.2 to 0.8 rad off, so the offset
+    # was up to 1,700 Hz wrong while its own 1σ said 20 to 360 Hz. With this floor the loop
+    # takes its rate from the code first and carrier aiding (`carrier_lock_hz`) starts on the
+    # right 200 Hz alias.
+    search_cfo_sigma_hz: float = 1000.0
+    # Per-epoch weight of the running PSS-to-SSS weight average (`_Track.run`), TBC: 20 epochs
+    # (0.1 s), short against the beat of two cells sharing a PSS root (#183).
+    pss_weight_alpha: float = 0.05
     # Regression guards, TBC: on 100 noise-only 80 ms windows the largest folded-PSS peak-to-
     # mean was 3.1 and the largest SSS score 6.1 (1 in 1,775 candidates above 6); a true cell's
     # SSS score is 12-15 and a strong cell's PSS ghosts score at most 4.1 on the SSS.
@@ -77,6 +88,10 @@ class Config:
     first_path_rel_db: float = -10.0  # earlier path must be within this of the tracked, TBC
     first_path_sidelobe: float = 3.0  # and this many times the tracked path's own sidelobe, TBC
     first_path_epochs: int = 40  # epochs averaged before a first-path decision (200 ms)
+    # An earlier path's PSS-to-SSS power ratio must match the tracked path's within this, TBC.
+    # #183, 20261110-1305-lte-outside: PCI 268's own path had PSS/SSS 0.7; the PSS of PCI 244,
+    # 3 µs ahead on the same root, 3.7 (7 dB more).
+    first_path_ratio_db: float = 3.0
     # Regression guard, TBC: about one normal CP. A re-found cell this close to its prediction
     # moved to another path; beyond it, without host stamps, the jump counts as dropped samples.
     max_path_jump_us: float = 5.0
@@ -128,6 +143,7 @@ class Epoch:
     locked: bool  # carrier aiding on
     arc: int
     n0: float  # the arc's reference boundary (`CellTrack.n0` moves when a new arc starts)
+    n_sync: float = 2 * sig.N_SYNC  # sync elements' worth combined: snr_post / n_sync is per RE
 
 
 @dataclass
@@ -426,7 +442,7 @@ def _identify(fetch, c0, jf, n_id2, f_bin, h_count, fs, fc, cfg) -> Found | None
         n_id2=n_id2,
         boundary=float(first_sf0),
         f_hz=float(f_bin + f_res),
-        sigma_f_hz=float(1.5 * sigma_f),
+        sigma_f_hz=float(max(1.5 * sigma_f, cfg.search_cfo_sigma_hz)),
         snr_db=float(10 * math.log10(snr_re)),
         pss_metric=0.0,
         sss_metric=float(metric),
@@ -515,15 +531,27 @@ class _Track:
         return (ok_lo & ok_hi & (f_hi - f_lo == hi - lo) & (f_lo >= self.seg.start)
                 & (f_hi < min(self.seg.stop, self.cap.n_samples)))  # fmt: skip
 
-    def measure(self, n_id1: int, n_id2: int, bounds: np.ndarray, ks: np.ndarray, f_hz: float):
-        """Delay profiles (rows: epochs) of PSS + SSS at the given half-frame boundaries, and
-        the reserved-bin noise power per epoch. Even k is subframe 0."""
+    def measure(
+        self,
+        n_id1: int,
+        n_id2: int,
+        bounds: np.ndarray,
+        ks: np.ndarray,
+        f_hz: float,
+        w: np.ndarray | None = None,
+    ):
+        """Delay profiles (rows: epochs) of SSS + w · PSS at the given half-frame boundaries,
+        the reserved-bin noise power per epoch, and the PSS and SSS products (rows: epochs, 62
+        each). `w` is the PSS's complex weight per subframe (index k % 2; default 1 for both).
+        Even k is subframe 0."""
         yp, rp = window_spectra(self.fetch, bounds + self.pss_off, self.fs, f_hz, self.backoff)
         ys, rs = window_spectra(self.fetch, bounds + self.sss_off, self.fs, f_hz, self.backoff)
         tbl = sig.sss_table(n_id2)[:, n_id1]
-        z = yp * np.conj(sig.pss(n_id2))[None, :] + ys * tbl[ks % 2]
+        zp = yp * np.conj(sig.pss(n_id2))[None, :]
+        zs = ys * tbl[ks % 2]
+        z = zs + zp if w is None else zs + w[ks % 2][:, None] * zp
         noise = 0.5 * (np.mean(np.abs(rp) ** 2, axis=1) + np.mean(np.abs(rs) ** 2, axis=1))
-        return delay_profile(z, self.fs, self.cfg.interp), noise
+        return delay_profile(z, self.fs, self.cfg.interp), noise, zp, zs
 
     def file_index(self, c: float) -> int:
         return int(self.gaps.to_file(np.int64(math.floor(c)))[0])
@@ -553,10 +581,23 @@ class _Track:
         gi = int(round(cfg.gate_samples * cfg.interp))
         gate = np.arange(-gi, gi + 1)
         win = np.arange(-int(round(cfg.first_path_us * 1e-6 * fs * cfg.interp)), gi + 1)
-        prof_acc, prof_n = np.zeros(win.size), 0
+        # First-path profiles: combined, SSS alone and PSS alone (see `_earlier_path`)
+        prof_acc, prof_n = np.zeros((3, win.size)), 0
+        e_win = np.exp((2j * np.pi / self.n_u) * np.outer(_K, win / cfg.interp))
         detect = 10 ** (cfg.detect_snr_db / 10)
-        noise_ema = snr_ema = None
+        noise_ema = snr_ema = re_ema = None
         miss, settled = 0, False
+        # The PSS is shared by every cell with this N_ID2, and in a frame-synchronised network
+        # they all arrive together; eNBs need not send PSS and SSS through one antenna either.
+        # Only the SSS is the cell's own, so the PSS is added with a weight per subframe:
+        # w = E[S conj(P)] / E[|P|² - noise], S and P the SSS and PSS correlations at the
+        # predicted delay.
+        # A cell alone on its root gets w = 1 (both signals, as before); one whose PSS is mostly
+        # another cell's gets w near 0 (its SSS alone). `pss_weight_alpha` sets the average.
+        w = np.ones(2, np.complex128)
+        w_num = np.zeros(2, np.complex128)
+        w_den = np.zeros(2)
+        w_n = np.zeros(2, np.int64)
         last: Epoch | None = None  # previous good epoch, for the carrier step
         good: State | None = None  # loop state at the last good epoch
         last_seen = cell.n0 + st.k * L + st.theta
@@ -575,24 +616,43 @@ class _Track:
                 continue
             ks, bounds = ks[ok], bounds[ok]
             f_used = -st.nu * fc
-            prof, noise = self.measure(n_id1, n_id2, bounds, ks, f_used)
+            prof, noise, zp, zs = self.measure(n_id1, n_id2, bounds, ks, f_used, w)
+            wk = w[ks % 2]
+            n_sync = sig.N_SYNC * np.abs(1 + np.abs(wk)) ** 2 / (1 + np.abs(wk) ** 2)
             sub = np.abs(prof[:, gate % grid])
             i = np.argmax(sub, axis=1)
             rows = np.arange(sub.shape[0])
+            # PSS and SSS correlations at the predicted delay (the gate's centre), every epoch: at
+            # the peak would follow whichever cell's PSS is strongest.
+            p_pk, s_pk = zp.sum(axis=1), zs.sum(axis=1)
             edge = (i == 0) | (i == gate.size - 1)
             a = sub[rows, np.maximum(i - 1, 0)]
             b = sub[rows, i]
             c = sub[rows, np.minimum(i + 1, gate.size - 1)]
             d = (gate[i] + _parabola(a, b, c)) / cfg.interp
             phase = np.angle(prof[rows, gate[i] % grid])
-            power = np.abs(prof[:, win % grid]) ** 2
+            power = np.stack(
+                [
+                    np.abs(prof[:, win % grid]) ** 2,
+                    np.abs(zs @ e_win) ** 2,
+                    np.abs(zp @ e_win) ** 2,
+                ],
+                axis=1,
+            )
             if noise_ema is None:
                 noise_ema = float(np.median(noise))
             action = None
             for r in range(ks.size):
                 kk = int(ks[r])
                 noise_ema = 0.95 * noise_ema + 0.05 * float(noise[r])
-                snr_post = float(b[r] ** 2 / (2 * sig.N_SYNC * noise_ema)) - 1.0
+                n_noise = sig.N_SYNC * (1 + abs(wk[r]) ** 2)  # noise elements, weighted
+                par, a_w = kk % 2, cfg.pss_weight_alpha
+                w_n[par] += 1
+                w_num[par] = (1 - a_w) * w_num[par] + a_w * s_pk[r] * np.conj(p_pk[r])
+                w_den[par] = (1 - a_w) * w_den[par] + a_w * (
+                    abs(p_pk[r]) ** 2 - sig.N_SYNC * noise_ema
+                )
+                snr_post = float(b[r] ** 2 / (n_noise * noise_ema)) - 1.0
                 st.predict(kk, L, fs, self.q)
                 theta_meas = float(bounds[r] - cell.n0 - kk * L + d[r])
                 sigma = fs / (2 * math.pi * BETA_HZ * math.sqrt(2 * max(snr_post, 1e-3)))
@@ -610,6 +670,8 @@ class _Track:
                     continue
                 miss = 0
                 snr_ema = snr_post if snr_ema is None else 0.9 * snr_ema + 0.1 * snr_post
+                snr_re = snr_post / float(n_sync[r])
+                re_ema = snr_re if re_ema is None else 0.9 * re_ema + 0.1 * snr_re
                 st.update(0, theta_meas, r_code)
                 n_ref = float(bounds[r] + 0.5 * (self.sss_off + self.pss_off) + self.n_u / 2)
                 psi = float(phase[r]) + _phase1(f_used, n_ref, fs)
@@ -642,6 +704,7 @@ class _Track:
                     locked=locked,
                     arc=cell.arc,
                     n0=cell.n0,
+                    n_sync=float(n_sync[r]),
                 )
                 if settled:
                     cell.epochs.append(ep)
@@ -659,6 +722,9 @@ class _Track:
                         action = ("continue", kk + 1)
                         break
                     settled = True
+            # New PSS weights for the next block: |w| <= 1, and 1 until both subframes have data.
+            if np.all(w_n > 0):
+                w = w_num / np.maximum(w_den, np.abs(w_num) + 1e-30)
             if action is None:
                 k = int(ks[-1]) + 1
             elif action[0] == "continue":
@@ -679,8 +745,8 @@ class _Track:
                 pending = gap
                 st = good.copy()
                 k, last, miss = good.k + 1, None, 0
-        cell.snr_db = (10 * math.log10(max(snr_ema, 1e-3) / (2 * sig.N_SYNC))
-                       if snr_ema is not None else float("nan"))  # fmt: skip
+        cell.snr_db = (10 * math.log10(max(re_ema, 1e-5))
+                       if re_ema is not None else float("nan"))  # fmt: skip
         return st
 
     def run_coherent(
@@ -719,7 +785,7 @@ class _Track:
             rows = np.repeat(ok, m)
             kb, bb = ks[rows].reshape(-1, m), bounds[rows].reshape(-1, m)
             f_used = -st.nu * cell.fc
-            prof, noise = self.measure(n_id1, n_id2, bounds[rows], ks[rows], f_used)
+            prof, noise, _, _ = self.measure(n_id1, n_id2, bounds[rows], ks[rows], f_used)
             sub = prof[:, gate % grid].reshape(-1, m, gate.size)
             amp = np.abs(np.fft.fft(sub, n=4 * m, axis=1))  # (blocks, phase steps, delays)
             noise_b = noise.reshape(-1, m).mean(axis=1)
@@ -765,15 +831,22 @@ class _Track:
                        if snr_ema is not None else float("nan"))  # fmt: skip
         return st
 
-    def _earlier_path(self, prof: np.ndarray, win: np.ndarray, noise: float) -> float:
-        """Shift (samples, < 0) to an earlier path in the averaged power profile, or 0.
+    def _earlier_path(self, profs: np.ndarray, win: np.ndarray, noise: float) -> float:
+        """Shift (samples, < 0) to an earlier path in the averaged power profiles, or 0.
 
-        A local maximum earlier than 1.5 samples qualifies if it is within `first_path_rel_db`
-        of the tracked path, `first_path_sidelobe` times above that path's own sidelobe there,
-        and clear of the noise. The earliest qualifying one wins."""
+        `profs` holds the tracked (combined), SSS-only and PSS-only power profiles. A local
+        maximum of the combined one earlier than 1.5 samples qualifies if it is within
+        `first_path_rel_db` of the tracked path, `first_path_sidelobe` times above that path's
+        own sidelobe there, and clear of the noise. The earliest qualifying one wins. The first
+        two conditions must also hold in the SSS alone and in the PSS alone, and the PSS-to-SSS
+        power ratio there must be the tracked path's within `first_path_ratio_db`: a path of
+        this cell is a copy of both, while an earlier cell sharing the PSS root is mostly PSS
+        and another cell's SSS sidelobe mostly SSS (#183)."""
         cfg = self.cfg
+        prof = profs[0]
         zero = int(np.nonzero(win == 0)[0][0])
-        top = prof[max(zero - cfg.interp, 0) : zero + cfg.interp + 1].max()
+        near = slice(max(zero - cfg.interp, 0), zero + cfg.interp + 1)
+        top = prof[near].max()
         floor = 2 * sig.N_SYNC * noise
         side = self.sidelobe[win % self.sidelobe.size]
         rel = 10 ** (cfg.first_path_rel_db / 10)
@@ -787,6 +860,14 @@ class _Track:
             & (v >= cfg.first_path_sidelobe * side[i] * top)
             & (v >= 4 * floor)
         )
+        for one in profs[1:]:  # and in the SSS and the PSS alone
+            top_1 = one[near].max()
+            ok &= (one[i] >= rel * top_1) & (one[i] >= cfg.first_path_sidelobe * side[i] * top_1)
+        # with the PSS-to-SSS power ratio of the tracked path
+        ratio = (profs[2, i] / np.maximum(profs[1, i], 1e-30)) / (
+            profs[2, near].max() / max(profs[1, near].max(), 1e-30)
+        )
+        ok &= np.abs(10 * np.log10(np.maximum(ratio, 1e-30))) <= cfg.first_path_ratio_db
         if ok.any():
             j = int(i[np.argmax(ok)])  # the earliest qualifying peak
             return (win[j] + float(_parabola(prof[j - 1], prof[j], prof[j + 1]))) / cfg.interp
