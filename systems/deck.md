@@ -2,22 +2,22 @@
 
 **The pitch in one line:** a navigation layer that knows when it is wrong, and tells the operator not to trust it.
 
-Seven slides, 286 s, 588 words of script, 17 numbers spoken. Seconds are the words at 2.1 a second, except the demo, which the panel's clock sets at 80 s. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md) (*Numbers the deck speaks or shows*).
+Seven slides, 249 s, 512 words of script, 16 numbers spoken. Seconds are the words at 2.1 a second, except the demo, which the panel's clock sets at 80 s. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md) (*Numbers the deck speaks or shows*).
 
 **Three rules on stage.** Say "simulated" whenever a number is simulated. Say "consistent with a registered site", never "identified". Never say "first": say "we found no published…".
 
 | # | Slide | Seconds | Words | Numbers spoken |
 | --- | --- | --- | --- | --- |
-| 1 | The moment: green and 300 m wrong | 29 | 60 | 1 |
-| 2 | What we built | 29 | 61 | 0 |
+| 1 | The moment: green and 300 m wrong | 21 | 44 | 1 |
+| 2 | What we built | 21 | 45 | 0 |
 | 3 | Live demo | 80 | 156 | 4 |
-| 4 | Real signals | 33 | 69 | 2 |
-| 5 | Where we miss, and what closes the gap | 52 | 109 | 7 |
-| 6 | Every source can lie | 36 | 76 | 1 |
-| 7 | Roadmap | 27 | 57 | 2 |
-| | **Total** | **286** | **588** | **17** |
+| 4 | Real signals | 26 | 54 | 2 |
+| 5 | Where we miss, and what closes the gap | 45 | 95 | 7 |
+| 6 | Every source can lie | 32 | 67 | 1 |
+| 7 | Roadmap | 24 | 51 | 1 |
+| | **Total** | **249** | **512** | **16** |
 
-Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); seven-tenths of a metre, eight metres (4); two metres, thirteen carriers, five minutes, ninety-five percent of fifty, a hundred and thirty-two metres, twelve kilometres, fifty (5); fifty-nine (6); a hundred and twenty metres, a hundred and seventy dollars (7).
+Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); seven-tenths of a metre, eight metres (4); two metres, thirteen carriers, ninety-five percent, fifty, a hundred and thirty-two metres, five minutes, twenty-five (5); fifty-nine (6); a hundred and seventy dollars (7).
 
 ---
 
@@ -29,8 +29,8 @@ Numbers spoken: three hundred metres (1); five seconds, three hundred metres, ha
 
 **Figure:** `jump-3-followed.png` in the guard demo evidence (`analysis/pr-evidence/elshoubky-docs-28-demo-guard/`, PR #220 (open)); until it merges, [`analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/jump-3-followed.png`](../analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/jump-3-followed.png) shows the same moment.
 
-**Script (60 words, 29 s):**
-> Picture a drone whose navigation display is green, with a tight error bound, while it is three hundred metres off course. That is worse than losing GPS: nobody knows to stop. A spoofer only has to wait for the filter to take the fake GPS back. We built a navigation layer that knows when it is wrong, and says so.
+**Script (44 words, 21 s):**
+> Picture a drone whose display is green, with a tight error bound, while it is three hundred metres off course. That is worse than losing GPS: nobody knows to stop. We built a navigation layer that knows when it is wrong, and says so.
 
 **If asked:** Q9 (why refuse GPS after a jump).
 
@@ -45,8 +45,8 @@ Numbers spoken: three hundred metres (1); five seconds, three hundred metres, ha
 
 **Figure:** [`analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/outage-1-clean.png`](../analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/outage-1-clean.png) (panel, simulation, real tower sites on the map).
 
-**Script (61 words, 29 s):**
-> A receive-only payload: a Raspberry Pi, a low-cost radio, a GPS receiver, a motion sensor and a barometer. It never transmits. It records real cell towers alongside GPS and motion. A laptop turns that into a position with an error bound, and tells the operator when not to trust it. Every number we show says whether it is simulated or real.
+**Script (45 words, 21 s):**
+> A receive-only payload: a Raspberry Pi, a low-cost radio, a GPS receiver, a motion sensor and a barometer. It records real cell towers alongside GPS. A laptop turns that into a position with an error bound, and tells the operator when not to trust it.
 
 Fallback: the script no longer says the laptop "fuses everything": today the default filter rejects nearly every tower reading (slide 5). "Error bound" means a bound under our model (slide 6).
 
@@ -65,7 +65,7 @@ Fallback: the script no longer says the laptop "fuses everything": today the def
 
 If Enter comes too early in segment 2, carry on and show `jump-3-followed.png` afterwards (runbook *Fallbacks*). The guard is opt-in, not our default: say so if asked.
 
-Room for one more segment: a demo of the towers helping (learned noise and hopping, sim study) may be added (#266). No script here. It would add 25 s: 311 s in all at this pace, so about 55 words would have to come out of slides 2 and 4 to 7 first to stay under #268's 4 min 45 s.
+Room for one more segment: a demo of the towers helping (learned noise and hopping, sim study) may be added (#266). No script here. It would add about 25 s: 274 s in all at this pace, inside #268's 4 min 45 s.
 
 **If asked:** one seed is not a statistic (Q9 has the 50-run numbers; the guard still has hazardous epochs on 3 of 50 seeds); Q16 (did towers contribute); Q19 (GPS returning after an outage).
 
@@ -80,8 +80,8 @@ Room for one more segment: a demo of the towers helping (learned noise and hoppi
 
 **Figure:** [`analysis/results/lte-measured-noise/white_vs_snr.png`](../analysis/results/lte-measured-noise/white_vs_snr.png) (real).
 
-**Script (69 words, 33 s):**
-> This part is real. On strong cells our low-cost radio's range jitter is seven-tenths of a metre, but a slower error of about eight metres sits on top, and the radio does not report it. On two real sessions with GPS removed in software, standing still, the towers made position worse, by kilometres: the filter trusts readings noisier than they claim. And nothing is measured on the move yet.
+**Script (54 words, 26 s):**
+> This part is real. On strong cells our radio's range jitter is seven-tenths of a metre, but a slower error of about eight metres sits on top, unreported. On two real sessions with GPS removed in software, standing still, the towers made position worse, by kilometres. And nothing is measured on the move yet.
 
 Source: ADR-0036 on `main` (numbers regenerated after #245: white σ 0.73 m at 13–16 dB; S(1 s) median 8.1 m). GPS cut: #245's rerun of #233, not re-run by us ([`lte-reacq-steps/NOTES.md`](../analysis/results/lte-reacq-steps/NOTES.md) *GPS cut*): `ekf` median at 300 s 21,553 m (`20261111-0151`) and 10,718 m (`20261111-0233`) with LTE against 0.6 m and 1.3 m without. #245 fixed most of the front end's arc steps; the filter still trusts records told 1 to 5 m that are off by tens of metres. Both predate ADR-0047's default (not rerun). If asked for the number, give it with that caveat.
 
@@ -101,8 +101,8 @@ Ladder, worst second of the per-second 95th percentile across 50 runs, 0–300 s
 
 **Figure:** the stacked-fixes ladder, `analysis/results/stacked-fixes/ladder.png` in draft PR #247 (sim, `challenge-drone-outage` and `challenge-drone-hop-outage`, seeds 0–49, commit 35d061c).
 
-**Script (109 words, 52 s):**
-> In simulation, against our own targets. What works: GPS jumps and a drifting GPS clock are caught within seconds, with no false alarms on clean runs. What does not yet: accuracy without GPS. The radio claims two metres of noise when the truth is tens, so the filter over-trusts the few tower readings it accepts and ends up worse than with no towers. Learn each tower's real noise and hop across thirteen carriers, which our payload cannot do yet, and at every second of the first five minutes, ninety-five percent of fifty simulated flights are within a hundred and thirty-two metres, down from twelve kilometres. Still short of fifty.
+**Script (95 words, 45 s):**
+> In simulation, against our own targets. Detection works: GPS jumps and a drifting GPS clock are caught within seconds, with no false alarms. Accuracy without GPS does not yet. The radio claims two metres of noise when the truth is tens, so the filter over-trusts the towers and does worse than with none. Learn each tower's real noise and hop across thirteen carriers, which our payload cannot do yet, and ninety-five percent of fifty simulated flights are within a hundred and thirty-two metres at every second of the first five minutes. Our target is twenty-five.
 
 Fallback: #247 is a draft on unmerged branches; if a judge asks, say so. The statistic is the agreed one (ADR-0034, *Amendment*): at each second of 0–300 s after GPS loss, the 95th percentile across the 50 runs; 132 m is the worst of those seconds, at second 88. Told the true noise the same setup reaches 111 m; with LTE noise measured from our captures 105 m; with modelled arc restarts 151 m (#262, draft). The slow drag: 1 of 50 on the leg as flown, 50 of 50 with 13 carriers hopped and #263's rule, median 127 s (Q7).
 
@@ -126,8 +126,8 @@ Fallback: #247 is a draft on unmerged branches; if a judge asks, say so. The sta
 
 **Figure:** [`analysis/pr-evidence/shrikar-feat-206-spoof-decision/spoof-decision-real-sky.png`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/spoof-decision-real-sky.png) (real session, fake sky injected in software).
 
-**Script (76 words, 36 s):**
-> Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so in our design they may contradict GPS time, but never confirm it. On a real recording we faked the GPS sky in software: all fifty-nine fake sky reports were flagged, with no false alarm on the real ones. And our bound is a bound under our model: in simulation the error still escapes it, and we report that.
+**Script (67 words, 32 s):**
+> Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so by design they may contradict GPS time, never confirm it. On a real recording we faked the GPS sky in software: all fifty-nine fakes were flagged, with no false alarm. And our bound holds only under our model: in simulation the error still escapes it, and we report that.
 
 Source: sky-map decision, #239 (merged, #250; ADR-0041 Accepted), [`summary.md`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/summary.md): real session `20261111-0040-static-fullsuite`, fake sky from 300 s, 59 of 59 faked skyviews flagged (suspect or spoofed) for each of three fake skies; 0 false alarms in 120 real skyviews. Bound: #251 (draft, verdict Not ready), `challenge-drone-outage`, 1 carrier, seeds 0–199: 45.33 % of epochs above HPL from GPS loss for `ekf`, 0.45 % for the opt-in `ekf-honest`; single runs still escape (worst 18.5 %); the 2 m/s ramp escapes every filter (99.3 %). The tower-time rule is our design (ADR-0024); the refutation of GPS time by tower time is planned, not built (Q11).
 
@@ -144,8 +144,8 @@ Source: sky-map decision, #239 (merged, #250; ADR-0041 Accepted), [`summary.md`]
 
 **Figure:** the error-against-masts-heard figure of the carrier hopping study ([`analysis/results/hopping-study/error_vs_masts.png`](../analysis/results/hopping-study/error_vs_masts.png), #179 merged via #250; simulation).
 
-**Script (57 words, 27 s):**
-> Our first user: an operator of inspection or delivery drones below a hundred and twenty metres over Ottawa. The radios and antennas cost under a hundred and seventy dollars; the full payload is not yet priced or weighed. Next: flights with independent truth, then fault statistics from many hours of data, then a multi-frequency receiver. Thank you.
+**Script (51 words, 24 s):**
+> Our first user: an operator of inspection or delivery drones over a city. The radios and antennas cost under a hundred and seventy dollars; the full payload is not yet priced or weighed. Next: flights with independent truth, fault statistics from many hours of data, then a multi-frequency receiver. Thank you.
 
 Source: [`hardware/bom.md`](../hardware/bom.md): radios and antennas CAD 169.54 as bought; Pi, GPS HAT, IMU and barometer supplied, price `TBD`; weight and current draw `TBD`.
 
