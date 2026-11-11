@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -112,17 +113,50 @@ def summarize(results: list[dict], estimators, seeds) -> dict:
                         "p95_change_m_max": float(np.max(d)),
                         "seeds_better": int(np.sum(d < 0)),
                         "seeds_worse": int(np.sum(d > 0)),
+                        "sign_test_p": sign_test_p(int(np.sum(d < 0)), int(np.sum(d > 0))),
                     }
                 )
             out[f"{est} {cond}"] = row
     return out
 
 
+def sign_test_p(better: int, worse: int) -> float:
+    """Two-sided exact sign test: how likely a split at least this uneven is if VOR changed
+    nothing (ties dropped)."""
+    n = better + worse
+    if n == 0:
+        return 1.0
+    k = min(better, worse)
+    return min(1.0, 2.0 * sum(math.comb(n, i) for i in range(k + 1)) / 2.0**n)
+
+
+def same_as(conditions: dict, estimators, ref: str = "ekf", rtol: float = 1e-9) -> list[str]:
+    """The estimators whose every summary number equals `ref`'s to `rtol`, in both conditions
+    (an estimator with extra, unused states differs from `ref` in rounding only)."""
+
+    def close(a: dict | None, b: dict | None) -> bool:
+        return (
+            a is not None
+            and b is not None
+            and a.keys() == b.keys()
+            and all(np.isclose(a[k], b[k], rtol=rtol, atol=0.0) for k in a)
+        )
+
+    return [
+        e
+        for e in estimators
+        if e != ref
+        and all(
+            close(conditions.get(f"{e} {c}"), conditions.get(f"{ref} {c}")) for c in CONDITIONS
+        )
+    ]
+
+
 def table(conditions: dict) -> str:
     head = (
         "| Estimator | Condition | Outage p95, median / worst (seed) (m) | Outage max, worst "
         "(seed) (m) | HPL >= error, mean / min | Misleading epochs | NEES median | "
-        "p95 change with VOR, median [min, max] (m) | Seeds better / worse |\n"
+        "p95 change with VOR, median [min, max] (m) | Seeds better / worse (sign test p) |\n"
         "|---|---|---|---|---|---|---|---|---|\n"
     )
     rows = []
@@ -130,7 +164,8 @@ def table(conditions: dict) -> str:
         est, cond = name.split(" ", 1)
         paired = (
             f"{s['p95_change_m_median']:+.1f} [{s['p95_change_m_min']:+.1f}, "
-            f"{s['p95_change_m_max']:+.1f}] | {s['seeds_better']} / {s['seeds_worse']}"
+            f"{s['p95_change_m_max']:+.1f}] | {s['seeds_better']} / {s['seeds_worse']} "
+            f"({s['sign_test_p']:.2f})"
             if "p95_change_m_median" in s
             else "- | -"
         )
@@ -215,12 +250,16 @@ def main() -> None:
         ["git", "describe", "--always", "--dirty", "--abbrev=12"], capture_output=True, text=True
     ).stdout.strip()
     conditions = summarize(results, estimators, seeds)
+    same = [f"`{e}`" for e in same_as(conditions, estimators)]
     summary = {"commit": commit, "scenario": SCENARIO, "seeds": seeds, "conditions": conditions}
     (args.out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     (args.out / "summary.md").write_text(
         f"# VOR ablation, {SCENARIO}\n\nSim, every error value `TBC`. Commit `{commit}`, "
-        f"`python analysis/vor_ablation.py --runs {args.runs} --out {args.out}`. Seeds "
-        f"0-{args.runs - 1}, paired: towers = the same run with its `vor` records dropped.\n\n"
+        f"`python analysis/vor_ablation.py --runs {args.runs} --jobs {args.jobs} "
+        f"--out {args.out}`. Seeds "
+        f"0-{args.runs - 1}, paired: towers = the same run with its `vor` records dropped. "
+        f"The scenario has no IMU records, so `ekf-imu` predicts as `ekf` does. Every summary "
+        f"number equal to `ekf`'s (to 1e-9, relative): {', '.join(same) or 'none'}.\n\n"
         + table(conditions)
     )
     plot(results, estimators, load(SCENARIO), args.out / "vor_ablation.png")

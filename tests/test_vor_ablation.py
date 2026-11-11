@@ -57,9 +57,25 @@ def test_summary_pairs_by_seed_and_names_the_worst_run():
     assert v["hpl_bound_frac_min"] == pytest.approx(0.9)
     assert v["hpl_bound_frac_mean"] == pytest.approx(2.9 / 3)
     assert v["misleading_epochs_total"] == 2
+    assert v["sign_test_p"] == 1.0
     assert "p95_change_m_median" not in t
     md = ablation.table(s)
-    assert "| `ekf` | +VOR | 30.0 / 55.0 (8) |" in md and "| 1 / 1 |" in md
+    assert "| `ekf` | +VOR | 30.0 / 55.0 (8) |" in md and "| 1 / 1 (1.00) |" in md
+
+
+def test_sign_test_and_identical_estimators():
+    assert ablation.sign_test_p(0, 0) == 1.0
+    assert ablation.sign_test_p(10, 0) == pytest.approx(2 / 2**10)
+    assert ablation.sign_test_p(30, 20) == pytest.approx(0.2026, abs=1e-4)
+    assert ablation.sign_test_p(3, 7) == ablation.sign_test_p(7, 3)
+    s = ablation.summarize([_result(40, 30)], ("ekf",), seeds=[0])
+    both = {**s, **{k.replace("ekf", "ekf-mhss"): dict(v) for k, v in s.items()}}
+    assert ablation.same_as(both, ("ekf", "ekf-mhss")) == ["ekf-mhss"]
+    both["ekf-mhss +VOR"]["h_nees_mean_median"] += 1e-12  # rounding: still the same
+    assert ablation.same_as(both, ("ekf", "ekf-mhss")) == ["ekf-mhss"]
+    both["ekf-mhss +VOR"]["h_nees_mean_median"] += 1e-6
+    assert ablation.same_as(both, ("ekf", "ekf-mhss")) == []
+    assert ablation.same_as(s, ("ekf", "ekf-imu")) == []  # not run: not the same
 
 
 def test_one_seed_towers_arm_scores_the_plain_approach():
