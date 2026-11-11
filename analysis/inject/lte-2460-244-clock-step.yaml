@@ -1,0 +1,7 @@
+# Faults for `pnt replay <session> --inject analysis/inject/lte-2460-244-clock-step.yaml` (ADR-0015):
+# the clock of the cell heard in the first real LTE capture (EARFCN 2460, PCI 244) steps by 300 m
+# 20 s after the recording's first measurement. Sized like the shared menu's `tower-clock-step`;
+# the time fits a 60 s capture. Not a scenario: only `faults` is read.
+name: lte-2460-244-clock-step
+faults:
+  - {type: tower_clock_step, source: lte, emitter: "lte:2460:244", start_s: 20, offset_m: 300.0}
