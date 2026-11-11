@@ -155,3 +155,14 @@ def test_honest_gnss_after_a_hard_manoeuvre(name):
         assert latches == 1  # latched on the manoeuvre, never released
     elif guard:
         assert latches == 0
+
+
+def test_latch_is_flagged_for_the_spoof_decision():
+    """While latched, the estimate says so (`gnss_jump_latched`, a cue for `integrity.sky`,
+    #206); a run without the guard never does."""
+    spec = _jump(end_s=250.0)
+    est, t, _, _ = _run(spec)
+    flagged = t[["gnss_jump_latched" in e.flags for e in est]]
+    assert flagged.size and flagged[0] >= START_S and flagged[-1] < 250.0 + 1.0
+    plain, _, _, _ = _run(spec, ekf.run)
+    assert not any("gnss_jump_latched" in e.flags for e in plain)

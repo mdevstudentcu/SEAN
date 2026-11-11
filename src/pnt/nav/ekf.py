@@ -862,6 +862,8 @@ class EKF:
             flags.append("time_spoof_suspected")  # GNSS time disagrees with our clock model
         if self.spoof_alarm:
             flags.append("spoof_suspected")  # the towers refute GNSS (#83)
+        if self.jump is not None and self.jump.latched:
+            flags.append("gnss_jump_latched")  # the jump guard refuses GNSS (ADR-0038, #206)
         if self.hostile is not None:
             flags += self.hostile.flags(self.t_ns)
         h = hpl(P3)
