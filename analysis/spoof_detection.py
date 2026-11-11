@@ -31,6 +31,7 @@ import copy
 import json
 import math
 import multiprocessing
+import platform
 import time
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
@@ -154,6 +155,19 @@ def plan(seeds: int, mhss_seeds: int) -> list[tuple[str, str, int]]:
     return tasks
 
 
+def host() -> str:
+    """Where the run ran: OS, CPU model and Python version (CPU times depend on it)."""
+    cpu = platform.processor() or platform.machine()
+    try:
+        for line in Path("/proc/cpuinfo").read_text().splitlines():
+            if line.startswith("model name"):
+                cpu = line.split(":", 1)[1].strip()
+                break
+    except OSError:
+        pass
+    return f"{platform.system()}, {cpu}, Python {platform.python_version()}"
+
+
 def _map(tasks, jobs: int) -> list[dict]:
     if jobs <= 1:
         return [run_one(*t) for t in tasks]
@@ -213,7 +227,8 @@ def summary(data: dict) -> str:
         "# Spoof detection, before and after the tower monitor (#173)",
         "",
         f"Sim, every value `TBC`. Commit {meta['commit']}, `{meta['command']}`, "
-        f"{meta['minutes']:.1f} min. Seeds 0–{meta['seeds'] - 1} "
+        f"{meta['minutes']:.1f} min on {meta.get('host', 'an unrecorded host')}. "
+        f"Seeds 0–{meta['seeds'] - 1} "
         f"(`{MHSS}` 0–{meta['mhss_seeds'] - 1}); the monitor's settings were chosen on seeds "
         "100–109, never on these.",
         "",
@@ -420,6 +435,7 @@ def main(argv=None) -> None:
             "seeds": a.seeds,
             "mhss_seeds": a.mhss_seeds,
             "minutes": (time.time() - t0) / 60.0,
+            "host": host(),
         }
         save_runs({"meta": meta, "runs": runs}, runs_path)
     # the summary is always built from the file as written, so --redraw gives the same tables
