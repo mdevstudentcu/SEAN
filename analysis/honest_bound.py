@@ -25,7 +25,8 @@ Statistics, per (scenario, estimator), pooled over runs:
 - *hazardous*: error over the 50 m alert limit while HPL is at or under it (`pnt.metrics`);
 - *tightness*: at each second after GPS loss, the median over runs of HPL divided by the 95th
   percentile over runs of the error; its median over 0-300 s (#226: <= 3 is still useful);
-- *p95 curve*: the across-run 95th percentile of error at each second (ADR-0034's statistic).
+- *p95 curve*: the across-run 95th percentile of error at each second (ADR-0034's statistic);
+  its worst second over 0-300 s and, where GNSS comes back, over the whole outage.
 
 Committed results need a clean tree; `--report` writes `analysis/results/honest-bound/`.
 """
@@ -72,6 +73,8 @@ T5_BOUND = 0.999  # T5: HPL bounds the error in this share of epochs (TBC)
 TIGHTNESS_MAX = 3.0  # median over 0-300 s of median(HPL) / p95(error) at each second
 TIGHT_WINDOW_S = 300
 P95_HARM = 1.05  # across-run p95 at its worst second, at most this times the unfixed estimator's
+# The same bar over the whole GPS outage (600 s on the drone leg), not only ADR-0034's 0-300 s
+WHOLE_AT_S = (120, 300, 450, 600)  # s after GPS loss: where the whole-outage curve is reported
 
 DRONE_ENTRIES = (
     "nominal",
@@ -531,8 +534,16 @@ def group(runs: list[dict]) -> dict:
     return {k: sorted(v, key=lambda r: r["seed"]) for k, v in out.items()}
 
 
-def cell(runs: list[dict]) -> dict:
-    """The statistics of one (scenario, estimator) over its runs (module docstring)."""
+@functools.cache
+def outage_s(key: str) -> int | None:
+    """Seconds from GPS loss to its end in the scenario of `key`; None without a loss that ends."""
+    loss = gps_loss(spec_of(key), T0_NS)
+    return None if loss is None or loss[1] is None else int(round((loss[1] - loss[0]) / 1e9))
+
+
+def cell(runs: list[dict], outage: int | None = None) -> dict:
+    """The statistics of one (scenario, estimator) over its runs (module docstring). `outage`:
+    seconds from GPS loss to its end, for the whole-outage curves (None: not computed)."""
     n = sum(r["n"] for r in runs)
     nw = sum(r["n_win"] for r in runs)
     worst = max(runs, key=lambda r: r["above_win"] / max(r["n_win"], 1))
@@ -578,6 +589,18 @@ def cell(runs: list[dict]) -> dict:
             if runs[0]["loss_s"] is not None
             else math.nan,  # no GPS loss: time to unsafe is not defined
         )
+    if outage is not None and runs[0]["loss_s"] is not None:
+        a = int(round(runs[0]["loss_s"]))
+        e = np.array([r["err_s"][a : a + outage + 1] for r in runs], float)
+        p95 = np.nanpercentile(e, 95, axis=0)
+        out.update(
+            p95_whole_worst=float(np.nanmax(p95)),
+            p95_whole_worst_at=int(np.nanargmax(p95)),
+            p95_whole_curve=p95,
+            p50_whole_curve=np.nanmedian(e, axis=0),
+            p95_per_run=np.nanpercentile(e, 95, axis=1),  # each run's own, paired by seed
+            seeds=[r["seed"] for r in runs],
+        )
     return out
 
 
@@ -612,7 +635,10 @@ def load_plans(runs_dir: Path) -> dict:
         p["runs"] += doc["runs"]
     for p in out.values():
         p["groups"] = group(p["runs"])
-        p["cells"] = {k: cell(v) for k, v in p["groups"].items()}
+        p["cells"] = {
+            k: cell(v, outage_s(k[0]) if k[0].startswith("drone/") else None)
+            for k, v in p["groups"].items()
+        }
         p["errors"] = [r for r in p["runs"] if "error" in r]
     return out
 
@@ -700,6 +726,7 @@ def bars(p: dict, keys: list[str]) -> list[dict]:
                   and c["hazardous"] == 0)  # fmt: skip
         tight = c.get("tightness", math.nan)
         harm_ratio = c.get("p95_worst", math.nan) / u.get("p95_worst", math.nan)
+        whole = c.get("p95_whole_worst", math.nan) / u.get("p95_whole_worst", math.nan)
         fa = c["false_alarms_per_h"] - u.get("false_alarms_per_h", math.nan)
         out.append({
             "key": key, "name": name, "c": c, "u": u, "d": d, "honest": honest,
@@ -707,6 +734,8 @@ def bars(p: dict, keys: list[str]) -> list[dict]:
             "useful": None if math.isnan(tight) else tight <= TIGHTNESS_MAX,
             "harm_ratio": harm_ratio,
             "no_harm": bool(harm_ratio <= P95_HARM) if not math.isnan(harm_ratio) else None,
+            "whole_ratio": whole,
+            "no_harm_whole": bool(whole <= P95_HARM) if not math.isnan(whole) else None,
             "fa_added": fa,
         })  # fmt: skip
     return out
@@ -720,8 +749,9 @@ def bars_table(bs: list[dict]) -> list[str]:
     lines = [
         "| Scenario | Fix | above HPL from fault (pooled) | worst run | hazardous | Honest "
         "(≤ 1 %, ≤ 5 %, 0) | T5 99.9 % | tightness | Useful (≤ 3) | HPL ≤ 50 m | p95 worst: fix / "
-        "unfixed / default (m) | No harm (≤ 1.05×) | false alarms /h added |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "unfixed / default (m) | No harm (≤ 1.05×) | p95 worst, whole outage: fix / unfixed (m) | "
+        "No harm, whole outage (≤ 1.05×) | false alarms /h added |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for b in bs:
         c, u, d = b["c"], b["u"], b["d"]
@@ -733,8 +763,63 @@ def bars_table(bs: list[dict]) -> list[str]:
             f"{_pct(c['under_al_win'], 1)} | {_num(c.get('p95_worst', math.nan), ',.0f')} / "
             f"{_num(u.get('p95_worst', math.nan), ',.0f')} / "
             f"{_num(d.get('p95_worst', math.nan), ',.0f')} | "
-            f"{_num(b['harm_ratio'], '.3f')} {_yn(b['no_harm'])} | {_num(b['fa_added'], '+.2f')} |"
+            f"{_num(b['harm_ratio'], '.3f')} {_yn(b['no_harm'])} | "
+            f"{_num(c.get('p95_whole_worst', math.nan), ',.0f')} / "
+            f"{_num(u.get('p95_whole_worst', math.nan), ',.0f')} | "
+            f"{_num(b['whole_ratio'], '.3f')} {_yn(b['no_harm_whole'])} | "
+            f"{_num(b['fa_added'], '+.2f')} |"
         )  # fmt: skip
+    return lines
+
+
+def whole_outage_table(p: dict, keys: list[str]) -> list[str]:
+    """Across-run p95 and median of error at `WHOLE_AT_S` after GPS loss and the p95's worst
+    second over the whole outage, for `ekf`, `ekf-learned-noise` and `ekf-honest`, with the
+    honest / learned ratio; then each run's own p95 over the outage, paired by seed."""
+    at = WHOLE_AT_S
+    lines = [
+        "| Scenario | Estimator | runs | "
+        + " | ".join(f"p95 at {t} s" for t in at)
+        + " | p95 worst (m, s) | "
+        + " | ".join(f"median at {t} s" for t in at)
+        + " |",
+        "|---|---|---|" + "---|" * (2 * len(at) + 1),
+    ]
+    notes = []
+    for key in keys:
+        cs = {n: p["cells"].get((key, n, "{}"), {}) for n in FIX}
+        if any("p95_whole_curve" not in c for c in cs.values()):
+            continue
+        for n, c in cs.items():
+            lines.append(
+                f"| `{key}` | `{n}` | {c['runs']} | "
+                + " | ".join(_num(c["p95_whole_curve"][t], ",.0f") for t in at)
+                + f" | {_num(c['p95_whole_worst'], ',.0f')} (s {c['p95_whole_worst_at']}) | "
+                + " | ".join(_num(c["p50_whole_curve"][t], ",.0f") for t in at)
+                + " |"
+            )
+        h, u = cs["ekf-honest"], cs["ekf-learned-noise"]
+        lines.append(
+            f"| `{key}` | honest / learned | | "
+            + " | ".join(
+                _num(h["p95_whole_curve"][t] / u["p95_whole_curve"][t], ".2f") for t in at
+            )
+            + f" | {_num(h['p95_whole_worst'] / u['p95_whole_worst'], '.3f')} | "
+            + " | ".join(
+                _num(h["p50_whole_curve"][t] / u["p50_whole_curve"][t], ".2f") for t in at
+            )
+            + " |"
+        )
+        if h["seeds"] == u["seeds"]:
+            q = h["p95_per_run"] / u["p95_per_run"]
+            i = int(np.argmax(q))
+            notes.append(
+                f"`{key}`: median {np.median(q):.2f}, {np.mean(q > P95_HARM):.0%} of "
+                f"{len(q)} runs over {P95_HARM}×, largest {q[i]:.2f} (seed {h['seeds'][i]})"
+            )
+    if notes:
+        lines += ["", "Each run's own p95 over the outage, `ekf-honest` / `ekf-learned-noise`, "
+                  "paired by seed: " + "; ".join(notes) + "."]  # fmt: skip
     return lines
 
 
@@ -895,6 +980,19 @@ LIMITS = (
     "- **Real barometer.** A BMP180 told 0.3 m read −3.4 to +77.5 m on a static receiver (PR "
     "#241); the sim's barometer is white 0.5 m plus a 1 m bias. Not modelled here.",
 )
+LATE = (
+    "Why the median grows late on 1 carrier ([late-outage.md](late-outage.md), the same seeds "
+    "replayed record by record): `ekf-honest`'s position covariance is larger (it is the honest "
+    "one), so the curvature rule, which skips a radio record whose second-order term "
+    "σ⊥⁴ / (2 r²) exceeds its learned noise, drops more of the LTE records as the outage goes "
+    "on; the gate rejects almost none, and the records it uses carry a smaller R than "
+    "`ekf-learned-noise`'s. Fewer updates, so the typical run drifts further while its HPL "
+    "still covers it. Keeping every record makes both filters far more accurate and breaks "
+    "the bound, so the rule is doing its job. What would fix it is an update that handles the "
+    "nonlinearity instead of dropping the record (an iterated or sigma-point update, or a "
+    "coarse re-acquisition once the position is far off); not tried here.",
+    "",
+)
 MIXED_COMMITS = (
     "- **Hop entries and the sweep** were run at different commits from the 1-carrier part "
     "(provenance lines); the estimator code is the same in all of them, except the "
@@ -956,11 +1054,24 @@ def write_summary(plans: dict, out: Path, figures: list[str], diagnosis: str) ->
             f"{sum(b['t5'] for b in bs)} of {len(bs)}; useful (where there is a GPS loss) on "
             f"{sum(bool(b['useful']) for b in bs)} of {sum(b['useful'] is not None for b in bs)}; "
             f"no harm on {sum(bool(b['no_harm']) for b in bs)} of "
-            f"{sum(b['no_harm'] is not None for b in bs)}. *Useful* tests tightness ≤ 3 only: "
+            f"{sum(b['no_harm'] is not None for b in bs)}, and over the whole outage on "
+            f"{sum(bool(b['no_harm_whole']) for b in bs)} of "
+            f"{sum(b['no_harm_whole'] is not None for b in bs)}. "
+            "*Useful* tests tightness ≤ 3 only: "
             "below 1 (the 2 m/s ramp, 0.02) the HPL is far under the error and the entry fails "
             "*Honest*. *No harm* compares the fix with the same estimator without it "
-            "(`ekf-learned-noise`, `+guard`) at its worst second.",
+            "(`ekf-learned-noise`, `+guard`) at its worst second over 0–300 s (ADR-0034); "
+            "*no harm, whole outage* the same over the whole GPS outage (600 s; not defined on "
+            "the GNSS attacks, which have no outage that ends).",
             "",
+            "## No harm over the whole outage (`stress`)",
+            "",
+            "The across-run 95th percentile and median of horizontal error at seconds after GPS "
+            "loss, and the 95th percentile's worst second over the whole 600 s outage.",
+            "",
+            *whole_outage_table(st, [f"drone/outage/{n}c" for n in CARRIERS]),
+            "",
+            *(LATE if (out / "late-outage.md").exists() else []),
             "## Before and after, every drone scenario key (`stress`)",
             "",
             ROW_HEAD,
