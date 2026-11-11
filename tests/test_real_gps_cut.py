@@ -103,6 +103,7 @@ def test_score_cut_reads_errors_bound_and_slices():
     assert out["max_m"] == pytest.approx(300.0)
     assert out["hpl_bound"] == pytest.approx(101 / 301)
     assert out["misleading"] == 200
+    assert out["above_hpl"] == pytest.approx(200 / 301)
 
 
 def test_score_cut_takes_the_nearest_fix_when_none_falls_on_an_instant():
@@ -219,3 +220,54 @@ def test_dash_session_cuts_gnss_and_gives_truth_on_every_epoch(tmp_path):
     # halfway between the fix at 59 s (0 m) and at 60 s (100 m east)
     mid = next(t for t in truth if t.t_ns == T0 + 59 * S + S // 2)
     assert mid.pos_enu[0] == pytest.approx(50.0)
+
+
+def test_lte_updates_are_counted_by_outcome_and_side_of_the_cut():
+    from pnt.nav import ekf as ekf_module
+
+    f = ekf_module.EKF.__new__(ekf_module.EKF)  # a one-state filter: only what _update reads
+    f.x, f.P = np.zeros(1), np.eye(1)
+    f.last_used, f.last_rejected = {}, {}
+    H, R = np.ones((1, 1)), np.eye(1)
+    update = ekf_module.EKF._update
+    with rgc.count_lte_updates(cut_ns=10) as counts:
+        f._update("lte", 5, 0.1, H, R)  # small innovation, gated: accepted
+        f._update("lte", 5, 1e3, H, R, gate=False)  # first record or new arc: unchecked
+        f._update("lte", 12, 1e6, H, R)  # far outside the gate: rejected
+        f._update("gnss", 12, 0.1, H, R)  # not LTE: not counted
+    assert counts["before"] == {"accepted": 1, "unchecked": 1, "rejected": 0}
+    assert counts["after"] == {"accepted": 0, "unchecked": 0, "rejected": 1}
+    assert ekf_module.EKF._update is update  # restored
+
+
+def test_parse_rows_expands_filters_and_refuses_unknown_pairs():
+    assert rgc.parse_rows(["filters"]) == list(rgc.FILTER_ROWS)
+    assert rgc.parse_rows(["ekf:none", "ekf-honest:told-pr"]) == [
+        ("ekf", "none"),
+        ("ekf-honest", "told-pr"),
+    ]
+    for bad in ("ekf", "no-such-ekf:none", "ekf:made-up"):
+        with pytest.raises(SystemExit):
+            rgc.parse_rows([bad])
+
+
+def test_main_with_rows_writes_the_row_table_figure_and_runs(tmp_path):
+    path = _session(tmp_path)
+    out, runs = tmp_path / "out", tmp_path / "runs"
+    rgc.load.cache_clear()
+    rgc.main([str(path), "--cuts", "60", "--rows", "ekf:none", "ekf-honest:none", "--out",
+              str(out), "--runs-out", str(runs)])  # fmt: skip
+    rgc.load.cache_clear()
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["rows"] == ["ekf|none", "ekf-honest|none"]
+    agg = summary["aggregate"]["ekf-honest|none"]
+    assert agg["lte_updates"]["after"] == {"accepted": 0, "unchecked": 0, "rejected": 0}
+    assert agg["above_hpl"] == pytest.approx(agg["misleading"] / agg["fixes"])
+    assert agg["hpl_held"] == (agg["misleading"] == 0)
+    text = (out / "summary.md").read_text()
+    assert "## LTE updates and HPL, per row" in text and "| ekf-honest | none |" in text
+    assert (out / "error_by_row.png").stat().st_size > 0
+    assert not (out / "error_after_cut.png").exists()
+    rows = json.loads((runs / "runs.json").read_text())
+    assert {r["estimator"] for r in rows} == {"ekf", "ekf-honest", "hold"}
+    assert all("err_m" in r for r in rows)
