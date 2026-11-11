@@ -60,3 +60,21 @@ def test_markdown_writes_deviations_only():
     )
     for absolute in ("12345", "7890", "98.7", "321.9"):
         assert absolute not in md
+
+
+def test_sim_values_are_what_the_scenarios_draw():
+    """The comparison columns are the models the committed scenarios run (`sim/models.py`), not
+    `sim/sensors.BMP280`, which no scenario draws from."""
+    import inspect
+
+    from pnt.sim import models
+    from pnt.sim.scenario import load
+
+    for name in ("uc01-drone-circuit", "challenge-drone-outage", "realistic-nominal"):
+        src = load(name)["sources"]
+        assert src["baro"]["sigma_m"] == sgb.SIM_BARO_SIGMA_M
+        assert src["gnss"]["sigma_m"] == sgb.SIM_GNSS_SIGMA_M
+    bias = inspect.signature(models.baro).parameters["bias_sigma_m"].default
+    assert bias == sgb.SIM_BARO_BIAS_SIGMA_M
+    b = sgb.baro_noise(np.arange(100) * 0.1, np.zeros(100) + np.arange(100) * 1e-3)
+    assert b["sim_noise_m"] == 0.5 and b["sim_bias_sigma_m"] == 1.0
