@@ -1,7 +1,7 @@
 # ADR-0033: ADS-B interference evidence raises the GNSS fault prior
 
 - **Status:** Proposed
-- **Date:** 2026-11-10
+- **Date:** 2026-11-10, amended 2026-11-10 (the warning is not a REQ-04 alarm, decided by the owner: see *Amendment*)
 - **Deciders:** Shrikar Vempati, M. Elshoubky (the two owners)
 - **Traces to:** REQ-04, REQ-02, UC-02, ADR-0024, ADR-0022, threat-model.md (UC-02 row 2)
 
@@ -43,3 +43,13 @@ Option A. The evidence is per aircraft (`pnt.integrity.adsb`): a quality drop be
 - **Reopen if:** recorded traffic (#22 front end) shows nuisance quality drops often enough to
   matter at 2 aircraft and 5 s; REQ-04 sets a false-alert target; or option C is wanted because
   the wider HPL alone does not change any decision.
+
+## Amendment (2026-11-10, decided by the owner)
+
+The ADS-B interference warning is not an alarm under REQ-04 ("false alarms ≤ 1 per hour on
+nominal runs"), so that target does not apply to it. It only raises the GNSS fault prior and sets
+the status to `degraded` (`unsafe` only if the wider HPL passes the alert limit); it never
+excludes GNSS and never raises an alarm (`adsb_interference` and `adsb_spoofed_aircraft` are not
+in `pnt.metrics.ALARM_FLAGS`). Its measured nuisance rate, 1.94 per hour (`analysis/adsb_warning.py`,
+seeds 0–49, `uc02-yow-approach-adsb`, sim), comes from the sim's placeholder quality-dip rate
+(TBC) and is to be re-measured on real FlightStick ADS-B traffic.
