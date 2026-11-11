@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from pnt.integrity.spoof_monitor import SpoofMonitor, f_threshold, towers_test
-from pnt.nav import ESTIMATORS, ekf, estimate
+from pnt.nav import ESTIMATORS, cells, ekf, estimate
 from pnt.sim.scenario import generate, load
 
 SEED = 100
@@ -145,3 +145,79 @@ def test_monitor_reports_no_opinion_with_few_towers():
 
     list(ekf.run(run.measurements, origin_llh=spec["origin_llh"], monitor=mon))
     assert monitors[0].report.towers and all(v is None for v in monitors[0].report.towers.values())
+
+
+# --- carrier hopping (#258, ADR-0037 amendment) ----------------------------------------------
+def _hopped_rows(v: np.ndarray, lag: int, win: int, n_carriers: int = 13) -> list[tuple]:
+    """Synthetic residuals as a dongle hopping `n_carriers` carriers with 1 s dwells hears them:
+    each site is on 1 to 3 carriers and heard only on epochs its carrier is dwelled on, so at
+    most once per window per carrier. One common clock per epoch, as in the test above."""
+    rng = np.random.default_rng(2)
+    n_sites = 26
+    ang = rng.uniform(0, 2 * np.pi, n_sites)
+    u = np.column_stack([np.cos(ang), np.sin(ang)])
+    a = rng.normal(0, 1000, n_sites)
+    on = [set(rng.choice(n_carriers, size=rng.integers(1, 4), replace=False)) for _ in a]
+    rows = []
+    for k in range(lag + win + 1):
+        dwelled = k % n_carriers
+        clock = 300.0 * np.sin(k / 7.0) + 50.0 * k
+        for i in range(n_sites):
+            if dwelled in on[i]:
+                r = a[i] + clock - u[i] @ (v * k) + rng.normal(0, 1.0)
+                rows.append((k * 1_000_000_000, f"s{i}", r, u[i, 0], u[i, 1], 2460 + dwelled))
+    return rows
+
+
+def test_tower_test_has_an_opinion_on_hopped_carriers():
+    """Each site is heard on at most 2 of 10 record epochs, so counted against every epoch no
+    site counts (the rule before #258: rows without a carrier are one carrier). Counted against
+    the epochs its own carriers were on air, most do, and the fit sees the GNSS displacement."""
+    lag, win, v = 30, 10, np.array([2.0, -1.0])
+    rows = _hopped_rows(v, lag, win)
+    at = [(lag + win) * 1_000_000_000, lag * 1_000_000_000, win * 1_000_000_000]
+    assert towers_test([r[:5] for r in rows], *at) is None
+    out = towers_test(rows, *at)
+    assert out is not None
+    g, _, _, n = out
+    assert n >= 5 + 10  # well above min_sites; regression guard
+    # the epoch term takes the mean of the few sites on air at each epoch, so g is smaller than
+    # the true -v * lag, but along it
+    cos = g @ (-v * lag) / np.linalg.norm(g) / np.linalg.norm(v * lag)
+    assert cos > 0.95
+    assert 0.4 < np.linalg.norm(g) / np.linalg.norm(v * lag) < 1.1
+
+
+def _hop_case(entry: str, duration_s: float = 420.0) -> dict:
+    spec = copy.deepcopy(load(f"challenge-drone-hop-{entry}"))
+    spec.update(duration_s=duration_s, name=f"test-hop-{entry}")
+    return spec
+
+
+def test_ramp_is_caught_on_hopped_carriers_req04():
+    """`challenge-drone-hop` (13 carriers, sim, study leg: the payload cannot hop): 2 m/s ramp
+    from 150 s. Before #258 the monitor had no opinion here and never alarmed. Regression guard,
+    not a target: T4's 30 s is not met (analysis/results/drag-with-hopping/summary.md)."""
+    spec = _hop_case("spoof-ramp")
+    start = spec["faults"][0]["start_s"]
+    run, est = _run(spec, "ekf-spoof")
+    alert = _first(est, "spoof_suspected", run.truth[0].t_ns)
+    assert alert is not None and start < alert <= start + 240.0
+
+
+def test_clean_hopped_carriers_raise_no_alarm_with_an_opinion():
+    spec = _hop_case("nominal")
+    run = generate(spec, seed=SEED)
+    monitors, opinions = [], []
+
+    def mon(f):
+        monitors.append(SpoofMonitor(f))
+        return monitors[-1]
+
+    est = []
+    fed = cells.attach(run.measurements, spec["origin_llh"])  # as `estimate` feeds it
+    for e in ekf.run(fed, origin_llh=spec["origin_llh"], monitor=mon):
+        est.append(e)
+        opinions.append(any(v is not None for v in monitors[0].report.towers.values()))
+    assert not any("spoof_suspected" in e.flags for e in est)
+    assert np.mean(opinions) > 0.5  # it had an opinion and kept quiet; regression guard
