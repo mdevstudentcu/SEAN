@@ -1,0 +1,8 @@
+# Faults for `pnt replay <session> --inject analysis/inject/gnss-cut-300s.yaml` (ADR-0015): every
+# GNSS record from 300 s after the recording's first measurement is removed, to the end. On a
+# 600 s session that leaves 300 s without GPS (T1's 300 s, ADR-0034). `analysis/real_gps_cut.py`
+# applies the same fault at several cut times and scores against the withheld fixes (#214).
+# Not a scenario: only `faults` is read.
+name: gnss-cut-300s
+faults:
+  - {type: outage, source: gnss, start_s: 300}

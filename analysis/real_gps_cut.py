@@ -219,6 +219,52 @@ def gps_scatter(fix_pos: np.ndarray) -> dict:
     return {"rms_m": float(np.sqrt(np.mean(d**2))), "p95_m": _p95(d), "max_m": float(d.max())}
 
 
+ARC_STEP_M = 100.0  # m: a new arc's step from its cell's last record counted as a jump
+ARC_GAP_S = 1.0  # s: only arcs that start within this of the last record are judged
+
+
+def arc_steps(meas: list[Measurement]) -> dict:
+    """How far each LTE pseudorange arc starts from where its cell's last arc ended, for arcs
+    that start within ARC_GAP_S of it. The cell's median in-arc rate (our dongle's clock drift
+    against the tower's) times the gap is taken off; whole 10 ms frames are wrapped out. Steps
+    only: no range. Split at ADR-0036's -8 dB by the new arc's first SNR."""
+    by_cell: dict[str, list[Measurement]] = {}
+    for m in meas:
+        if m.source == "lte" and m.kind == "pseudorange":
+            by_cell.setdefault(m.emitter, []).append(m)
+    steps: dict[str, list[float]] = {"above": [], "below": []}
+    for recs in by_cell.values():
+        recs.sort(key=lambda m: m.t_ns)
+        pairs = list(zip(recs, recs[1:], strict=False))
+        rates = [
+            (b.value[0] - a.value[0]) / ((b.t_ns - a.t_ns) / 1e9)
+            for a, b in pairs
+            if a.meta.get("arc") == b.meta.get("arc") and b.t_ns > a.t_ns
+        ]
+        rate = float(np.median(rates)) if rates else 0.0
+        for a, b in pairs:
+            dt = (b.t_ns - a.t_ns) / 1e9
+            if a.meta.get("arc") == b.meta.get("arc") or dt > ARC_GAP_S:
+                continue
+            step = b.value[0] - a.value[0] - rate * dt
+            amb = b.meta.get("ambiguity_m")
+            if amb:
+                step = (step + amb / 2) % amb - amb / 2
+            snr = float(b.meta.get("snr_db", float("-inf")))
+            steps["above" if snr >= ADR36_CUT_DB else "below"].append(abs(step))
+    out = {}
+    for side, v in steps.items():
+        v = np.asarray(v)
+        big = v[v > ARC_STEP_M]
+        out[side] = {
+            "arcs": int(v.size),
+            f"over_{ARC_STEP_M:g}m": int(big.size),
+            "median_jump_m": float(np.median(big)) if big.size else math.nan,
+            "max_jump_m": float(big.max()) if big.size else math.nan,
+        }
+    return out
+
+
 def aggregate(rows: list[dict]) -> dict:
     """Per (estimator, variant): each figure over the cuts (median and worst run), the HPL bound
     rate pooled over every withheld fix, and the ADR-0034 checks on these runs."""
@@ -320,7 +366,54 @@ def markdown(summary: dict) -> str:
         est, var = key.split("|")
         yes = {True: "met", False: "missed"}
         lines.append(f"| {est} | {var} | {yes[a['t1_met']]} | {yes[a['fallback_met']]} |")
-    lines.append("")
+    lines += [
+        "",
+        "## HPL at the same instants",
+        "",
+        "Median over the cuts (m).",
+        "",
+        "| Estimator | LTE | 30 s | 60 s | 120 s | 300 s |",
+        "|---|---|---|---|---|---|",
+    ]
+    for key, a in s["aggregate"].items():
+        if "hpl_bound" not in a:
+            continue
+        est, var = key.split("|")
+        cells = [_fmt(a[f"hpl_{t:g}s_m"]["median"]) for t in AT_S]
+        lines.append(f"| {est} | {var} | {' | '.join(cells)} |")
+    st = s["arc_steps"]
+    big = f"over_{ARC_STEP_M:g}m"
+    lines += [
+        "",
+        "## Where a new LTE arc starts",
+        "",
+        f"Each pseudorange arc that starts within {ARC_GAP_S:g} s of its cell's last record, "
+        "against that record (the cell's in-arc rate taken off, whole frames wrapped out). By the "
+        "new arc's first SNR. Steps only, no range.",
+        "",
+        f"| New arc's SNR | Arcs | Step > {ARC_STEP_M:g} m | Median of those (m) | Largest (m) |",
+        "|---|---|---|---|---|",
+    ]
+    for side, label in (("above", "≥ -8 dB"), ("below", "< -8 dB")):
+        r = st[side]
+        lines.append(
+            f"| {label} | {r['arcs']} | {r[big]} | {_fmt(r['median_jump_m'])} | "
+            f"{_fmt(r['max_jump_m'])} |"
+        )
+    lines += [
+        "",
+        "## What this can and cannot show",
+        "",
+        "- One static receiver at one site, one carrier, a few weak cells. The truth does not "
+        "move, so a filter that holds still (`none`, `hold`) is right by construction: its small "
+        "error says nothing about coasting on a moving drone.",
+        "- The cut times share one recording: the runs are not independent draws, and the "
+        "worst run is not a 95th percentile.",
+        "- Tower positions are the committed table's matches (a hypothesis, `pnt.nav.cells`).",
+        "- The `adr36` variants apply a Proposed ADR's σ in this script only; nothing in `src/` "
+        "changes, and the correlated part ADR-0036 adds (`sigma_corr_m`) is not modelled.",
+        "",
+    ]
     return "\n".join(lines)
 
 
@@ -362,7 +455,10 @@ def plot(rows: list[dict], summary: dict, path: Path) -> None:
             ax.plot(grid, curve(hold, "err_m")[0], color="0.35", lw=1, ls=":", label="hold: error")
         ax.axhline(T1_M, color="0.5", lw=0.8)
         ax.text(grid[-1], T1_M * 1.1, "T1 25 m (TBC)", ha="right", va="bottom", fontsize=7)
+        ax.text(grid[-1], 0.12, "GPS fix scatter (truth noise)", ha="right", fontsize=7)
+        ax.axhspan(0.1, summary["gps_scatter"]["max_m"], color="0.94", lw=0)
         ax.set_yscale("log")
+        ax.set_ylim(0.1, 1e5)
         ax.set_title(est, fontsize=10)
         ax.set_xlabel("s after GPS cut")
         ax.grid(True, which="major", color="0.9", lw=0.6)
@@ -439,6 +535,7 @@ def main(argv=None) -> None:
         "estimators": list(args.estimators),
         "variants": list(args.variants),
         "gps_scatter": gps_scatter(fix_pos),
+        "arc_steps": arc_steps(meas),
         "lte_records_fed": {
             f"{r['estimator']}|{r['variant']}": r["n_lte"] for r in rows if "n_lte" in r
         },
