@@ -108,7 +108,7 @@ Accepted (2026-11-11, owners): option D. Every EKF built on `nav/ekf.py` default
     | `meaconing` | 0 | 293 | |
     | `challenge-approach-outage` | 0 | 22 | 0.41 → 12.2 µs |
 
-    `time-spoof` improves: 20.9 → 5.2 time-misleading epochs per run. `ekf-calibrated` models the towers' multipath and had 0.0 time-misleading epochs per run on `realistic-long-outage` (`analysis/results/calibrated-measured/`), so the tower model (#77) is the likely fix. It has not been tried here.
+    `time-spoof` improves: 20.9 → 5.2 time-misleading epochs per run. `ekf-calibrated` models the towers' multipath and had 0.0 time-misleading epochs per run on `realistic-long-outage` (`analysis/results/calibrated-measured/`), so the tower model (#77) is the likely fix. It has not been tried here. Our clock's noise is not the cause: raising `h0` to the sim's 2 ns/√s (8e-18) left it at 87 time-misleading epochs per run against 93 (`realistic-long-outage`, 10 seeds, scratch run).
   - The owners decide whether the time-integrity cost is accepted or needs a fix before the default is used for figures.
   - `tests/test_ekf_rx_clock_modes.py` fails if the default reverts.
 - **The numbers above came from commits before the rebase onto `e9a9053`** (`37d66b7` and `8b7cbda`, on `c21e047`). The `analysis/rx_clock_in_towers.py` variants keep the old default explicitly, so they still mean what they did.
