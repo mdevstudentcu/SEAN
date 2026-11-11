@@ -1,6 +1,6 @@
 # Results figures: `ekf`
 
-Commit `cb386ca`, seeds 0-49, sim (each model's status is in the *Sim validity* table of `systems/verification.md`). Regenerate with `just figures ekf 50` (or `just results 50 ekf` for `results/final/`).
+Commit `b74010e`, seeds 0-49, sim (each model's status is in the *Sim validity* table of `systems/verification.md`). Regenerate with `just figures ekf 50` (or `just results 50 ekf` for `results/final/`).
 
 Figures: `error_after_gps_loss.png`, `stanford.png`, `ablation.png`, `holdover.png`
 
