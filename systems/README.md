@@ -19,6 +19,7 @@ The source of truth for what we are building and why. When code or another doc d
 | [`architecture.md`](architecture.md) | D1 draft: architecture, key requirements per use case, what is real vs simulated |
 | [`roadmap.md`](roadmap.md) | D3 draft: from hackathon to a certifiable product |
 | [`sim-plan.md`](sim-plan.md) | What the simulation work will build, in what order, and what is still undecided |
+| [`tower-identity.md`](tower-identity.md) | Explainer: how we know which tower we hear and where it is (ISED register, EARFCN + PCI, timing not strength, clocks learned under GPS, unknown towers) |
 
 ## Rules
 
