@@ -45,7 +45,7 @@ From [`hardware/bom.md`](../hardware/bom.md) (CAD before tax, Amazon.ca, 2026-11
 | Built | Payload, LTE front end, tower lookup, estimators, integrity monitor, operator panel, authenticated live link ([`architecture.md`](architecture.md)) |
 | Real signals | LTE range precision measured at rest; GPS sessions with timing pulse; on real static sessions with GPS removed in software, the towers made position worse than none |
 | What works (simulation) | Jumps and GPS clock drift detected within seconds; no false alarms on clean runs; a refused jump stays red and recovers when the spoof ends (opt-in guard) |
-| What does not (simulation) | Accuracy after GPS loss misses our 25 m target and the mentors' 50 m fallback; the slow GPS drag is not caught by default; the bound is not honest on the worst runs |
+| What does not (simulation) | Accuracy after GPS loss misses our 25 m target and the mentors' 50 m fallback; the slow GPS drag is not caught by default; the bound is not honest on the worst runs; honest GPS can stay refused after a long outage once the coast has drifted (#246) |
 | Towers in practice | With the noise the radio reports, the filter rejects nearly every tower reading; after GPS loss it flies on the barometer and dead reckoning |
 | Models | IMU measured; LTE measured at rest, not yet adopted (ADR-0036, Proposed); the rest placeholder |
 
@@ -53,11 +53,11 @@ From [`hardware/bom.md`](../hardware/bom.md) (CAD before tax, Amazon.ca, 2026-11
 
 | Finding | Fix | State |
 | --- | --- | --- |
-| The radio reports only its fast noise; the filter rejects the towers | Learn each tower's noise; split white and slow error, sized from captures (ADR-0036, Proposed; ADR-0039, proposed in draft PR #156); tell the filter the measured σ (ADR-0044, Accepted, opt-in `ekf-measured-sigma`) | In review, opt-in; better on the drone leg, not yet on the timing leg |
+| The radio reports only its fast noise; the filter rejects the towers | Learn each tower's noise; split white and slow error, sized from captures (ADR-0036, Proposed; ADR-0039, proposed in PR #156, open); tell the filter the measured σ (ADR-0044, Accepted, opt-in `ekf-measured-sigma`) | Learned noise in review, opt-in; better on the drone leg, not yet on the timing leg. With 13 carriers hopped (study leg), 132 m on the agreed statistic in simulation, 105 m with LTE noise measured from our captures (draft PRs #247, #262); not met, and not yet run on real data (#256) |
 | One frequency hears 1 to 4 cells, often sectors of one site | Hop frequencies with one radio (ADR-0040, Proposed); coherent integration (merged) | Simulation and synthetic only |
 | A detected jump was followed | Refuse it until GPS steps back (ADR-0038, Proposed) | Merged, opt-in; default-on waits on the manoeuvre follow-up |
-| Deciding whether GPS is spoofed, from signal power and the known sky, is the mentors' first ask | One spoofed-or-not output from the sky and signal power (ADR-0041, Accepted); tower monitor for slow drags (ADR-0037, Proposed) | Sky decision merged (#239), advisory; the tower monitor is opt-in and needs 5 or more sites heard continuously |
-| The bound is honest only where the model is | An honest tower model; a mapper for unregistered cells; a confidence heat map on the track (built, #235) | Heat map built; tower model and mapper open |
+| Deciding whether GPS is spoofed, from signal power and the known sky, is the mentors' first ask | One spoofed-or-not output from the sky and signal power (ADR-0041, Accepted); tower monitor for slow drags (ADR-0037, Proposed) | Sky decision merged (#239), advisory; on a real recording with a fake sky injected, 59 of 59 faked skyviews flagged. The tower monitor is opt-in and needs 5 or more sites heard continuously; a hop rule that lets it work on hopped carriers is in review (PR #263: 50 of 50 seeds, median 127 s, sim study leg) |
+| The bound is honest only where the model is | An honest tower model; a mapper for unregistered cells; a confidence heat map on the track (built, #235) | Heat map built; an honest-bound filter in review (draft PR #251: 0.45 % of epochs above HPL after GPS loss against 45.3 % for `ekf`, worst run 18.5 %, sim); tower model and mapper open |
 | Real captures break front-end assumptions (aliased carriers, cells dropping often) | Doppler records off by default; first-path check and re-find fixed (#245, ADR-0036 *Amendment 2026-11-11 (owners)*) | Merged; 16 to 17 % of re-finds still step over 100 m, and 4 of 40 tracks sit on a carrier alias |
 
 ## Three milestones
@@ -66,7 +66,7 @@ Durations are proposals, `TBC`; none is committed.
 
 | Milestone | What it does | Ends in | Duration (proposed) |
 | --- | --- | --- | --- |
-| **M1. Measure on the move** | Run the fixes together on the agreed statistic; a real session with GPS cut in software; moving captures with independent truth (RTK, not the GPS under test); real frequency hopping; attacks injected into real recordings | The LTE row of *Sim validity* moved to `measured` for motion; T1's fallback met or missed on real-shaped data with the reason; the guard's default-on decision | 3 months, `TBC` |
+| **M1. Measure on the move** | Run the fixes on real sessions with GPS cut in software (#256; so far only the default and `ekf-measured-sigma` have run on them, both worse than no towers); moving captures with independent truth (RTK, not the GPS under test, #259); real frequency hopping; re-admitting honest GPS after a long outage (#246); more attacks injected into real recordings | The LTE row of *Sim validity* moved to `measured` for motion; T1's fallback met or missed on real-shaped data with the reason; the guard's default-on decision | 3 months, `TBC` |
 | **M2. Earn the integrity case** | Many hours of tower data: fault rates per site, per network and per association type; tail overbounds including the slow error; a per-network timing-source survey | Fault priors and the integrity risk derived from data instead of `TBC`; the hypotheses as a fault tree an assessor recognises | 9 months, `TBC` |
 | **M3. Product receiver with a first operator** | A coherent multi-channel receive-only receiver (several frequencies at once, tower identity from SIB1); a better oscillator and IMU; size, weight, power and cost measured | A trial with a first drone operator under a specific-operation risk assessment, with the layer feeding their navigation | 12 months, `TBC` |
 
@@ -90,4 +90,4 @@ Durations are proposals, `TBC`; none is committed.
 
 ---
 
-*Status: 2026-11-11, against `main` at `c21e047`; brought up to `c97e09a` (#245, ADR-0047, ADR-0048). Still open: combined fixes (#218, draft PR #247). Merged since: real GPS cut (#214, #233), spoof decision (#206, #239), tower count (#208, #232), heat map (#207, #235). Sources per row: [`results.md`](results.md).*
+*Status: 2026-11-11, against `main` at `c21e047`; brought up to `c97e09a` (#245, ADR-0047, ADR-0048), then `2499f87` (open PRs #156, #247, #251, #262, #263). Still open: combined fixes (#218, draft PR #247). Merged since: real GPS cut (#214, #233), spoof decision (#206, #239), tower count (#208, #232), heat map (#207, #235). Sources per row: [`results.md`](results.md).*
