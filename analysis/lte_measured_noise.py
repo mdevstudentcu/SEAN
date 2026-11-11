@@ -192,8 +192,8 @@ def block_means(k, v, label, n=10):
 
 def drift_fit(k, v, label) -> dict | None:
     """Slope (m/s) per common label of ≥ MIN_FIT_S, fitted to 1 s means, combined by weight.
-    The standard error comes from the 1 s residuals with an AR(1) widening; error correlated
-    over longer than a piece (the dongle's wander, for one cell) is not in it."""
+    The standard error comes from the 1 s residuals with an AR(1) widening, or from the spread
+    of the pieces' slopes when there are five or more and it is larger."""
     bk, bv, bl = block_means(k, v, label)
     slopes, ws, spans = [], [], []
     for lab in np.unique(bl):
@@ -219,9 +219,13 @@ def drift_fit(k, v, label) -> dict | None:
         return None
     w = np.array(ws)
     sl = float(np.sum(w * np.array(slopes)) / w.sum())
+    se = float(1 / math.sqrt(w.sum()))
+    if len(slopes) >= 5:  # the pieces' own scatter, when it says the error is larger
+        x = np.array(slopes)
+        se = max(se, 1.4826 * float(np.median(np.abs(x - np.median(x)))) / math.sqrt(len(x)))
     return {
         "slope_mps": sl,
-        "se_mps": float(1 / math.sqrt(w.sum())),
+        "se_mps": se,
         "fit_s": sum(spans),
         "pieces": len(slopes),
         "piece_slopes": [round(x, 3) for x in slopes],
