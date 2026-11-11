@@ -1,8 +1,8 @@
 # ADR-0047: `ekf` models our receiver clock in the tower ranges by default
 
-- **Status:** Proposed
-- **Date:** 2026-11-11
-- **Deciders:** team (owner)
+- **Status:** Accepted (option D)
+- **Date:** 2026-11-11 (proposed and accepted)
+- **Deciders:** owners
 - **Traces to:** REQ-01, REQ-02, REQ-04, ADR-0022 (amendment 1), ADR-0030, ADR-0034, #228
 
 ## Context
@@ -80,14 +80,16 @@ What the variants show:
 
 ## Decision
 
-Proposed: option D. Without the sim change, nothing in the estimator removes the `easy` and `meaconing` costs; A or `observed` alone still carry them.
+Accepted (2026-11-11, owners): option D. Every EKF built on `nav/ekf.py` defaults to `pseudorange_receiver_clock="observed"`, and every scenario whose payload has a clock puts it in its tower readings. Without the sim change, nothing in the estimator removes the `easy` and `meaconing` costs; A or `observed` alone still carry them.
 
 ## Consequences
 
-- If D is accepted:
-  - Set `receiver_clock: true` in the `easy` set, `meaconing` and `time-spoof`. `time-spoof` and the rest of the `easy` menu are not measured yet.
-  - Set the `ekf` default to `"observed"`. The opt-in modes are in `nav/ekf.py`, tested in `tests/test_ekf_rx_clock_modes.py`.
-  - Rerun `just results` and the challenge legs, and report the changed default outputs against `main`.
+- **Done (#228, PR #244):**
+  - `receiver_clock: true` in the `easy` set, `meaconing` and `time-spoof`. The sim's draws are unchanged; the towers now carry the clock.
+  - The `EKF` default is `"observed"`. That covers `ekf`, `ekf-imu`, `ekf-mhss`, `ekf-mhss-beacon` and the `-guard` filters. `ekf-calibrated` and `ekf-base` already had the term on, and `baseline` is a separate model.
+  - Before and after against `main`, 50 paired seeds: `analysis/pr-evidence/228/before-after.md`.
+  - `tests/test_ekf_rx_clock_modes.py` fails if the default reverts.
+- **The numbers above came from commits before the rebase onto `e9a9053`** (`37d66b7` and `8b7cbda`, on `c21e047`). The `analysis/rx_clock_in_towers.py` variants keep the old default explicitly, so they still mean what they did.
 - **A does not make the HPL honest.** With the term on, `ekf`'s T1 HPL bound on the worst `realistic-long-outage` run is 0.631. The tower model is still white noise, while the sim adds 50 m of multipath correlated over 30 s and 100 m told-position errors (#77). In the #228 bisection those two were the rest of the gap: with the sim's multipath and told-position error removed, the bound was 1.000 on 5 seeds. `ekf-calibrated` models both and still reaches only 0.887 on its worst run.
 - **The UC-01 drone leg (`challenge-drone-outage`) is a separate problem.** Its front-end records already carry the dongle clock. `ekf` rejects 98 % of them (median NIS 150). Their reported σ is 2 m against the sim's 50 m white noise and 50 m multipath, which likely explains it (not bisected here). That is #147's question, not this one.
 - Reopen if real captures show our clock does not reach the tower ranges (it always does with one shared oscillator), if the base-set cost grows past a stated bar, or if the measured `h_2` of our oscillator is far from 2e-20.
