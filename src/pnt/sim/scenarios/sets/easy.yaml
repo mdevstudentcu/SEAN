@@ -1,5 +1,6 @@
-# Easy: ideal towers. Errors are independent, positions and noise are known exactly, and the
-# receiver clock does not touch the tower readings. A filter should do well here.
+# Easy: ideal towers. Errors are independent, and positions and noise are known exactly. Our
+# receiver clock is in the tower readings, as with any real radio (ADR-0047). A filter should do
+# well here.
 description: Ideal environment for checking that a filter works at all.
 duration_s: 360
 dt_s: 0.1
@@ -11,6 +12,7 @@ sources:
   baro: {rate_hz: 10, sigma_m: 0.5}
   lte:
     model: pseudorange
+    receiver_clock: true   # our clock in every tower reading, as a real radio (ADR-0047)
     rate_hz: 1
     n_emitters: 6
     ring_radius_m: [800, 3000]   # SYNTHETIC geometry

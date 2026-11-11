@@ -11,6 +11,7 @@ sources:
   baro: {rate_hz: 10, sigma_m: 0.5}
   lte:
     model: pseudorange
+    receiver_clock: true   # our clock in every tower reading, as a real radio (ADR-0047)
     rate_hz: 1
     n_emitters: 6
     ring_radius_m: [800, 3000]   # SYNTHETIC geometry until data/reference/ has real sites
