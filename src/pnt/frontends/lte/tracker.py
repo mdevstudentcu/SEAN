@@ -62,6 +62,14 @@ class Config:
     acq_ms: float = 80.0  # search window (16 half-frames), TBC
     max_ppm: float = 5.0  # dongle offset searched (TCXO spec ±1 ppm, cold start more), TBC
     cfo_step_hz: float = 2000.0  # carrier-offset bins: ≤ 1 kHz off costs a 67 µs PSS < 0.1 dB
+    # Smallest 1σ given to the search's carrier offset, TBC (#183). The SSS-to-PSS phase it
+    # comes from assumes the PSS is the cell's own: in a frame-synchronised network every cell
+    # sharing the PSS root (N_ID2) adds to it, and eNBs need not send PSS and SSS through one
+    # antenna. On 20261110-lte-outside-5145 that phase was 0.2 to 0.8 rad off, so the offset
+    # was up to 1,700 Hz wrong while its own 1σ said 20 to 360 Hz. With this floor the loop
+    # takes its rate from the code first and carrier aiding (`carrier_lock_hz`) starts on the
+    # right 200 Hz alias.
+    search_cfo_sigma_hz: float = 1000.0
     # Regression guards, TBC: on 100 noise-only 80 ms windows the largest folded-PSS peak-to-
     # mean was 3.1 and the largest SSS score 6.1 (1 in 1,775 candidates above 6); a true cell's
     # SSS score is 12-15 and a strong cell's PSS ghosts score at most 4.1 on the SSS.
@@ -426,7 +434,7 @@ def _identify(fetch, c0, jf, n_id2, f_bin, h_count, fs, fc, cfg) -> Found | None
         n_id2=n_id2,
         boundary=float(first_sf0),
         f_hz=float(f_bin + f_res),
-        sigma_f_hz=float(1.5 * sigma_f),
+        sigma_f_hz=float(max(1.5 * sigma_f, cfg.search_cfo_sigma_hz)),
         snr_db=float(10 * math.log10(snr_re)),
         pss_metric=0.0,
         sss_metric=float(metric),
