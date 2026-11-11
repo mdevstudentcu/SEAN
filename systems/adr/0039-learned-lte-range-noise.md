@@ -1,4 +1,4 @@
-# ADR-0037: Learn a radio's LTE range noise from its innovations, starting from a prior
+# ADR-0039: Learn a radio's LTE range noise from its innovations, starting from a prior
 
 - **Status:** Proposed
 - **Date:** 2026-11-10
