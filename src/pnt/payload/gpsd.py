@@ -102,7 +102,9 @@ def pps_event(msg: dict) -> dict:
 
 def sky_event(msg: dict) -> dict:
     """A SKY report as the `gnss_sky` event. `listed` says whether gpsd sent a satellite list
-    at all (it is optional); an empty list is a sky with nothing in it, not a missing one."""
+    at all (it is optional); an empty list is a sky with nothing in it, not a missing one.
+    `el` and `az` are the receiver's own elevation and azimuth (degrees) per PRN, for the
+    satellites gpsd gives them for (#206: the sky-map spoof check, ADR-0041)."""
     sats = msg.get("satellites") or []
     used = [s for s in sats if s.get("used")]
     snr = [s["ss"] for s in used if "ss" in s]
@@ -115,6 +117,8 @@ def sky_event(msg: dict) -> dict:
         "snr_used_mean": sum(snr) / len(snr) if snr else None,
         "snr_used_min": min(snr) if snr else None,
         "snr": {str(s.get("PRN")): s.get("ss") for s in sats},
+        "el": {str(s.get("PRN")): s["el"] for s in sats if s.get("el") is not None},
+        "az": {str(s.get("PRN")): s["az"] for s in sats if s.get("az") is not None},
     }
 
 
