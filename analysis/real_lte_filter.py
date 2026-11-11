@@ -33,7 +33,6 @@ import numpy as np
 
 from pnt import experiments, nav
 from pnt.integrity.gnss_readmit import GnssReadmit
-from pnt.nav import ekf
 
 HERE = Path(__file__).resolve().parent
 RADIUS_M = 10_000.0  # d: cells.MAX_RANGE_KM, the lookup's own assumption (ADR-0048, TBC)
@@ -58,6 +57,14 @@ CONFIGS = {
     "a+d": ("ekf", {**A, **D}, "told-pr"),
     "default": ("ekf", {}, "told-pr"),
     "default+b+d": ("ekf", {**B, **D}, "told-pr"),
+    # ekf-calibrated-measured (ADR-0043) as registered, and with the tower drift prior that the
+    # post-#245 noise rerun saw between eNBs with both cells >= -8 dB (10.3 m/s; proposal only)
+    "cal-measured": ("ekf-calibrated-measured", {}, "told-pr"),
+    "cal-measured, drift 10.3": (
+        "ekf-calibrated-measured",
+        {"init_tower_drift_sigma": 10.3},
+        "told-pr",
+    ),  # fmt: skip
 }
 KEEP = ("err_60s_m", "err_300s_m", "p95_300s_m", "max_m", "hpl_bound", "misleading",
         "n_fixes", "pre_gnss_excluded", "pre_p95_m")  # fmt: skip
@@ -84,7 +91,7 @@ def estimator(name: str):
     base, config, _ = CONFIGS[name]
     fn = nav.ESTIMATORS[base]
     keywords = dict(getattr(fn, "keywords", {}))
-    return nav.configured(ekf.run, **{**keywords, **config})
+    return nav.configured(getattr(fn, "func", fn), **{**keywords, **config})
 
 
 def run_one(session: str, path: str, name: str, cut_s: float) -> dict:
