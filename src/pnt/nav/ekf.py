@@ -155,6 +155,16 @@ time can't confirm GNSS; differences between towers, their geometry, can refute 
 GNSS position and GNSS time are tracked separately for health, so rejecting one is never hidden
 by accepting the other at the same instant.
 
+GNSS height (#227, ADR-0042 Proposed). A GNSS position fix is gated in 3-D (`CHI2_999[3]`). If
+that gate fails, the horizontal part alone is gated (`CHI2_999[2]`) and, if it passes, used: the
+fix's height is rejected and the estimate carries `gnss_alt_excluded` instead of `gnss_excluded`.
+Why: the barometer is told a few decimetres and updates at 10 Hz, so the vertical state follows
+it; a barometer that wanders by tens of metres (the BMP180 of session #224) then fails the whole
+3-D fix on its height alone, and the horizontal covariance grows with nothing to stop it. Whether
+the barometer or GNSS height is wrong is not decided here: the height is flagged. A fix whose
+3-D gate passes is handled exactly as before, so a run in which the 3-D gate never fails is
+unchanged.
+
 Hostile beacon (`hostile`, off by default, #93, ADR-0025 Proposed): a located jammer's received
 power (`rssi` records with `meta.hostile`) as a low-trust coarse range, behind a promotion gate
 and a weight cap (`nav/hostile.py`). Off, those records are dropped before any prediction, so the
@@ -387,6 +397,7 @@ class EKF:
         self.readmit = gnss_readmit() if gnss_readmit is not None else None
         self.heard_cell_radius_m = heard_cell_radius_m
         self._bounded: dict[str, int] = {}  # emitter -> last time its coverage bound was applied
+        self.gnss_alt_excluded = False  # last GNSS fix used for horizontal only (ADR-0042)
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -849,8 +860,13 @@ class EKF:
             self.readmit.tower(m.t_ns, *self._last_nis)
         if mapped and used and gate and self.gnss_trusted():
             self.rmap.learn(m.emitter, at, float(y) + corr)  # before the map's correction
+        alt_rejected = False
+        if key == "gnss" and m.kind == "position_enu" and verdict == "gate":
+            if not used:  # ADR-0042: the 3-D gate failed; keep the horizontal if it agrees
+                used = alt_rejected = self._update(key, m.t_ns, y[:2], H[:2], R[:2, :2])
+            self.gnss_alt_excluded = alt_rejected
         if self.calibrated:
-            if key in ("gnss", GNSS_TIME) and not used:
+            if key in ("gnss", GNSS_TIME) and (not used or alt_rejected):
                 self._note_trouble(True)  # an alarm precursor: GNSS rejected
             self._record(m, key, gate)
             if m.kind == "pseudorange" and gate and self.detect_spoof:
@@ -1063,6 +1079,8 @@ class EKF:
             flags.append("gnss_unavailable")
         if self.last_rejected.get("gnss", never) > self.last_used.get("gnss", never):
             flags.append("gnss_excluded")
+        elif self.gnss_alt_excluded and "gnss_unavailable" not in flags:
+            flags.append("gnss_alt_excluded")  # horizontal used, height rejected (ADR-0042)
         if self.last_rejected.get(GNSS_TIME, never) > self.last_used.get(GNSS_TIME, never):
             flags.append("time_spoof_suspected")  # GNSS time disagrees with our clock model
         if self.spoof_alarm:
