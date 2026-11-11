@@ -180,8 +180,9 @@ def _start(
             return cell, st
         cell.arc += 1
         cell.n0 = f.boundary
-        nu = -f.f_hz / fc
-        return cell, State(0.0, nu, 0.3**2, 0.0, (f.sigma_f_hz / fc) ** 2, 0)
+        # The rate is the dongle's clock and the tower's, which a new arc does not reset: keep
+        # the loop's, not the search's (good to `search_cfo_sigma_hz` only, #183).
+        return cell, State(0.0, st.nu, 0.3**2, 0.0, st.p11, 0)
     cell = CellTrack(earfcn=seg.earfcn, fc=fc, pci=f.pci, n0=f.boundary)
     nu = -f.f_hz / fc
     return cell, State(0.0, nu, 0.3**2, 0.0, (f.sigma_f_hz / fc) ** 2, 0)
