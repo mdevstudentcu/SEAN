@@ -1,5 +1,5 @@
 """A radio's LTE records report a sigma from timing statistics that can't see multipath (#147).
-The opt-in estimators `ekf-measured-sigma` and `ekf-calibrated-measured-sigma` (ADR-0043
+The opt-in estimators `ekf-measured-sigma` and `ekf-calibrated-measured-sigma` (ADR-0044
 Proposed) tell the filter ADR-0036's measured sigma from each record's SNR instead
 (`pnt.nav.told_sigma`). Every other record, and every default estimator, keeps the reported sigma.
 

@@ -1,6 +1,6 @@
 # What should the filter believe about a radio's LTE records? (#147)
 
-Two fixes for an optimistic reported σ, compared on the same records: **A**, learn each cell's range noise from its innovations (ADR-0039, #156); **B**, tell the filter ADR-0036's measured σ from each record's SNR (`nav/told_sigma.py`, ADR-0043); **B+A**, both; the **default** (the reported σ, 2 m in the sim); and **no LTE** as a reference. Each for `ekf` and `ekf-calibrated`. Every value is `TBC`.
+Two fixes for an optimistic reported σ, compared on the same records: **A**, learn each cell's range noise from its innovations (ADR-0039, #156); **B**, tell the filter ADR-0036's measured σ from each record's SNR (`nav/told_sigma.py`, ADR-0044); **B+A**, both; the **default** (the reported σ, 2 m in the sim); and **no LTE** as a reference. Each for `ekf` and `ekf-calibrated`. Every value is `TBC`.
 
 **Where the numbers come from.** Sim and replay both ran on `src/` at `01154f5` (the replay wrapper at `20bd344`, the same file as on this branch): local branch `cmp147` = #156 rebased onto `main` `c21e047` (branch `fix156`) plus this branch's B commits and the comparison script. `src/` there is the union of the two branches, and on it every default estimator hashes the same as on `main` (PR text). The defaults, B and no LTE reproduce from this branch alone; A and B+A need #156's code as well. The figure and tables are drawn by `analysis/told_sigma_147_report.py` from the JSON beside them.
 

@@ -72,7 +72,7 @@ Code: [`src/pnt/nav/`](../src/pnt/nav/). The registry is `pnt.nav.ESTIMATORS`.
 | `ekf-calibrated-measured` | `ekf` with `ekf-calibrated`'s model, every value measured on real sessions or the filter's default, none from a sim set | Opt-in ([ADR-0043](adr/0043-calibrated-from-measured-values.md), Proposed, #118): a calibrated filter whose consistency on a sim set is a test, not self-consistency |
 | `ekf-guard`, `ekf-imu-guard`, `ekf-calibrated-guard` | `ekf`, `ekf-imu` and `ekf-calibrated` with the GNSS jump guard | Opt-in ([ADR-0038](adr/0038-refuse-detected-gnss-jump.md), Proposed, #184): a detected GNSS position jump is refused until the GNSS stream steps back by it |
 | `ekf-map` | `ekf` with a residual map: each tower's error per 25 m cell, learned while GPS is trusted | Opt-in (P11, [ADR-0032](adr/0032-residual-map.md) Proposed, #95); frozen whenever GPS is not trusted |
-| `ekf-measured-sigma`, `ekf-calibrated-measured-sigma` | `ekf` and `ekf-calibrated` that tell a radio's LTE records ADR-0036's measured sigma from their SNR instead of the front end's (#147) | Opt-in ([ADR-0043](adr/0043-told-sigma-for-radio-records.md), Proposed; `nav/told_sigma.py`); the defaults keep the reported sigma |
+| `ekf-measured-sigma`, `ekf-calibrated-measured-sigma` | `ekf` and `ekf-calibrated` that tell a radio's LTE records ADR-0036's measured sigma from their SNR instead of the front end's (#147) | Opt-in ([ADR-0044](adr/0044-told-sigma-for-radio-records.md), Proposed; `nav/told_sigma.py`); the defaults keep the reported sigma |
 
 In flight on other branches: IMU propagation (stage 2, #12) and further calibrated-clock work. The barometer carries the vertical (ASM-05).
 

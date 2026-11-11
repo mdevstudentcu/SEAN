@@ -1,4 +1,4 @@
-# ADR-0043: Tell radio LTE records ADR-0036's measured sigma, opt-in, beside learned noise
+# ADR-0044: Tell radio LTE records ADR-0036's measured sigma, opt-in, beside learned noise
 
 - **Status:** Proposed
 - **Date:** 2026-11-11
