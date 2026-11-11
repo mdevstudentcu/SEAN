@@ -1,199 +1,104 @@
 # Results
 
-- **Status:** Draft, 2026-11-10 (#28). Collected from PR descriptions and today's captures; nothing here was re-run for this file.
-- **Rule:** every number names its kind and source. **Sim** results come from committed scenarios with every model value `TBC` or `placeholder` ([`verification.md`](verification.md) *Sim validity*), and are never real-world accuracy. **Synthetic** means generated baseband through the real front end. **Registry** means tower-table geometry with no radio. **Real** means a recorded session.
-- **Most sources are open PRs.** A number from an open PR is that PR's evidence, not yet reviewed or merged into `main`. The PR names the commit and command that reproduce it (REQ-10).
-- Targets T1–T5 are in [`plan.md`](plan.md); the mentors' answers of 2026-11-10 and ADR-0034 are in open PR #158.
+- **Status:** Draft, 2026-11-11 (#28), against `main` at `c21e047`. Collected from committed results and PR descriptions; nothing was re-run for this file.
+- **Kinds.** **Real**: a recorded session. **Sim**: committed scenarios whose models are `placeholder` except where [`verification.md`](verification.md) *Sim validity* says `measured`; never real-world accuracy. **Synthetic**: generated baseband through the real front end. **Registry**: the ISED tower table, no radio.
+- **Open PRs.** A number from an open PR is that PR's evidence, not reviewed or merged. It is marked *open*.
+- **Commits** are the ones the source names. Several are pre-rebase hashes not on `main`; open PR #217 maps each to its twin on `main`, given here as "→ twin" where checked in `git log`.
+- **Two T1 statistics.** **A34**: the 95th percentile of horizontal error across runs at each second after GPS loss, worst second of the window ([ADR-0034](adr/0034-targets-after-mentor-answers.md), *Amendment*). **Per-run**: each run's own 95th percentile over the window, then the median or mean over seeds. Only A34 scores T1; per-run numbers are for comparison only.
+- **Placeholders** `TBD (#NNN)` are filled by that issue's work today. No value is guessed.
 
-## 1. The challenge baseline: where we stand
+## (a) What is real
 
-**Sim.** Every estimator on every entry of the three `challenge` legs ([ADR-0030](adr/0030-challenge-benchmark-set.md), Proposed): records shaped as the real front end writes them, the `realistic` set's error sizes (50 m range noise, 50 m multipath, `TBC`), 60 s of GPS, a 600 s outage. Source: open PR #170, `python analysis/challenge_baseline.py --seeds 50 --jobs 3` at `ff5ee58`, seeds 0–49 (`ekf-mhss` 0–19 on six entries per leg; regenerated 2026-11-10 after review, #187).
+### Sessions
 
-| Target (`TBC`) | Result | Verdict |
-| --- | --- | --- |
-| T1, 25 m for 300 s (drone, `outage`) | Best mean 4,284 m (`ekf-calibrated`); no seed of any estimator meets it | **Not met** |
-| T1 fallback, 50 m for 120 s (mentors; ADR-0034, open PR #158) | Best mean 1,580 m | **Not met** |
-| T2, 556 m alert limit (approach, synthetic towers) | No metric scores it; 300 s error 1,313 to 2,344 m, for reference only | **Not scored** |
-| T3, 1.5 µs at 10 min with an honest σ (timing, `outage`) | `ekf`, `ekf-imu`: 49 of 50 seeds (one at 1.55 µs). `ekf-calibrated`: 0.15 µs mean, but its σ bound fails on 13 seeds | **Not met** |
-| T4, 2 m/s position ramp within 30 s | 0 of 50, every estimator, every leg | **Not met** |
-| T4, 50 ns/s time ramp within 60 s | 50 of 50 for `ekf`, `ekf-calibrated`, `ekf-imu` (median 3 s); `baseline` 0 | **Met** by `ekf`, `ekf-calibrated`, `ekf-imu`; `ekf-mhss` ran a reduced set |
-| T4, ≤ 1 false alarm per hour (`nominal`) | 0.0 /h for the four fast estimators; `ekf-mhss` 1.3 /h on the timing leg | **Met** except `ekf-mhss` on timing |
-| T5, HPL bounds the error in ≥ 99.9 % of epochs | Worst runs 0.2 % to 21 % for the fast estimators; `ekf-mhss` 0 hazardous epochs but a worst bound of 78 to 85 % | **Not met** |
+All static, payload Pi 4B. Raw data stays out of git (`data/sessions/`).
 
-Worst case worth naming: `ekf-imu` under the IMU bias entry reaches 77,906 m (`challenge-drone-outage-imu-bias`, 5 runs; 50 seeds: mean 77,213 m; #170).
-
-**The first cause: LTE told the front end's reported sigma makes position worse than no LTE.** Sim, drone leg, 300 s p95, #137 (merged), commit `af2efce`, seeds 0–9:
-
-| What the filter is told | `ekf` | `ekf-calibrated` |
-| --- | --- | --- |
-| 2 m reported sigma (what real records say) | 6,557 m | 5,260 m |
-| The true 50 m | 1,002 m | 832 m |
-| No LTE records | 2,513 m | 2,513 m |
-
-Tracked as #147. A fix that learns each tower's noise from its innovations (open draft PR #156, **Not ready**) brings the drone leg's `ekf-calibrated` mean from 4,284 to 1,411 m (sim, seeds 0–49, base `7e98172` against `9c51e51`), but hazardous epochs rise (56 to 233) and on the timing leg LTE is still worse than none (229 m without LTE).
-
-## 2. Why T1 is missed, and what it would take
-
-### First-principles accuracy budget (UC-01)
-
-**Sim.** Each error term after GPS loss with its source, against Monte Carlo; 120 s of GPS first. Source: open PR #178, `python analysis/accuracy_budget.py --runs 50 --jobs 5` at `cee2607`, seeds 0–49; write-up `systems/accuracy-budget.md` in that PR. `uc01` is `uc01-drone-circuit` (6 synthetic towers, 20 m noise, sim-shaped records); `uc01-realistic` is the same route with the `realistic` set's errors.
-
-| Scenario | Estimator | T1: 25 m / 300 s (budget / Monte Carlo) | Fallback: 50 m / 120 s | Term that sets it |
+| Session(s) | Sensors, conditions | What was measured | What it bounds, and what it cannot | Source |
 | --- | --- | --- | --- | --- |
-| uc01 | `ekf` | 23 / 27 m: missed | 23 / 27 m: met | Range noise after handover |
-| uc01 | `ekf-imu` | 15 / 22 m: **met** | 14 / 22 m: met | Range noise after handover |
-| uc01 | `ekf-calibrated` | 53 / 40 m: missed | 32 / 33 m: met | Calibration noise left in the learned drifts |
-| uc01-realistic | `ekf-calibrated` | 501 / 713 m: missed | 324 / 425 m: missed | Multipath (50 m, `TBC`) and four more terms each over 25 m |
-| uc01-realistic | `ekf`, `ekf-imu` | 7.2 / 4.2 to 9.4 km: missed | missed | Our clock's 20 ppb drift, not modelled in tower ranges |
+| 15 LTE captures, 2026-11-10, two spots: 60 s per carrier and one 1,800 s capture (`20261110-1759-static-out-long-e5060`) | One NESDR SMArt v5 (8-bit samples, `.cu8`), no GPS fix, NTP time | LTE range precision against SNR, the correlated part, clocks of sectors of one site | Precision at rest only. No bias (no position truth), no multipath size, no motion, one neighbourhood | [ADR-0036](adr/0036-lte-measured-error-model.md) (Proposed); [`lte-measured-noise/`](../analysis/results/lte-measured-noise/summary.md), analysis `fdb8fde` → twin `2408c19`; #190 |
+| Same captures, cell lookup | (EARFCN, PCI) against the 2026 ISED table | First spot: each heard cell is used by exactly one registered eNB within the table's 10 km. Second spot (`20261110-1623-static-out-e5060-lte`): PCI 204 is not in the table | A match is a hypothesis: the lookup is made around Carleton, not the receiver | [`lte-scan-20261110/`](../analysis/results/lte-scan-20261110/summary.md); [`verification.md`](verification.md); [`deploy/demo/RUNBOOK.md`](../deploy/demo/RUNBOOK.md) §4 |
+| `20261110-adsb-outside-iq`, 59.4 s | NESDR, readsb on the Pi | 198 frames, 89 with a good CRC; one aircraft, 21 position reports, NACp 10, NIC 8 | No per-frame time, so no message rate or latency; one aircraft says nothing about quality dips | [`verification.md`](verification.md) *First real-air sessions*; #192 |
+| Three VOR captures, 114.6 and 115.2 MHz | Telescopic antenna | No lock in 6 runs (radials spread 87 to 111°) | VOR is sim only | Same |
+| `20261110-0306-static-bench-overnight` | MPU6050 | Noise and bias instability, the only *Sim validity* row now `measured` | The real accelerometer drifts at τ > 100 s; the sim does not | [`verification.md`](verification.md); #157 |
+| `20261111-0040-static-fullsuite`, 595 s | GPS HAT with PPS, NESDR, IMU, barometer | 18 satellites used (median), top-4 C/N0 median 44.2 dB-Hz, HDOP 0.59; jamming indicator 0 in every record | One session on the ground near a building; with the reference at 40 dB-Hz (`TBC`), C/N0 must fall 4.2 dB before the indicator moves | [`gnss-health-20261111-fullsuite/`](../analysis/results/gnss-health-20261111-fullsuite/summary.md), `c1a76d3` → twin `51cd950`; #211 |
+| Seven antenna runs, `20261110-2307` to `-2341-static-ant-*` | NESDR, three antennas | Same spot and antenna: on the ground +14.1 dB, on a 0.5 m chair at the floor; a gap of at least 25.7 dB on PCI 204 | Placement mattered more than the antenna | [`antenna-ab-20261110/`](../analysis/results/antenna-ab-20261110/summary.md); #210 |
+| `20261110-1759-live-laptop` | Pi to laptop over the authenticated link (CurveZMQ) | 28 min streamed | 0 estimates: no GPS fix and no LTE in the stream | [`deploy/demo/RUNBOOK.md`](../deploy/demo/RUNBOOK.md) *Live segment* |
+| PPS on the payload Pi (2026-11-11) | GPS HAT PPS into chrony | PPS std dev 769 ns over 80 s; RMS offset 957 ns | Time-of-day discipline only, not holdover | Open PR #216 |
 
-- Handover (mentors' Q3): on uc01, `ekf-imu` needs 120 s of GPS before loss to meet T1; the fallback needs 30 s (`ekf`, `ekf-imu`) or 120 s (`ekf-calibrated`). With the realistic errors, no calibration time up to 300 s is enough.
-- IMU alone (MPU6050 values measured in open PR #157): ≤ 25 m for 31 s, ≤ 50 m for 43 s.
-- Budget and Monte Carlo disagree in places (listed in #178's write-up, some unexplained).
+### What the LTE captures measured
 
-### Hearing more towers by hopping carriers
+Real. Every value and its session in [`lte-measured-noise/summary.md`](../analysis/results/lte-measured-noise/summary.md); interpretation in ADR-0036.
 
-**Sim.** One dongle dwelling on several carriers in turn on the `challenge` drone leg. Source: open PR #179, `python analysis/accuracy_budget.py --seeds 20 --jobs 3` at `fb62912`, seeds 0–19 paired, `outage` entry; median over seeds of the p95 horizontal error, `ekf` / `ekf-calibrated`.
+| Quantity (10 Hz records) | Value | Sim placeholder it is compared with |
+| --- | --- | --- |
+| White noise, robust σ | 0.63 m at 13 to 16 dB SNR; 2.36 m at −2 to 1 dB; 12.4 m at −11 to −8 dB; 24.7 m at −14 to −11 dB | 50 m white at 1 Hz: 3 to 10 times what was seen at rest (ADR-0036) |
+| Fit at SNR ≥ −8 dB (`TBC`) | σ² = 0.64² + 2.28² / SNR_lin (m) | — |
+| Front end's reported σ against the white part | 1.2 to 2.1 times larger | Sim records report 2 m |
+| Correlated part inside one arc, S(1 s) | 2.4 to 15 m, median 8.3 m (9 cells above 0 dB, tracked ≥ 80 %) | Not in the reported σ at all |
+| Drift between sectors of one eNB | Within 0.5 m/s (−0.18 ± 0.16 m/s, 1,800 s) | Supports one clock per site (ADR-0022, Proposed) |
+| Drift between different eNBs | `TBD` (up to 6.6 m/s seen; no bound) | Sim 0.05 m/s |
+| Front-end faults (#183) | 7 of 39 tracks offset by a multiple of 200 Hz; weak cells break 19 to 105 times a minute; the strongest cell starts a new arc every 8 s on the 1,800 s capture | The sim keeps every arc |
 
-| What is heard | Masts per 10 s | 120 s, told 2 m | 120 s, told the true noise | 300 s, told the true noise |
+Sim against real, same tool (`pnt compare`, #199): the sim's LTE residual is 49.2 m and white (lag-1 −0.06); the real cell's is 21.3 m and smooth (lag-1 1.00), with 0.7 m record to record. Software fault injection into the real recording works (+300 m clock step applied to all 494 records from 20 s), but no position is estimated on it: the session has no origin.
+
+## (b) The scoreboard
+
+Targets: [`plan.md`](plan.md), [ADR-0034](adr/0034-targets-after-mentor-answers.md). Sim unless marked. The `challenge` legs ([ADR-0030](adr/0030-challenge-benchmark-set.md), Proposed) use LTE records shaped as the real front end writes them, 60 s of GPS, then a 600 s outage. #170's numbers are being regenerated (#187).
+
+| Target | Requirement / fallback | Result | Source, seeds | Verdict |
 | --- | --- | --- | --- | --- |
-| 1 carrier (today's leg) | 2 | > 1,000 m | 374 / 413 m | 715 / 963 m |
-| Hop 6 carriers | 9 | > 1,000 m | 112 / 100 m | 129 / 140 m |
-| Hop 13 carriers | 27 | > 1,000 m | 68 / 69 m | 78 / 87 m |
-| Every tower within 3 km, 1 carrier | 13 | > 1,000 m | 64 / 68 m | 66 / 91 m |
+| T1, UC-01 drone | 95 % ≤ 25 m for ≥ 300 s (A34) | `challenge` drone leg, A34: `TBD (#187)`. Per-run, for comparison: best mean 4,284 m (`ekf-calibrated`); 0 of 50 seeds of any estimator within 25 m | #170 at `ff5ee58` (open), seeds 0–49 | **Not met** on the per-run statistic; A34 value `TBD (#187)` |
+| | | `uc01-drone-circuit` (6 synthetic towers, 20 m noise), A34: `ekf-imu` 22 m, `ekf` 27 m, `ekf-calibrated` 40 m. Same route, `realistic` errors: `ekf-calibrated` 713 m | #178 at `cee2607` (open), seeds 0–49 | Met only by `ekf-imu` on the easy synthetic route |
+| T1 fallback | ≤ 50 m for ≥ 120 s (mentors; A34) | `challenge` drone leg, A34: `TBD (#187)`. Per-run: best mean 1,580 m (`ekf`); 0 of 50 seeds within 50 m | #170 (open) | **Not met** on the per-run statistic; A34 value `TBD (#187)` |
+| | | `uc01-drone-circuit`, A34: 22 to 33 m (all three); `realistic` errors: `ekf-calibrated` 425 m | #178 (open) | Met on the easy route only |
+| T2, UC-02 approach | Alert limit 556 m | No metric scores it; approach towers are synthetic | #170 | **Not scored** |
+| T3, UC-03 timing | ≤ 1.5 µs after 10 min, 1-σ bounds ≥ 68 % | `ekf`: 0.44 µs mean, 1.55 µs worst, 49 of 50 seeds; σ bound mean 99.46 %. `ekf-calibrated`: 0.15 µs mean, σ bound fails on 13 seeds | #170 (open), seeds 0–49 | **Not met** (one seed at 1.55 µs) |
+| T4, location jump | Target `TBD` (ADR-0034). Proposed in #176 (`TBC`): ≥ 20 m flagged within 2 s in ≥ 95 % of runs, GNSS kept out while it lasts, no hazardous epoch | Detection: ≥ 20 m in ≥ 95 % of runs, 1.1 s, all four estimators. Kept out: default estimators follow it (50 m jump: 50 of 50 runs hazardous, `ekf`, `realistic`); `ekf-guard` 0 of 20 at every size from 50 m to 1 km | #176 at `6f03e92` (open), seeds 0–49; #191 (merged), seeds 0–19 | Detection met; refusal met only by the opt-in guard; target not adopted |
+| T4, position ramp | 2 m/s detected within 30 s | 0 of 50, every estimator on `main` | #170 (open) | **Not met** |
+| T4, time ramp | 50 ns/s detected within 60 s | 50 of 50 for `ekf`, `ekf-calibrated`, `ekf-imu`; median 3.3, 2.9, 3.3 s | #170 (open) | **Met** |
+| T4, false alarms | ≤ 1 per hour on `nominal` | 0.0 /h for `baseline`, `ekf`, `ekf-calibrated`, `ekf-imu` on all three legs | #170 (open) | **Met** |
+| T5, integrity | HPL bounds the error in ≥ 99.9 % of epochs; no hazardous epoch on fault scenarios | Worst run's bound 0.22 % to 21.18 % (four fast estimators, three legs). `ekf` on drone `outage`: 320 hazardous epochs on 7 of 50 seeds. `ekf-mhss`: 0 hazardous, but unavailable (worst bound 85 % drone, 78 % timing, partial run) | #170 (open) | **Not met** |
 
-- **Order matters:** with the reported 2 m, no number of masts gets under 1 km. Only once the noise is honest (#147) does hopping help, by a factor of five here (374 to 68 m).
-- **Neither target is met even then** (64 m against 50 m at 120 s; 66 m against 25 m at 300 s). What remains is the assumed error sizes, all `TBC`.
-- Real hopping is untested: the sim keeps every arc across a retune. The hop set and dwell are open questions for the owners (#179).
+## (c) What each fix buys
 
-PRs #178 and #179 both add `analysis/accuracy_budget.py` and `analysis/results/accuracy-budget/`, with different content. Which is the team's accuracy budget is open.
+Sim. Each on its own inputs; none of these numbers is A34 except where said. Together: `TBD (#218)`.
 
-### The front end's near-far limit
+| Fix | PR, decision, state | What it buys | What it costs or leaves | Statistic, seeds, commit |
+| --- | --- | --- | --- | --- |
+| **Learned LTE noise**: the filter learns each cell's range noise instead of trusting the reported σ | #156 (open, draft), ADR-0039 Proposed; opt-in `ekf-learned-noise`, `ekf-calibrated-learned-noise` | Drone leg, `ekf`: median 4,034 → 982 m, worst 16,639 → 2,828 m; hazardous epochs 320 (7 seeds) → 0; LTE at least as good as no LTE on 15 → 46 of 50 seeds | Fallback still missed on every drone seed. Timing leg: LTE still worse than none (605 against 197 m median). Opt-in run: 3 hazardous epochs on seed 8 of `tower-clock-step` where the default has none | Per-run 300 s p95; seeds 0–49; `main` `9c5cb31` against `49e09cd` |
+| **Carrier hopping**: one dongle dwells on several carriers in turn | #179 (open), ADR-0040 Proposed; study leg, not benchmark | Told the true noise: 120 s error 374 / 413 m (1 carrier, 2 masts per 10 s) → 68 / 69 m (13 carriers, 27 masts) for `ekf` / `ekf-calibrated` | Told 2 m: over 1,000 m whatever is heard. Neither target met (best 64 m at 120 s). Real hopping untested; the sim keeps every arc | Per-run, median over seeds; seeds 0–19; `fb62912`, reproduced at `a0e80c0` |
+| **Jump guard**: refuse a detected GNSS jump until the GNSS stream steps back | #191 (merged `83bbb97`), ADR-0038 Proposed; opt-in `ekf-guard`, `ekf-imu-guard`, `ekf-calibrated-guard` | Held 300 m jump, drone leg, `ekf`: hazardous epochs per run 5,244 (49/50 seeds) → 3 (3/50); on the spoofed position at +120 s: 44 of 47 → 0 of 50; honest GNSS back 0.1 s (median) after the jump ends, 50 of 50 | The filter then dead-reckons: median error 115 m / 1,263 m / 5,244 m at +30 / +120 / +300 s, HPL 547 m at +30 s (flagged unsafe). Keeps honest GNSS out after 5 of 46 hard manoeuvres with 1 Hz GNSS | [`jump-refusal/summary.md`](../analysis/results/jump-refusal/summary.md), seeds 0–49, `84401c5` → twin `df46bce` |
+| **Tower spoof monitor**: towers tested against GNSS outside the filter, 30 s and 120 s lags, ≥ 5 sites | #180 (open), ADR-0037 Proposed; opt-in `ekf-spoof` | 2 m/s ramp with every tower within 3 km heard (17 eNBs): 0 → 48 of 50 seeds, 131 s median, 313 s worst | Drone leg as committed (1 to 3 cells): 1 of 50. `realistic` set (4 towers): 0 of 50. 30 s out of reach: the ramp moves 60 m in 30 s against the towers' 34 m (1σ). No false alarms added | Seeds 0–49, `97795d8` |
+| **Coherent integration** in the LTE front end | #171 (merged `9aa896c`), opt-in settings | Synthetic: weakest cell tracked 3 of 3 seeds, same PSS root, −11 → −14 dB | At Carleton (2 km, 24 sectors): 1.0 → 1.0 cells tracked | Synthetic, seeds 0–2, `97a80bf` |
+| **All of the above on the drone leg** | #218 (in progress) | `TBD (#218)` | `TBD (#218)` | A34, seeds 0–49 |
 
-**Synthetic** baseband, link budget `TBC`. Source: #133 (merged), dense case, commit `2444589`, 3 seeds; open PR #171, commit `00b1170`, seeds 0–2.
+Why the noise fix comes first: told 2 m, the drone leg's `ekf` reached 6,557 m at 300 s; told the true 50 m, 1,002 m; with no LTE at all, 2,513 m (sim, per-run p95, #137 at `af2efce`, seeds 0–9; #147).
 
-| Finding | Value | Source |
-| --- | --- | --- |
-| A cell is lost when it is this far below a fully loaded strong one | 13 dB | #133, #131 |
-| Sectors tracked at Carleton (2 km), of 24 sent; second-strongest cell | 1.0; -18.7 dB | #133 |
-| Sectors tracked far from every tower (5 km), of 57 sent | 4.7 | #133 |
-| Weakest cell tracked in 3 of 3 seeds, same PSS root, default / coherent integration | -11 / -14 dB | #171 |
-| Ghost PCIs, either setting | 0 | #133, #171 |
-| Cells tracked at Carleton with coherent integration | 1.0 (no change) | #171 |
+## (d) Spoofing: what is detected, how fast, what is refused
 
-## 3. Spoofing and location jumps
+Sim unless marked. Detection means an alarm flag held 1 s (`pnt.metrics`).
 
-### Location jumps (the mentors' first attack)
+| Attack | Detected | How fast | What the output does | False alarms | Source |
+| --- | --- | --- | --- | --- | --- |
+| GNSS position jump, 20 m to 500 km | Every size, every variant, except one 20 m jump missed by `ekf` on `uc01-drone-circuit` (19/20) | 1.1 s (p95 1.1 s) | Default follows it: hazardous runs at 50 m, 100 m, 300 m, 1 km are 20, 19, 19, 4 of 20 (`ekf`, `realistic`). `ekf-guard`: 0 of 20 at every size | 0 of 20 runs with no jump | ADR-0038; [`pr-evidence/191`](../analysis/pr-evidence/191/guard_jump_sizes.md), seeds 0–19, `9ac2aee` → twin `5a7a1c9` |
+| Jump of 15 m | 30 to 86 % of runs (by estimator and route) | 1.1 s | A missed jump under 20 m left the error ≤ 24 m | 0 in 50 clean runs (5 h) | #176 (open), seeds 0–49 |
+| Small jump then drift (5 or 10 m, then 0.5 or 2 m/s) | At most 24 % of runs | — | Followed to 110 to 430 m | — | #176 (open) |
+| 2 m/s position ramp | 0 of 50 on `main`; 48 of 50 with #180's monitor where 17 eNBs are heard | 131 s median | Followed until detected | None added | #170, #180 (open) |
+| Meaconing (5 s late replay) | Both `ekf` and `ekf-guard` | 1.1 s | `ekf`: 1,976 misleading epochs per run; `ekf-guard`: 0 | 0 | ADR-0038, `pnt eval meaconing --runs 20` |
+| 50 ns/s GNSS time ramp | 50 of 50 | 3.3 s median, 4.1 s worst (`ekf`) | GNSS time excluded | 0.0 /h on `nominal` | #170 (open); RUNBOOK |
+| Interference seen by aircraft (ADS-B quality and track jumps) | Jammed and spoofed approaches: 50 of 50 warned | Lead over our own zone entry: 48.2 s (jammed), 77.9 s (spoofed), median | Raises the GNSS fault prior in `ekf-mhss`; position unchanged; no integrity gain shown (0 misleading with or without) | 1.94 per hour on the clean approach, from placeholder quality dips | #166 (merged), ADR-0033 Proposed, seeds 0–49 |
+| GNSS jamming by C/N0 (ADR-0031) | Real session: indicator 0 throughout (no alarm in 595 s) | — | Not tested against a real or injected attack | 0 in one 10-min real session | #211 (real) |
+| Satellite that should not be visible; one spoofed-or-not output | `TBD (#206)` | `TBD (#206)` | `TBD (#206)` | `TBD (#206)` | #206 |
+| Wrong tower table: an unregistered tower on one eNB's PCIs | `ekf-mhss` flags the site | — | `ekf-calibrated`: 186.5 m outage p95 and 5,147 hazardous epochs (confidently wrong, #132). `ekf-mhss` stays bounded, median HPL 5.4 km: safe, unavailable | — | Sim over real tower positions, #133 (merged), `7c1afb7`, 10 seeds (`ekf-mhss` 5) |
 
-**Sim.** Source: open PR #176, `python analysis/jump_study.py --runs 50` at `6f03e92`, 50 seeds per size, 8 directions, jumps of 5 to 1,000 m at 150 s; `realistic-uc01` (the realistic set's errors on the UC-01 route) and `uc01` (`uc01-drone-circuit`).
+## (e) What is not shown
 
-| Finding | Value |
-| --- | --- |
-| Smallest jump detected in ≥ 95 % of runs, all four estimators, both environments | 20 m |
-| Detection delay | 1.1 s (the 1 s alarm hold plus one epoch) |
-| Worst error in runs that missed a jump under 20 m | ≤ 24 m |
-| Runs with hazardously misleading epochs, 50 m jump, `ekf` (realistic-uc01 / uc01) | 50 of 50 / 47 of 50 |
-| Same, `ekf-mhss` | 0 of 50, because its HPL exceeds 50 m in every pre-jump epoch (realistic-uc01) and 68 % of them (uc01): unavailable |
-| Jump then drift (5 or 10 m, then 0.5 or 2 m/s): detected | ≤ 24 % of runs; followed to 110 to 430 m |
-| False alarms, 50 clean runs (5 h) | 0 |
-
-**The output follows a detected jump.** Sim, `challenge` legs, open PR #180 at `220a6fa`, seeds 0–49: every jump from 25 m to 300 m is detected in 1.1 s, and 30 s later the error equals the jump on 49 or 50 of 50 seeds. GNSS stays excluded for 13 % of those 30 s at a 25 m jump, 91 % at 300 m (#184). Refusing a detected jump is #184, not started.
-
-Proposed T4 jump target, in #176 for ADR-0034 (`TBC`, not decided): a jump of 20 m or more flagged within 2 s in ≥ 95 % of runs, GNSS kept out while the jump lasts, no hazardously misleading epoch. Against it (sim): detection met; the exclusion clause failed by `ekf`, `ekf-calibrated`, `ekf-imu`.
-
-### The slow position ramp
-
-**Sim.** 2 m/s ramp, T4 asks for 30 s. Source: open PR #180, `python analysis/spoof_detection.py --seeds 50` at `220a6fa`, seeds 0–49; monitor settings chosen on seeds 100–109.
-
-| Where | `ekf` | `ekf-spoof` (opt-in monitor) | Time to alert, median / worst |
-| --- | --- | --- | --- |
-| Drone leg as committed (1 to 3 cells) | 0 of 50 | 1 of 50 | 374 s |
-| Same leg, every tower within 3 km heard (17 eNBs) | 0 of 50 | **48 of 50** | 131 s / 313 s |
-| `realistic` set (4 towers) | 0 of 50 | 0 of 50 | — |
-
-- 30 s is out of reach with these error sizes: in 30 s the ramp moves the fix 60 m, against 34 m (1σ) of the towers' own uncertainty over that lag (#180).
-- No false alarms added on `nominal` or `outage`.
-- Why nothing fired before: on the challenge legs the filter rejects almost every tower reading (5,374 of 5,383 before the spoof, one seed) because records report 2 m (#147). The filter is in effect GPS-only.
-- ADR-0021 leads the pitch with this claim; whether to narrow its wording to what is shown is the owners' open question (#180).
-
-### Time spoofing
-
-**Sim**, #170: a 50 ns/s time ramp is detected on 50 of 50 seeds by `ekf`, `ekf-calibrated`, `ekf-imu`, median 3 s (§1).
-
-## 4. A wrong tower table
-
-**Sim over real tower positions.** Source: #133 (merged) and #132, `analysis/lte_real_geometry.py`, commit `7c1afb7`, 10 seeds (`ekf-mhss` 5). The kind case: 54 cells matched, every tower heard all the time, white noise, no multipath.
-
-| Case | `ekf` outage p95 | `ekf-calibrated` outage p95 | `ekf-calibrated` hazardous epochs |
-| --- | --- | --- | --- |
-| Correct table (kind case) | 10.2 m | 10.4 m | 0 |
-| One eNB filed 500 m off | 11.8 m | 77.8 m | 10 |
-| Unregistered tower on one eNB's PCIs | 10.7 m | 186.5 m | 5,147 |
-
-`ekf-mhss` stays bounded and flags the bad site, with a median HPL of 5.4 km: safe and unavailable. T1 is met only in the kind case.
-
-## 5. Real signals
-
-### The tower table
-
-**Registry**, #133 (merged), commit `2444589`: of the 4,059 rows of the 2026 Ottawa table, seen from Carleton, 3,752 match their own eNB, 307 are dropped as collisions, and **0 match another eNB**.
-
-### First captures, 2026-11-10
-
-**Real.** Payload Pi, one NESDR SMArt v5, outside, static, no GPS fix (so no position truth and NTP-disciplined timestamps). Recorded at `4d3598b`; front end at `9fcf016` (the #181 fix). Sources: open PRs #182 and #177 record the first spot's 2460, 5145 and 5255 sessions; the rest is the team's capture summary of 2026-11-10, `TBC` until a PR records it. Tower matches checked for this file against `data/reference/lte-cells-ottawa.csv` at `8987664`.
-
-First spot (short bundle antenna):
-
-| EARFCN (licensee) | Cells tracked | Registered eNB | Source |
-| --- | --- | --- | --- |
-| 2460 (Rogers) | PCI 244, 48.9 s of a 59.5 s capture at 14.8 dB; PCI 268 found, never tracked | 30066 | #182, #183; session `20261110-1305-lte-outside` |
-| 5255 (TELUS) | PCIs 175, 188 (29.5 s capture) | 219076, 219003 | #182, #177; session `20261110-lte-outside-5255` |
-| 5145 (TELUS) | PCIs 189, 175, 188 (29.5 s capture; 175 and 188 break into 13 and 15 arcs) | 219003, 219076, 219003 | #177, #183; session `20261110-lte-outside-5145` |
-| 2535 (TELUS, Bell) | None (29.5 s capture) | — | #177; session `20261110-lte-outside-2535` |
-
-- **Every tracked cell matched a unique registered eNB** (summary; each (EARFCN, PCI) above appears once in the table).
-- **Reported against observed noise** (summary): reported σ 1.1 to 4.3 m, observed spread 4 to 13 m at 10 Hz, a ratio of 3 to 8. For PCI 244 alone (#177): epoch-to-epoch white noise 0.73 m against 1.26 m reported, and 5.95 m residual from a quadratic fit (tower clock, dongle clock and multipath wander together). The white part is small; the slow part, which the reported σ does not include, is not. This is #147 on real data.
-- **Dongle frequency:** the measured carrier offsets are -0.17 to -0.30 ppm (-120 to -260 Hz; #177, #183), with one outlier, PCI 175 on 5145, at +0.52 ppm (#183: a sign flip or a wrong-carrier lock, open). The capture report (open PR #175) states the same thing as the dongle's frequency error ε = -CFO / f_c, positive when the dongle runs fast: +0.29 ppm on 2460 and +0.26 ppm on 5255 (sessions `20261110-1305-lte-outside` and `20261110-lte-outside-5255`, analysed at `cbbf6ab`). It mixes the dongle's error with each tower's own carrier error.
-- **Timing chain cross-check** (#177): PCI 244's pseudorange slope, 86.8 m/s, agrees with its measured carrier offset (0.30 ppm of c is 90 m/s).
-
-Second spot (13-carrier scan, 60 s each; summary only):
-
-| EARFCN | Cells tracked | In the table? |
-| --- | --- | --- |
-| 5060 (Vidéotron) | Three cells, 54 to 58 s: two sectors of eNB 102790 and PCI 204 | PCI 204 is not |
-| 2560 (TELUS) | PCI 347, 59 s | Not in the table |
-| 2460 (Rogers) | Three weak cells on three eNBs | Yes |
-| 2535, 5035, 5085 | None | — |
-
-- Weaker than the first spot: most cells at the front end's floor, many broken arcs.
-- Three tracked cells are not in the table. The lookup drops them (ADR-0023); a mapper for them is not built.
-
-### Other real results
-
-| Result | Kind | Source |
-| --- | --- | --- |
-| The front end crashed on 2 of the first 4 captures (negative loop variance on a re-found cell); fixed, with a test that fails without the fix | Real | #181; open PRs #182, #177 |
-| Pi streamed to `pnt live` on the laptop over the authenticated CurveZMQ link, 2026-11-10, 18:00 | Real, stream only | Capture summary |
-| MPU6050 noise from an overnight static session `20261110-0306-static-bench-overnight`: accel 240 µg/√Hz, gyro 0.005 °/s/√Hz | Real | Open PR #157 |
-
-## 6. The LEO layer
-
-**Sim, the kind case.** Doppler from real orbits added to the sim-shaped `ottawa-towers` records (not the `challenge` legs). Source: #172 (merged), `analysis/starlink_paired.py`, seeds 0–49, computed on a local merge `b498c7e` of the branch with #154, both since merged into `main`; not re-run on `main`. Fault-window p95 mean:
-
-| Condition | `ekf` | `ekf-calibrated` |
-| --- | --- | --- |
-| Towers only | 19.8 m | 23.9 m |
-| + Iridium | 8.0 m | 14.2 m |
-| + Starlink | 4.4 m | 5.4 m |
-| + both | 4.3 m | 5.0 m |
-
-Every LEO value is `TBC`; the filter is told exact satellite positions. Starlink's downlink is Ku band, which an RTL-SDR cannot receive ([ADR-0013](adr/0013-no-iridium-hardware.md), #172).
-
-## 7. What is not shown
-
-- **Any position from real towers.** One to three cells per carrier, a static receiver and no GPS truth.
-- **Any real-world accuracy, integrity level or detection rate.** Every number in §1 to §4 and §6 is sim or synthetic.
-- **T2** (no metric scores the approach's alert limit), and the approach leg's towers are synthetic.
-- **Real carrier hopping**, a moving receiver through the baseband chain, multipath on real signals.
-- **Attacks injected into a real session** (ADR-0015 asks for it).
-- **The reference station** on hardware, and the hostile-emitter, residual-map and drone-as-reference ideas (open PRs #167, #168, #174), all sim.
-- Whether 1 to 3 cells per carrier is the near-far floor or the towers in range (#177).
+- **Any position from real towers, and any real error after GPS loss:** `TBD (#214)` (a real session with GPS cut in software, scored against the real fixes).
+- **Any real-world accuracy, integrity level or detection rate.** Every number in (b), (c) and (d) is sim or synthetic, except the rows marked real.
+- **T1 on the agreed statistic for the `challenge` legs:** `TBD (#187)`; with every fix together: `TBD (#218)`.
+- **How many towers are enough with the barometer and IMU:** `TBD (#208)`.
+- **A confidence heat map on the track:** `TBD (#207)`. Today the panel shows NOMINAL / DEGRADED / UNSAFE, the HPL against the alert limit and latched alerts.
+- **T2**, scored against its alert limit; the approach leg's towers are synthetic.
+- **Real carrier hopping, a moving capture, multipath size on real signals, bias against truth.**
+- **The reference station on hardware** (sim only, ADR-0020 *Amendment 2026-11-10*), **LEO** (sim only, #172: towers-only 19.8 m → 4.4 m with Starlink in the kind case, every value `TBC`), the hostile beacon (#167: no accuracy gain on these models).
+- **VOR's contribution:** sim, median change −0.7 m, better on 30 and worse on 20 of 50 seeds (sign test p = 0.20, [`vor-ablation/`](../analysis/results/vor-ablation/summary.md)).
