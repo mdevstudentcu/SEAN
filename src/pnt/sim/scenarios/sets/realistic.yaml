@@ -1,11 +1,9 @@
 # Realistic: our best current estimate of a low-cost receiver in the real world. Every value is
 # TBC until the radio test and published data replace it (ADR-0015).
-# Caveat: `receiver_clock: true` puts one shared clock error into every tower reading. `ekf`,
-# `ekf-imu`, `ekf-mhss` and `baseline` leave it out (`pseudorange_receiver_clock` is off by
-# default; `ekf-calibrated` has it on). Once GPS is lost they accept most tower readings (73 % on
-# `realistic-long-outage`), and the position moves with our clock's drift (20 ppb, 6 m/s) while
-# the covariance shrinks: T1 p95 2.4 km, HPL bound 2.7 % on the worst run. Results here measure
-# that gap, not how hard the environment is (#228, ADR-0047 Proposed, rx_clock_in_towers.py).
+# Our clock: `receiver_clock: true` puts the payload clock (20 ppb, 6 m/s) into every
+# tower reading, as any real radio does. Every EKF models it once GNSS time is used (ADR-0047).
+# `baseline` doesn't: on `realistic-long-outage` its position follows that drift once GPS is
+# lost (T1 p95 2.4 km; #228, analysis/rx_clock_in_towers.py).
 description: Best current estimate of real conditions for a low-cost receiver.
 duration_s: 360
 dt_s: 0.1
