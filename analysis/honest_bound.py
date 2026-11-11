@@ -112,6 +112,8 @@ def estimator(name: str, config: dict | None = None):
     fn = combos()[name] if name in combos() else ESTIMATORS[name]
     if not config:
         return fn
+    if not isinstance(fn, functools.partial):
+        return configured(fn, **config)
     return configured(fn.func, **{**fn.keywords, **config})
 
 
@@ -385,8 +387,25 @@ REALISTIC_KEYS = (
 )
 
 
+RX_ON, RX_OFF = {"pseudorange_receiver_clock": True}, {"pseudorange_receiver_clock": False}
+
+
 def plan_realistic(seeds: list[int]) -> list[tuple]:
-    return [(k, s, ("ekf", "ekf-honest"), None) for k in REALISTIC_KEYS for s in seeds]
+    """`ekf` and `ekf-honest`, and each with the receiver-clock switch the other way, so the
+    clock term and the slow-error term are seen apart."""
+    out = []
+    for k in REALISTIC_KEYS:
+        for s in seeds:
+            out += [(k, s, ("ekf", "ekf-honest"), None), (k, s, ("ekf",), RX_ON),
+                    (k, s, ("ekf-honest",), RX_OFF)]  # fmt: skip
+    return out
+
+
+def plan_legs(seeds: list[int]) -> list[tuple]:
+    """The approach leg again, after `ekf-honest` gained the receiver-clock switch (its records
+    carry our clock and no `rx_clock`; the drone and timing legs' records all have `rx_clock`,
+    so the switch leaves them unchanged and the `stress` rows stand)."""
+    return [(f"approach/{e}", s, FIX, None) for e in ("outage", "nominal") for s in seeds[:50]]
 
 
 DIAGNOSE_13C_SEEDS = 10  # ekf-honest takes 40-70 s a run on 13 carriers
@@ -418,6 +437,7 @@ PLANS = {
     "diagnose": plan_diagnose,
     "realistic": plan_realistic,  # held-out seeds
     "realistic-tune": plan_realistic,  # tuning seeds, for the diagnosis
+    "legs": plan_legs,
     "measure": plan_measure,
     "tune": plan_tune,
     "stress": plan_stress,

@@ -1541,10 +1541,17 @@ CALIBRATED_NOISE_TAU_S = 120.0
 # the white noise sigma, 50 m and 50 m; correlation time 30 s; the realistic set's placeholders,
 # as `CALIBRATED` takes them), not fitted to any run. Both TBC until real captures size them
 # (ADR-0036).
+# Our clock in the ranges (`pseudorange_receiver_clock`): on, as the sets that put it there say
+# (`receiver_clock: true`: `realistic`, `challenge-approach`). Left off, every tower's clock had to
+# absorb our 20 ppb drift and the position took the rest: on `realistic-long-outage` (#228) the
+# error was above HPL in 91 % of epochs after GPS loss (tuning seeds 1000-1049). A radio's
+# records (`meta.rx_clock`, every `challenge-drone` and `-timing` record) use their dongle's own
+# clock either way, so on those legs this switch changes nothing.
 HONEST: dict = {
     "noise_tau_s": NOISE_TAU_S,
     "multipath_ratio": 1.0,  # slow / white sigma of a radio's range error (TBC)
     "multipath_tau_s": 30.0,  # s: its correlation time (TBC)
+    "pseudorange_receiver_clock": True,  # the records carry our clock (no value to choose)
 }
 
 
