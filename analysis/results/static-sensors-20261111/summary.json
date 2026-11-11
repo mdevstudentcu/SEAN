@@ -1,0 +1,47 @@
+{
+ "session": "20261111-0040-static-fullsuite",
+ "commit": "bcdf900",
+ "gnss": {
+  "fixes": 600,
+  "rate_hz": 1.0,
+  "span_s": 599.0,
+  "east": {
+   "sigma_m": 0.700981301925787,
+   "peak_to_peak_m": 2.219371977189594,
+   "lag1": 0.9973699761594159,
+   "corr_time_s": 106.0,
+   "reported_sigma_m": 5.391836734693878,
+   "sim_sigma_m": 2.5
+  },
+  "north": {
+   "sigma_m": 0.2169639201191981,
+   "peak_to_peak_m": 0.926242553459674,
+   "lag1": 0.9695226139487608,
+   "corr_time_s": 83.0,
+   "reported_sigma_m": 2.0877551020408163,
+   "sim_sigma_m": 2.5
+  },
+  "up": {
+   "sigma_m": 1.5677853358457492,
+   "peak_to_peak_m": 4.8999999271194215,
+   "lag1": 0.9992945576236028,
+   "corr_time_s": 105.0,
+   "reported_sigma_m": 2.1122448979591835,
+   "sim_sigma_m": 3.75
+  },
+  "horizontal_rms_m": 0.7337902481520595
+ },
+ "baro": {
+  "samples": 5998,
+  "rate_hz": 9.9997831047052,
+  "span_s": 599.699433351,
+  "white_sigma_m": 0.2759958719154602,
+  "sigma_m": 0.3780943645719857,
+  "drift_m_per_min": -0.006891070621754789,
+  "drift_over_span_m": -0.06887618578413451,
+  "wander_10s_means_sigma_m": 0.2221429324995015,
+  "sim_noise_m": 0.3,
+  "sim_drift_m": 1.0,
+  "sim_drift_tau_s": 600.0
+ }
+}
