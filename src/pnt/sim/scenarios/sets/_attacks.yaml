@@ -33,6 +33,9 @@ capture-pi4b:   # the Pi 4B payload board's capture effects (ADR-0018, issue #53
   # 599.4 s, at the same instants on both (starts within 0.5 s), so one shared gap per event:
   # 0.40 per min. Lengths 1.2 to 8.4 s, mean 4.3 s (dropped_samples_est / gaps / rate_hz, both
   # radios). The model draws fixed-length gaps; the real ones vary 7x (deploy/pi/REHEARSAL.md).
+  # This is IQ to the SD card. To a USB drive (20261111-0151-static-fullsuite2, recorded at
+  # c007627): 0 gaps in 599.4 s on both radios, so below about 0.3 per min (95 %), not zero.
+  # Which storage flies is ADR-0042 (Proposed); this profile stays the SD card's until then.
   # timestamp_jitter_ms: TBC. The same session's host arrival latency above the envelope is
   # std 81 / 59 ms, p99 312 / 121 ms (SDR A / B), but records are timed from sample counts
   # against that envelope, so it is not the record timestamp error this term models (TBD).
