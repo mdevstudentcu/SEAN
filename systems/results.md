@@ -16,7 +16,7 @@ All static, payload Pi 4B. Raw data stays out of git (`data/sessions/`).
 
 | Session(s) | Sensors, conditions | What was measured | What it bounds, and what it cannot | Source |
 | --- | --- | --- | --- | --- |
-| 15 LTE captures, 2026-11-10, two spots: 60 s per carrier and one 1,800 s capture (`20261110-1759-static-out-long-e5060`) | One NESDR SMArt v5 (8-bit samples, `.cu8`), no GPS fix, NTP time | LTE range precision against SNR, the correlated part, clocks of sectors of one site | Precision at rest only. No bias (no position truth), no multipath size, no motion, one neighbourhood | [ADR-0036](adr/0036-lte-measured-error-model.md) (Proposed); [`lte-measured-noise/`](../analysis/results/lte-measured-noise/summary.md), analysis `fdb8fde` → twin `2408c19`; #190 |
+| 15 LTE captures, 2026-11-10, two spots: 60 s per carrier and one 1,800 s capture (`20261110-1759-static-out-long-e5060`) | One NESDR SMArt v5 (8-bit samples, `.cu8`), no GPS fix, NTP time | LTE range precision against SNR, the correlated part, clocks of sectors of one site | Precision at rest only. No bias (no position truth), no multipath size, no motion, one neighbourhood | [ADR-0036](adr/0036-lte-measured-error-model.md) (Proposed); [`lte-measured-noise/`](../analysis/results/lte-measured-noise/summary.md), front end and analysis at `8892fca` (after #245's fixes); #190 |
 | Same captures, cell lookup | (EARFCN, PCI) against the 2026 ISED table | First spot: each heard cell is used by exactly one registered eNB within the table's 10 km. Second spot (`20261110-1623-static-out-e5060-lte`): PCI 204 is not in the table | A match is a hypothesis: the lookup is made around Carleton, not the receiver | [`lte-scan-20261110/`](../analysis/results/lte-scan-20261110/summary.md); [`verification.md`](verification.md); [`deploy/demo/RUNBOOK.md`](../deploy/demo/RUNBOOK.md) §4 |
 | `20261110-adsb-outside-iq`, 59.4 s | NESDR, readsb on the Pi | 198 frames, 89 with a good CRC; one aircraft, 21 position reports, NACp 10, NIC 8 | No per-frame time, so no message rate or latency; one aircraft says nothing about quality dips | [`verification.md`](verification.md) *First real-air sessions*; #192 |
 | Three VOR captures, 114.6 and 115.2 MHz | Telescopic antenna | No lock in 6 runs (radials spread 87 to 111°) | VOR is sim only | Same |
@@ -32,13 +32,13 @@ Real. Every value and its session in [`lte-measured-noise/summary.md`](../analys
 
 | Quantity (10 Hz records) | Value | Sim placeholder it is compared with |
 | --- | --- | --- |
-| White noise, robust σ | 0.63 m at 13 to 16 dB SNR; 2.36 m at −2 to 1 dB; 12.4 m at −11 to −8 dB; 24.7 m at −14 to −11 dB | 50 m white at 1 Hz: 3 to 10 times what was seen at rest (ADR-0036) |
-| Fit at SNR ≥ −8 dB (`TBC`) | σ² = 0.64² + 2.28² / SNR_lin (m) | — |
-| Front end's reported σ against the white part | 1.2 to 2.1 times larger | Sim records report 2 m |
-| Correlated part inside one arc, S(1 s) | 2.4 to 15 m, median 8.3 m (9 cells above 0 dB, tracked ≥ 80 %) | Not in the reported σ at all |
-| Drift between sectors of one eNB | Within 0.5 m/s (−0.18 ± 0.16 m/s, 1,800 s) | Supports one clock per site (ADR-0022, Proposed) |
-| Drift between different eNBs | `TBD` (up to 6.6 m/s seen; no bound) | Sim 0.05 m/s |
-| Front-end faults (#183) | 7 of 39 tracks offset by a multiple of 200 Hz; weak cells break 19 to 105 times a minute; the strongest cell starts a new arc every 8 s on the 1,800 s capture | The sim keeps every arc |
+| White noise, robust σ | 0.73 m at 13 to 16 dB SNR; 2.41 m at −2 to 1 dB; 10.9 m at −11 to −8 dB; 22.5 m at −14 to −11 dB (43 records) | 50 m white at 1 Hz: 3 to 10 times what was seen at rest (ADR-0036) |
+| Fit at SNR ≥ −8 dB (`TBC`) | σ² = 0.74² + 2.32² / SNR_lin (m) | — |
+| Front end's reported σ against the white part | 1.3 to 2.0 times larger | Sim records report 2 m |
+| Correlated part inside one arc, S(1 s) | 2.4 to 17 m, median 8.1 m (19 cells above 0 dB, tracked ≥ 80 %) | Not in the reported σ at all |
+| Drift between sectors of one eNB | Within 0.5 m/s (−0.15 ± 0.16 m/s, 1,800 s) | Supports one clock per site (ADR-0022, Proposed) |
+| Drift between different eNBs | `TBD` (up to 24 m/s seen, 10.3 m/s with both cells above −8 dB; no bound) | Sim 0.05 m/s |
+| Front-end faults left after #183's and #245's fixes (merged) | 4 of 40 tracks on a 200 Hz carrier alias; the 2 weak cells break 11 and 19 times a minute; the strongest cell starts a new arc every 10 s on the 1,800 s capture; doppler records are off by default | The sim keeps every arc |
 
 Sim against real, same tool (`pnt compare`, #199): the sim's LTE residual is 49.2 m and white (lag-1 −0.06); the real cell's is 21.3 m and smooth (lag-1 1.00), with 0.7 m record to record. Software fault injection into the real recording works (+300 m clock step applied to all 494 records from 20 s), but no position is estimated on it: the session has no origin.
 
