@@ -182,7 +182,7 @@ When the bound reaches kilometres, add: "The bound is honest but far too wide: t
 
 **Fallback if it fails** (session missing: the script prints `realcut: session … missing` and exits non-zero, nothing else is affected; or the page never connects): show `realcut-2-cut.png` and `realcut-4-bound.png` from `analysis/pr-evidence/elshoubky-feat-264-real-cut-demo/` and say: "On a real ten-minute GPS recording, removing GPS turns the panel red within three seconds, and the bound stays far above the real error. This laptop is missing that recording, so here are the screenshots."
 
-**The real numbers behind it** (`ekf`, cut at 35 s, error against each withheld fix, horizontal, metres relative to that fix; the fix nearest each instant, which is 0.5 s earlier: the fixes fall at x.54 s; computed with `analysis/real_gps_cut.py`'s `load`, `cut_gnss` and `score_cut(..., horizon_s=600)` over `nav.estimate("ekf", ...)`, estimator code as at `a3190ce`. The script's own `err_30s_m` columns come out empty on this session because its 0.05 s match misses the x.54 s fixes):
+**The real numbers behind it** (`ekf`, cut at 35 s, error against each withheld fix, horizontal, metres relative to that fix; the fix nearest each instant, which is 0.46 s earlier: the fixes fall at x.54 s. The four instants are `analysis/real_gps_cut.py <session> --cuts 35 --estimators ekf --variants none --out <dir>`, which since #264's fix scores the nearest withheld fix within 0.5 s; re-run with that fix and the same values as before it. The whole-coast row is beyond the script's 300 s horizon: its `load`, `cut_gnss` and `score_cut(..., horizon_s=600)` over `nav.estimate("ekf", ...)`, not a committed command):
 
 | After the cut | Error | HPL |
 | --- | --- | --- |
@@ -190,7 +190,7 @@ When the bound reaches kilometres, add: "The bound is honest but far too wide: t
 | +60 s | 2.1 m | 1,533 m |
 | +120 s | 2.1 m | 4,189 m |
 | +300 s | 7.4 m | 16,217 m |
-| whole coast (565 s, 565 fixes) | max 13.6 m (at +561 s) | above the error at every fix; smallest ratio 216 |
+| whole coast (565 s, 565 fixes) | max 13.6 m (at +561.5 s) | above the error at every fix; smallest ratio 216 |
 
 Holding the last fix before the cut does as well or better on this stationary receiver (0.6, 0.6 and 1.2 m at +30/+60/+120 s; at most 2.8 m). With GPS left in (no cut), its horizontal is never refused on this session (0 of 6,002 epochs, with #241; without it #241 reports 273 of 601 s refused), while its height is set aside on 2,602 epochs (about T+49–50 and from T+201 on). The status turns unsafe because HPL passes the 50 m alert limit 3 s after the cut, not because the filter sees that it is wrong. `ekf` does not use the IMU (`ekf-imu` does); *In use* shows `baro` only after the cut.
 
