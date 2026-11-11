@@ -24,11 +24,17 @@ then on the filter treats them as tower states it already knew.
 Trust: the map is only as good as the drone's GPS. A spoofed drone learns, and hands on, clocks
 that fit the spoofed track: in `analysis/p12_spoofed_map.py` both a 2 m/s ramp and a 300 m
 jump during the build carry into the user's position. The map is one more fault hypothesis, not
-truth. One guard, opt-in (`refuse_flagged`): the drone withholds its map if its own filter raised
-a spoof cue while it learned (the cues ADR-0041's decision reads: the towers' spoof alarm,
-`spoof_suspected`, and the jump guard's latch, `gnss_jump_latched`, the latter only when the
-filter runs the guard, ADR-0038). It does nothing against a spoof the drone does not flag: the
-slow ramp, on the four towers of `p12-drone-map-handoff`, raises neither.
+truth, and it is GNSS-derived (ADR-0024's class; `TowerMap.dependency`, from
+`integrity.dependency.TOWER_MAP`): evidence that rests on it never counts as independent of
+GNSS. The export policy (ADR-0048), the default of `learn` and `export`:
+- The build runs the jump guard (ADR-0038, `jump_guard=JumpGuard`), whose rollback takes the
+  tower clocks back to before a detected jump; that map is the one exported.
+- The drone withholds its map (`MapWithheld`) if its filter raised a spoof cue while it learned
+  (the cues ADR-0041's decision reads: the towers' spoof alarm, `spoof_suspected`, and the jump
+  guard's latch, `gnss_jump_latched`).
+`jump_guard=None` and `refuse_flagged=False` turn each off, for analysis only. Neither covers a
+spoof the drone does not flag: the slow ramp, on the four towers of `p12-drone-map-handoff`,
+raises no cue (the tower monitor, ADR-0037, needs five sites; #173).
 """
 
 from __future__ import annotations
@@ -40,7 +46,12 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from pnt.core.measurement import Measurement
+from pnt.integrity import dependency as dep
+from pnt.integrity.jump_guard import JumpGuard
 from pnt.nav.ekf import CALIBRATED, EKF, _two_state_q
+
+# ADR-0048: how a drone builds its map by default, over `CALIBRATED`: with the jump guard
+BUILD = {"jump_guard": JumpGuard}
 
 
 @dataclass(frozen=True)
@@ -52,6 +63,11 @@ class TowerMap:
     cov: np.ndarray
     sites: dict[str, str] = field(default_factory=dict)  # emitter -> site, as the filter had it
     builders: dict[str, str] = field(default_factory=dict)  # site -> builder
+
+    @property
+    def dependency(self) -> str:
+        """ADR-0024 class of the map, and of anything that uses it: GNSS-derived (ADR-0048)."""
+        return dep.tag(dep.TOWER_MAP)
 
     def index(self, key: str) -> int:
         """Index in `mean` of a clock block's offset, or of a site's east position error."""
@@ -154,10 +170,10 @@ def spoof_cues(ekf: EKF) -> list[str]:
     return cues
 
 
-def export(ekf: EKF, refuse_flagged: bool = False) -> TowerMap:
-    """The tower map of a calibrated filter, at its current time. With `refuse_flagged`, raises
-    `MapWithheld` instead if the filter raised a spoof cue (`spoof_cues`) since it started: what
-    it learned may fit a spoofed track (module docstring)."""
+def export(ekf: EKF, refuse_flagged: bool = True) -> TowerMap:
+    """The tower map of a calibrated filter, at its current time. Raises `MapWithheld` instead if
+    the filter raised a spoof cue (`spoof_cues`) since it started: what it learned may fit a
+    spoofed track (ADR-0048). `refuse_flagged=False` exports it anyway, for analysis only."""
     if not ekf.calibrated:
         raise ValueError("a tower map needs the calibrated clock model (offset and drift)")
     if refuse_flagged and (cues := spoof_cues(ekf)):
@@ -181,14 +197,15 @@ def learn(
     measurements: Iterable[Measurement],
     until_ns: int,
     origin_llh=None,
-    refuse_flagged: bool = False,
+    refuse_flagged: bool = True,
     **config,
 ) -> TowerMap:
-    """Run the `ekf-calibrated` filter (`CALIBRATED`, `config` over it) over the time-ordered
-    `measurements` before `until_ns`, and export its map at `until_ns` (`refuse_flagged` as
-    `export`; `jump_guard=JumpGuard` in `config` runs the jump guard). Only `payload` records
-    are used, as `pnt.nav.estimate` would pass them."""
-    ekf = EKF(origin_llh=origin_llh, **{**CALIBRATED, **config})
+    """Run the `ekf-calibrated` filter with the jump guard (`CALIBRATED`, then `BUILD`, then
+    `config` over them) over the time-ordered `measurements` before `until_ns`, and export its
+    map at `until_ns` (`refuse_flagged` as `export`). `jump_guard=None` in `config` builds
+    without the guard, for analysis only. Only `payload` records are used, as
+    `pnt.nav.estimate` would pass them."""
+    ekf = EKF(origin_llh=origin_llh, **{**CALIBRATED, **BUILD, **config})
     for m in measurements:
         if m.t_ns >= until_ns:
             break
