@@ -2,12 +2,14 @@
 JSON form, propagation and use as a filter's prior."""
 
 import copy
+import functools
 
 import numpy as np
 import pytest
 
 from pnt.core.measurement import Measurement
 from pnt.core.time import s_to_ns
+from pnt.integrity.jump_guard import JumpGuard
 from pnt.metrics import gps_loss
 from pnt.nav import ekf, tower_map
 from pnt.nav.ekf import CALIBRATED, EKF, _two_state_q
@@ -172,3 +174,90 @@ def test_a_drone_map_hands_off_to_the_ground_user():
     assert plain == list(ekf.run_calibrated(user, origin_llh=spec["origin_llh"], tower_map=None))
     aided = list(ekf.run_calibrated(user, origin_llh=spec["origin_llh"], tower_map=learned))
     assert len(aided) == len(plain) > 800
+
+
+# --- a drone whose GNSS is spoofed while it builds the map (#96) ------------------------------
+# The drone learns over 0-300 s and is spoofed from 150 s (the rates and sizes of `spoof-ramp`
+# and `spoof-jump`); the user switches on at 300 s with the map and loses GPS at 310 s.
+SPOOFS = {
+    "honest": [],
+    "ramp": [
+        {
+            "type": "spoof_ramp",
+            "source": "gnss",
+            "start_s": 150,
+            "rate_mps": 2.0,
+            "direction_deg": 45,
+        }
+    ],  # fmt: skip
+    "jump": [
+        {"type": "spoof_jump", "source": "gnss", "start_s": 150, "offset_enu_m": [300, 0, 0]}
+    ],
+}
+HANDOFF_NS, LOSS_NS = T0_NS + s_to_ns(300), T0_NS + s_to_ns(310)
+
+
+@functools.cache
+def _spoofed_run(kind: str, seed: int = 1):
+    spec = load("p12-drone-map-handoff")
+    spec["duration_s"] = 400
+    spec["ground_user"]["start_s"] = 300
+    spec["ground_user"]["faults"] = [{"type": "outage", "source": "gnss", "start_s": 310}]
+    spec["faults"] = SPOOFS[kind]
+    return spec, generate(spec, seed=seed)
+
+
+def _user_error(kind: str, learned: tower_map.TowerMap) -> np.ndarray:
+    """The user's horizontal error 30 to 90 s after its GPS loss, starting from `learned`."""
+    spec, run = _spoofed_run(kind)
+    user = run.ground_user
+    truth = {t.t_ns: np.asarray(t.pos_enu[:2]) for t in user.truth}
+    est = ekf.run_calibrated(user.measurements, origin_llh=spec["origin_llh"], tower_map=learned)
+    return np.array(
+        [
+            np.linalg.norm(np.asarray(e.pos_enu[:2]) - truth[e.t_ns])
+            for e in est
+            if LOSS_NS + s_to_ns(30) <= e.t_ns < LOSS_NS + s_to_ns(90)
+        ]
+    )
+
+
+def _learn(kind: str, **kw) -> tower_map.TowerMap:
+    spec, run = _spoofed_run(kind)
+    return tower_map.learn(run.measurements, HANDOFF_NS, origin_llh=spec["origin_llh"], **kw)
+
+
+def test_a_spoofed_drone_hands_on_a_map_that_drags_the_ground_user():
+    # The user's own records are the same in every case: only the drone's GNSS differs
+    assert _spoofed_run("ramp")[1].ground_user.measurements == (
+        _spoofed_run("honest")[1].ground_user.measurements
+    )
+    honest = np.median(_user_error("honest", _learn("honest")))
+    for kind in ("ramp", "jump"):
+        # Seed 1: honest 52 m, ramp 180 m, jump 208 m (median 30-90 s after GPS loss)
+        assert np.median(_user_error(kind, _learn(kind))) > honest + 80, kind
+
+
+def test_a_drone_that_flagged_a_jump_withholds_its_map():
+    # By default the map is exported whatever the drone saw
+    _learn("jump", jump_guard=JumpGuard)
+    with pytest.raises(tower_map.MapWithheld, match="gnss_jump_latched"):
+        _learn("jump", jump_guard=JumpGuard, refuse_flagged=True)
+    # An honest build is handed on
+    _learn("honest", jump_guard=JumpGuard, refuse_flagged=True)
+    # Not covered: the ramp raises no cue on these four towers, so its map is handed on.
+    # If this starts failing a detector now catches the ramp: update `tower_map`'s docstring
+    # and analysis/results/p12-spoofed-map/
+    _learn("ramp", jump_guard=JumpGuard, refuse_flagged=True)
+
+
+def test_the_towers_spoof_alarm_also_withholds_the_map():
+    f = EKF(**CALIBRATED)
+    f.process(_fix(T0_NS))
+    assert tower_map.spoof_cues(f) == []
+    tower_map.export(f, refuse_flagged=True)
+    f.raise_spoof_alarm()  # as the filter's own detector or a monitor (ADR-0037) raises it
+    assert tower_map.spoof_cues(f) == ["spoof_suspected"]
+    tower_map.export(f)  # opt-in: the default still exports
+    with pytest.raises(tower_map.MapWithheld, match="spoof_suspected"):
+        tower_map.export(f, refuse_flagged=True)
