@@ -44,11 +44,11 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0039](0039-learned-lte-range-noise.md) | Learn a radio's LTE range noise from its innovations, starting from a prior (opt-in: `*-learned-noise` estimators) | Proposed |
 | [0040](0040-lte-carrier-hopping.md) | LTE carrier hopping with one dongle is a modelled option and a study leg, not part of the benchmark | Proposed |
 | [0041](0041-spoof-decision-from-the-sky.md) | Decide GNSS spoofing from the known sky, the satellites' power and the other cues (advisory) | Accepted |
-| [0041](0041-honest-bound-slow-lte-error-state.md) | Carry the slow part of a radio's LTE error as a state, so the bound stays honest after GPS loss (opt-in: `ekf-honest`, `ekf-honest-guard`) | Proposed |
 | [0042](0042-record-iq-to-usb-drive.md) | Record the radios' IQ to a USB drive, not the SD card | Accepted |
 | [0043](0043-calibrated-from-measured-values.md) | A calibrated EKF sized from measured values, not from the sim it is scored on (opt-in: `ekf-calibrated-measured`) | Accepted |
 | [0044](0044-told-sigma-for-radio-records.md) | Tell radio LTE records ADR-0036's measured sigma, opt-in, beside learned noise (opt-in: `*-measured-sigma` estimators; `arc_bias` option) | Accepted |
 | [0045](0045-gnss-horizontal-when-height-fails.md) | When only its height fails the gate, a GNSS fix's horizontal part is still used | Proposed |
+| [0046](0046-honest-bound-slow-lte-error-state.md) | Carry the slow part of a radio's LTE error as a state, so the bound stays honest after GPS loss (opt-in: `ekf-honest`, `ekf-honest-guard`) | Proposed |
 | [0047](0047-ekf-models-our-clock-in-tower-ranges.md) | `ekf` models our receiver clock in the tower ranges once GNSS time is used, and scenarios put the payload clock in their towers | Accepted (option D) |
 | [0048](0048-p12-map-export-policy.md) | A drone's tower map (P12) is built with the jump guard, withheld if the build was flagged, and GNSS-derived | Accepted |
 | [0049](0049-measured-ladder-study-sizes.md) | Sizes of the measured-noise ladder study (#257): only the white part measured, every other size assumed and swept; a study-only arc model | Proposed |

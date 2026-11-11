@@ -1,4 +1,4 @@
-"""The opt-in honest-bound estimators (#226, ADR-0041 Proposed): `ekf-learned-noise` with the slow
+"""The opt-in honest-bound estimators (#226, ADR-0046 Proposed): `ekf-learned-noise` with the slow
 part of a radio's range error carried as a Gauss-Markov state per emitter, so the stated
 covariance (and HPL) does not shrink below the error once GPS is lost (REQ-02).
 

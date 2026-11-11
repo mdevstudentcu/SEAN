@@ -1,7 +1,7 @@
 """Is the protection level honest after GPS loss, and still useful? (#226), sim.
 
 Per epoch, the true horizontal error against HPL, for the default filters, their opt-in variants
-and the opt-in honest-bound variants (ADR-0041 Proposed), on the challenge legs. Reuses the T5
+and the opt-in honest-bound variants (ADR-0046 Proposed), on the challenge legs. Reuses the T5
 figure's per-epoch collection (`bound_epochs` and `bound_stats` of `analysis/challenge_baseline.py`
 on branch `elshoubky/feat/150-challenge-baseline`, #222): error and HPL paired with truth exactly
 as `pnt.metrics.score` pairs them, so `mean(hpl >= err)` is the run's `hpl_bound_frac`.
@@ -63,7 +63,7 @@ from pnt.sim.scenario import T0_NS, generate, load  # noqa: E402
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "results" / "honest-bound"
 RUNS = HERE / "results" / "runs" / "honest-bound"  # git-ignored
-KIND = "sim, every value TBC (ADR-0015, ADR-0030 Proposed, ADR-0041 Proposed)"
+KIND = "sim, every value TBC (ADR-0015, ADR-0030 Proposed, ADR-0046 Proposed)"
 
 # #226's bars (TBC: ours, set by the issue; T5 is ADR-0034's, Proposed)
 ESCAPE_POOLED = 0.01  # error > HPL in at most this share of epochs, pooled, every drone entry
@@ -117,26 +117,41 @@ def estimator(name: str, config: dict | None = None):
 
 # --- scenarios ----------------------------------------------------------------------------------
 def spec_of(key: str) -> dict:
-    """A scenario from its key: `drone/<entry>/<n>c`, `timing/<entry>`, `approach/<entry>`, with
-    an optional `/lte*<k>` (the truth's LTE noise and multipath sigma times k, what the records
-    report unchanged: as `analysis/model_mismatch.py` scales a scenario)."""
+    """A scenario from its key: `drone/<entry>/<n>c`, `timing/<entry>`, `approach/<entry>` or
+    `realistic/<entry>`, then optional modifiers, each a further `/` part:
+    - `lte*<k>`: the truth's LTE noise and multipath sigma times k, what the records report
+      unchanged (as `analysis/model_mismatch.py` scales a scenario);
+    - `nobaro`: no barometer in the sim (every later source's draws change: not paired);
+    - `drop-baro`: the same records, the barometer's dropped before the filter (paired);
+    - `barobias=<m>`: the barometer's per-run constant bias sigma (`sim.models.baro`, 1.0 m by
+      default) set to m; the filter is told only the white sigma either way."""
     parts = key.split("/")
-    scale = None
-    if parts[-1].startswith("lte*"):
-        scale = float(parts.pop()[4:])
     leg, entry = parts[0], parts[1]
+    rest = parts[2:]
     if leg == "drone":
-        n = int(parts[2].removesuffix("c"))
+        n = int(rest.pop(0).removesuffix("c"))
         if n == 1:
             spec = copy.deepcopy(load(f"challenge-drone-{entry}"))
         else:
             spec = copy.deepcopy(load(f"challenge-drone-hop-{entry}"))
             spec["sources"]["lte"]["cells_from"]["earfcn"] = hopping_study.hop_set()[:n]
+    elif leg == "realistic":
+        spec = copy.deepcopy(load(f"realistic-{entry}"))
     else:
         spec = copy.deepcopy(load(f"challenge-{leg}-{entry}"))
-    if scale is not None:
-        for path in ("sources.lte.sigma_m", "sources.lte.multipath.sigma_m"):
-            spec = set_param(spec, path, get_param(spec, path) * scale)
+    for mod in rest:
+        if mod.startswith("lte*"):
+            k = float(mod[4:])
+            for path in ("sources.lte.sigma_m", "sources.lte.multipath.sigma_m"):
+                spec = set_param(spec, path, get_param(spec, path) * k)
+        elif mod == "nobaro":
+            spec["sources"].pop("baro")
+        elif mod == "drop-baro":
+            pass  # filter side: `run_task` drops the records, the draws stay paired
+        elif mod.startswith("barobias="):
+            spec["sources"]["baro"]["bias_sigma_m"] = float(mod.split("=")[1])
+        else:
+            raise ValueError(f"unknown scenario modifier {mod!r} in {key!r}")
     return spec
 
 
@@ -185,6 +200,9 @@ def run_task(key: str, seed: int, names: tuple[str, ...], config: dict | None = 
     """One seed of one scenario, generated once, through each estimator."""
     spec = spec_of(key)
     sim = generate(spec, seed=seed)
+    records = sim.measurements
+    if "/drop-baro" in key:
+        records = [m for m in records if m.source != "baro"]
     start = event_start_ns(spec)
     loss = gps_loss(spec, T0_NS)
     n_s = int(round(float(spec["duration_s"])))
@@ -194,7 +212,7 @@ def run_task(key: str, seed: int, names: tuple[str, ...], config: dict | None = 
         r = {"key": key, "seed": seed, "estimator": name, "config": config or {}}
         try:
             est = list(
-                estimate(estimator(name, config), sim.measurements,
+                estimate(estimator(name, config), records,
                          origin_llh=spec.get("origin_llh"), reference=sim.reference)
             )  # fmt: skip
             m = score(est, sim.truth, spec, T0_NS)
@@ -266,11 +284,11 @@ def plan_measure(seeds: list[int]) -> list[tuple]:
     return tasks
 
 
-# The fix (ADR-0041) beside what it changes: the default and the same estimator without it
+# The fix (ADR-0046) beside what it changes: the default and the same estimator without it
 FIX = ("ekf", "ekf-learned-noise", "ekf-honest")
 FIX_GUARD = ("ekf-guard", "ekf-learned-noise+guard", "ekf-honest-guard")
 # Each new setting at 0.5x and 1.5x (#226: a +-50 % sweep); values from `ekf.HONEST`
-_HONEST = getattr(ekf, "HONEST", {})  # absent on a tree without ADR-0041 (`--hashes` there)
+_HONEST = getattr(ekf, "HONEST", {})  # absent on a tree without ADR-0046 (`--hashes` there)
 SWEEP = {name: _HONEST[name] for name in ("multipath_ratio", "multipath_tau_s") if _HONEST}
 SWEEP_FACTORS = (0.5, 1.5)
 TAU_AT_REST_S = 3.0  # s: ADR-0036's at-rest correlated-error time (TBC)
@@ -346,6 +364,25 @@ DIAGNOSE = (
 )
 
 
+# #228: `realistic-long-outage` (GPS lost at 60 s for the rest of the 360 s run; 4 synthetic-shaped
+# towers whose records report the true white 50 m but carry 50 m / 30 s multipath too; no
+# `rx_clock`, so learned noise is a no-op there and `ekf-learned-noise` is not run). The barometer
+# is tested explicitly: as committed (white 0.5 m told 0.5 m, plus an untold constant bias of
+# sigma 1.0 m per run), without it, and without its bias.
+REALISTIC_KEYS = (
+    "realistic/long-outage",
+    "realistic/long-outage/nobaro",
+    "realistic/long-outage/drop-baro",
+    "realistic/long-outage/barobias=0",
+    "realistic/baro-drift",
+    "realistic/nominal",
+)
+
+
+def plan_realistic(seeds: list[int]) -> list[tuple]:
+    return [(k, s, ("ekf", "ekf-honest"), None) for k in REALISTIC_KEYS for s in seeds]
+
+
 DIAGNOSE_13C_SEEDS = 10  # ekf-honest takes 40-70 s a run on 13 carriers
 
 
@@ -373,6 +410,8 @@ def truth_dynamics(scenario: str = "challenge-drone-outage", seed: int = 1000) -
 
 PLANS = {
     "diagnose": plan_diagnose,
+    "realistic": plan_realistic,  # held-out seeds
+    "realistic-tune": plan_realistic,  # tuning seeds, for the diagnosis
     "measure": plan_measure,
     "tune": plan_tune,
     "stress": plan_stress,
@@ -604,7 +643,7 @@ def rows_of(p: dict, keys=None, names=None) -> list[str]:
 def _order(k: tuple) -> tuple:
     key, name, cfg = k
     parts = key.split("/")
-    leg = {"drone": 0, "timing": 1, "approach": 2}[parts[0]]
+    leg = {"drone": 0, "timing": 1, "approach": 2, "realistic": 3}[parts[0]]
     entry = DRONE_ENTRIES.index(parts[1]) if parts[1] in DRONE_ENTRIES else 99
     n = int(parts[2].removesuffix("c")) if leg == 0 else 0
     names = list(FIX + FIX_GUARD + BASE + GUARD) + ["ekf-mhss", "ekf-honest-mhss"]
@@ -749,7 +788,7 @@ def figure(p: dict, out: Path, tail: str) -> str | None:
                  fontsize=18, y=0.985)  # fmt: skip
     fig.text(0.01, 0.005, f"{KIND} · analysis/honest_bound.py; numbers in summary.md\n"
              "darker blue: more epochs · ekf-honest: learned LTE noise with its slow part as a "
-             "state (ADR-0041); -guard: with the jump guard (ADR-0038)", fontsize=11,
+             "state (ADR-0046); -guard: with the jump guard (ADR-0038)", fontsize=11,
              color="#555555")  # fmt: skip
     fig.subplots_adjust(left=0.15, right=0.98, top=0.88, bottom=0.07, wspace=0.06, hspace=0.12)
     name = "bound_before_after.png"
@@ -800,7 +839,7 @@ def write_summary(plans: dict, out: Path, figures: list[str], diagnosis: str) ->
     L += [
         f"**{KIND}.** Every number is a simulation of the committed `challenge-*` scenario "
         "entries; no real flight. The fix is the opt-in `ekf-honest` (`ekf-honest-guard` with the "
-        "jump guard), ADR-0041 Proposed: `ekf-learned-noise` (ADR-0039) with the slow part of a "
+        "jump guard), ADR-0046 Proposed: `ekf-learned-noise` (ADR-0039) with the slow part of a "
         "radio's LTE range error carried as a Gauss-Markov state per emitter "
         "(`multipath_ratio` 1.0, `multipath_tau_s` 30 s, both `TBC`). No default changes.",
         "",
