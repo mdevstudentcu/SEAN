@@ -1,0 +1,23 @@
+# spoof-jump with a GPS sky (#206, ADR-0041): the spoofer that moves the position also makes the
+# sky. It simulates the right satellites for this place and time, but from one antenna, so every
+# satellite arrives at one power. Verifies REQ-04 (UC-01, UC-02) for the spoof decision.
+description: GPS position jumps 300 m east at t=150 s; from then every GPS satellite arrives at 45 dB-Hz.
+duration_s: 360
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
+trajectory: {type: square, side_m: 200, speed_mps: 8, altitude_m: 30}
+sources:
+  # sky: per-PRN C/N0 every 5 s (pnt.sim.gnss_sky, placeholder fitted on one real session, TBC)
+  gnss: {rate_hz: 5, sigma_m: 2.5, health: true, sky: true}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  lte:
+    model: pseudorange
+    rate_hz: 1
+    n_emitters: 6
+    ring_radius_m: [800, 3000]   # SYNTHETIC geometry until data/reference/ has real sites
+    sigma_m: 20.0                # TBC (RSK-02)
+    clock_rw_m: 0.2
+    init_bias_m: 1000.0
+faults:
+  - {type: spoof_jump, source: gnss, start_s: 150, offset_enu_m: [300, 0, 0]}
+  - {type: fake_sky, source: gnss, start_s: 150, flat_cn0_dbhz: 45}   # TBC: a strong spoofer
