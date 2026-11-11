@@ -292,6 +292,7 @@ _HONEST = getattr(ekf, "HONEST", {})  # absent on a tree without ADR-0046 (`--ha
 SWEEP = {name: _HONEST[name] for name in ("multipath_ratio", "multipath_tau_s") if _HONEST}
 SWEEP_FACTORS = (0.5, 1.5)
 TAU_AT_REST_S = 3.0  # s: ADR-0036's at-rest correlated-error time (TBC)
+TRADE_Q_ACCEL = (1.25, 1.5)  # m/s^2/sqrt(Hz), against the default 1
 MHSS_SEEDS = 20
 
 
@@ -341,6 +342,11 @@ def plan_sweep(seeds: list[int]) -> list[tuple]:
             # Outside the sweep: ADR-0036's at-rest correlation time (3 s, TBC), far below the
             # sets' 30 s, to show what a much shorter one does
             tasks.append((key, s, ("ekf-honest",), {"multipath_tau_s": TAU_AT_REST_S}))
+            # The trade-off (#226 step 5): a larger coasting process noise closes the worst runs
+            # on tuning seeds but enlarges HPL and the error; reported, not chosen
+            if n == 1:
+                for q in TRADE_Q_ACCEL:
+                    tasks.append((key, s, ("ekf-honest",), {"q_accel": q}))
     return tasks
 
 
