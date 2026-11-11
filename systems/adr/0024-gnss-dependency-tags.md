@@ -36,7 +36,7 @@ Every measurement source carries one of three GNSS-dependency tags (independent,
 ## Consequences
 
 - **REQ-04 verdicts** (trust or reject GPS) rest only on independent evidence and on the geometry of GNSS-timed sources. Agreement from GNSS-derived content is not evidence.
-- **Learned priors inherit the dependency.** Tower clocks learned while GNSS is trusted (ADR-0022) are GNSS-timed. A prior learned under an undetected spoof is poisoned, which is why that calibration is discarded when GNSS is flagged.
+- **Learned priors inherit the dependency.** Tower clocks learned while GNSS is trusted (ADR-0022) are GNSS-timed. A prior learned under an undetected spoof is poisoned, which is why that calibration is discarded when GNSS is flagged. (2026-11-11: a tower map handed to another user, P12, is GNSS-derived: ADR-0048.)
 - **Our own oscillator** is GNSS-disciplined while GPS is available and independent only in holdover. Its tag therefore applies from the moment GNSS is excluded.
 - **Classification continues.** Sources in the ICD registry that are not listed above (`nr`, `wifi`, `ble`, `fm`, `leo`, `cam`) are `TBD`. Until a source is classified, it is treated as GNSS-dependent (the conservative default).
 - **Not received:** P25 and Remote ID are listed so their class is on record. We don't receive P25: it is communication content. Remote ID is sim only, because storing an operator's location conflicts with ADR-0011. SBAS is sim only.
