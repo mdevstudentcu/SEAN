@@ -1,13 +1,14 @@
-"""Our receiver clock in the tower ranges, which `ekf` leaves out by default (#228).
+"""Our receiver clock in the tower ranges, which `ekf` left out by default before ADR-0047 (#228).
 
     python analysis/rx_clock_in_towers.py --runs 50 --jobs 3 --out analysis/results/rx-clock
 
 The realistic and worst sets put our payload clock (20 ppb drift, 2 ns/sqrt(s) walk) into every
-tower reading (`receiver_clock: true`), as a real radio would. `ekf` defaults to
-`pseudorange_receiver_clock=False`, so each tower's own clock (a random walk of 0.2 m/sqrt(s))
-has to absorb a common 6 m/s ramp. With GNSS lost, the filter accepts those readings and moves
-the position instead, at about the clock's drift rate, while the covariance shrinks as if the
-towers fixed it. This script measures that, paired by seed (seeds 0..runs-1):
+tower reading (`receiver_clock: true`), as a real radio would. `ekf` defaulted to
+`pseudorange_receiver_clock=False` until ADR-0047 (now "observed"), so each tower's own clock
+(a random walk of 0.2 m/sqrt(s)) had to absorb a common 6 m/s ramp. With GNSS lost, the filter
+accepted those readings and moved the position instead, at about the clock's drift rate, while
+the covariance shrank as if the towers fixed it. This script measures that, paired by seed
+(seeds 0..runs-1):
 
 1. Variants: `ekf`, `ekf-imu` and `ekf-calibrated`, each with our clock in the tower model on and
    off (`ekf-calibrated` has it on; the others off), and `baseline`, over `--scenarios`.
@@ -63,24 +64,26 @@ SCENARIOS = (
     "challenge-drone-outage",
 )
 RX = {"pseudorange_receiver_clock": True}
+# The default before ADR-0047, set explicitly so that `ekf` here stays the filter #228 measured
+OFF = {"pseudorange_receiver_clock": False}
 # name -> (EKF config, or None for the `baseline` registry entry). The three registry EKFs, then
 # each with our clock in the tower model switched the other way.
 VARIANTS = {
-    "ekf": {},
+    "ekf": OFF,
     "ekf +rx clock": RX,
-    "ekf-imu": {"motion": "imu"},
+    "ekf-imu": {"motion": "imu", **OFF},
     "ekf-imu +rx clock": {"motion": "imu", **RX},
     "ekf-calibrated": ekf.CALIBRATED,
     "ekf-calibrated -rx clock": {**ekf.CALIBRATED, "pseudorange_receiver_clock": False},
     "baseline": None,
 }
 COST_VARIANTS = {
-    "ekf": {},
+    "ekf": OFF,
     "ekf +rx clock": RX,
     "ekf rx clock observed": {"pseudorange_receiver_clock": "observed"},
     "ekf rx clock gnss_out": {"pseudorange_receiver_clock": "gnss_out"},
     "ekf +rx clock, h_2 2e-22": {**RX, "h_2": 2e-22},
-    "ekf-guard": {"jump_guard": JumpGuard},
+    "ekf-guard": {"jump_guard": JumpGuard, **OFF},
     "ekf-guard +rx clock": {"jump_guard": JumpGuard, **RX},
 }
 CONFIGS = {**VARIANTS, **COST_VARIANTS}  # every variant name -> its config
