@@ -11,6 +11,7 @@ from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
+import msgspec
 import numpy as np
 import yaml
 
@@ -54,6 +55,8 @@ _IMU_STREAM = 222
 _HOSTILE_STREAM = 223
 # ADS-B traffic's own stream (#91), for the same reason
 _ADSB_STREAM = 0xAD5B
+# The simulated GPS sky's own stream (`sky:`, #206), for the same reason
+_SKY_STREAM = 224
 # The faults that reach the aircraft around us as well as our receiver (`pnt.sim.adsb`)
 GNSS_ZONES = ("jamming_zone", "spoof_zone")
 
@@ -252,7 +255,11 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
             rx_clocks.update(rx)
         elif model == "gnss":
             clock_s = np.interp(ts, t_truth, clock_t) if "clock" in spec else None
-            meas += models.gnss(ts_ns, pos, rng, clock_s=clock_s, **cfg)
+            sky = cfg.pop("sky", None)
+            recs = models.gnss(ts_ns, pos, rng, clock_s=clock_s, **cfg)
+            if sky is not None:
+                recs = _with_sky(recs, sky, ts_ns, pos, spec, seed)
+            meas += recs
         elif model == "baro":
             meas += models.baro(ts_ns, pos, rng, **cfg)
         elif model == "imu":
@@ -363,6 +370,27 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     return SimRun(
         spec["name"], spec, seed, truth, meas, events, emitters, tower_clk, meta, rx_clocks
     )
+
+
+def _with_sky(recs, sky, ts_ns, pos, spec: dict, seed: int) -> list[Measurement]:
+    """The GNSS source's `gnss_health` records, every `period_s` with `meta.snr` (PRN -> C/N0):
+    the simulated GPS sky (`pnt.sim.gnss_sky`, #206). `sky: true` takes the defaults; a mapping
+    overrides `gnss_sky.snr_reports`' parameters."""
+    from pnt.sim import gnss_sky  # needs sgp4 (ground extra)
+
+    if not any(m.kind == "gnss_health" for m in recs):
+        raise ValueError("a GNSS `sky:` needs `health: true` on the same source")
+    if not spec.get("origin_llh"):
+        raise ValueError("a GNSS `sky:` needs the scenario's origin_llh")
+    params = {} if sky is True else dict(sky)
+    rng = np.random.default_rng([seed, _SKY_STREAM])
+    snr = gnss_sky.snr_reports(ts_ns, pos, spec["origin_llh"], rng, **params)
+    return [
+        msgspec.structs.replace(m, meta={**m.meta, "device": "sim", "snr": snr[m.t_ns]})
+        if m.kind == "gnss_health" and m.t_ns in snr
+        else m
+        for m in recs
+    ]
 
 
 def _record_shape(cfg: dict) -> str:

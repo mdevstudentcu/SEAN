@@ -35,6 +35,10 @@ Attacks (`type` in a scenario's `faults:` list):
   while the told position stays put
 - capture_faults: what a busy payload board does to the data, not an attack: radio sample gaps,
   radio timestamp jitter and lost stream messages (issue #53)
+- fake_sky: the satellites a spoofer generates instead of the real ones (#206): every received
+  GPS satellite at one C/N0 (a single-antenna spoofer), and/or GPS PRNs added that are below the
+  horizon here (a canned sky for another place or time). Touches the per-PRN C/N0 (`meta.snr`) of
+  `gnss_health` records: a replayed real session's, or the sim's with a `sky:`
 
 Any fault may name a `receiver` (`payload` or `reference`) to touch only that receiver's records;
 without one it touches both.
@@ -632,3 +636,60 @@ def hostile_moves(meas, f, ctx, start, end):
             out[i] = _replace(m, value=(m.value[0] - 10.0 * j["n"] * np.log10(d1 / d0),))
     speed = float(np.linalg.norm(v))
     return out, [(start, f"jammer moves at {speed:.1f} m/s{_window(f, end)}")]
+
+
+@attack("fake_sky")
+def fake_sky(meas, f, ctx, start, end):
+    """A spoofer's sky on every skyview (`gnss_health` with `meta.snr`) in the window:
+
+    - flat_cn0_dbhz: every received satellite's C/N0 becomes this, plus a normal draw of
+      flat_sigma_db (default 0.5), rounded as NMEA reports it. Off if absent.
+    - below_horizon: this many GPS PRNs (default 0) the skyview lacks are added, the ones lowest
+      under the horizon at the receiver's true position at the window's first skyview, kept for
+      the whole window (a canned sky keeps its satellites). Their C/N0 is flat_cn0_dbhz, or
+      cn0_dbhz (default 40) without it.
+    Needs the session origin (ctx.origin_llh) and the truth (ctx.truth_pos) for the elevations.
+    """
+    from pnt.core.frames import enu_to_llh
+    from pnt.integrity.sky import GpsAlmanac
+
+    flat = f.get("flat_cn0_dbhz")
+    n_add = int(f.get("below_horizon", 0))
+    if flat is None and n_add == 0:
+        raise ValueError("fake_sky needs flat_cn0_dbhz and/or below_horizon")
+    sigma = float(f.get("flat_sigma_db", 0.5))
+    add_cn0 = float(flat if flat is not None else f.get("cn0_dbhz", 40.0))
+    hit = [
+        i
+        for i, m in enumerate(meas)
+        if _active(m, f, start, end) and m.kind == "gnss_health" and m.meta.get("snr")
+    ]
+    out = list(meas)
+    added: list[str] = []
+    if hit and n_add:
+        if ctx.origin_llh is None:
+            raise ValueError("fake_sky below_horizon needs the session origin_llh")
+        first = meas[hit[0]]
+        t = (first.t_ns - ctx.t0_ns) / 1e9
+        where = enu_to_llh(ctx.truth_pos(np.array([t]))[0], ctx.origin_llh)
+        el = GpsAlmanac().elevations(first.t_ns, where)
+        have = {k for k, v in first.meta["snr"].items() if v}
+        low = sorted((e, p) for p, e in el.items() if e < 0 and str(p) not in have)
+        added = [str(p) for _, p in low[:n_add]]
+        if len(added) < n_add:
+            raise ValueError(f"fake_sky: only {len(added)} GPS PRNs below the horizon")
+    for i in hit:
+        m = meas[i]
+        snr = {k: v for k, v in m.meta["snr"].items()}
+        snr.update({p: add_cn0 for p in added})
+        if flat is not None:
+            for k, v in snr.items():
+                if v:
+                    snr[k] = float(np.round(flat + ctx.rng.normal(0.0, sigma)))
+        out[i] = _replace(m, meta={**m.meta, "snr": snr})
+    what = []
+    if flat is not None:
+        what.append(f"every satellite at {flat} dB-Hz")
+    if added:
+        what.append(f"PRN {', '.join(added)} below the horizon")
+    return out, [(start, f"fake GPS sky: {'; '.join(what)}{_window(f, end)}")]
