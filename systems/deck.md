@@ -19,7 +19,7 @@ Nine slides, 295 s, 631 words of script, 16 numbers spoken. Each slide gives the
 | 9 | Roadmap | 25 | 57 | 2 |
 | | **Total** | **295** | **631** | **16** |
 
-Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); six-tenths of a metre (4); fifty-metre, none of fifty (5); ninety-five percent of fifty, a hundred and thirty metres, five minutes (6); forty-five percent, one percent, two minutes (7); a hundred and twenty metres, a hundred and seventy dollars (9).
+Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); seven-tenths of a metre (4); fifty-metre, none of fifty (5); ninety-five percent of fifty, a hundred and thirty metres, five minutes (6); forty-five percent, one percent, two minutes (7); a hundred and twenty metres, a hundred and seventy dollars (9).
 
 ---
 
@@ -72,14 +72,14 @@ If Enter comes too early in segment 2, carry on and show `jump-3-followed.png` a
 **Headline:** On real towers our low-cost radio is precise on strong cells, but a slower error it does not report sits on top, and on real static sessions the towers have not yet made position better than none.
 
 **On the slide:**
-- Range noise on the strongest cells: 0.63 m (real, 10 records a second).
+- Range noise on the strongest cells: 0.73 m (real, 10 records a second).
 - A slower error the radio's own estimate leaves out.
 - No GPS fix in those captures. On later static sessions with GPS removed in software, the towers made position worse than none (slide 8).
 
 **Figure:** [`analysis/results/lte-measured-noise/white_vs_snr.png`](../analysis/results/lte-measured-noise/white_vs_snr.png) (real).
 
 **Script (51 words, 25 s):**
-> This part is real. On real towers, our low-cost radio measures range with six-tenths of a metre of noise on strong cells. But a slower error sits on top, and the radio's own estimate leaves it out. Those captures had no GPS fix, so they cannot show a real position yet.
+> This part is real. On real towers, our low-cost radio measures range with seven-tenths of a metre of noise on strong cells. But a slower error sits on top, and the radio's own estimate leaves it out. Those captures had no GPS fix, so they cannot show a real position yet.
 
 **If asked:** Q2 (is any of it real), Q5 (8-bit radio), Q17 (multipath or oscillator), Q15 (what the sim got wrong).
 

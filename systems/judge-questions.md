@@ -33,9 +33,9 @@
 
 ## 5. Can an 8-bit RTL-SDR range on LTE at all?
 
-> For precision at rest, yes: 0.6 metres of noise on strong cells, 25 on weak ones, at ten records a second. But a slow error, typically 8 metres, sits on top, weak cells drop often, and without truth we measured no bias.
+> For precision at rest, yes: 0.7 metres of noise on strong cells, 23 on weak ones, at ten records a second. But a slow error, typically 8 metres, sits on top, weak cells drop often, and without truth we measured no bias.
 
-- **Source:** real, ADR-0036 and [`lte-measured-noise/`](../analysis/results/lte-measured-noise/summary.md) (white σ 0.63 m at 13–16 dB, 24.7 m at −14 to −11 dB; correlated S(1 s) median 8.3 m). [`research.md`](research.md) §2: no published real-tower LTE TOA scatter from an RTL-SDR was found.
+- **Source:** real, ADR-0036 and [`lte-measured-noise/`](../analysis/results/lte-measured-noise/summary.md) (at `8892fca`, after #245: white σ 0.73 m at 13–16 dB, 22.5 m at −14 to −11 dB on 43 records; correlated S(1 s) median 8.1 m). [`research.md`](research.md) §2: no published real-tower LTE TOA scatter from an RTL-SDR was found.
 - **Do not claim:** an accuracy (no truth), or that it works while moving.
 
 ## 6. Your 5.33-sigma bound: how is it computed, and at what integrity risk?
@@ -103,7 +103,7 @@
 
 ## 15. What did the simulation get wrong, compared with the captures?
 
-> The sim assumed 50 metres of white noise per second; at rest, real white noise is 0.6 to 25 metres, plus a slow 8-metre error. Records told the filter 2 metres. Real cells drop and reacquire often; the sim kept every track.
+> The sim assumed 50 metres of white noise per second; at rest, real white noise is 0.7 to 23 metres, plus a slow 8-metre error. Records told the filter 2 metres. Real cells drop and reacquire often; the sim kept every track.
 
 - **Source:** ADR-0036 (Proposed; the *Sim validity* row is not yet moved); `pnt compare` sim against real (#199: 49.2 m white against 21.3 m smooth); #183 (front-end faults).
 - **Do not claim:** that the simulator is validated, or that the measured model is adopted.
@@ -119,7 +119,7 @@
 
 > Not the dongle, nor the tower clock. The slow error remains in differences between two sectors of one site on one frequency, where dongle and shared site clock cancel. That leaves multipath at a static antenna or our tracking loop; which, we have not determined.
 
-- **Source:** real, ADR-0036 *Context* (same-eNB sector pairs, which share a clock, still show S(1 s) of 4.9 to 18 m; "so it is not a clock"); [`lte-measured-noise/summary.md`](../analysis/results/lte-measured-noise/summary.md), *Pairs on one carrier (dongle cancels)*.
+- **Source:** real, ADR-0036 *Context* (same-eNB sector pairs, which share a clock, still show S(1 s) of 5.5 to 36 m, 5.5 to 18 m without the one pair whose cell sits on a carrier alias; "so it is not a clock"); [`lte-measured-noise/summary.md`](../analysis/results/lte-measured-noise/summary.md), *Pairs on one carrier (dongle cancels)*.
 - **Do not claim:** that it is multipath: the tracker's loop is not ruled out. A static capture cannot size multipath in motion.
 
 ## 18. Who buys this, and at what altitude does it work, given tower antenna downtilt?
