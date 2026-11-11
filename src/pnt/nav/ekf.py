@@ -22,6 +22,9 @@ term, every tower's clock has to absorb our clock's drift. Turned on, the clock 
 share is one more unknown: without GNSS time it is observable only as one common term across the
 towers, which costs one tower's worth of geometry, as a GNSS receiver needs a fourth satellite
 for its clock. While GNSS time is trusted it anchors the split between our clock and the towers'.
+Two switched modes are opt-in (#228, measured in `analysis/rx_clock_in_towers.py --costs`):
+"observed" puts the term in once GNSS time has been used, and "gnss_out" only while GNSS position
+is lost or excluded. Each switch re-references the tower clocks, so no prediction jumps.
 
 A real record names its radio's clock in `meta.rx_clock` (#121). An RTL-SDR is its own oscillator,
 not the GNSS-disciplined clock above, so each name gets its own (offset, drift) block, used in
@@ -189,6 +192,9 @@ GNSS_TIME = "gnss:time"  # health key for GNSS time, separate from GNSS position
 POS, VEL, CLK, DRIFT = slice(0, 3), slice(3, 6), 6, 7
 N_CORE = 8
 CLOCK_MODELS = ("independent", "calibrated")
+# Switched `pseudorange_receiver_clock` modes (#228): our clock in the towers only once GNSS time
+# has been used ("observed"), or only while GNSS position is lost or excluded ("gnss_out")
+RX_CLOCK_MODES = ("observed", "gnss_out")
 MOTIONS = ("cv", "imu")
 SNAPSHOT_NS = 1_000_000_000  # clock snapshots for rollback, about 1 Hz
 CHECK_MIN_SAMPLES = 5  # a windowed check with fewer innovations has no opinion
@@ -229,7 +235,7 @@ class EKF:
         init_emitter_sigma: float = 2000.0,
         alert_limit_m: float = 50.0,  # TBC: REQ-01/REQ-02
         gnss_timeout_s: float = 2.0,
-        pseudorange_receiver_clock: bool = False,  # True once the sim models it (#47)
+        pseudorange_receiver_clock: bool | str = False,  # or RX_CLOCK_MODES (#228)
         clock_model: str = "independent",  # or "calibrated" (ADR-0022, Proposed)
         sites: Mapping[str, str] | None = None,  # emitter -> site; default one site per emitter
         builders: Mapping[str, str] | None = None,  # site -> network builder; default none
@@ -286,7 +292,12 @@ class EKF:
         self.init_emitter_sigma = init_emitter_sigma
         self.alert_limit_m = alert_limit_m
         self.gnss_timeout_ns = int(gnss_timeout_s * 1e9)
-        self.pr_rx_clock = pseudorange_receiver_clock
+        if isinstance(pseudorange_receiver_clock, str) and (
+            pseudorange_receiver_clock not in RX_CLOCK_MODES
+        ):
+            raise ValueError(f"pseudorange_receiver_clock: bool or one of {RX_CLOCK_MODES}")
+        self.rx_mode = pseudorange_receiver_clock
+        self.pr_rx_clock = pseudorange_receiver_clock is True
         self.calibrated = clock_model == "calibrated"
         self.width = 2 if self.calibrated else 1  # states per clock block: offset (, drift)
         self.sites = dict(sites or {})
@@ -507,6 +518,36 @@ class EKF:
             self.P[i, i] = self.init_emitter_sigma**2
         rec[:] = [arc, i, m.t_ns]
         return i, True
+
+    def rx_clock_in_towers(self) -> bool:
+        """Whether our clock (c*dt) is in the tower ranges now. A switched mode (RX_CLOCK_MODES)
+        re-references every root tower clock block when it turns on or off (offset minus or plus
+        c*dt, and drift minus or plus its drift when calibrated): a linear change of variables,
+        so the predicted ranges and their covariance are the same either side of the switch.
+        Limit: rollback snapshots (calibrated model) are not re-referenced."""
+        mode = self.rx_mode
+        if not isinstance(mode, str):
+            return bool(mode)
+        never = -(10**18)
+        if mode == "observed":
+            on = GNSS_TIME in self.last_used
+        else:  # "gnss_out": GNSS position not used for gnss_timeout_s, or excluded
+            on = self.t_ns - self.last_used.get("gnss", never) > self.gnss_timeout_ns or (
+                self.gnss_flagged()
+            )
+        if on != self.pr_rx_clock:
+            T = np.eye(len(self.x))
+            sign = -1.0 if on else 1.0
+            for key, i in self.clock_idx.items():
+                if key.startswith("site:") and self.builders.get(key[5:]) is not None:
+                    continue  # a grouped site's residual: its builder block carries the shift
+                T[i, CLK] = sign
+                if self.width == 2:
+                    T[i + 1, DRIFT] = sign
+            self.x = T @ self.x
+            self.P = T @ self.P @ T.T
+            self.pr_rx_clock = on
+        return on
 
     def gnss_trusted(self) -> bool:
         """GNSS position accepted recently, and neither GNSS position nor time rejected since."""
@@ -1048,7 +1089,7 @@ def _pseudorange(ekf: EKF, m: Measurement):
     mp, pos = ekf.tower_states(m.emitter, m.sigma[0], u)
     name = m.meta.get("rx_clock")
     rx_i = CLK if name is None else ekf.rx_clock_block(name)
-    use_rx = name is not None or ekf.pr_rx_clock
+    use_rx = name is not None or ekf.rx_clock_in_towers()
     rx = ekf.x[rx_i] if use_rx else 0.0
     h = u  # d(range)/d(position)
     if mp is not None:
@@ -1098,7 +1139,7 @@ def _doppler(ekf: EKF, m: Measurement):
     u = d / r
     name = m.meta.get("rx_clock")
     rx = None  # index of our clock's drift; a new radio's block is added before H is sized
-    if name is not None or ekf.pr_rx_clock:
+    if name is not None or ekf.rx_clock_in_towers():
         rx = (CLK if name is None else ekf.rx_clock_block(name)) + 1
     dv = ekf.x[VEL] - v_e
     rate = float(u @ dv)
