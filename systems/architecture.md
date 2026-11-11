@@ -1,13 +1,10 @@
 # D1: Architecture
 
-- **Status:** Draft, 2026-11-11 (#28). The humans own the final D1; this is the technical draft.
-- **Audience:** engineers who build navigation products (mentor Q7, [`mentor-qa.md`](mentor-qa.md)). Each statement links its source instead of restating it.
-- **State described:** `main` at `c21e047`. Work in open PRs is named by number and is not on `main`.
-- **Evidence:** every number is in [`results.md`](results.md) with its kind (sim, synthetic, registry, real) and source.
+**In one line:** a receive-only navigation layer that keeps a position from cell towers after GPS is lost, and tells the operator when not to trust it. Written for engineers who build navigation products; every number is in [`results.md`](results.md) with its kind (simulated or real) and source.
 
 ## What it is
 
-A receive-only payload records LTE tower sync signals, the GPS fix and PPS, an IMU and a barometer. A ground laptop fuses them into position and time, each with a protection level, and treats every source, GPS and the towers alike, as something that can fail ([ADR-0021](adr/0021-what-we-build-and-pitch.md)).
+A receive-only payload records LTE tower sync signals, the GPS fix and PPS, an IMU and a barometer. A ground laptop fuses them into position and time, each with a bound under our model (a horizontal protection level, HPL, in the code's terms), and treats every source, GPS and the towers alike, as something that can fail ([ADR-0021](adr/0021-what-we-build-and-pitch.md)).
 
 The idea: **learn the towers while GPS is trusted, then use them to keep position, catch GPS lying, and catch them lying.** It matches the mentors' picture of the mission: GPS at the start, then lost or degraded in one area (call of 2026-11-10, transcript at the repo root).
 
@@ -17,11 +14,15 @@ Use cases: [`use-cases.md`](use-cases.md) (UC-01 drone, UC-02 approach, UC-03 ti
 
 | Principal use | Requirements | Targets | Where we stand ([`results.md`](results.md) (b)) |
 | --- | --- | --- | --- |
-| **Navigation continuity**: keep a position after GPS is lost (UC-01 first; UC-02; time as a second output for UC-03) | REQ-01, REQ-03, REQ-06 | T1: 95 % ≤ 25 m for ≥ 300 s, fallback ≤ 50 m for ≥ 120 s, scored per second across runs (ADR-0034, *Amendment*). T2 (556 m alert limit). T3 (1.5 µs at 10 min) | Sim: T1 and its fallback missed on the `challenge` drone leg (per-run statistic; agreed statistic `TBD (#187)`); T2 not scored; T3 missed on one seed of 50 |
+| **Navigation continuity**: keep a position after GPS is lost (UC-01 first; UC-02; time as a second output for UC-03) | REQ-01, REQ-03, REQ-06 | T1: 95 % ≤ 25 m for ≥ 300 s, fallback ≤ 50 m for ≥ 120 s, scored per second across runs (ADR-0034, *Amendment*). T2 (556 m alert limit). T3 (1.5 µs at 10 min) | Sim: T1 and its fallback missed on the `challenge` drone leg (per-run statistic; agreed statistic `TBD`); T2 not scored; T3 missed on one seed of 50 |
 | **Status and confidence monitoring**: tell the operator whether to trust position and time, and why | REQ-02, REQ-04, REQ-05 | T4 (jump target `TBD`; ramps; ≤ 1 false alarm/h), T5 (HPL bounds ≥ 99.9 % of epochs) | Sim: jumps detected in 1.1 s and refused by the opt-in guard; time ramp detected; false-alarm rate met; T5 missed |
 | All | REQ-07 receive-only, REQ-08 privacy, REQ-09 platform-agnostic, REQ-10 reproducible | — | REQ-07, REQ-08 by design and inspection (`tests/test_hard_rules.py`) |
 
-The integrity level is ours to choose, shown several ways (mentor Q2; ADR-0034): protection level against the alert limit, error ellipse, NEES/NIS, per-source trust, time to alert.
+**Towers are meant to be primary (REQ-06); today they are not.** The front end reports only the fast part of its range noise, so on the real-shaped `challenge` legs the filter's gate rejects nearly every tower reading, so LTE contributes almost nothing (the guard demo's panel lists it as not in use). After GPS loss the default filter flies on the barometer and dead reckoning. Learning each tower's noise (ADR-0039, Proposed, opt-in) is the fix in review; [`results.md`](results.md) (c).
+
+**The bound holds under our model, not always.** It held throughout the demo except where the plain filter followed a spoof, and on some simulated flights the error escapes it (T5 missed). We call it a bound under our model, not a certified protection level.
+
+The integrity level is ours to choose, shown several ways (mentor Q2; ADR-0034): the bound against the alert limit, error ellipse, NEES/NIS, per-source trust, time to alert.
 
 ## Data flow
 
@@ -63,16 +64,16 @@ flowchart LR
 
 | Part | What it does | Code | State on `main` | Evidence kind |
 | --- | --- | --- | --- | --- |
-| Payload recorder and streamer | Records SDR IQ, gpsd, I2C sensors into a session; streams records live | [`src/pnt/payload/`](../src/pnt/payload/), [`deploy/pi/RUNBOOK.md`](../deploy/pi/RUNBOOK.md) | Built (#19) | Real: sessions of 2026-11-10 and 2026-11-11, the latter with a PPS-locked GPS fix |
-| Ground link | CurveZMQ; the payload admits only trusted laptop keys | `pnt keys`, [ADR-0026](adr/0026-ground-link-security.md) | Built (#89) | Real: 28 min streamed, 0 estimates (no fix then) |
-| LTE front end | PSS/SSS search and time-of-arrival tracking on RTL-SDR IQ, from the 3GPP specifications; sync signals only | [`src/pnt/frontends/lte/`](../src/pnt/frontends/lte/) | Built (#23); re-found-cell crash fixed (#182); coherent integration opt-in (#171) | Synthetic and real captures |
-| Cell lookup | (EARFCN, PCI) to a registered eNB from the 2026 ISED extract; unknown and colliding cells dropped and counted, never guessed | [`src/pnt/nav/cells.py`](../src/pnt/nav/cells.py), [ADR-0023](adr/0023-tower-identity.md) (Proposed) | Built (#122, #138) | Registry audit; real captures |
-| GNSS health | C/N0 jamming indicator from gpsd SKY reports | [`src/pnt/frontends/gnss.py`](../src/pnt/frontends/gnss.py), [ADR-0031](adr/0031-gnss-jam-indicator.md) | Built (#22, #211) | Real: one 595 s session |
+| Payload recorder and streamer | Records SDR IQ, gpsd, I2C sensors into a session; streams records live | [`src/pnt/payload/`](../src/pnt/payload/), [`deploy/pi/RUNBOOK.md`](../deploy/pi/RUNBOOK.md) | Built | Real: sessions of 2026-11-10 and 2026-11-11, the latter with a PPS-locked GPS fix |
+| Ground link | CurveZMQ; the payload admits only trusted laptop keys | `pnt keys`, [ADR-0026](adr/0026-ground-link-security.md) | Built | Real: 28 min streamed, 0 estimates (no fix then) |
+| LTE front end | PSS/SSS search and time-of-arrival tracking on RTL-SDR IQ, from the 3GPP specifications; sync signals only | [`src/pnt/frontends/lte/`](../src/pnt/frontends/lte/) | Built; re-found-cell crash fixed; coherent integration opt-in | Synthetic and real captures |
+| Cell lookup | (EARFCN, PCI) to a registered eNB from the 2026 ISED extract; unknown and colliding cells dropped and counted, never guessed | [`src/pnt/nav/cells.py`](../src/pnt/nav/cells.py), [ADR-0023](adr/0023-tower-identity.md) (Proposed) | Built | Registry audit; real captures |
+| GNSS health | C/N0 jamming indicator from gpsd SKY reports | [`src/pnt/frontends/gnss.py`](../src/pnt/frontends/gnss.py), [ADR-0031](adr/0031-gnss-jam-indicator.md) | Built | Real: one 595 s session |
 | Other front ends | ADS-B, VOR (stations from `navaids.csv`), Wi-Fi RSSI | [`src/pnt/frontends/`](../src/pnt/frontends/) | Built | Real ADS-B frames; VOR no lock |
 | Estimators, integrity | Below | [`src/pnt/nav/`](../src/pnt/nav/), [`src/pnt/integrity/`](../src/pnt/integrity/) | Built | Sim; synthetic baseband |
-| Operator panel | Position, HPL against the alert limit, NOMINAL / DEGRADED / UNSAFE, latched alerts, time PL, per-source trust; NO DATA when the stream stalls | [`src/pnt/dashboard/`](../src/pnt/dashboard/), [ADR-0027](adr/0027-dashboard-sse-canvas.md) | Built (#25, #90, #165, #185). Heat-map track `TBD (#207)` | Sim, replay; real sessions show NO DATA (no origin) |
+| Operator panel | Position, HPL against the alert limit, NOMINAL / DEGRADED / UNSAFE, latched alerts, time PL, per-source trust; NO DATA when the stream stalls | [`src/pnt/dashboard/`](../src/pnt/dashboard/), [ADR-0027](adr/0027-dashboard-sse-canvas.md) | Built. Heat-map track `TBD` | Sim, replay; real sessions show NO DATA (no origin) |
 | Ground reference station | Base/rover differencing; the base is itself a monitored fault | `nav/base_rover.py`, [ADR-0020](adr/0020-ground-reference-station.md) | Estimator built; **sim only**, not built on hardware (*Amendment 2026-11-10*) | Sim |
-| Simulator and attack library | Trajectories, error models, attacks, the `challenge` sets; fault injection into recordings (`pnt replay --inject`, #199) | [`src/pnt/sim/`](../src/pnt/sim/) | Built | See *How the sim aligns to reality* |
+| Simulator and attack library | Trajectories, error models, attacks, the `challenge` sets; fault injection into recordings (`pnt replay --inject`) | [`src/pnt/sim/`](../src/pnt/sim/) | Built | See *How the sim aligns to reality* |
 
 ## Estimators
 
@@ -84,15 +85,15 @@ Registry: `pnt.nav.ESTIMATORS`.
 | `ekf` | Position, velocity, receiver clock, one clock block per tower, an (offset, drift) block per SDR dongle; Doppler range rate |
 | `ekf-calibrated` | Tower clocks per site under a shared network-builder term, learned only while GNSS is trusted, rolled back when GNSS is flagged ([ADR-0022](adr/0022-tower-clock-model.md), Proposed) |
 | `ekf-imu` | `ekf` with IMU-driven prediction |
-| `ekf-mhss` | `ekf` with solution-separation protection levels and exclusion (#82) |
-| `ekf-mhss-beacon` | `ekf-mhss` that may use a located jammer's received power as a low-trust coarse range; sim only, behind a promotion gate and weight cap, with its own `hostile:` hypothesis ([ADR-0025](adr/0025-hostile-emitter-beacon.md), #93) |
+| `ekf-mhss` | `ekf` with solution-separation bounds and exclusion |
+| `ekf-mhss-beacon` | `ekf-mhss` that may use a located jammer's received power as a low-trust coarse range; sim only, behind a promotion gate and weight cap, with its own `hostile:` hypothesis ([ADR-0025](adr/0025-hostile-emitter-beacon.md)) |
 | `ekf-base`, `ekf-base-imu` | Differenced against the reference station; fall back to `ekf` when the base is lost or excluded |
-| `ekf-guard`, `ekf-imu-guard`, `ekf-calibrated-guard` | The GNSS jump guard, opt-in: a detected jump is refused until the GNSS stream steps back by it ([ADR-0038](adr/0038-refuse-detected-gnss-jump.md), Proposed, #191) |
+| `ekf-guard`, `ekf-imu-guard`, `ekf-calibrated-guard` | The GNSS jump guard, opt-in: a detected jump is refused until the GNSS stream steps back by it ([ADR-0038](adr/0038-refuse-detected-gnss-jump.md), Proposed) |
 | `ekf-calibrated-measured` | `ekf` with `ekf-calibrated`'s model, every value measured on real sessions or the filter's default, none from a sim set ([ADR-0043](adr/0043-calibrated-from-measured-values.md), Accepted, #118; opt-in) |
 | `ekf-map` | `ekf` with a residual map: each tower's error per 25 m cell, learned while GPS is trusted, frozen whenever it is not (P11, [ADR-0032](adr/0032-residual-map.md) Accepted as opt-in only, #95) |
 | `ekf-measured-sigma`, `ekf-calibrated-measured-sigma` | `ekf` and `ekf-calibrated` that tell a radio's LTE records ADR-0036's measured sigma from their SNR instead of the front end's ([ADR-0044](adr/0044-told-sigma-for-radio-records.md), Accepted, #147; opt-in) |
 
-Open PRs add, opt-in: learned LTE range noise (#156, ADR-0039), the tower spoof monitor (`ekf-spoof`, #180, ADR-0037), carrier hopping in the sim (#179, ADR-0040). All three ADRs are Proposed.
+Work in review adds, opt-in: learned LTE range noise (ADR-0039), the tower spoof monitor (`ekf-spoof`, ADR-0037), carrier hopping in the sim (ADR-0040). All three ADRs are Proposed.
 
 ## Integrity layer
 
@@ -102,7 +103,7 @@ Design: [`verification.md`](verification.md) *Integrity monitor: solution separa
 
 | Hypothesis | Covers | Monitored by (on `main`) |
 | --- | --- | --- |
-| Tower site | One site's clock jump, a wrong or moved registry entry, a rogue cell on a real PCI | MHSS site subset; base check names the tower and its jump (#165) |
+| Tower site | One site's clock jump, a wrong or moved registry entry, a rogue cell on a real PCI | MHSS site subset; base check names the tower and its jump |
 | Network builder | One builder's timing source in holdover or captured | MHSS builder subset |
 | Source layer | A whole sensor type wrong | MHSS layer subset |
 | GNSS common mode | GNSS plus every GNSS-derived source | Filter GNSS gate; jump guard (opt-in); spoof detector; time gate; MHSS GNSS-free subset; ADS-B warning raises its prior ([ADR-0033](adr/0033-adsb-raises-gnss-prior.md), Proposed) |
@@ -113,11 +114,11 @@ Design: [`verification.md`](verification.md) *Integrity monitor: solution separa
 
 **Where it stops** ([`results.md`](results.md) (b), (d)):
 - A detected jump is followed by default; only the opt-in guard refuses it, at the cost of dead reckoning afterwards.
-- A slow position ramp is not detected on `main`; #180's monitor catches it where at least 5 sites are heard, in minutes, not 30 s.
+- A slow position ramp is not detected on `main`; the tower monitor in review catches it where at least 5 sites are heard, in minutes, not 30 s.
 - MHSS is safe but unavailable with the `realistic` error sizes: the filter's tower model is not honest for that sim.
-- `ekf-calibrated` can stay confident on a wrong tower table (#132).
+- `ekf-calibrated` can stay confident on a wrong tower table.
 - Two faults in different groups at once, and a wide-area time spoof that also captures tower timing, are not covered by design.
-- No sky-map check and no single spoofed-or-not output yet: `TBD (#206)`.
+- No sky-map check and no single spoofed-or-not output yet: `TBD`.
 
 ## How the sim aligns to reality (ADR-0015)
 
@@ -125,14 +126,14 @@ The mentors accept simulated attacks if the architecture says how the sim aligns
 
 | Model | Status on `main` | Real data so far |
 | --- | --- | --- |
-| IMU (MPU6050) | `measured` (noise, bias instability) | Overnight static session (#157) |
+| IMU (MPU6050) | `measured` (noise, bias instability) | Overnight static session |
 | LTE pseudorange | `placeholder` (50 m white, 50 m multipath, records told 2 m, `TBC`) | Measured at rest: white σ against SNR, a correlated part, sector clocks ([ADR-0036](adr/0036-lte-measured-error-model.md), Proposed; not yet moved in *Sim validity*) |
-| LTE hearing (cells per carrier) | `placeholder` | Real: 1 to 4 cells per carrier in the 15 static captures, often sectors of one site; placement mattered by ≥ 25.7 dB (#210) |
+| LTE hearing (cells per carrier) | `placeholder` | Real: 1 to 4 cells per carrier in the 15 static captures, often sectors of one site; placement mattered by ≥ 25.7 dB |
 | Tower identity | Registry | Real cells consistent with registered eNBs; one heard PCI not in the table |
-| GNSS position | `placeholder` | One static session with a PPS-locked fix (#211); position error after loss `TBD (#214)` |
+| GNSS position | `placeholder` | One static session with a PPS-locked fix; position error after loss `TBD` |
 | Barometer, VOR, ADS-B, Wi-Fi | `placeholder` | ADS-B frames; VOR no lock |
 | LEO, reference station, hostile emitter | `placeholder`, sim only | None possible this week ([ADR-0013](adr/0013-no-iridium-hardware.md), ADR-0020, ADR-0025) |
-| Attacks | Software injection only ([ADR-0001](adr/0001-receive-only-payload.md)) | Injection into a real recording works (#199); no position on it yet |
+| Attacks | Software injection only ([ADR-0001](adr/0001-receive-only-payload.md)) | Injection into a real recording works; no position on it yet |
 
 ## Safety, security and regulation
 
@@ -142,3 +143,7 @@ Full list: [`safety.md`](safety.md).
 - **Privacy:** only signals meant for general reception are decoded (Radiocommunication Act s.9(2)); Wi-Fi BSSIDs are hashed at capture (REQ-08, [ADR-0011](adr/0011-privacy-at-capture.md)).
 - **Ground links:** authenticated and encrypted with CurveZMQ ([ADR-0026](adr/0026-ground-link-security.md)). MAVLink signing `TBC`; hash-chained logs after judging.
 - **Flight:** INAV, pilot-flown, RC kill switch ([ADR-0028](adr/0028-fly-inav.md)); tethered indoor hover only for the Wi-Fi bridge ([ADR-0029](adr/0029-tethered-hover-wifi-control.md)).
+
+---
+
+*Status: 2026-11-11, against `main` at `c21e047`. Open items behind the `TBD`s: agreed-statistic baseline (#187), spoof decision (#206), heat map (#207), real GPS cut (#214). PR and issue sources per claim: [`results.md`](results.md).*
