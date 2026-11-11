@@ -16,7 +16,8 @@ Three kinds of evidence, labelled as such in the output:
    `ekf-guard`, clean and with a 300 m east jump injected with the flat sky at `INJECT_S`; the
    decision reads the skyviews and the estimates' flags, as the panel does.
 3. **Sim** (`spoof-jump-sky`, seeds 0..N-1, `ekf` and `ekf-guard`): false alarms before the
-   spoof at 150 s, and detection delays after it. The sim's sky is a placeholder fitted on (1).
+   spoof at 150 s, and detection delays after it. The sim's sky is fitted on (1) (`measured`,
+   one session).
 
     python analysis/spoof_sky.py --session <dir> [--runs 20] [--out <dir>] [--plot <png>]
 """
@@ -259,8 +260,7 @@ def sim_part(runs: int):
     from pnt.experiments import _map
 
     lines = [
-        f"## Sim `{SIM}` (seeds 0-{runs - 1}; sky model `placeholder`, fitted on the real "
-        "session)",
+        f"## Sim `{SIM}` (seeds 0-{runs - 1}; sky model `measured` on the real session)",
         "",
         "| Estimator | Clean (no faults): alarm onsets / spoofed onsets, all runs | Spoofed run "
         "before 150 s: alarm onsets | First suspect after the spoof (median, max) | First "

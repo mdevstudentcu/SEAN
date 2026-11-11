@@ -11,11 +11,11 @@ elevation from the receiver's true position is at least `mask_deg`. Their power:
 
 with `bias_PRN` drawn once per run and `noise` per report. A PRN under `min_cn0_dbhz` is not
 tracked. Defaults are fitted on the one real session with skyviews (20261111-0040-static-fullsuite:
-GPS HAT, external active antenna, static, open sky; 120 skyviews, 11 GPS PRNs): a least-squares
+GPS HAT, external active antenna, static, outdoors; 120 skyviews, 11 GPS PRNs): a least-squares
 line of C/N0 on sin(elevation) (a 18.4, b 27.2), the spread of each PRN's mean residual (6.1 dB),
 the report-to-report change of one PRN (1.3 dB, so 0.9 dB per report), the weakest C/N0 reported
 (12 dB-Hz) and the lowest elevation tracked (8.7 deg, so a 5 deg mask). All TBC: one antenna, one
-place, ten minutes; the sim's sky is `placeholder` in the Sim validity table.
+place, ten minutes; the Sim validity table lists it as `measured` on that one session.
 
 The draws come from their own random stream, so a scenario's other draws do not move with it.
 """
