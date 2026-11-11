@@ -15,9 +15,12 @@ sim scenario="gps-outage" *args="":
 eval scenario="gps-outage" runs="50":
     {{py}} pnt eval {{scenario}} --runs {{runs}}
 
-# Re-run every scenario's Monte Carlo and rewrite the results table in systems/verification.md
-results runs="50":
-    {{py}} pnt results --runs {{runs}}
+# The results we present (#27), from a clean commit: every scenario's Monte Carlo into the results
+# table of systems/verification.md, then the four figures (error after GPS loss scored as T1,
+# Stanford, ablation, timing holdover) with their numbers into analysis/results/final/
+results runs="50" estimator="ekf" jobs=num_cpus():
+    {{py}} pnt results --runs {{runs}} --estimator {{estimator}} --jobs {{jobs}}
+    {{py}} python analysis/figures.py --estimator {{estimator}} --runs {{runs}} --jobs {{jobs}} --out analysis/results/final
 
 # After a rebase-merge: re-point committed results and docs at main's commits (dry run; --write applies)
 recite *args="":
