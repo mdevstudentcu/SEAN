@@ -681,7 +681,7 @@ def figures(sessions, res, sv, out: Path, commit: str) -> list[Path]:
     fig, axs = plt.subplots(1, 2, figsize=(10, 4.2), dpi=130, sharey=True)
     tau = np.logspace(-1, math.log10(600), 60)
     cur = sim_curves(sv, tau)
-    best = [r for r in res["cells"] if r["tracked"] > 0.8 and r["S_arc"]]
+    best = [r for r in res["cells"] if r["tracked"] > 0.7 and r["S_arc"]]
     for i, r in enumerate(sorted(best, key=lambda r: -len(r["S_arc"]))[:7]):
         t = [x["tau_s"] for x in r["S_arc"]]
         axs[0].loglog(
