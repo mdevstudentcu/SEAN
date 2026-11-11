@@ -105,6 +105,13 @@ MHSS_ENTRIES = (
     "outage-tower-holdover",
 )
 MHSS_SEEDS = 20
+# The T5 bound figure (#222): every epoch's horizontal error and HPL is kept for these runs only
+# (the drone leg's GPS loss and held jump, the default filters and their guard), in BOUND_FILE
+# beside runs.json. They are the runs T5 scores, so the figure's shares come from the same epochs.
+BOUND_LEG = "drone"
+BOUND_ENTRIES = ("outage", "spoof-jump")
+BOUND_ESTIMATORS = ("ekf", "ekf-guard", "ekf-calibrated", "ekf-calibrated-guard", "ekf-mhss")
+BOUND_FILE = "bound.npz"
 
 # Targets, systems/plan.md and ADR-0034 (T1 Accepted with its value TBC; T3 to T5 Proposed)
 # T1 and its fallback, scored as ADR-0034's amendment (adf24d7) says: the 95th percentile across
@@ -184,14 +191,31 @@ def error_curve(estimates, truth, spec: dict) -> list | None:
     return out
 
 
-def run_one(scenario: str, seed: int, estimators: tuple[str, ...]) -> tuple[dict, dict]:
+def bound_epochs(estimates, truth) -> tuple[np.ndarray, np.ndarray]:
+    """(horizontal error, HPL) in metres at every epoch, paired with truth and computed exactly
+    as `pnt.metrics.score` does, so `mean(hpl >= err)` is the run's `hpl_bound_frac`."""
+    tmap = {g.t_ns: g for g in truth}
+    pairs = [(e, tmap[e.t_ns]) for e in estimates if e.t_ns in tmap]
+    err_h = np.array([np.subtract(e.pos_enu, g.pos_enu)[:2] for e, g in pairs])
+    return np.hypot(err_h[:, 0], err_h[:, 1]), np.array([e.hpl_m for e, _ in pairs])
+
+
+def is_bound_case(scenario: str, estimator: str) -> bool:
+    """Is this one of the runs whose every epoch the T5 bound figure keeps?"""
+    entry = scenario.removeprefix(f"challenge-{BOUND_LEG}-")
+    return entry != scenario and entry in BOUND_ENTRIES and estimator in BOUND_ESTIMATORS
+
+
+def run_one(scenario: str, seed: int, estimators: tuple[str, ...]) -> tuple[dict, dict, dict]:
     """One seed of one scenario, generated once, through each estimator. Returns
     ({estimator: [FIELDS values] or "Error: message" if it raised},
-     {estimator: error_curve} for the estimators that ran, on an entry with a GPS loss)."""
+     {estimator: error_curve} for the estimators that ran, on an entry with a GPS loss,
+     {estimator: (error, HPL) at every epoch} for the T5 bound figure's runs)."""
     spec = load(scenario)
     run = generate(spec, seed=seed)
     out: dict = {}
     curves: dict = {}
+    epochs: dict = {}
     for name in estimators:
         try:
             est = list(
@@ -207,9 +231,11 @@ def run_one(scenario: str, seed: int, estimators: tuple[str, ...]) -> tuple[dict
             curve = error_curve(est, run.truth, spec)
             if curve is not None:
                 curves[name] = curve
+            if is_bound_case(scenario, name):
+                epochs[name] = bound_epochs(est, run.truth)
         except Exception as exc:  # report the crash, don't work around it
             out[name] = f"{type(exc).__name__}: {exc}"
-    return out, curves
+    return out, curves, epochs
 
 
 def across_run_p95(curves: list) -> np.ndarray:
@@ -1188,6 +1214,55 @@ def _save(data: dict, path: Path) -> None:
     path.write_text(json.dumps(data, separators=(",", ":"), allow_nan=False))
 
 
+def save_bound(bound: dict, meta: dict, path: Path) -> None:
+    """The T5 bound figure's epochs ({scenario: {estimator: {seed: (err, hpl)}}}) as float64
+    arrays, exact so the figure's shares equal T5's, with `meta` (commit, command) as JSON."""
+    arrays = {"meta": np.array(json.dumps(meta))}
+    for scn, by_est in bound.items():
+        for est, by_seed in by_est.items():
+            for seed, (err, hpl) in by_seed.items():
+                arrays[f"{scn}/{est}/{seed}/err"] = np.asarray(err, float)
+                arrays[f"{scn}/{est}/{seed}/hpl"] = np.asarray(hpl, float)
+    with path.open("wb") as f:
+        np.savez_compressed(f, **arrays)
+
+
+def load_bound(path: Path) -> tuple[dict, dict] | None:
+    """(epochs, meta) as `save_bound` wrote them, or None if there is no file."""
+    if not path.exists():
+        return None
+    bound: dict = {}
+    with np.load(path, allow_pickle=False) as z:
+        meta = json.loads(str(z["meta"]))
+        for key in z.files:
+            if key == "meta" or not key.endswith("/err"):
+                continue
+            scn, est, seed, _ = key.split("/")
+            hpl = z[f"{scn}/{est}/{seed}/hpl"]
+            bound.setdefault(scn, {}).setdefault(est, {})[seed] = (z[key], hpl)
+    return bound, meta
+
+
+def bound_tasks(data: dict) -> list[tuple[str, int, tuple[str, ...]]]:
+    """The T5 bound figure's runs, with the seeds the baseline in `data` ran per estimator."""
+    tasks = []
+    if BOUND_LEG not in data["legs"]:
+        return tasks
+    for entry in BOUND_ENTRIES:
+        if entry not in data["entries"][BOUND_LEG]:
+            continue
+        scn = f"challenge-{BOUND_LEG}-{entry}"
+        for seed in range(max(data["seeds"], data["mhss_seeds"])):
+            todo = tuple(
+                e
+                for e in data["estimators"]
+                if is_bound_case(scn, e) and seed < seeds_for(data, e, entry)
+            )
+            if todo:
+                tasks.append((scn, seed, todo))
+    return tasks
+
+
 def main(argv=None) -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument("--seeds", type=int, default=50, help="seeds 0..N-1 (default 50)")
@@ -1217,6 +1292,12 @@ def main(argv=None) -> None:
     g.add_argument(
         "--redraw", action="store_true", help="only rewrite summary and figures from runs.json"
     )
+    g.add_argument(
+        "--bound",
+        action="store_true",
+        help=f"re-run only the T5 bound figure's runs into {BOUND_FILE}, check them against "
+        "runs.json, then redraw",
+    )
     args = p.parse_args(argv)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -1225,6 +1306,7 @@ def main(argv=None) -> None:
     runs_dir = RUNS if committed else out
     runs_dir.mkdir(parents=True, exist_ok=True)
     json_path = runs_dir / "runs.json"
+    bound_path = runs_dir / BOUND_FILE
     commit = _commit()
     # REQ-10: the committed results name a commit they can be regenerated from
     if not args.redraw and committed and not _clean(commit):
@@ -1233,10 +1315,37 @@ def main(argv=None) -> None:
             "(or write elsewhere with --out)"
         )
 
+    argv_list = sys.argv[1:] if argv is None else list(argv)
     if args.redraw:
         data = json.loads(json_path.read_text())
+    elif args.bound:
+        data = json.loads(json_path.read_text())
+        tasks = bound_tasks(data)
+        print(f"bound: {len(tasks)} (scenario, seed) tasks", flush=True)
+        t_start = time.time()
+        results = _map(run_one, tasks, args.jobs)
+        bound: dict = {}
+        differ = []
+        for (scn, seed, _), (res, _curves, epochs) in zip(tasks, results, strict=True):
+            for est, r in res.items():
+                # The same runs at another commit: their metrics must equal the table's
+                if r != data["runs"].get(scn, {}).get(est, {}).get(str(seed)):
+                    differ.append(f"{scn} {est} seed {seed}")
+            for est, ep in epochs.items():
+                bound.setdefault(scn, {}).setdefault(est, {})[str(seed)] = ep
+        if differ:
+            raise SystemExit(
+                f"{len(differ)} run(s) differ from runs.json ({data['commit']}), nothing written: "
+                + "; ".join(differ[:10])
+            )
+        meta = {
+            "commit": commit,
+            "command": "python analysis/challenge_baseline.py " + shlex.join(argv_list),
+            "runtime_s": time.time() - t_start,
+        }
+        save_bound(bound, meta, bound_path)
+        print(f"bound: {len(tasks)} tasks in {meta['runtime_s']:.0f} s, equal to runs.json")
     else:
-        argv_list = sys.argv[1:] if argv is None else list(argv)
         command = "python analysis/challenge_baseline.py " + shlex.join(
             [a for a in argv_list if a != "--resume"]
         )
@@ -1280,22 +1389,28 @@ def main(argv=None) -> None:
                 if load(f"challenge-{leg}-{entry}").get("reference"):
                     raise SystemExit(f"challenge-{leg}-{entry} has a reference station")
         t_start = time.time()
+        bound: dict = {}
         for leg in legs:  # one leg at a time, saved after each, so --resume loses little
             tasks = [t for t in plan_tasks(data) if t[0].startswith(f"challenge-{leg}-")]
             print(f"{leg}: {len(tasks)} (scenario, seed) tasks", flush=True)
             t_leg = time.time()
             results = _map(run_one, tasks, args.jobs)
-            for (scn, seed, _), (res, curves) in zip(tasks, results, strict=True):
+            for (scn, seed, _), (res, curves, epochs) in zip(tasks, results, strict=True):
                 for est, r in res.items():
                     data["runs"].setdefault(scn, {}).setdefault(est, {})[str(seed)] = r
                     if isinstance(r, str):
                         data["errors"][f"{scn} {est} seed {seed}"] = r
                 for est, c in curves.items():
                     data["curves"].setdefault(scn, {}).setdefault(est, {})[str(seed)] = c
+                for est, ep in epochs.items():
+                    bound.setdefault(scn, {}).setdefault(est, {})[str(seed)] = ep
             data["runtime_s"] += time.time() - t_leg
             _save(data, json_path)
             print(f"{leg}: done in {time.time() - t_leg:.0f} s", flush=True)
         print(f"ran in {time.time() - t_start:.0f} s", flush=True)
+        # A --resume keeps no epochs from before it, so it writes the file only if it has them all
+        if bound and not args.resume:
+            save_bound(bound, {"commit": commit, "command": data["command"]}, bound_path)
 
     figures = write_figures(data, out)
     path = write_summary(data, out, figures)
