@@ -309,12 +309,13 @@ def plan_stress(seeds: list[int]) -> list[tuple]:
 
 
 def plan_sweep(seeds: list[int]) -> list[tuple]:
-    """Each new setting at 0.5x and 1.5x, `ekf-honest`, drone `outage` on 1 and 13 carriers,
-    the first 50 seeds; the unswept fix and its unfixed estimator ride along for pairing."""
+    """Each new setting at 0.5x and 1.5x, `ekf-honest`, drone `outage` on 1 carrier (the first
+    50 seeds) and 13 carriers (the first 10: 40-70 s a run); the unswept fix and its unfixed
+    estimator ride along for pairing."""
     tasks = []
     for n in (1, 13):
         key = f"drone/outage/{n}c"
-        for s in seeds[:50]:
+        for s in seeds[: 50 if n == 1 else 10]:
             tasks.append((key, s, ("ekf-learned-noise", "ekf-honest"), None))
             for name, v in SWEEP.items():
                 for k in SWEEP_FACTORS:
