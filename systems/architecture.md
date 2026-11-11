@@ -69,6 +69,7 @@ Code: [`src/pnt/nav/`](../src/pnt/nav/). The registry is `pnt.nav.ESTIMATORS`.
 | `ekf-base` | `ekf` differenced against the ground reference station | Tower clocks cancel in the difference ([ADR-0020](adr/0020-ground-reference-station.md)); falls back to `ekf` when the base is lost or excluded |
 | `ekf-mhss` | `ekf` with a solution-separation monitor | HPL and exclusion from the fault hypotheses below (#82) |
 | `ekf-mhss-beacon` | `ekf-mhss` that may also use a located jammer's received power as a low-trust coarse range | Sim only (ADR-0025, #93): promotion gate, weight cap and its own `hostile:` hypothesis; the PL is not allowed to shrink because of it |
+| `ekf-calibrated-measured` | `ekf` with `ekf-calibrated`'s model, every value measured on real sessions or the filter's default, none from a sim set | Opt-in ([ADR-0043](adr/0043-calibrated-from-measured-values.md), Proposed, #118): a calibrated filter whose consistency on a sim set is a test, not self-consistency |
 | `ekf-guard`, `ekf-imu-guard`, `ekf-calibrated-guard` | `ekf`, `ekf-imu` and `ekf-calibrated` with the GNSS jump guard | Opt-in ([ADR-0038](adr/0038-refuse-detected-gnss-jump.md), Proposed, #184): a detected GNSS position jump is refused until the GNSS stream steps back by it |
 | `ekf-map` | `ekf` with a residual map: each tower's error per 25 m cell, learned while GPS is trusted | Opt-in (P11, [ADR-0032](adr/0032-residual-map.md) Proposed, #95); frozen whenever GPS is not trusted |
 
