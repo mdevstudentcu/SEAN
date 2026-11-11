@@ -4,7 +4,7 @@ What the payload Pi 4B measured with both radios recording ([`RUNBOOK.md`](RUNBO
 
 ## `20261111-0040-static-fullsuite` (2026-11-11)
 
-First full-suite session. Recorded at `4d3598b` (local commit; its change is on `main` as `ee20817`, see [`verification.md`](../../systems/verification.md#first-real-air-sessions-2026-11-10)). Static, outdoors, everything on the ground and spaced apart. The receiver position is withheld for privacy.
+First full-suite session. Recorded at the change that is `ee20817` on `main` (the session's `meta.yaml` names the commit it had then, from #141's branch; see [`verification.md`](../../systems/verification.md#first-real-air-sessions-2026-11-10)). Static, outdoors, everything on the ground and spaced apart. The receiver position is withheld for privacy.
 
 - **Hardware:** Pi 4 Model B Rev 1.5 (4 GB), kernel `6.18.50+rpt-rpi-v8`, Python 3.13.5. Adafruit GPS HAT with an external active antenna, PPS-locked. MPU6050 and BMP180 on I2C.
 - **Radios:** SDR A is a NESDR on a Bingfu antenna, LTE EARFCN 2460 (875 MHz) at 1.92 MS/s. SDR B is an AirNav FlightStick on a NooElec 1090 antenna, at 1090 MHz and 2.4 MS/s, auto gain. Together 8.64 MB/s to the SD card.
@@ -61,7 +61,7 @@ readsb decoded **0 frames** from SDR B's 9 min 42 s capture: `frames-avr.txt` is
 
 ## `20261111-0151-static-fullsuite2` (2026-11-11)
 
-Re-record, 01:51–02:01, recorded at `c007627` (on `origin/shrikar/feat/readsb-setup`). Laptop `pnt day1` at `1389832` on the copied session; the copy's SHA-256 matched the drive (coordinator's check). Same setup as 0040 except:
+Re-record, 01:51–02:01, recorded at the change that is `8c4e856` on `main` (the session's `meta.yaml` names the commit it had then, from #209's branch). Laptop `pnt day1` at `463982c` on the copied session; the copy's SHA-256 matched the drive (coordinator's check). Same setup as 0040 except:
 
 - IQ to a SanDisk USB 3.2 Gen 1 drive (ext4) on the USB 2 bus, mounted at `/mnt/pntdata`
 - the LTE antenna taped upright

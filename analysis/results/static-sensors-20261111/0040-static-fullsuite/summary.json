@@ -1,6 +1,6 @@
 {
  "session": "20261111-0040-static-fullsuite",
- "commit": "8882a1d",
+ "commit": "d20b410",
  "gnss": {
   "fixes": 600,
   "rate_hz": 1.0,

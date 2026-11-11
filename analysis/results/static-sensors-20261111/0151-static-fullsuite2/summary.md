@@ -1,4 +1,4 @@
-Session `20261111-0151-static-fullsuite2`, analysed at `8882a1d`. Deviations about the session mean only.
+Session `20261111-0151-static-fullsuite2`, analysed at `d20b410`. Deviations about the session mean only.
 
 **GNSS:** 601 fixes at 1.00 Hz over 600 s; horizontal RMS 0.38 m.
 
