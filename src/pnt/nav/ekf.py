@@ -209,6 +209,7 @@ from pnt.core.frames import emitter_enu
 from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.jump_guard import JumpGuard
 from pnt.integrity.protection import hpl, vpl
+from pnt.nav import told_sigma
 from pnt.nav.baseline import CHI2_999
 from pnt.nav.hostile import BeaconParams, Beacons
 from pnt.nav.imu import ImuMotion
@@ -295,6 +296,7 @@ class EKF:
         noise_tau_s: float | None = None,  # s: memory of a radio's learned range noise; None: off
         range_sigma_floor_m: float = 0.0,  # m: least range sigma of a radio's record; 0: off (TBC)
         noise_prior_m: float = 40.0,  # m: a radio cell's range sigma before learning (TBC)
+        told_sigma_model: str | None = None,  # "adr0036": radio records' sigma from SNR (#147)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -384,6 +386,9 @@ class EKF:
         self._curvature = 0.0  # the curvature part of the last pseudorange's R
         self._noise: dict[str, list[float]] = {}  # emitter -> [last t, weight, weighted sum]
         self._mp_var = 0.0  # the multipath state's variance before the last update
+        if told_sigma_model is not None and told_sigma_model not in told_sigma.MODELS:
+            raise ValueError(f"told_sigma_model must be one of {told_sigma.MODELS} or None")
+        self.told_sigma_model = told_sigma_model  # nav/told_sigma.py; None: the reported sigma
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -720,6 +725,8 @@ class EKF:
         model = MODELS.get(m.kind)
         if model is None:
             return  # not modelled yet
+        if self.told_sigma_model is not None:
+            m = told_sigma.retold(m, self.told_sigma_model)  # a radio record's sigma from its SNR
         if m.kind == "rssi" and (self.hostile is None or not m.meta.get("hostile")):
             return  # only a hostile beacon's power is modelled, and only when asked for
         self.predict(m.t_ns)
