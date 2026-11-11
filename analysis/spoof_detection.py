@@ -4,8 +4,9 @@ One command, from a clean commit:
 
     python analysis/spoof_detection.py --seeds 50 --mhss-seeds 5 --jobs 2
 
-writes `analysis/results/spoof-detection/`: `summary.md` (the tables), `runs.json` (one row per
-run) and `detection.png`. `--redraw` rebuilds the summary and figure from `runs.json`.
+writes `summary.md` (the tables) and `detection.png` to `analysis/results/spoof-detection/`
+(committed), and one row per run to `analysis/results/runs/spoof-detection.json` (git-ignored,
+rounded, missing values as null). `--redraw` rebuilds the summary and figure from that file.
 
 Legs, each from committed scenarios (no scenario file is added):
 - `drone`: the `challenge-drone` leg as committed (1 to 3 cells heard per epoch).
@@ -46,7 +47,9 @@ from pnt.metrics import ALARM_FLAGS, SPOOF_ATTACKS, score
 from pnt.nav import ESTIMATORS, estimate
 from pnt.sim.scenario import T0_NS, generate, load
 
-OUT = Path(__file__).resolve().parent / "results" / "spoof-detection"
+RESULTS = Path(__file__).resolve().parent / "results"
+OUT = RESULTS / "spoof-detection"  # committed: summary.md, detection.png
+RUNS = RESULTS / "runs" / "spoof-detection.json"  # git-ignored: one row per run
 PAIRS = (("ekf", "ekf-spoof"), ("ekf-calibrated", "ekf-calibrated-spoof"))
 FAST = tuple(e for p in PAIRS for e in p)
 MHSS = "ekf-mhss"
@@ -156,7 +159,7 @@ def run_one(case: str, estimator: str, seed: int) -> dict:
         "case": case,
         "estimator": estimator,
         "seed": seed,
-        "cpu_s": round(cpu_s, 2),
+        "cpu_s": cpu_s,
         "detect_delay_s": m.detect_delay_s,
         "spoof_detected": m.spoof_detected,
         "false_alarms_per_h": m.false_alarms_per_h,
@@ -510,6 +513,33 @@ def plot(data: dict, out: Path) -> None:
     print(f"wrote {out}")
 
 
+def _clean(x):
+    """A value as the runs file stores it: floats rounded (finer than any table prints),
+    NaN as null, so the file is standard JSON (`allow_nan=False`)."""
+    if isinstance(x, float):
+        return None if math.isnan(x) else round(x, 3)
+    if isinstance(x, dict):
+        return {k: _clean(v) for k, v in x.items()}
+    if isinstance(x, list):
+        return [_clean(v) for v in x]
+    return x
+
+
+def save_runs(data: dict, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rows = ",\n".join(json.dumps(_clean(r), allow_nan=False) for r in data["runs"])
+    meta = json.dumps(_clean(data["meta"]), allow_nan=False)
+    path.write_text(f'{{"meta": {meta},\n"runs": [\n{rows}\n]}}\n')
+    print(f"wrote {path}")
+
+
+def load_runs(path: Path) -> dict:
+    """The runs file, with null read back as NaN for the summary."""
+    data = json.loads(path.read_text())
+    data["runs"] = [{k: math.nan if v is None else v for k, v in r.items()} for r in data["runs"]]
+    return data
+
+
 def write(data: dict, out_dir: Path) -> None:
     (out_dir / "summary.md").write_text(summary(data))
     plot(data, out_dir / "detection.png")
@@ -521,32 +551,28 @@ def main(argv=None) -> None:
     p.add_argument("--seeds", type=int, default=50)
     p.add_argument("--mhss-seeds", type=int, default=5)
     p.add_argument("--jobs", type=int, default=2)
-    p.add_argument("--out", default=str(OUT))
-    p.add_argument("--redraw", action="store_true", help="rebuild from runs.json")
+    p.add_argument("--out", default=str(OUT), help="summary.md and detection.png")
+    p.add_argument("--runs", default=str(RUNS), help="per-run rows (git-ignored by default)")
+    p.add_argument("--redraw", action="store_true", help="rebuild from the runs file")
     a = p.parse_args(argv)
-    out_dir = Path(a.out)
+    out_dir, runs_path = Path(a.out), Path(a.runs)
     out_dir.mkdir(parents=True, exist_ok=True)
-    if a.redraw:
-        data = json.loads((out_dir / "runs.json").read_text())
-        write(data, out_dir)
-        return
-    tasks = plan(a.seeds, a.mhss_seeds)
-    print(f"{len(tasks)} runs on {a.jobs} workers")
-    t0 = time.time()
-    runs = _map(tasks, a.jobs)
-    data = {
-        "meta": {
+    if not a.redraw:
+        tasks = plan(a.seeds, a.mhss_seeds)
+        print(f"{len(tasks)} runs on {a.jobs} workers")
+        t0 = time.time()
+        runs = _map(tasks, a.jobs)
+        meta = {
             "commit": _commit(),
             "command": f"python analysis/spoof_detection.py --seeds {a.seeds} "
             f"--mhss-seeds {a.mhss_seeds} --jobs {a.jobs}",
             "seeds": a.seeds,
             "mhss_seeds": a.mhss_seeds,
             "minutes": (time.time() - t0) / 60.0,
-        },
-        "runs": runs,
-    }
-    (out_dir / "runs.json").write_text(json.dumps(data, indent=0, default=float))
-    write(data, out_dir)
+        }
+        save_runs({"meta": meta, "runs": runs}, runs_path)
+    # the summary is always built from the file as written, so --redraw gives the same tables
+    write(load_runs(runs_path), out_dir)
 
 
 if __name__ == "__main__":
