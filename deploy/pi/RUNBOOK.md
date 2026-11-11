@@ -110,6 +110,30 @@ A key is replaced with `pnt keys gen --role <role> --force`, then K2 again for t
 
     Add `--no-gnss` if the GPS HAT is off; then the clock is NTP only, and the timestamps are not GPS time. `systemctl status pnt-overnight` shows it running; `journalctl -u pnt-overnight` has the summary when it ends. Don't run `just pi-deploy` meanwhile: setup restarts chrony.
 
+## H. ADS-B and VOR from recorded IQ
+
+The Pi records raw IQ; the decoders run on the file afterwards. Neither decoder is installed by `setup.sh`: whether to automate them there is an owner decision (it downloads at build time).
+
+16. ADS-B, record: `.venv/bin/pnt record --platform static --place <site> --duration 60 --sdr a:1090e6:rate=2.4e6:dev=0 --notes "ADS-B IQ, <antenna, where>"` (as `rf_survey.sh` does). At 2 bytes per sample, 60 s at 2.4 MS/s is 288 MB.
+17. ADS-B, decode on the Pi with **readsb**, installed by hand with the owner's approval: `sudo apt install readsb` (Debian package `3.14.1630+git20240609.adc080d-1` on the payload Pi, 2026-11-10). Its service stays **disabled** (`systemctl is-enabled readsb` → `disabled`): nothing listens on the radio at boot. It reads the capture as a file:
+
+    ```bash
+    s=data/sessions/<session>
+    readsb --device-type ifile --ifile $s/sdr_a.cu8 --iformat UC8 --raw --quiet > $s/frames-avr.txt 2> $s/readsb.err
+    ```
+
+    Good output: `readsb.err` ends `Normal exit. uptime: ... <capture length>`; `frames-avr.txt` has one `*<hex>;` line per frame (198 in 59.4 s outdoors in `20261110-adsb-outside-iq`). The lines carry **no time**: `analysis/adsb_avr_capture.py` gives them stand-in times, so they cannot give a message rate or a timing measurement.
+18. *Laptop:* copy `frames-avr.txt`, `sdr_a.json`, `meta.yaml` and `session.mcap` (not the `.cu8` unless it will be decoded again) into `data/sessions/<session>/`, then `python analysis/adsb_avr_capture.py data/sessions/<session> --plot track.png`.
+19. VOR, record with the VOR 250 kHz above the tuner centre, off the dongle's DC spike: for 114.6 MHz, `--sdr a:114.35e6:rate=1.92e6:dev=0`. Add `:gain=<dB>` for a fixed gain when FM broadcast overloads the AGC.
+20. VOR, decode on the *laptop* with **Voracious** (third-party, MIT, `https://github.com/xoolive/desperado`; not in git, never vendored). It is built with `cargo` and needs `libasound2-dev`; it is not built on the Pi (a build there failed on its Rust version; not re-checked). Which source commit the laptop binary was built from is `TBC`: the checkout it came from is gone.
+
+    ```bash
+    voracious data/sessions/<session>/sdr_a.cu8 -f cu8 -s 1920000 -c 114.35 -v 114.6 > vor-114.6.jsonl
+    python analysis/vor_quality.py vor-114.6.jsonl
+    ```
+
+    Use the radials (`pnt.frontends.vor`) only if one ident repeats and the radials of a still receiver stay within a few degrees. On 2026-11-10 neither happened ([`verification.md`](../../systems/verification.md#first-real-air-sessions-2026-11-10)).
+
 ## If something is wrong
 
 - A device shows as `absent` or `failed` in the summary or in `meta.yaml` `notes`: the others kept recording. Fix it and record again.
