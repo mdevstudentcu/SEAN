@@ -5,9 +5,11 @@
 Runs `analysis/real_gps_cut.py` (#214: `run_one`, `hold_last_fix`; GNSS cut in software at
 each cut time, scored against the withheld fixes; `--cut-script` for a copy elsewhere) for the
 variants of `analysis/told_sigma_147.py`, each for `ekf` and `ekf-calibrated`: `default`, `A`
-(#156's learned noise), `B` (ADR-0036's measured sigma), `B+A`, and `no LTE`. LTE records as
-the front end wrote them, pseudoranges only (#214's `told-pr`: ADR-0036 gives the dopplers no
-sigma and #183 flags their carrier aliases); `told` (with dopplers) too with `--with-doppler`.
+(#156's learned noise), `B` (ADR-0036's measured sigma), `B+A`, and `no LTE`; and each of the
+first four with `arc_bias` (`arc`, `A+arc`, `B+arc`, `B+A+arc`: a new arc gets its own bias).
+LTE records as the front end wrote them, pseudoranges only (#214's `told-pr`: ADR-0036 gives
+the dopplers no sigma and #183 flags their carrier aliases); `told` (with dopplers) too with
+`--with-doppler`.
 
 A and B+A need #156's code in the `src/` under test. Writes `real.json` into `--out`: errors and
 HPL bound rates only, never a position, origin, range or bearing (the session is at a private
@@ -18,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import inspect
 import json
 import math
 from pathlib import Path
@@ -34,15 +37,20 @@ TAU = {"ekf": "NOISE_TAU_S", "ekf-calibrated": "CALIBRATED_NOISE_TAU_S"}
 
 
 def _register() -> dict[str, tuple[str, str]]:
-    """Registry names for every (family, variant) this `src/` can run; B+A is registered here,
-    on import, so worker processes have it too."""
+    """Registry names for every (family, variant) this `src/` can run; B+A and the `+arc`
+    variants are registered here, on import, so worker processes have them too."""
     names = {}
+    learn_ok = "noise_tau_s" in inspect.signature(ekf.EKF).parameters
+    arc_ok = "arc_bias" in inspect.signature(ekf.EKF).parameters
     for fam, fn in FAMILIES.items():
         tau = getattr(ekf, TAU[fam], None)
         cfgs = {"default": {}, "B": {"told_sigma_model": "adr0036"}}
-        if tau is not None:
+        if learn_ok:
             cfgs["A"] = {"noise_tau_s": tau}
             cfgs["B+A"] = {"told_sigma_model": "adr0036", "noise_tau_s": tau}
+        if arc_ok:
+            cfgs |= {f"{k}+arc" if k != "default" else "arc": v | {"arc_bias": True}
+                     for k, v in list(cfgs.items())}  # fmt: skip
         for variant, cfg in cfgs.items():
             name = f"147:{fam}:{variant}"
             ESTIMATORS[name] = configured(fn, **cfg)
