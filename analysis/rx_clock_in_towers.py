@@ -22,7 +22,7 @@ towers fixed it. This script measures that, paired by seed (seeds 0..runs-1):
 
 Writes summary.md, summary.json, error_vs_hpl.png and drift.png into `--out`.
 
-With `--costs` it runs only the cost study instead (ADR-0046's follow-up): can the term be kept
+With `--costs` it runs only the cost study instead (ADR-0047's follow-up): can the term be kept
 without its costs on the base sets? `COST_VARIANTS` over `COST_SCENARIOS`, paired with `ekf`
 (mean difference and its standard error over the seeds): the term always on, on only once GNSS
 time has been used (`observed`) or only while GNSS position is lost (`gnss_out`), with a smaller
@@ -314,7 +314,7 @@ def costs(args, commit: str) -> None:
         return "—" if x[0] != x[0] else f"{x[0]:+.1f} ± {x[1]:.1f}"
 
     lines = [
-        "# Keeping our clock in the tower ranges without its costs (#228, ADR-0046)",
+        "# Keeping our clock in the tower ranges without its costs (#228, ADR-0047)",
         "",
         f"Commit `{commit}`, seeds 0-{args.runs - 1} (paired), sim with placeholder models. "
         "Δ: mean paired difference from `ekf` in the same rows ± its standard error. "

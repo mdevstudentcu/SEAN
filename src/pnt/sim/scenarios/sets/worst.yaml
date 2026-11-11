@@ -4,7 +4,7 @@
 # `ekf-imu`, `ekf-mhss` and `baseline` leave it out (`pseudorange_receiver_clock` is off by
 # default; `ekf-calibrated` has it on). Once GPS is lost the tower readings they accept (12 % on
 # `worst-long-outage`) move the position with our clock's drift (100 ppb, 30 m/s): T1 p95 10 km.
-# Results here measure that gap, not how hard the environment is (#228, ADR-0046 Proposed,
+# Results here measure that gap, not how hard the environment is (#228, ADR-0047 Proposed,
 # analysis/rx_clock_in_towers.py).
 description: Stress case with few towers and strong persistent errors.
 duration_s: 360
