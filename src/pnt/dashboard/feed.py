@@ -20,7 +20,7 @@ from pnt.core.frames import emitter_enu, llh_to_enu
 from pnt.core.measurement import Measurement, Truth
 from pnt.dashboard.health import HealthMonitor
 from pnt.metrics import ALERT_LIMIT_M
-from pnt.nav import estimate
+from pnt.nav import cells, estimate
 
 # An emitter counts as heard on the map if one of its records is this recent. TBC: two missed
 # readings of a 1 Hz tower.
@@ -170,7 +170,10 @@ def _add_preflight(
 
 class _Watch:
     """Passes measurements through to the estimator, noting each emitter's position and when it
-    was last heard (payload receiver only: the reference station is drawn from the session)."""
+    was last heard (payload receiver only: the reference station is drawn from the session).
+    It watches records after the registry lookup (`pnt.nav.cells.attach`), so a real or
+    front-end-shaped LTE cell, which carries no position of its own, is drawn at its registered
+    site; `estimate` then passes the placed records through unchanged."""
 
     def __init__(self, measurements: Iterable[Measurement], origin_llh):
         self.it = iter(measurements)
@@ -200,7 +203,7 @@ def _num(x) -> float | None:
 def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
     """One frame per Estimate. `lock`, if given, guards the monitor (the server acknowledges
     alerts from another thread)."""
-    watch = _Watch(feed.measurements, feed.origin_llh)
+    watch = _Watch(cells.attach(feed.measurements, feed.origin_llh), feed.origin_llh)
     heard_ns = int(HEARD_S * 1e9)
     run = estimate(feed.estimator, watch, origin_llh=feed.origin_llh, reference=feed.reference)
     for est in run:
