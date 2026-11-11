@@ -44,6 +44,7 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0039](0039-learned-lte-range-noise.md) | Learn a radio's LTE range noise from its innovations, starting from a prior (opt-in: `*-learned-noise` estimators) | Proposed |
 | [0040](0040-lte-carrier-hopping.md) | LTE carrier hopping with one dongle is a modelled option and a study leg, not part of the benchmark | Proposed |
 | [0041](0041-spoof-decision-from-the-sky.md) | Decide GNSS spoofing from the known sky, the satellites' power and the other cues (advisory) | Accepted |
+| [0041](0041-honest-bound-slow-lte-error-state.md) | Carry the slow part of a radio's LTE error as a state, so the bound stays honest after GPS loss (opt-in: `ekf-honest`, `ekf-honest-guard`) | Proposed |
 | [0042](0042-record-iq-to-usb-drive.md) | Record the radios' IQ to a USB drive, not the SD card | Accepted |
 | [0043](0043-calibrated-from-measured-values.md) | A calibrated EKF sized from measured values, not from the sim it is scored on (opt-in: `ekf-calibrated-measured`) | Accepted |
 | [0044](0044-told-sigma-for-radio-records.md) | Tell radio LTE records ADR-0036's measured sigma, opt-in, beside learned noise (opt-in: `*-measured-sigma` estimators; `arc_bias` option) | Accepted |
