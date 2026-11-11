@@ -91,22 +91,25 @@ GUARDED_ENTRIES = ("spoof-jump", "meaconing", "spoof-ramp")  # GNSS attacks: the
 # --- estimators ---------------------------------------------------------------------------------
 # Registered names, or combinations built from the registry's own configuration hooks (no filter
 # behaviour is added here; as `analysis/stacked_fixes.py`)
-COMBOS = {
-    "ekf-learned-noise+guard": configured(
-        ekf.run, noise_tau_s=ekf.NOISE_TAU_S, jump_guard=JumpGuard
-    ),
-    "ekf-calibrated-learned-noise+guard": configured(
-        ekf.run_calibrated, noise_tau_s=ekf.CALIBRATED_NOISE_TAU_S, jump_guard=JumpGuard
-    ),
-    # The fix under solution separation (`ekf-mhss`'s monitor): a reference for the GNSS attacks
-    # the fault-free bound cannot cover, not a proposed estimator
-    "ekf-honest-mhss": configured(ekf.run, monitor=MHSS, **ekf.HONEST),
-}
+@functools.cache
+def combos() -> dict:
+    """Built on first use, so `--hashes` also imports against a tree without these settings."""
+    return {
+        "ekf-learned-noise+guard": configured(
+            ekf.run, noise_tau_s=ekf.NOISE_TAU_S, jump_guard=JumpGuard
+        ),
+        "ekf-calibrated-learned-noise+guard": configured(
+            ekf.run_calibrated, noise_tau_s=ekf.CALIBRATED_NOISE_TAU_S, jump_guard=JumpGuard
+        ),
+        # The fix under solution separation (`ekf-mhss`'s monitor): a reference for the GNSS
+        # attacks the fault-free bound cannot cover, not a proposed estimator
+        "ekf-honest-mhss": configured(ekf.run, monitor=MHSS, **ekf.HONEST),
+    }
 
 
 def estimator(name: str, config: dict | None = None):
     """A registered estimator or a combination, with `config` passed on top (the sweep)."""
-    fn = COMBOS[name] if name in COMBOS else ESTIMATORS[name]
+    fn = combos()[name] if name in combos() else ESTIMATORS[name]
     if not config:
         return fn
     return configured(fn.func, **{**fn.keywords, **config})
@@ -217,8 +220,9 @@ def run_task(key: str, seed: int, names: tuple[str, ...], config: dict | None = 
             first_unsafe_s=float("nan"),
             err_s=per_second(t, err, n_s),
             hpl_s=per_second(t, h, n_s),
-            hist=np.histogram2d(np.clip(h, 1, 1e5), np.clip(err, 1, 1e5),
-                                [HIST_EDGES, HIST_EDGES])[0].astype(np.int32),  # fmt: skip
+            hist=np.histogram2d(
+                np.clip(h, 1, 1e5), np.clip(err, 1, 1e5), [HIST_EDGES, HIST_EDGES]
+            )[0].astype(np.int32),  # fmt: skip
             loss_s=None if loss is None else (loss[0] - T0_NS) / 1e9,
             start_s=None if start is None else (start - T0_NS) / 1e9,
         )
@@ -266,11 +270,10 @@ def plan_measure(seeds: list[int]) -> list[tuple]:
 FIX = ("ekf", "ekf-learned-noise", "ekf-honest")
 FIX_GUARD = ("ekf-guard", "ekf-learned-noise+guard", "ekf-honest-guard")
 # Each new setting at 0.5x and 1.5x (#226: a +-50 % sweep); values from `ekf.HONEST`
-SWEEP = {
-    "multipath_ratio": ekf.HONEST["multipath_ratio"],
-    "multipath_tau_s": ekf.HONEST["multipath_tau_s"],
-}
+_HONEST = getattr(ekf, "HONEST", {})  # absent on a tree without ADR-0041 (`--hashes` there)
+SWEEP = {name: _HONEST[name] for name in ("multipath_ratio", "multipath_tau_s") if _HONEST}
 SWEEP_FACTORS = (0.5, 1.5)
+TAU_AT_REST_S = 3.0  # s: ADR-0036's at-rest correlated-error time (TBC)
 MHSS_SEEDS = 20
 
 
@@ -315,6 +318,9 @@ def plan_sweep(seeds: list[int]) -> list[tuple]:
             for name, v in SWEEP.items():
                 for k in SWEEP_FACTORS:
                     tasks.append((key, s, ("ekf-honest",), {name: v * k}))
+            # Outside the sweep: ADR-0036's at-rest correlation time (3 s, TBC), far below the
+            # sets' 30 s, to show what a much shorter one does
+            tasks.append((key, s, ("ekf-honest",), {"multipath_tau_s": TAU_AT_REST_S}))
     return tasks
 
 
@@ -396,8 +402,13 @@ def run_plan(plan: str, seeds: list[int], jobs: int, host: str, out: Path, part:
                 keep.append((key, seed, names, cfg))
         tasks = keep
     # Longest first: 13-carrier calibrated runs take the most time
-    tasks.sort(key=lambda t: (not any("calibrated" in n for n in t[2]), "13c" not in t[0],
-                              "6c" not in t[0]))
+    tasks.sort(
+        key=lambda t: (
+            not any("calibrated" in n for n in t[2]),
+            "13c" not in t[0],
+            "6c" not in t[0],
+        )
+    )
     commit = _commit()
     t0 = time.time()
     res = _map(run_task, tasks, jobs)
@@ -419,7 +430,9 @@ def run_plan(plan: str, seeds: list[int], jobs: int, host: str, out: Path, part:
     with gzip.open(path, "wb") as f:
         pickle.dump(doc, f)
     errors = [r for r in runs if "error" in r]
-    print(f"{plan}: {len(runs)} runs, {len(errors)} errors, {doc['elapsed_min']:.1f} min -> {path}")
+    print(
+        f"{plan}: {len(runs)} runs, {len(errors)} errors, {doc['elapsed_min']:.1f} min -> {path}"
+    )
     for r in errors[:5]:
         print("  ", r["key"], r["seed"], r["estimator"], r["error"])
     return path
@@ -475,9 +488,15 @@ def cell(runs: list[dict]) -> dict:
             p95_worst_at=int(np.nanargmax(p95)),
             p95_curve=p95,
             hpl_med_curve=np.nanmedian(h, axis=0),
-            unsafe_median_s=float(np.nanmedian([r["first_unsafe_s"] for r in runs])),
-            unsafe_min_s=float(np.nanmin([r["first_unsafe_s"] for r in runs]))
-            if not all(math.isnan(r["first_unsafe_s"]) for r in runs) else float("nan"),
+            # never unsafe counts as the run's end: the median then says so
+            unsafe_median_s=float(
+                np.median(
+                    [
+                        math.inf if math.isnan(r["first_unsafe_s"]) else r["first_unsafe_s"]
+                        for r in runs
+                    ]
+                )
+            ),  # fmt: skip
         )
     start = runs[0]["start_s"]
     if start is not None and loss is None:  # a jump or ramp: p95 curve from the attack's start
@@ -491,15 +510,19 @@ def table(path: Path) -> None:
     doc = load_plan(path)
     print(f"{doc['plan']} at {doc['commit']} on {doc['host']}, seeds {doc['seeds'][0]}-"
           f"{doc['seeds'][-1]}, {doc['elapsed_min']:.1f} min")  # fmt: skip
-    print(f"{'scenario':34s} {'estimator':38s} {'runs':>4s} {'above':>7s} {'win':>7s} "
-          f"{'worst':>7s} {'haz':>6s} {'tight':>6s} {'p95w':>7s} {'<AL':>6s} {'unsafe':>6s}")
+    print(
+        f"{'scenario':34s} {'estimator':38s} {'runs':>4s} {'above':>7s} {'win':>7s} "
+        f"{'worst':>7s} {'haz':>6s} {'tight':>6s} {'p95w':>7s} {'<AL':>6s} {'unsafe':>6s}"
+    )
     for (key, name, cfg), runs in sorted(group(doc["runs"]).items()):
         c = cell(runs)
         label = name + ("" if cfg == "{}" else " " + cfg)
-        print(f"{key:34s} {label:38s} {c['runs']:4d} {100 * c['above']:6.2f}% "
-              f"{100 * c['above_win']:6.2f}% {100 * c['worst_run']:6.2f}% {c['hazardous']:6d} "
-              f"{c.get('tightness', float('nan')):6.2f} {c.get('p95_worst', float('nan')):7.1f} "
-              f"{100 * c['under_al_win']:5.1f}% {c.get('unsafe_median_s', float('nan')):6.1f}")
+        print(
+            f"{key:34s} {label:38s} {c['runs']:4d} {100 * c['above']:6.2f}% "
+            f"{100 * c['above_win']:6.2f}% {100 * c['worst_run']:6.2f}% {c['hazardous']:6d} "
+            f"{c.get('tightness', float('nan')):6.2f} {c.get('p95_worst', float('nan')):7.1f} "
+            f"{100 * c['under_al_win']:5.1f}% {c.get('unsafe_median_s', float('nan')):6.1f}"
+        )
 
 
 # --- report -------------------------------------------------------------------------------------
@@ -537,9 +560,11 @@ def _provenance(p: dict) -> str:
     return "; ".join(parts)
 
 
-ROW_HEAD = ("| Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run "
-            "| hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | "
-            "unsafe after loss (median s) |\n|---|---|---|---|---|---|---|---|---|---|---|---|")
+ROW_HEAD = (
+    "| Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run "
+    "| hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | "
+    "unsafe after loss (median s) |\n|---|---|---|---|---|---|---|---|---|---|---|---|"
+)
 
 
 def row(key: str, label: str, c: dict) -> str:
@@ -622,7 +647,8 @@ def bars_table(bs: list[dict]) -> list[str]:
     for b in bs:
         c, u, d = b["c"], b["u"], b["d"]
         lines.append(
-            f"| `{b['key']}` | `{b['name']}` | {_pct(c['above_win'])} | {_pct(c['worst_run'], 1)} | "
+            f"| `{b['key']}` | `{b['name']}` | {_pct(c['above_win'])} | "
+            f"{_pct(c['worst_run'], 1)} | "
             f"{c['hazardous']:,} | {_yn(b['honest'])} | {_yn(b['t5'])} | "
             f"{_num(c.get('tightness', math.nan))} | {_yn(b['useful'])} | "
             f"{_pct(c['under_al_win'], 1)} | {_num(c.get('p95_worst', math.nan), ',.0f')} / "
@@ -635,8 +661,12 @@ def bars_table(bs: list[dict]) -> list[str]:
 
 FIG_CELLS = (  # (scenario key, panel row label, default, fix)
     ("drone/outage/1c", "GPS lost 600 s\n(outage, 1 carrier)", "ekf", "ekf-honest"),
-    ("drone/spoof-jump/1c", "GNSS held 300 m off\n(spoof-jump, 1 carrier)", "ekf-guard",
-     "ekf-honest-guard"),
+    (
+        "drone/spoof-jump/1c",
+        "GNSS held 300 m off\n(spoof-jump, 1 carrier)",
+        "ekf-guard",
+        "ekf-honest-guard",
+    ),
 )
 
 
@@ -702,7 +732,8 @@ def figure(p: dict, out: Path, tail: str) -> str | None:
                     color="#8c4a2f", zorder=3)  # fmt: skip
     n = cell(g[(FIG_CELLS[0][0], FIG_CELLS[0][3], "{}")])["runs"]
     fig.suptitle(f"Does the protection level bound the true error? Drone leg, {n} runs each,\n"
-                 f"every 0.1 s epoch of each 720 s run · {tail}", fontsize=18, y=0.985)  # fmt: skip
+                 f"every 0.1 s epoch of each 720 s run · {tail}",
+                 fontsize=18, y=0.985)  # fmt: skip
     fig.text(0.01, 0.005, f"{KIND} · analysis/honest_bound.py; numbers in summary.md · darker "
              "blue: more epochs · ekf-honest: learned LTE noise with its slow part as a state "
              "(ADR-0041)", fontsize=11, color="#555555")  # fmt: skip
@@ -714,7 +745,7 @@ def figure(p: dict, out: Path, tail: str) -> str | None:
 
 
 def _save_png(fig, path: Path) -> None:
-    """A 256-colour PNG (as the challenge baseline's figures), to keep the committed folder small."""
+    """A 256-colour PNG (as the challenge baseline's figures): keeps the committed folder small."""
     import io
 
     from PIL import Image
@@ -726,6 +757,252 @@ def _save_png(fig, path: Path) -> None:
     img.quantize(colors=256, method=Image.Quantize.MEDIANCUT).save(path, optimize=True)
 
 
+def sweep_table(p: dict) -> list[str]:
+    lines = [
+        "| Scenario | Setting | above HPL from fault | worst run | hazardous | tightness | "
+        "p95 worst (m) | p95 worst / unfixed | Honest | Useful | No harm |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for (key, name, cfg), c in sorted(p["cells"].items(), key=lambda kv: _order(kv[0])):
+        if name != "ekf-honest":
+            continue
+        u = p["cells"].get((key, "ekf-learned-noise", "{}"), {})
+        ratio = c.get("p95_worst", math.nan) / u.get("p95_worst", math.nan)
+        honest = (c["above_win"] <= ESCAPE_POOLED and c["worst_run"] <= ESCAPE_WORST_RUN
+                  and c["hazardous"] == 0)  # fmt: skip
+        setting = "as proposed" if cfg == "{}" else cfg.strip("{}").replace('"', "")
+        lines.append(
+            f"| `{key}` | {setting} | {_pct(c['above_win'])} | {_pct(c['worst_run'], 1)} | "
+            f"{c['hazardous']:,} | {_num(c.get('tightness', math.nan))} | "
+            f"{_num(c.get('p95_worst', math.nan), ',.0f')} | {_num(ratio, '.3f')} | "
+            f"{_yn(honest)} | "
+            f"{_yn(c.get('tightness', math.inf) <= TIGHTNESS_MAX)} | {_yn(ratio <= P95_HARM)} |"
+        )  # fmt: skip
+    return lines
+
+
+def write_summary(plans: dict, out: Path, figures: list[str], diagnosis: str) -> None:
+    L: list[str] = ["# Honest bound after GPS loss (#226)", ""]
+    L += [
+        f"**{KIND}.** Every number is a simulation of the committed `challenge-*` scenario "
+        "entries; no real flight. The fix is the opt-in `ekf-honest` (`ekf-honest-guard` with the "
+        "jump guard), ADR-0041 Proposed: `ekf-learned-noise` (ADR-0039) with the slow part of a "
+        "radio's LTE range error carried as a Gauss-Markov state per emitter "
+        "(`multipath_ratio` 1.0, `multipath_tau_s` 30 s, both `TBC`). No default changes.",
+        "",
+        "**Scenario keys:** `drone/<entry>/<n>c` is `challenge-drone-<entry>` (1 carrier, EARFCN "
+        "2460) or `challenge-drone-hop-<entry>` cut to its first n of 13 carriers (as "
+        "`analysis/stacked_fixes.py`); `timing/<entry>`, `approach/<entry>` the other legs; "
+        "`/lte*k` the truth's LTE white noise and multipath sigma times k, the records still "
+        "reporting 2 m (model mismatch). Guarded entries (`spoof-jump`, `meaconing`, "
+        "`spoof-ramp`) "
+        "score the `-guard` estimators.",
+        "",
+        "**Statistics.** *Above HPL*: share of 0.1 s epochs with true horizontal error > HPL, "
+        "pooled over runs, over each whole 720 s run (T5's epochs, as the T5 figure, #222) and "
+        "from the first fault to the run's end (the stricter; the bars use it). *Worst run*: the "
+        "largest per-run share from the fault. *Hazardous*: error > 50 m alert limit with HPL "
+        "≤ 50 m (`pnt.metrics`). *NEES mean*: horizontal NEES from the fault (2 if the "
+        "covariance is honest). *Tightness*: at each second 0–300 s after GPS loss, median over "
+        "runs of HPL / 95th percentile over runs of error; the median of that over the 300 s. "
+        "*HPL ≤ 50 m*: share of epochs from the fault with HPL under the alert limit (the bound "
+        "usable for the 50 m alert limit, `TBC`). *Unsafe*: median seconds from GPS loss to HPL "
+        "over 50 m. *p95 worst*: ADR-0034's statistic, the worst second of the across-run 95th "
+        "percentile of error (from GPS loss over 0–300 s; from the attack's start to the "
+        "run's end "
+        "on jump and ramp entries).",
+        "",
+    ]
+    if figures:
+        L += [f"![{f}]({f})" for f in figures] + [""]
+    st = plans.get("stress")
+    if st:
+        L += ["## Bars on held-out seeds (`stress`)", "", _provenance(st), ""]
+        drone = {k for (k, _, _) in st["cells"] if k.startswith("drone/") and "lte*" not in k}
+        keys = sorted(drone,
+                      key=lambda k: _order((k, "", "")))  # fmt: skip
+        bs = bars(st, keys)
+        L += bars_table(bs) + [""]
+        miss = [b for b in bs if not b["honest"]]
+        L += [
+            f"Honest on {len(bs) - len(miss)} of {len(bs)} drone scenario keys; T5's 99.9 % on "
+            f"{sum(b['t5'] for b in bs)} of {len(bs)}; useful (where there is a GPS loss) on "
+            f"{sum(bool(b['useful']) for b in bs)} of {sum(b['useful'] is not None for b in bs)}; "
+            f"no harm on {sum(bool(b['no_harm']) for b in bs)} of "
+            f"{sum(b['no_harm'] is not None for b in bs)}.",
+            "",
+            "## Before and after, every drone scenario key (`stress`)",
+            "",
+            ROW_HEAD,
+            *rows_of(st, keys=set(keys)),
+            "",
+            "## Other legs and model mismatch (`stress`)",
+            "",
+            ROW_HEAD,
+            *rows_of(
+                st,
+                keys={k for (k, _, _) in st["cells"] if not k.startswith("drone/") or "lte*" in k},
+            ),  # fmt: skip
+            "",
+        ]
+    sw = plans.get("sweep")
+    if sw:
+        L += ["## Sweep of the new settings (`sweep`)", "", _provenance(sw), "",
+              *sweep_table(sw), ""]  # fmt: skip
+    mh = plans.get("mhss")
+    if mh:
+        L += ["## Solution separation as the reference (`mhss`)", "", _provenance(mh), "",
+              ROW_HEAD, *rows_of(mh), ""]  # fmt: skip
+    if diagnosis:
+        L += [diagnosis, ""]
+    for plan, title in (
+        ("measure", "Step 1: the existing estimators on tuning seeds (`measure`)"),
+        ("diagnose", "Step 2: one term changed at a time, tuning seeds (`diagnose`)"),
+        ("tune", "The fix on tuning seeds before the held-out run (`tune`)"),
+    ):
+        p = plans.get(plan)
+        if p:
+            L += [f"## {title}", "", _provenance(p), "", ROW_HEAD, *rows_of(p), ""]
+    errs = sum(len(p["errors"]) for p in plans.values())
+    L += [f"Runs that raised: {errs}.", ""]
+    (out / "summary.md").write_text("\n".join(L))
+
+
+def report(runs_dir: Path, out: Path) -> None:
+    plans = load_plans(runs_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    figures = []
+    st = plans.get("stress")
+    if st:
+        d = st["docs"][0]
+        tail = f"sim · seeds {d['seeds'][0]}–{d['seeds'][-1]} · commit {d['commit']}"
+        f = figure(st, out, tail)
+        if f:
+            figures.append(f)
+    write_summary(plans, out, figures, diagnosis(plans))
+    print(f"wrote {out / 'summary.md'}", *figures)
+
+
+def _c(p: dict | None, key: str, name: str, cfg: dict | None = None) -> dict:
+    if not p:
+        return {}
+    return p["cells"].get((key, name, json.dumps(cfg or {}, sort_keys=True)), {})
+
+
+def diagnosis(plans: dict) -> str:
+    """#226 step 2, written from the `measure` and `diagnose` plans (tuning seeds only)."""
+    me, dg = plans.get("measure"), plans.get("diagnose")
+    if not (me and dg):
+        return ""
+    k1, k13 = "drone/outage/1c", "drone/outage/13c"
+    e, ln, cl = (
+        _c(me, k1, "ekf"),
+        _c(me, k1, "ekf-learned-noise"),
+        _c(me, k1, "ekf-calibrated-learned-noise"),
+    )
+    d = {(name, json.dumps(cfg or {}, sort_keys=True)): _c(dg, k1, name, cfg)
+         for name, cfg in DIAGNOSE}  # fmt: skip
+    d13 = {(name, json.dumps(cfg or {}, sort_keys=True)): _c(dg, k13, name, cfg)
+           for name, cfg in DIAGNOSE}  # fmt: skip
+
+    def line(dd, name, cfg, what):
+        c = dd[(name, json.dumps(cfg or {}, sort_keys=True))]
+        if not c:
+            return f"| {what} | – | – | – | – | – |"
+        return (f"| {what} | {_pct(c['above_win'])} | {_pct(c['worst_run'], 1)} | "
+                f"{_num(c['nees_mean_win'], '.1f')} | {_pct(c['nees_over_k2_win'])} | "
+                f"{_num(c.get('tightness', math.nan))} |")  # fmt: skip
+
+    what = (  # in DIAGNOSE's order
+        "`ekf-learned-noise` as it is",
+        "(a) coasting process noise q_accel 1 → 1.5",
+        "(c) tower clock random walk 0.2 → 1 m/√s",
+        "slow range error as a state (`ekf-honest`, the fix)",
+        "the fix + (a)",
+    )
+    td = truth_dynamics()
+    psd = td["psd"]
+    out = [
+        "## Diagnosis (#226 step 2, tuning seeds 1000–1049 only)",
+        "",
+        f"1. **`ekf` believes the 2 m the records report** (true error 50 m white + 50 m "
+        f"Gauss-Markov, 30 s; `challenge-drone`, `TBC`). After GPS loss its gate rejects most "
+        f"LTE records and each one it accepts at 2 m collapses the covariance: on `{k1}` "
+        f"error above HPL in {_pct(e.get('above_win'))} of epochs from GPS loss, worst run "
+        f"{_pct(e.get('worst_run'), 1)} (`measure`). That is the T5 figure's 43.7 %. Learned "
+        "noise (ADR-0039) removes most of it.",
+        f"2. **`ekf-learned-noise` takes the whole error as white.** The size it learns is right, "
+        "but an error correlated over 30 s is averaged down as if each 1 Hz record were "
+        f"independent: on `{k1}` {_pct(ln.get('above_win'))} above HPL from loss, worst run "
+        f"{_pct(ln.get('worst_run'), 1)}, mean horizontal NEES "
+        f"{_num(d[('ekf-learned-noise', '{}')].get('nees_mean_win', math.nan), '.1f')} against "
+        "2 for an honest covariance (`diagnose`): a model error, not a K error. "
+        f"`ekf-calibrated-learned-noise`, which already has a multipath state per emitter, is at "
+        f"{_pct(cl.get('above_win'))} on the same entry and seeds. With 13 carriers more cells "
+        "average the slow errors of different towers and the escape is small already.",
+        "3. **One term changed at a time** (`diagnose`, 50 seeds each):",
+        "",
+        "| Change to `ekf-learned-noise` | above HPL from loss, 1 carrier | worst run | NEES mean "
+        "| NEES > K² | tightness |",
+        "|---|---|---|---|---|---|",
+        *[line(d, n, c, w) for (n, c), w in zip(DIAGNOSE, what, strict=True)],
+        "",
+        "| Same, 13 carriers | above HPL from loss | worst run | NEES mean | NEES > K² | "
+        "tightness |",
+        "|---|---|---|---|---|---|",
+        *[line(d13, n, c, w) for (n, c), w in zip(DIAGNOSE, what, strict=True)],
+        "",
+        "   - (a) **Process noise is not the wrong term.** The circuit (8 m/s, 40 m corners) "
+        f"has |a| rms {td['accel_rms']:.2f} m/s², max {td['accel_max']:.2f}. Per axis, "
+        "var(velocity change over T) / T, which is q_accel² = 1 m²/s³ for the model: "
+        + ", ".join(f"{T} s: {max(v):.2f}" for T, v in psd.items())
+        + " (the larger axis; `challenge-drone-outage` seed 1000). Under 1 up to 10 s, up to "
+        "2.2 at 60 s and above: the turns are correlated, not white. A larger q_accel helps "
+        "the stretches just after loss but makes HPL larger everywhere.",
+        "   - (b) **Covariance collapse on a few accepted ranges** is case 1 (2 m believed); "
+        "with learned noise and its curvature term (ADR-0039) it is the averaging of a "
+        "correlated error, row 1.",
+        "   - (c) **Clock states:** a tower clock random walk 5 × larger changes the escape "
+        "share little (row 3).",
+        "   - (d) **K:** K_H = 5.33 on the largest horizontal sigma. With the slow error as a "
+        "state the NEES mean is near 2 and NEES > K² rare, so the covariance, not K, was wrong; "
+        "no empirical inflation is used.",
+    ]
+    return "\n".join(out)
+
+
+# "No harm": the defaults' every estimate hashes the same on this branch as on `main`
+HASH_SCENARIOS = (
+    "challenge-drone-outage",
+    "challenge-drone-spoof-jump",
+    "challenge-timing-outage",
+)
+HASH_ESTIMATORS = ("baseline", "ekf", "ekf-calibrated", "ekf-imu", "ekf-mhss")
+
+
+def default_hashes() -> list[str]:
+    """`scenario seed estimator sha256[:16]` of every Estimate (msgpack) of each default
+    estimator, seeds 0 and 1. Run on two trees and compare; this file need not exist on both:
+    `python -c 'import sys; sys.path.insert(0, "<this tree>/analysis"); ...'`."""
+    import hashlib
+
+    import msgspec
+
+    enc = msgspec.msgpack.Encoder(enc_hook=lambda o: o.item())
+    out = []
+    for scn in HASH_SCENARIOS:
+        spec = load(scn)
+        for seed in (0, 1):
+            sim = generate(spec, seed=seed)
+            for name in HASH_ESTIMATORS:
+                h = hashlib.sha256()
+                for e in estimate(name, sim.measurements, origin_llh=spec.get("origin_llh"),
+                                  reference=sim.reference):  # fmt: skip
+                    h.update(enc.encode(e))
+                out.append(f"{scn} {seed} {name} {h.hexdigest()[:16]}")
+    return out
+
+
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--plan", choices=sorted(PLANS))
@@ -735,13 +1012,22 @@ def main(argv=None) -> None:
     ap.add_argument("--out", type=Path, default=RUNS)
     ap.add_argument("--part", default="", help="plain|calibrated[:hop|:1c]: one part of the plan")
     ap.add_argument("--table", type=Path, help="print the table of one plan's pickle")
+    ap.add_argument("--report", action="store_true", help="summary.md and the figure")
+    ap.add_argument("--hashes", action="store_true", help="hash the defaults' estimates")
     args = ap.parse_args(argv)
     if args.table:
         table(args.table)
         return
+    if args.hashes:
+        print("\n".join(default_hashes()))
+        return
+    if args.report:
+        report(args.out, OUT)
+        return
     if args.plan:
-        path = run_plan(args.plan, parse_seeds(args.seeds), args.jobs, args.host, args.out,
-                        args.part)
+        path = run_plan(
+            args.plan, parse_seeds(args.seeds), args.jobs, args.host, args.out, args.part
+        )
         table(path)
 
 
