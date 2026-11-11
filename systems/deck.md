@@ -2,7 +2,7 @@
 
 **The pitch in one line:** a navigation layer that knows when it is wrong, and tells the operator not to trust it.
 
-Nine slides, 295 s, 631 words of script, 16 numbers spoken. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md).
+Nine slides, 295 s, 630 words of script, 16 numbers spoken. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md).
 
 **Three rules on stage.** Say "simulated" whenever a number is simulated. Say "consistent with a registered site", never "identified". Never say "first": say "we found no published…".
 
@@ -14,10 +14,10 @@ Nine slides, 295 s, 631 words of script, 16 numbers spoken. Each slide gives the
 | 4 | Real signals | 25 | 51 | 1 |
 | 5 | The scoreboard | 30 | 63 | 2 |
 | 6 | Why, and what the fixes buy | 30 | 65 | 3 |
-| 7 | Every source can lie | 30 | 70 | 3 |
+| 7 | Every source can lie | 30 | 69 | 3 |
 | 8 | Limits | 25 | 50 | 0 |
 | 9 | Roadmap | 25 | 57 | 2 |
-| | **Total** | **295** | **631** | **16** |
+| | **Total** | **295** | **630** | **16** |
 
 Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); seven-tenths of a metre (4); fifty-metre, none of fifty (5); ninety-five percent of fifty, a hundred and thirty-two metres, five minutes (6); forty-five percent, one percent, two minutes (7); a hundred and twenty metres, a hundred and seventy dollars (9).
 
@@ -129,7 +129,7 @@ Fallback: #247 is a draft on unmerged branches; if a judge asks, say so. Told th
 
 **Figure:** [`analysis/results/gnss-health-20261111-fullsuite/gnss_health.png`](../analysis/results/gnss-health-20261111-fullsuite/gnss_health.png) (real GPS signal power, the baseline a jamming check uses).
 
-**Script (70 words, 30 s):**
+**Script (69 words, 30 s):**
 > Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so they may contradict GPS time, but never confirm it. And our bound is a bound under our model. In simulation, after GPS loss, the error escaped it forty-five percent of the time. A proposed fix brings that under one percent. A slow spoof we catch only in simulation, after two minutes.
 
 Fallback: the sky-map check is merged (#239 via #250, #206; ADR-0041 Accepted). Its figure, [`spoof-decision-real-sky.png`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/spoof-decision-real-sky.png), can be added here; nothing changes in the script.
