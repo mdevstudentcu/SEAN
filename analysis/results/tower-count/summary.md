@@ -1,6 +1,6 @@
 # How many towers after GPS is lost? (#208)
 
-Sim, every value `TBC`. Commit 9f0625d, `python analysis/tower_count.py --seeds 20 --jobs 3`, 34.1 min. Seeds 0–19, paired: every variant of a seed keeps a subset of the same records. The leg, the tower rules, the aiding and the error models are in the script's docstring. The LTE model is `placeholder` (`verification.md`, *Sim validity*): these numbers compare tower counts with each other, they are not a prediction of the real drone.
+Sim, every value `TBC`. Commit 550f2cc, `python analysis/tower_count.py --seeds 20 --jobs 3`, 34.1 min. Seeds 0–19, paired: every variant of a seed keeps a subset of the same records. The leg, the tower rules, the aiding and the error models are in the script's docstring. The LTE model is `placeholder` (`verification.md`, *Sim validity*): these numbers compare tower counts with each other, they are not a prediction of the real drone. The runs were computed at 9f0625d, the pre-rebase twin of 550f2cc, and seed 0 rerun at 550f2cc gave identical error curves for all three error models.
 
 Each cell: **worst-second p95 (m) / s the p95 holds ≤ 25 m / s it holds ≤ 50 m**, the T1 statistic of ADR-0034 over 20 runs, window 0–300 s after GPS loss. 300 means the whole window. T1: worst ≤ 25 m (holds 300 s); fallback: ≤ 50 m for 120 s.
 
