@@ -20,4 +20,4 @@ Plug both SDRs into the **USB 2 ports** (black). USB 3 ports radiate near GPS L1
 
 RF survey at a site (#20): `bash deploy/pi/rf_survey.sh <site>` with an antenna on the SDR: a 24–1766 MHz `rtl_power` sweep, short captures of the top LTE EARFCNs and 60 s of ADS-B, into `data/sessions/<date>-survey-<site>/`. Analyse on the laptop with `analysis/rf_survey.py`.
 
-ADS-B and VOR are decoded from recorded IQ, not live: readsb on the Pi (installed by hand, service disabled) and Voracious on the laptop. Neither is in `setup.sh`; see [`RUNBOOK.md`](RUNBOOK.md) H.
+ADS-B and VOR are decoded from recorded IQ, not live: readsb on the Pi (installed by `setup.sh`, service disabled) and Voracious on the laptop (not in `setup.sh`); see [`RUNBOOK.md`](RUNBOOK.md) H.
