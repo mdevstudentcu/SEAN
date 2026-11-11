@@ -3,9 +3,12 @@
 #
 #   deploy/demo/demo.sh check      pre-flight: Python, panel imports, port, scenarios, session
 #   deploy/demo/demo.sh outage     panel: GPS lost (challenge-drone-outage, seed 0)
-#   deploy/demo/demo.sh jump       panel: 300 m location jump (challenge-drone-spoof-jump, seed 0)
+#   deploy/demo/demo.sh jump       panel: 300 m location jump without the guard (ekf), then with
+#                                  it (ekf-guard, the jump ends at T+200); Enter moves on
+#   deploy/demo/demo.sh guard      panel: only the second half of jump (ekf-guard)
 #   deploy/demo/demo.sh time       panel: 50 ns/s time spoof (challenge-timing-time-spoof, seed 0)
-#   deploy/demo/demo.sh stage      outage -> jump -> time on one port; Enter moves on
+#   deploy/demo/demo.sh stage      outage -> jump (ekf) -> jump (ekf-guard) on one port; Enter
+#                                  moves on. The time spoof is left out (location first)
 #   deploy/demo/demo.sh real       terminal: real LTE cells heard, and the registered sites they fit
 #   deploy/demo/demo.sh live [..]  panel: the Pi's live stream (bonus; extra args go to pnt live)
 #
@@ -32,16 +35,20 @@ else py=(uv run python)
 fi
 pnt() { "${py[@]}" -m pnt.cli "$@"; }
 
-# Segment -> scenario and speed (x real time); seed 0 for all. The speeds put each event 12-15 s
-# after the segment starts. (Plain functions: macOS ships bash 3.2, which has no `declare -A`.)
+# Segment -> scenario, estimator and speed (x real time); seed 0 for all. The speeds put each
+# event 12-15 s after the segment starts. `jump` holds the 300 m jump to the end of the run;
+# `guard` is the same jump ended at 200 s (`gps-return`), on the opt-in jump guard (ADR-0038).
+# (Plain functions: macOS ships bash 3.2, which has no `declare -A`.)
 SEED=0
 scen() {
   case "$1" in
     outage) echo challenge-drone-outage ;;
     jump) echo challenge-drone-spoof-jump ;;
+    guard) echo challenge-drone-gps-return ;;
     time) echo challenge-timing-time-spoof ;;
   esac
 }
+estimator() { case "$1" in guard) echo ekf-guard ;; *) echo ekf ;; esac; }
 speed() { case "$1" in outage) echo 5 ;; *) echo 10 ;; esac; }
 
 port_free() { ! lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; }
@@ -49,9 +56,9 @@ port_free() { ! lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; }
 panel() {  # start one panel segment in the background; sets $server
   local seg="$1"
   port_free || { echo "port $port is in use: stop the other panel (lsof -iTCP:$port)"; exit 1; }
-  echo "== $seg: $(scen "$seg") seed $SEED, estimator ekf, x$(speed "$seg")  ($url)"
+  echo "== $seg: $(scen "$seg") seed $SEED, estimator $(estimator "$seg"), x$(speed "$seg")  ($url)"
   # Started directly, not through the pnt function, so $! is the server itself and kill stops it
-  "${py[@]}" -m pnt.cli sim "$(scen "$seg")" --seed "$SEED" --estimator ekf --dash \
+  "${py[@]}" -m pnt.cli sim "$(scen "$seg")" --seed "$SEED" --estimator "$(estimator "$seg")" --dash \
     --speed "$(speed "$seg")" --port "$port" &
   server=$!
   for _ in $(seq 1 60); do  # up to 15 s for the server to listen
@@ -75,6 +82,19 @@ stop() {  # stop the running panel and wait until its port is free again; never 
 }
 trap stop EXIT INT TERM
 
+sequence() {  # one panel per segment named, on one port; Enter moves on, the last Enter stops
+  local segs=("$@") i
+  for i in "${!segs[@]}"; do
+    panel "${segs[$i]}"
+    if [ "$i" -lt $((${#segs[@]} - 1)) ]; then
+      read -r -p "-- Enter for the next segment (the page reconnects by itself) "
+    else
+      read -r -p "-- Enter to stop "
+    fi
+    stop
+  done
+}
+
 case "${1:-}" in
   check)
     fail=0
@@ -87,29 +107,26 @@ case "${1:-}" in
     command -v lsof >/dev/null 2>&1 && ok "lsof found" \
       || bad "lsof missing: port checks cannot see a port in use (install lsof)"
     port_free && ok "port $port free" || bad "port $port in use (lsof -iTCP:$port)"
-    for seg in outage jump time; do
-      "${py[@]}" -c "from pnt.sim.scenario import load; load('$(scen "$seg")')" 2>/dev/null \
-        && ok "scenario $(scen "$seg")" || bad "scenario $(scen "$seg")"
+    for seg in outage jump guard time; do
+      "${py[@]}" -c "from pnt.sim.scenario import load; load('$(scen "$seg")')
+from pnt.nav import ESTIMATORS; assert '$(estimator "$seg")' in ESTIMATORS" 2>/dev/null \
+        && ok "scenario $(scen "$seg"), estimator $(estimator "$seg")" \
+        || bad "scenario $(scen "$seg") or estimator $(estimator "$seg")"
     done
     [ -d "$sessions/$real_session" ] && ok "real session $real_session" \
       || bad "real session $sessions/$real_session missing (copy it from the capture laptop)"
     [ "$fail" = 0 ] && echo "pre-flight passed" || { echo "pre-flight FAILED"; exit 1; }
     ;;
-  outage|jump|time)
+  outage|guard|time)
     panel "$1"
     echo "Ctrl-C to stop"
     wait "$server"
     ;;
+  jump)
+    sequence jump guard
+    ;;
   stage)
-    for seg in outage jump time; do
-      panel "$seg"
-      if [ "$seg" != time ]; then
-        read -r -p "-- Enter for the next segment (the page reconnects by itself) "
-      else
-        read -r -p "-- Enter to stop "
-      fi
-      stop
-    done
+    sequence outage jump guard
     ;;
   real)
     "${py[@]}" "$repo/deploy/demo/cells.py" "$sessions/$real_session"
@@ -120,7 +137,7 @@ case "${1:-}" in
     pnt live --dash --estimator ekf --port "$port" "$@"
     ;;
   *)
-    sed -n '2,10p' "$0"
+    sed -n '2,13p' "$0"
     exit 2
     ;;
 esac
