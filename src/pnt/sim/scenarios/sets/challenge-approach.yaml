@@ -46,6 +46,7 @@ sources:
     ring_radius_m: [800, 3000]   # SYNTHETIC geometry, uc02
     sigma_m: 50.0   # TBC: the realistic set's
     receiver_clock: true   # the realistic set's: our clock in every tower reading (ADR-0022 amendment)
+    # `ekf` leaves that term out by default: T1 p95 2.3 km, HPL bound 8.5 % on its worst run (#228)
     multipath: {sigma_m: 50.0, tau_s: 30.0}   # TBC: the realistic set's
     dropout: {availability: 0.75, block_s: 30.0}   # TBC: the realistic set's
     told_position_sigma_m: 100.0   # TBC: the realistic set's
