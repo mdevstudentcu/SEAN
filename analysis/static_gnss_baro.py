@@ -29,12 +29,17 @@ import numpy as np
 from pnt.core.measurement import Measurement
 from pnt.io.mcap_log import read_session
 from pnt.io.session import mcap_path, session_name
-from pnt.sim.sensors import BMP280
 
 # The sim's GNSS model (`sim/models.gnss`): white, σ per epoch, 1.5 σ vertical, at 5 Hz in every
 # committed scenario (sigma_m 2.5, TBC).
 SIM_GNSS_SIGMA_M = 2.5
 SIM_GNSS_UP_FACTOR = 1.5
+# The sim's barometer (`sim/models.baro`, as every committed scenario runs it): white noise,
+# `sigma_m` 0.5 at 10 Hz, plus one constant bias per run drawn with σ 1.0 m (`bias_sigma_m`),
+# both TBC. `sim/sensors.BMP280` (0.3 m, 1.0 m Gauss-Markov over 600 s) is not what the
+# scenarios draw; only its `noise_m` is used, as the σ the payload reports on real records.
+SIM_BARO_SIGMA_M = 0.5
+SIM_BARO_BIAS_SIGMA_M = 1.0
 AXES = ("east", "north", "up")
 COLORS = ("#2a78d6", "#eb6834", "#1baf7a")
 INK, GRID = "#1f2328", "#d0d7de"
@@ -119,9 +124,8 @@ def baro_noise(t_s: np.ndarray, alt: np.ndarray, block_s: float = 10.0) -> dict:
         "drift_m_per_min": float(slope * 60.0),
         "drift_over_span_m": float(slope * (t_s[-1] - t_s[0])),
         f"wander_{block_s:g}s_means_sigma_m": float(np.std(means)) if means.size > 1 else None,
-        "sim_noise_m": BMP280.noise_m,
-        "sim_drift_m": BMP280.drift_m,
-        "sim_drift_tau_s": BMP280.drift_tau_s,
+        "sim_noise_m": SIM_BARO_SIGMA_M,
+        "sim_bias_sigma_m": SIM_BARO_BIAS_SIGMA_M,
     }
 
 
@@ -151,11 +155,11 @@ def markdown(name: str, commit: str, g: dict | None, b: dict | None) -> str:
             f"{b['span_s']:.0f} s.",
             "",
             "| White σ (m) | σ (m) | Drift (m/min) | Drift over span (m) | σ of 10 s means about "
-            "the line (m) | Sim noise (m) | Sim drift σ (m), τ (s) |",
+            "the line (m) | Sim white σ (m) | Sim constant bias σ (m) |",
             "|---|---|---|---|---|---|---|",
             f"| {b['white_sigma_m']:.3f} | {b['sigma_m']:.3f} | {b['drift_m_per_min']:+.3f} | "
             f"{b['drift_over_span_m']:+.2f} | {b[w]:.3f} | {b['sim_noise_m']:.2f} | "
-            f"{b['sim_drift_m']:.1f}, {b['sim_drift_tau_s']:.0f} |",
+            f"{b['sim_bias_sigma_m']:.1f} |",
         ]
     return "\n".join(lines) + "\n"
 
