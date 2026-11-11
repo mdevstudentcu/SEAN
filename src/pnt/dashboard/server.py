@@ -126,9 +126,13 @@ def create_app(
     time_alert_limit_s: float = 1.5e-6,
     max_rate_hz: float = 10.0,
     host: str = "127.0.0.1",
+    banner: str | None = None,
 ) -> FastAPI:
+    """`banner`: an opt-in sentence shown under the top bar on every screen, for what a run is
+    and is not (a demo's simulation study, say); None or empty shows nothing."""
     shown_speed = speed if math.isfinite(speed) else None  # JSON has no infinity
-    hub = Hub({**feed.info(alert_limit_m, time_alert_limit_s), "speed": shown_speed})
+    info = feed.info(alert_limit_m, time_alert_limit_s)
+    hub = Hub({**info, "speed": shown_speed, "banner": banner or None})
     monitor = HealthMonitor(alert_limit_m, time_alert_limit_s)
     lock = threading.Lock()
     stop = threading.Event()

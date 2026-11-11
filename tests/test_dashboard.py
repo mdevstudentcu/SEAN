@@ -553,3 +553,23 @@ def test_ack_on_a_wildcard_bind_checks_origin_only(tmp_path):
         lan = "192.168.1.5:8050"
         assert _post_ack(base, {"Origin": f"http://{lan}", "Host": lan}) == 200
         assert _post_ack(base, {"Origin": "https://evil.example", "Host": lan}) == 403
+
+
+def test_banner_is_opt_in_and_reaches_the_page(tmp_path, monkeypatch):
+    """`--banner` (the judging demo's simulation-study label, #266) goes from `pnt sim --dash`
+    to the info every browser gets; without it the page shows none."""
+    pytest.importorskip("fastapi")  # ground extra
+    from pnt import cli
+    from pnt.dashboard import server
+
+    served = []
+    monkeypatch.setattr(server, "serve", lambda app, host, port: served.append(app))
+    scenario = _small(tmp_path)
+    cli.main(["sim", scenario, "--dash", "--banner", "Simulation study: not on the payload."])
+    cli.main(["sim", scenario, "--dash"])
+    with_banner, without = (app.state.hub.info for app in served)
+    assert with_banner["banner"] == "Simulation study: not on the payload."
+    assert without["banner"] is None
+    page = (SRC / "dashboard" / "web" / "index.html").read_text()
+    assert 'id="banner" class="banner" hidden' in page  # hidden unless info carries one
+    assert "i.banner" in (SRC / "dashboard" / "web" / "app.js").read_text()

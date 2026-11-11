@@ -26,6 +26,11 @@ body { min-height: 100vh; font-size: 14px; }
   display: flex; align-items: center; gap: 24px; padding: 10px 16px;
   background: var(--surface); border-bottom: 1px solid var(--axis);
 }
+.banner {
+  padding: 8px 16px; font-size: 18px; font-weight: 600; color: var(--ink);
+  background: var(--surface-2); border-bottom: 2px solid var(--pred);
+}
+.banner[hidden] { display: none; }
 .brand { font-weight: 700; letter-spacing: .04em; }
 .brand span { font-weight: 400; color: var(--ink-2); }
 .meta { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 0; }
