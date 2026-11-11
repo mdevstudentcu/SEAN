@@ -9,7 +9,7 @@
 | --- | --- | --- |
 | Estimator and integrity design | Built and tested in simulation ([`architecture.md`](architecture.md)) | Fault priors (`p_site`, `p_builder`, `p_layer`, `p_gnss_cm`), continuity budget and integrity risk are all `TBC` (`integrity/mhss.py`) |
 | Error models | Literature values | Every row of *Sim validity* is `placeholder`; none measured yet |
-| Targets T1–T5 | Proposed | Mentors answered Q1–Q4 on 2026-11-10; T1 stays ours with theirs as the fallback (ADR-0034, [`requirements.md`](requirements.md)) |
+| Targets T1–T5 | T1 Accepted; T3–T5 Proposed (ADR-0034) | Mentors answered Q1–Q4 on 2026-11-10; T1 stays ours with theirs as the fallback (ADR-0034, [`requirements.md`](requirements.md)) |
 | Real signals | None recorded yet | LTE front end, recorder and panel not built on `main` |
 | Ground reference station | Simulated | Hardware and zero-baseline test pending (#84–#86) |
 | LEO, Starlink, hostile beacon, drone as reference | Simulation only | ADR-0013, ADR-0025, P12, P13 |

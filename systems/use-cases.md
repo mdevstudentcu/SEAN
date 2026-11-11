@@ -10,4 +10,4 @@ Requirements trace to these (mentor guidance, `mentor-qa.md` Q7). Each names who
 
 All three share REQ-06 to REQ-10 (SoOP primary, receive-only, privacy, platform-agnostic payload, reproducibility).
 
-Targets for each (accuracy, integrity level, timing bound) are in `requirements.md`; the mentors answered Q1–Q4 on 2026-11-10 (`mentor-qa.md`, ADR-0034 Proposed): the drone needs ≤ 50 m for ~2 min, the integrity level is ours to set, and location jumps come first. The prioritized attack list per use case is in [`threat-model.md`](threat-model.md).
+Targets for each (accuracy, integrity level, timing bound) are in `requirements.md`; the mentors answered Q1–Q4 on 2026-11-10 (`mentor-qa.md`, ADR-0034): the drone keeps our stricter T1 (95 % horizontal error ≤ 25 m for ≥ 300 s, `TBC`; Accepted in ADR-0034), with the mentors' ≤ 50 m for ≥ 120 s as the declared fallback; the integrity level is ours to set, and location jumps come first. The prioritized attack list per use case is in [`threat-model.md`](threat-model.md).
