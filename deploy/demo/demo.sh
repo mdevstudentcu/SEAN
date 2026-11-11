@@ -6,7 +6,7 @@
 #   deploy/demo/demo.sh jump       panel: 300 m location jump (challenge-drone-spoof-jump, seed 0)
 #   deploy/demo/demo.sh time       panel: 50 ns/s time spoof (challenge-timing-time-spoof, seed 0)
 #   deploy/demo/demo.sh stage      outage -> jump -> time on one port; Enter moves on
-#   deploy/demo/demo.sh real       terminal: real LTE cells heard, matched to the site registry
+#   deploy/demo/demo.sh real       terminal: real LTE cells heard, and the registered sites they fit
 #   deploy/demo/demo.sh live [..]  panel: the Pi's live stream (bonus; extra args go to pnt live)
 #
 # Panel segments are simulations of committed scenarios (nothing recorded, nothing on the
@@ -83,6 +83,9 @@ case "${1:-}" in
     echo "pre-flight at $(git -C "$repo" describe --always --dirty --abbrev=7)"
     "${py[@]}" -c "import fastapi, uvicorn, pnt.dashboard.server" 2>/dev/null \
       && ok "python ${py[*]}: panel imports" || bad "panel imports (${py[*]}; run just setup)"
+    # Without lsof, port_free is always true: every port check here and in panel() would pass
+    command -v lsof >/dev/null 2>&1 && ok "lsof found" \
+      || bad "lsof missing: port checks cannot see a port in use (install lsof)"
     port_free && ok "port $port free" || bad "port $port in use (lsof -iTCP:$port)"
     for seg in outage jump time; do
       "${py[@]}" -c "from pnt.sim.scenario import load; load('$(scen "$seg")')" 2>/dev/null \

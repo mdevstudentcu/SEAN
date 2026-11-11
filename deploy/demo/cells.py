@@ -1,10 +1,11 @@
-"""Which real LTE cells a recorded session heard, matched to the ISED site registry (#28 demo).
+"""Which real LTE cells a recorded session heard, and the ISED-registered site each fits (#28).
 
     python deploy/demo/cells.py data/sessions/<name>-lte
 
 Reads the `/meas/lte` records that `pnt frontend lte` wrote and, for each cell heard, prints how
 often the front end tracked it, its signal-to-noise ratio and the reported range sigma, then the
-registered site it maps to under the same rule the estimators use (`pnt.nav.cells`, ADR-0023).
+registered site it is consistent with under the same rule the estimators use (`pnt.nav.cells`,
+ADR-0023). A match is a hypothesis, not an identification: see the next paragraph.
 No position is computed: the real sessions recorded so far have no GPS fix, so no origin and no
 first fix for the filter.
 
