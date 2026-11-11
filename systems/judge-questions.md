@@ -89,9 +89,9 @@
 
 ## 13. What would another month buy?
 
-> Moving captures with independent truth, so the error model covers motion; the fixes run together on the agreed statistic; and one spoofed-or-not decision from the sky map and signal power. We have not estimated durations, and we will not promise 25 metres.
+> Moving captures with independent truth, so the error model covers motion; the fixes run together on the agreed statistic; and real frequency hopping. We have not estimated durations, and we will not promise 25 metres.
 
-- **Source:** [`roadmap.md`](roadmap.md) phases 0–1; #218, #206. Realistic multipath alone exceeds 25 m in the budget (#178).
+- **Source:** [`roadmap.md`](roadmap.md) phases 0–1; #218. Realistic multipath alone exceeds 25 m in the budget (#178).
 - **Do not claim:** a date or a target we expect to meet.
 
 ## 14. What is the certification path?

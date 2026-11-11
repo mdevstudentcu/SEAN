@@ -14,8 +14,8 @@ Use cases: [`use-cases.md`](use-cases.md) (UC-01 drone, UC-02 approach, UC-03 ti
 
 | Principal use | Requirements | Targets | Where we stand ([`results.md`](results.md) (b)) |
 | --- | --- | --- | --- |
-| **Navigation continuity**: keep a position after GPS is lost (UC-01 first; UC-02; time as a second output for UC-03) | REQ-01, REQ-03, REQ-06 | T1: 95 % ≤ 25 m for ≥ 300 s, fallback ≤ 50 m for ≥ 120 s, scored per second across runs (ADR-0034, *Amendment*). T2 (556 m alert limit). T3 (1.5 µs at 10 min) | Sim: T1 and its fallback missed on the `challenge` drone leg (per-run statistic; agreed statistic `TBD`); T2 not scored; T3 missed on one seed of 50 |
-| **Status and confidence monitoring**: tell the operator whether to trust position and time, and why | REQ-02, REQ-04, REQ-05 | T4 (jump target `TBD`; ramps; ≤ 1 false alarm/h), T5 (HPL bounds ≥ 99.9 % of epochs) | Sim: jumps detected in 1.1 s and refused by the opt-in guard; time ramp detected; false-alarm rate met; T5 missed |
+| **Navigation continuity**: keep a position after GPS is lost (UC-01 first; UC-02; time as a second output for UC-03) | REQ-01, REQ-03, REQ-06 | T1: 95 % ≤ 25 m for ≥ 300 s, fallback ≤ 50 m for ≥ 120 s, scored per second across runs (ADR-0034, *Amendment*). T2 (556 m alert limit). T3 (1.5 µs at 10 min) | Sim: T1 and its fallback missed on the `challenge` drone leg on ADR-0034's statistic (best 10,154 m at 300 s, 3,268 m at 120 s); T2 not scored; T3 missed on one seed of 50 |
+| **Status and confidence monitoring**: tell the operator whether to trust position and time, and why | REQ-02, REQ-04, REQ-05 | T4 (jump target Accepted, ADR-0034 *Amendment 2026-11-11*; ramps; ≤ 1 false alarm/h), T5 (HPL bounds ≥ 99.9 % of epochs) | Sim: jumps detected in 1.1 s and refused by the opt-in guard; time ramp detected; false-alarm rate met; T5 missed |
 | All | REQ-07 receive-only, REQ-08 privacy, REQ-09 platform-agnostic, REQ-10 reproducible | — | REQ-07, REQ-08 by design and inspection (`tests/test_hard_rules.py`) |
 
 **Towers are meant to be primary (REQ-06); today they are not.** The front end reports only the fast part of its range noise, so on the real-shaped `challenge` legs the filter's gate rejects nearly every tower reading, so LTE contributes almost nothing (the guard demo's panel lists it as not in use). After GPS loss the default filter flies on the barometer and dead reckoning. Learning each tower's noise (ADR-0039, Proposed, opt-in) is the fix in review; [`results.md`](results.md) (c).
@@ -71,7 +71,7 @@ flowchart LR
 | GNSS health | C/N0 jamming indicator from gpsd SKY reports | [`src/pnt/frontends/gnss.py`](../src/pnt/frontends/gnss.py), [ADR-0031](adr/0031-gnss-jam-indicator.md) | Built | Real: one 595 s session |
 | Other front ends | ADS-B, VOR (stations from `navaids.csv`), Wi-Fi RSSI | [`src/pnt/frontends/`](../src/pnt/frontends/) | Built | Real ADS-B frames; VOR no lock |
 | Estimators, integrity | Below | [`src/pnt/nav/`](../src/pnt/nav/), [`src/pnt/integrity/`](../src/pnt/integrity/) | Built | Sim; synthetic baseband |
-| Operator panel | Position, HPL against the alert limit, NOMINAL / DEGRADED / UNSAFE, latched alerts, time PL, per-source trust; NO DATA when the stream stalls | [`src/pnt/dashboard/`](../src/pnt/dashboard/), [ADR-0027](adr/0027-dashboard-sse-canvas.md) | Built. Heat-map track `TBD` | Sim, replay; real sessions show NO DATA (no origin) |
+| Operator panel | Position, HPL against the alert limit, NOMINAL / DEGRADED / UNSAFE, latched alerts, time PL, per-source trust; NO DATA when the stream stalls | [`src/pnt/dashboard/`](../src/pnt/dashboard/), [ADR-0027](adr/0027-dashboard-sse-canvas.md) | Built, with the track coloured by confidence (#235) | Sim, replay; real sessions show NO DATA (no origin) |
 | Ground reference station | Base/rover differencing; the base is itself a monitored fault | `nav/base_rover.py`, [ADR-0020](adr/0020-ground-reference-station.md) | Estimator built; **sim only**, not built on hardware (*Amendment 2026-11-10*) | Sim |
 | Simulator and attack library | Trajectories, error models, attacks, the `challenge` sets; fault injection into recordings (`pnt replay --inject`) | [`src/pnt/sim/`](../src/pnt/sim/) | Built | See *How the sim aligns to reality* |
 
@@ -106,7 +106,7 @@ Design: [`verification.md`](verification.md) *Integrity monitor: solution separa
 | Tower site | One site's clock jump, a wrong or moved registry entry, a rogue cell on a real PCI | MHSS site subset; base check names the tower and its jump |
 | Network builder | One builder's timing source in holdover or captured | MHSS builder subset |
 | Source layer | A whole sensor type wrong | MHSS layer subset |
-| GNSS common mode | GNSS plus every GNSS-derived source | Filter GNSS gate; jump guard (opt-in); spoof detector; time gate; MHSS GNSS-free subset; ADS-B warning raises its prior ([ADR-0033](adr/0033-adsb-raises-gnss-prior.md), Proposed) |
+| GNSS common mode | GNSS plus every GNSS-derived source | Filter GNSS gate; jump guard (opt-in); spoof detector; sky-map spoof decision, advisory ([ADR-0041](adr/0041-spoof-decision-from-the-sky.md)); time gate; MHSS GNSS-free subset; ADS-B warning raises its prior ([ADR-0033](adr/0033-adsb-raises-gnss-prior.md), Proposed) |
 | Reference station | Base moved, clock step, link lost | Base check in `ekf-base` (sim) |
 | Hostile emitter | A located jammer used as a beacon: moved, power changed, or lying | `ekf-mhss-beacon` only, sim only |
 
@@ -118,7 +118,7 @@ Design: [`verification.md`](verification.md) *Integrity monitor: solution separa
 - MHSS is safe but unavailable with the `realistic` error sizes: the filter's tower model is not honest for that sim.
 - `ekf-calibrated` can stay confident on a wrong tower table.
 - Two faults in different groups at once, and a wide-area time spoof that also captures tower timing, are not covered by design.
-- No sky-map check and no single spoofed-or-not output yet: `TBD`.
+- The sky-map spoof decision ([ADR-0041](adr/0041-spoof-decision-from-the-sky.md), Accepted) is advisory: it changes no estimate, and a spoofer that fakes the right sky and power pattern for our place and time is not caught.
 
 ## How the sim aligns to reality (ADR-0015)
 
@@ -130,7 +130,7 @@ The mentors accept simulated attacks if the architecture says how the sim aligns
 | LTE pseudorange | `placeholder` (50 m white, 50 m multipath, records told 2 m, `TBC`) | Measured at rest: white σ against SNR, a correlated part, sector clocks ([ADR-0036](adr/0036-lte-measured-error-model.md), Proposed; not yet moved in *Sim validity*) |
 | LTE hearing (cells per carrier) | `placeholder` | Real: 1 to 4 cells per carrier in the 15 static captures, often sectors of one site; placement mattered by ≥ 25.7 dB |
 | Tower identity | Registry | Real cells consistent with registered eNBs; one heard PCI not in the table |
-| GNSS position | `placeholder` | One static session with a PPS-locked fix; position error after loss `TBD` |
+| GNSS position | `placeholder` | Static sessions with a PPS-locked fix; GPS cut in software on two of them: 0.6 and 1.3 m without LTE, kilometres with it ([`results.md`](results.md) (e)) |
 | Barometer, VOR, ADS-B, Wi-Fi | `placeholder` | ADS-B frames; VOR no lock |
 | LEO, reference station, hostile emitter | `placeholder`, sim only | None possible this week ([ADR-0013](adr/0013-no-iridium-hardware.md), ADR-0020, ADR-0025) |
 | Attacks | Software injection only ([ADR-0001](adr/0001-receive-only-payload.md)) | Injection into a real recording works; no position on it yet |
@@ -146,4 +146,4 @@ Full list: [`safety.md`](safety.md).
 
 ---
 
-*Status: 2026-11-11, against `main` at `c21e047`. Open items behind the `TBD`s: agreed-statistic baseline (#187), spoof decision (#206), heat map (#207), real GPS cut (#214). PR and issue sources per claim: [`results.md`](results.md).*
+*Status: 2026-11-11, against `main` at `c21e047`; brought up to `c97e09a` (#245, ADR-0047, ADR-0048). The agreed-statistic baseline (#187), spoof decision (#206), heat map (#207) and real GPS cut (#214) have merged (#170, #239, #235, #233). PR and issue sources per claim: [`results.md`](results.md).*
