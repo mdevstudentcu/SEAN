@@ -1,0 +1,46 @@
+{
+ "session": "20261111-0151-static-fullsuite2",
+ "commit": "8882a1d",
+ "gnss": {
+  "fixes": 601,
+  "rate_hz": 1.0,
+  "span_s": 600.0,
+  "east": {
+   "sigma_m": 0.32148704144469337,
+   "peak_to_peak_m": 1.436053255745753,
+   "lag1": 0.9981167865628702,
+   "corr_time_s": 74.0,
+   "reported_sigma_m": 5.391836734693878,
+   "sim_sigma_m": 2.5
+  },
+  "north": {
+   "sigma_m": 0.20562103856303426,
+   "peak_to_peak_m": 0.7408603499649931,
+   "lag1": 0.9857737655883924,
+   "corr_time_s": 92.0,
+   "reported_sigma_m": 2.0877551020408163,
+   "sim_sigma_m": 2.5
+  },
+  "up": {
+   "sigma_m": 0.18562025200507543,
+   "peak_to_peak_m": 1.1999998803078498,
+   "lag1": 0.9852028686690625,
+   "corr_time_s": 29.0,
+   "reported_sigma_m": 2.4346938775510205,
+   "sim_sigma_m": 3.75
+  },
+  "horizontal_rms_m": 0.38162013746211404
+ },
+ "baro": {
+  "samples": 5999,
+  "rate_hz": 9.999744006555556,
+  "span_s": 599.809620302,
+  "white_sigma_m": 0.27688313028680733,
+  "sigma_m": 0.34190087476189085,
+  "drift_m_per_min": 0.016401337472951954,
+  "drift_over_span_m": 0.16396133336827126,
+  "wander_10s_means_sigma_m": 0.1439617268023794,
+  "sim_noise_m": 0.5,
+  "sim_bias_sigma_m": 1.0
+ }
+}
