@@ -50,6 +50,8 @@ The ADS-B interference warning is not an alarm under REQ-04 ("false alarms ≤ 1
 nominal runs"), so that target does not apply to it. It only raises the GNSS fault prior and sets
 the status to `degraded` (`unsafe` only if the wider HPL passes the alert limit); it never
 excludes GNSS and never raises an alarm (`adsb_interference` and `adsb_spoofed_aircraft` are not
-in `pnt.metrics.ALARM_FLAGS`). Its measured nuisance rate, 1.94 per hour (`analysis/adsb_warning.py`,
-seeds 0–49, `uc02-yow-approach-adsb`, sim), comes from the sim's placeholder quality-dip rate
-(TBC) and is to be re-measured on real FlightStick ADS-B traffic.
+in `pnt.metrics.ALARM_FLAGS`). An `unsafe` status still counts as an alert for time-to-alert
+(`pnt.metrics.alert_epochs`), but not as a REQ-04 false alarm. Its nuisance rate in sim, 1.94 per
+hour (7 warning onsets in 3.61 h; `analysis/adsb_warning.py`, seeds 0–49,
+`uc02-yow-approach-adsb`), comes from the sim's placeholder quality-dip rate (TBC) and is to be
+measured on real FlightStick ADS-B traffic.
