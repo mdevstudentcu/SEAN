@@ -1530,7 +1530,7 @@ CALIBRATED: dict = {
 NOISE_TAU_S = 60.0
 CALIBRATED_NOISE_TAU_S = 120.0
 
-# Honest bound after GPS loss (#226; opt-in, ADR-0041 Proposed): `ekf-learned-noise` with the
+# Honest bound after GPS loss (#226; opt-in, ADR-0046 Proposed): `ekf-learned-noise` with the
 # slow part of a radio's range error carried as a Gauss-Markov state per emitter (the tower error
 # model's multipath states, `tower_states`), not taken as white noise. The learned variance is
 # split between the state and the white noise in `multipath_ratio`'s ratio (`range_noise`).

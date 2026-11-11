@@ -1,4 +1,4 @@
-# ADR-0041: Carry the slow part of a radio's LTE error as a state, so the bound stays honest after GPS loss
+# ADR-0046: Carry the slow part of a radio's LTE error as a state, so the bound stays honest after GPS loss
 
 - **Status:** Proposed
 - **Date:** 2026-11-11
