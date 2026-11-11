@@ -22,8 +22,13 @@ learned drift and the covariance grows by the receiving filter's tower oscillato
 then on the filter treats them as tower states it already knew.
 
 Trust: the map is only as good as the drone's GPS. A spoofed drone learns, and hands on, clocks
-that fit the spoofed track. The map is one more fault hypothesis, not truth; nothing here yet
-tests it (TBD, #96).
+that fit the spoofed track: in `analysis/p12_spoofed_map.py` both a 2 m/s ramp and a 300 m
+jump during the build carry into the user's position. The map is one more fault hypothesis, not
+truth. One guard, opt-in (`refuse_flagged`): the drone withholds its map if its own filter raised
+a spoof cue while it learned (the cues ADR-0041's decision reads: the towers' spoof alarm,
+`spoof_suspected`, and the jump guard's latch, `gnss_jump_latched`, the latter only when the
+filter runs the guard, ADR-0038). It does nothing against a spoof the drone does not flag: the
+slow ramp, on the four towers of `p12-drone-map-handoff`, raises neither.
 """
 
 from __future__ import annotations
@@ -134,10 +139,29 @@ class TowerMap:
         )
 
 
-def export(ekf: EKF) -> TowerMap:
-    """The tower map of a calibrated filter, at its current time."""
+class MapWithheld(ValueError):
+    """The drone flagged its own GNSS while it learned: its map is not handed on."""
+
+
+def spoof_cues(ekf: EKF) -> list[str]:
+    """The spoof cues the filter raised since it started, as the estimate flags ADR-0041's
+    decision reads them: `spoof_suspected` (the towers refute GNSS, the filter's own detector or
+    a monitor through `raise_spoof_alarm`) and `gnss_jump_latched` (the jump guard, ADR-0038).
+    A gate rejection alone is not a cue: honest GNSS has them."""
+    cues = ["spoof_suspected"] if ekf.spoof_alarms else []
+    if ekf.jump is not None and ekf.jump.latches:
+        cues.append("gnss_jump_latched")
+    return cues
+
+
+def export(ekf: EKF, refuse_flagged: bool = False) -> TowerMap:
+    """The tower map of a calibrated filter, at its current time. With `refuse_flagged`, raises
+    `MapWithheld` instead if the filter raised a spoof cue (`spoof_cues`) since it started: what
+    it learned may fit a spoofed track (module docstring)."""
     if not ekf.calibrated:
         raise ValueError("a tower map needs the calibrated clock model (offset and drift)")
+    if refuse_flagged and (cues := spoof_cues(ekf)):
+        raise MapWithheld(f"the drone flagged its GNSS while it learned: {', '.join(cues)}")
     clocks = tuple(ekf.clock_idx)
     positions = tuple((s, (float(l0[0]), float(l0[1]))) for s, (_, l0) in ekf.position_idx.items())
     idx = [j for key in clocks for j in (ekf.clock_idx[key], ekf.clock_idx[key] + 1)]
@@ -154,10 +178,15 @@ def export(ekf: EKF) -> TowerMap:
 
 
 def learn(
-    measurements: Iterable[Measurement], until_ns: int, origin_llh=None, **config
+    measurements: Iterable[Measurement],
+    until_ns: int,
+    origin_llh=None,
+    refuse_flagged: bool = False,
+    **config,
 ) -> TowerMap:
     """Run the `ekf-calibrated` filter (`CALIBRATED`, `config` over it) over the time-ordered
-    `measurements` before `until_ns`, and export its map at `until_ns`. Only `payload` records
+    `measurements` before `until_ns`, and export its map at `until_ns` (`refuse_flagged` as
+    `export`; `jump_guard=JumpGuard` in `config` runs the jump guard). Only `payload` records
     are used, as `pnt.nav.estimate` would pass them."""
     ekf = EKF(origin_llh=origin_llh, **{**CALIBRATED, **config})
     for m in measurements:
@@ -168,4 +197,4 @@ def learn(
     if ekf.x is None:
         raise ValueError("no position fix before the hand-off: nothing was learned")
     ekf.predict(until_ns)
-    return export(ekf)
+    return export(ekf, refuse_flagged)
