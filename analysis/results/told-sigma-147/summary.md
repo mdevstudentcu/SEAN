@@ -177,7 +177,7 @@ Errors against the withheld GPS fixes; median over the cuts, worst cut in bracke
   - The exception is 0040 `ekf-calibrated` (221 m, HPL 100 %).
   - A was tuned on 1 Hz sim records; these are 10 Hz.
 - **arc (new arc = new bias) does not rescue it.** Alone it lowers 0151's 300 s p95 (6,299 → 1,873 m, `ekf`) but raises 0040's (1,391 → 3,545 m). With every variant it cuts the HPL bound rate: 23 to 25 % alone, 69 to 90 % with B. It also costs B its first minute (error at 60 s: 0.2 m without arc, 391 to 725 m with). Absorbing each step resets that cell's range to unknown on every new arc, and arcs restart every few seconds, so little range information survives the cut. Steps that happen inside an arc are not caught. The front-end fix (#183) is the better place for this.
-- **Before the cut:** with the front end's dopplers fed (`told`), GNSS is excluded on 19 to 23 % of epochs by default and up to 87 % with arc. With B it is 3 to 4 %. Pseudoranges alone exclude GNSS on no epoch, whatever the variant.
+- **Before the cut (0151):** with the front end's dopplers fed (`told`), GNSS is excluded on 20 and 19 % of epochs by default and on 23 and 87 % with arc. With B it is 3 and 4 %. Pseudoranges alone exclude GNSS on no epoch, whatever the variant, on both sessions.
 - **Sim, drone leg:** every fix beats the default (T1 9,435 → 2,153 to 2,872 m). A and B+A also beat no LTE (2,857 m) with honest covariance: median NEES 7.4 and 2.0, HPL bound 0.95 to 1.00, no misleading epoch. B beats no LTE on error (2,561 m) but stays overconfident there:
   - median NEES 48 and 15;
   - HPL bound 0.67 and 0.82;
