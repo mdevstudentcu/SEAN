@@ -341,7 +341,10 @@ def test_day1_report_from_the_recorded_session(recorded, tmp_path):
     assert r["sdr"][0]["gaps"] == 1
     assert r["pps"]["edges"] >= 2 and r["pps"]["offset_us"]["mean"] == pytest.approx(1.234)
     assert r["usb_current_a"] == 1.23
-    assert r["cpu"]["mem_avail_mb_min"] > 0  # the host's MemAvailable, read by Health
+    if Path("/proc/meminfo").exists():  # Linux, as on the Pi: the host's MemAvailable
+        assert r["cpu"]["mem_avail_mb_min"] > 0
+    else:  # macOS has no /proc: Health reports none, and the report says so (#146)
+        assert r["cpu"]["mem_avail_mb_min"] is None
     md = day1.to_markdown(r)
     assert "USB current (A) | 1.23" in md and "IMU jitter" in md
     assert f"Min available memory (MB) | {r['cpu']['mem_avail_mb_min']}" in md
