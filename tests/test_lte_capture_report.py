@@ -6,6 +6,7 @@ guards around the values the synthetic truth sets, not requirements.
 """
 
 import importlib.util
+import json
 import shlex
 import subprocess
 import sys
@@ -201,6 +202,56 @@ def test_no_position_says_not_measurable(runs, tmp_path):
     s.position, s.position_from = None, "none"
     lcr.identify(s, CellTable.load(), {})
     assert s.cells[0].status.startswith("not measurable")
+
+
+def write_records(folder: Path, t_s, cfo_hz, pci: int = 1, dongle: str = "sdr_a") -> Path:
+    """A derived `-lte` session written directly: one cell's 10 Hz pseudorange records (as
+    `pnt frontend lte` writes them) without synthesising and tracking IQ."""
+    folder.mkdir()
+    session.write_meta(folder, {"name": folder.name, "simulated": True, "commit": "fe5678"})
+    with SessionWriter(folder / session.MCAP_NAME) as w:
+        for t, f in zip(t_s, cfo_hz, strict=True):
+            meta = {"snr_db": 10.0, "cfo_hz": float(f), "rx_clock": dongle, "earfcn": 2460,
+                    "pci": pci, "fc_hz": FC, "n_epochs": 20, "arc": 0}  # fmt: skip
+            w.write(
+                "/meas/lte",
+                Measurement(t_ns=T0 + round(t * 1e9), source="lte", kind="pseudorange",
+                            emitter=f"lte:2460:{pci}", value=(1000.0,), sigma=(5.0,), meta=meta),
+            )  # fmt: skip
+    return folder
+
+
+def write_sidecar(folder: Path, seconds: float, dongle: str = "sdr_a") -> None:
+    folder.mkdir(exist_ok=True)
+    sidecar = {"dongle": dongle, "sample_rate_hz": FS, "center_freq_hz": FC, "t_ns": T0,
+               "samples": round(seconds * FS)}  # fmt: skip
+    (folder / f"{dongle}.json").write_text(json.dumps(sidecar))
+
+
+def test_availability_is_over_the_capture_not_the_record_span(tmp_path):
+    """Tracked 3 s at the end of a 10 s capture: 30 %, not the 100 % of its own record span."""
+    t = 7.0 + np.arange(30) * 0.1  # 30 records x 20 half frames x 5 ms = 3.0 s tracked
+    lte = write_records(tmp_path / "20261110-1400-static-x-lte", t, np.full(t.size, -PPM * FC))
+    write_sidecar(tmp_path / "20261110-1400-static-x", 10.0)
+    s = lcr.load(lte, None)
+    assert s.capture_s == {"sdr_a": pytest.approx(10.0)} and s.span_s == pytest.approx(3.0)
+    (row,) = lcr.analyse([s])["cells"]
+    assert row["avail"] == pytest.approx(0.30)
+    text = lcr.run([lte], None)
+    assert "| 3.0 | 30% |" in text and "median 30%, lowest 30%" in text
+
+    # the same records with no original session beside them: not measurable, not a guess
+    alone = tmp_path / "elsewhere"
+    alone.mkdir()
+    moved = lte.rename(alone / "20261110-1400-static-x-lte-fixed")
+    (row,) = lcr.analyse([lcr.load(moved, None)])["cells"]
+    assert row["avail"] is None
+    text = lcr.run([moved], None)
+    assert "| 3.0 | not measurable (no capture length) |" in text
+    assert "not measurable from this session: no capture length" in text
+    # ... unless the original session is named
+    s = lcr.load(moved, None, original=tmp_path / "20261110-1400-static-x")
+    assert lcr.analyse([s])["cells"][0]["avail"] == pytest.approx(0.30)
 
 
 def test_allan_deviation_from_a_30_s_record(tmp_path):
