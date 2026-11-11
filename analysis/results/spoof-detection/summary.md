@@ -1,10 +1,10 @@
 # Spoof detection, before and after the tower monitor (#173)
 
-Sim, every value `TBC`. Commit 97795d8, `python analysis/spoof_detection.py --seeds 50 --mhss-seeds 5 --jobs 6`, 35.0 min on Linux, AMD Ryzen 7 8845HS w/ Radeon 780M Graphics, Python 3.12.13. Seeds 0–49 (`ekf-mhss` 0–4); the monitor's settings were chosen on seeds 100–109, never on these.
+Sim, every value `TBC`. Commit 2057521, `python analysis/spoof_detection.py --seeds 50 --mhss-seeds 5 --jobs 5`, 60.2 min on Linux, AMD Ryzen 7 8845HS w/ Radeon 780M Graphics, Python 3.12.13. Seeds 0–49 (`ekf-mhss` 0–4); the monitor's settings were chosen on seeds 100–109, never on these.
 
 `-spoof` = the same estimator with `integrity.spoof_monitor` (opt-in). `drone` is the `challenge-drone` leg as committed (1 to 3 cells heard); `drone-many` the same spec with every sector within 3 km heard; `realistic` the `realistic` set. Detection is `pnt.metrics` (any of `gnss_excluded`, `spoof_suspected`, `time_spoof_suspected` held 1 s); false alarms per hour are on `nominal` and `outage` runs.
 
-The monitor is for the slow ramp. The 300 m jump and the time spoof are controls: the monitor must not lose what the filter already catches. Jumps (sizes, directions, what the output does after one) are studied in #176; refusing a detected jump is #184.
+The monitor is for the slow ramp. The 300 m jump and the time spoof are controls: the monitor must not lose what the filter already catches. Jumps (sizes, directions, what the output does after one) are studied in #176; refusing a detected jump is the opt-in jump guard (ADR-0038, `ekf-guard`, merged in #191), not run here.
 
 ## Detection per attack
 
@@ -55,6 +55,35 @@ The monitor is for the slow ramp. The 300 m jump and the time spoof are controls
 | realistic | time-spoof | `ekf-calibrated` | 50/50 | 3.1 | 3.7 | 2 | 0 |
 | realistic | time-spoof | `ekf-calibrated-spoof` | 50/50 | 3.1 | 3.7 | 2 | 0 |
 | realistic | time-spoof | `ekf-mhss` | 5/5 | 2.9 | 3.3 | 1 | 0 |
+
+## Attacks that began during an alarm
+
+`pnt.metrics` counts an alarm as a detection only if it starts inside the attack. On these runs the alarm was already on when the attack began, so none can flag the attack at onset: a run counts as detected only if its alarm clears and starts again, which is a later event, not the attack's onset. Times in s; *cleared* and *`spoof_suspected`* are after the attack's start.
+
+| Leg | Attack | Estimator | Seed | Alarm on since | Counted delay | Alarm cleared | `spoof_suspected` |
+|---|---|---|---|---|---|---|---|
+| drone-many | spoof-jump | `ekf` | 36 | 1.5 | – | – | – |
+| drone-many | spoof-jump | `ekf-spoof` | 36 | 1.5 | – | – | 11.0 |
+| drone-many | spoof-jump | `ekf-calibrated` | 36 | 1.5 | 533.5 | 532.1 | – |
+| drone-many | spoof-jump | `ekf-calibrated-spoof` | 36 | 1.5 | – | – | 11.0 |
+| drone-many | spoof-jump | `ekf` | 39 | 1.5 | – | – | – |
+| drone-many | spoof-jump | `ekf-spoof` | 39 | 1.5 | – | – | 9.0 |
+| drone-many | spoof-ramp | `ekf` | 36 | 1.5 | – | – | – |
+| drone-many | spoof-ramp | `ekf-spoof` | 36 | 1.5 | – | – | 119.0 |
+| drone-many | spoof-ramp | `ekf-calibrated` | 36 | 1.5 | – | 546.5 | – |
+| drone-many | spoof-ramp | `ekf-calibrated-spoof` | 36 | 1.5 | – | – | 119.0 |
+| drone-many | spoof-ramp | `ekf` | 39 | 1.5 | – | – | – |
+| drone-many | spoof-ramp | `ekf-spoof` | 39 | 1.5 | – | – | 188.0 |
+| drone-many | time-spoof | `ekf` | 36 | 1.5 | – | – | – |
+| drone-many | time-spoof | `ekf-spoof` | 36 | 1.5 | – | – | – |
+| drone-many | time-spoof | `ekf-calibrated` | 36 | 1.5 | – | – | – |
+| drone-many | time-spoof | `ekf-calibrated-spoof` | 36 | 1.5 | – | – | – |
+| drone-many | time-spoof | `ekf` | 39 | 1.5 | – | – | – |
+| drone-many | time-spoof | `ekf-spoof` | 39 | 1.5 | – | – | – |
+
+Detections the unchanged estimator counts and its `-spoof` twin does not:
+
+- drone-many spoof-jump seed 36: the alarm was on from 1.5 s in `ekf-calibrated` and from 1.5 s in `ekf-calibrated-spoof`, before the attack at 150.0 s, so neither flags the attack at onset. `ekf-calibrated`'s alarm cleared 532.1 s after the attack began and started again: that restart is its 533.5 s detection. `ekf-calibrated-spoof`'s alarm never cleared (it raised `spoof_suspected` 11.0 s after the attack began, which keeps GNSS position excluded), so it had nothing to restart: no detection was lost.
 
 ## False alarms (an outage must not look like a spoof)
 
@@ -110,8 +139,8 @@ CPU seconds of the estimator per run (scenario generation and scoring not counte
 
 | Estimator | Median CPU s per run | Worst |
 |---|---|---|
-| `ekf` | 0.7 | 1.6 |
-| `ekf-spoof` | 1.1 | 5.2 |
-| `ekf-calibrated` | 2.1 | 38.6 |
-| `ekf-calibrated-spoof` | 2.6 | 43.4 |
-| `ekf-mhss` | 11.1 | 25.9 |
+| `ekf` | 1.0 | 2.8 |
+| `ekf-spoof` | 1.4 | 8.9 |
+| `ekf-calibrated` | 2.9 | 57.9 |
+| `ekf-calibrated-spoof` | 3.5 | 61.5 |
+| `ekf-mhss` | 15.0 | 38.1 |
