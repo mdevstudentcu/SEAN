@@ -21,6 +21,10 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
 - `lte_link_dense.py`: synthetic baseband with every registered cell at a link-budget power: how many cells the front end keeps, and why (synthetic only, TBC link budget)
 - `imu_allan.py <session>`: Allan deviation of a static IMU session beside the sim's MPU6050 model, same length and rate (ADR-0015). Writes `results/<session>-allan/`: `allan.png`, and `summary.md`/`summary.json` with each axis's noise density (spectrum, with the Allan slope as a check), Allan floor, static mean and largest spectral peak. Run on a session the Pi recorded still for hours (`deploy/pi/RUNBOOK.md` G)
 - `model_mismatch.py`: `ekf` and `ekf-calibrated` paired while the simulated world departs from `ekf-calibrated`'s values (multipath size, correlation time and form, tower clock wander, told tower positions): fault-window p95, worst-run HPL bound rate, NEES, misleading and time-misleading epochs (#118). Reported on seeds 0-49; a change to `CALIBRATED` is tuned on seeds 1000-1049 (sim, placeholder models)
+- `lte_static_capture.py <session>-lte`: precision of a static LTE capture, each cell differenced against the strongest on the same dongle (needs two cells)
+- `lte_single_cell.py <session>-lte [--plot PNG]`: one cell's own pseudorange split into white noise and slow wander after a quadratic is removed, for captures with one cell. Includes the dongle and tower clocks; precision only, no truth
+- `adsb_avr_capture.py <session> [--plot PNG]`: readsb's AVR frames from a recorded 1090 MHz capture through the ADS-B front end. The frames carry no time: they are spread evenly over the capture, and the script reruns with them squeezed to show whether the result depends on that
+- `vor_quality.py <voracious>.jsonl ...`: whether Voracious locked onto a VOR (idents, 30 Hz and 9960 Hz SNR, radial spread), before its radials are used
 - Planned: timing holdover from real sessions. No real session exists yet; `summary.md` keeps a marked placeholder for them
 
 ## Viewing a run in Foxglove
