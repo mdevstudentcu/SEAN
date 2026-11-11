@@ -162,6 +162,49 @@ def markdown(summary: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+BLUE = "#2a78d6"  # the reference palette's first categorical hue (as real_gps_cut.py)
+
+
+def plot(summary: dict, commit: str, path: Path) -> None:
+    """Dot plot per session: each configuration's error 300 s after the cut, median (filled) and
+    worst run (open), log scale; `no LTE`'s median as a reference line."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    sessions = list(summary)
+    configs = [c for c in CONFIGS if c != "no LTE" and all(c in summary[s] for s in sessions)]
+    size = (5.0 * len(sessions), 0.32 * len(configs) + 1.6)
+    fig, axes = plt.subplots(1, len(sessions), figsize=size, sharey=True)
+    axes = np.atleast_1d(axes)
+    y = np.arange(len(configs))[::-1]
+    for ax, s in zip(axes, sessions, strict=True):
+        med = [summary[s][c]["err_300s_m"]["median"] for c in configs]
+        worst = [summary[s][c]["err_300s_m"]["worst"] for c in configs]
+        ax.hlines(y, med, worst, color="0.75", lw=1)
+        ax.plot(med, y, "o", color=BLUE, ms=7, label="median of the cuts")
+        ax.plot(worst, y, "o", mfc="white", mec=BLUE, mew=1.5, ms=7, label="worst cut")
+        ref = summary[s].get("no LTE", {}).get("err_300s_m", {}).get("median")
+        if ref:
+            ax.axvline(ref, color="0.45", lw=1, ls=":")
+            ax.text(ref * 1.15, y[0] + 0.3, "no LTE", fontsize=7, color="0.35")
+        ax.set_xscale("log")
+        ax.set_xlim(0.3, 2e5)
+        ax.set_title(f"session {s}", fontsize=9)
+        ax.set_xlabel("horizontal error 300 s after the GPS cut (m)")
+        ax.grid(True, axis="x", color="0.92", lw=0.6)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+    axes[0].set_yticks(y, configs, fontsize=8)
+    axes[0].legend(loc="lower right", fontsize=7, frameon=False)
+    fig.suptitle(f"Real static sessions, GPS cut in software (replay), ekf, commit {commit}: "
+                 "each change alone and combined", fontsize=9)  # fmt: skip
+    fig.tight_layout()
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
+
+
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("sessions", nargs="+", help="NAME=<session>-lte")
@@ -183,6 +226,8 @@ def main(argv=None) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     doc = {"commit": cut._commit(), "summary": summary, "runs": runs}
     out.write_text(json.dumps(doc, indent=1) + "\n")
+    (out.parent / "summary.md").write_text(markdown(summary))
+    plot(summary, doc["commit"], out.parent / "error_300s.png")
     print(markdown(summary))
 
 
