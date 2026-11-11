@@ -1,6 +1,6 @@
 # Stacked fixes on the drone leg (#218)
 
-**Sim, every value `TBC`** (ADR-0015; LTE noise, hop set, dwell and the learned-noise prior are not sized from real data). `python analysis/stacked_fixes.py --seeds 0-49 --jobs 4` at 4faf994 on g14 (Ryzen 7 8845HS, Linux), seeds 0–49 (paired), 218.6 min. Hopping is a study leg (ADR-0040): the payload cannot hop yet. Learned noise (ADR-0039) and the jump guard (ADR-0038) are opt-in estimators; learned noise + guard has no registered name and is `configured(ekf.run[_calibrated], noise_tau_s=..., jump_guard=JumpGuard)`.
+**Sim, every value `TBC`** (ADR-0015; LTE noise, hop set, dwell and the learned-noise prior are not sized from real data). `python analysis/stacked_fixes.py --seeds 0-49 --jobs 4` at 35d061c on g14 (Ryzen 7 8845HS, Linux), seeds 0–49 (paired), 218.6 min. Hopping is a study leg (ADR-0040): the payload cannot hop yet. Learned noise (ADR-0039) and the jump guard (ADR-0038) are opt-in estimators; learned noise + guard has no registered name and is `configured(ekf.run[_calibrated], noise_tau_s=..., jump_guard=JumpGuard)`.
 
 Scenario entries: `nolte` = no LTE records (`challenge-drone-outage` without `sources.lte`); `1c` = `challenge-drone-outage` (1 carrier, 2460); `6c` = `challenge-drone-hop-outage`, first 6 carriers; `13c` = `challenge-drone-hop-outage` (13 carriers); `13c-true` = `challenge-drone-hop-outage` (13 carriers), told the true noise; `jump-1c` = `challenge-drone-spoof-jump` (300 m, 1 carrier); `jump-13c` = `challenge-drone-hop-spoof-jump` (300 m, 13 carriers).
 
