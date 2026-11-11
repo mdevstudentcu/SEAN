@@ -6439,7 +6439,7 @@
   }
  ],
  "reproduced": {
-  "commit": "1e522d2",
+  "commit": "a0e80c0",
   "command": "python analysis/hopping_study.py --seeds 1 --jobs 3 --configs one-carrier,scan-2-1s,scan-4-0.5s,scan-4-2s,distinct-4-1s,scan-13-1s",
   "what": "seed 0 of 6 of the 11 configurations, both told-sigma variants (12 runs)",
   "match": "all 12 match the recorded runs exactly (masts per 10 s, and both filters' p95 at 120 s and 300 s); the other configurations and seeds 1-19 were not re-run"
