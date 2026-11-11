@@ -1,8 +1,11 @@
-"""Location-jump study (REQ-04, T4): which GNSS position jumps each estimator catches, and what
-the ones it misses or later accepts do to the position.
+"""Location-jump study (REQ-04, T4), the small end: the smallest GNSS position jump each
+estimator catches, what the ones it misses do to the position, and a small jump that then drifts.
 
-Our mentors (2026-11-10): "I would begin with location jumps". T4 (systems/plan.md) states only
-ramps, so this measures jumps against the same estimators to propose a jump target (TBC).
+Our mentors (2026-11-10): "I would begin with location jumps", and real jumps are "in the range
+of hundreds" (kilometres). Jumps of 20 m to 500 km, with and without the opt-in jump guard
+(ADR-0038), are `guard_jump_sizes.py`'s; this script covers what that one does not: jumps under
+20 m (the detection floor), the jump-then-drift variant, and `ekf-calibrated` and `ekf-mhss`.
+20 m is in both grids as the common point.
 
 Each run: GNSS position jumps by `size` metres at t = START_S and stays there until the run ends
 (`spoof_jump`, sim/attacks.py). Seed k jumps towards DIRECTIONS_DEG[k % 8] (clockwise from
@@ -50,9 +53,10 @@ from pnt.metrics import ALERT_LIMIT_M, score
 from pnt.nav import estimate
 from pnt.sim.scenario import T0_NS, generate, load
 
-ESTIMATORS = ("ekf", "ekf-calibrated", "ekf-imu", "ekf-mhss")
+ESTIMATORS = ("ekf", "ekf-calibrated", "ekf-imu", "ekf-mhss", "ekf-guard")
 ENVIRONMENTS = ("realistic-uc01", "uc01")
-SIZES_M = (5, 10, 15, 20, 30, 50, 100, 300, 1000)
+# 20 m and up, to 500 km: guard_jump_sizes.py (ADR-0038)
+SIZES_M = (5, 10, 15, 20)
 DIRECTIONS_DEG = tuple(range(0, 360, 45))
 # Jump-then-drift variants: (jump m, drift m/s). The jumps are ones the gates do not see; 2 m/s
 # is T4's ramp, 0.5 m/s a slower one.
@@ -62,11 +66,13 @@ TAIL_S = 30.0  # the end of the run where absorbed or held is judged
 # TBC: "reliably detects" for this study; T4 states no detection probability
 RELIABLE_P = 0.95
 
-# Categorical slots 1-4 (validated: dataviz palette check, light surface) and recessive ink
-COLOURS = dict(zip(ESTIMATORS, ("#2a78d6", "#eb6834", "#1baf7a", "#eda100"), strict=True))
-MARKERS = dict(zip(ESTIMATORS, ("o", "s", "^", "D"), strict=True))
+# Categorical slots 1-5 (validated: dataviz palette check, light surface) and recessive ink
+COLOURS = dict(
+    zip(ESTIMATORS, ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"), strict=True)
+)
+MARKERS = dict(zip(ESTIMATORS, ("o", "s", "^", "D", "v"), strict=True))
 # Plot only: each estimator's points nudged along the log x axis so equal values stay visible
-NUDGE = dict(zip(ESTIMATORS, (0.93, 0.976, 1.024, 1.07), strict=True))
+NUDGE = dict(zip(ESTIMATORS, (0.92, 0.96, 1.0, 1.04, 1.08), strict=True))
 INK, GRID = "#52514e", "#e4e3df"
 
 
@@ -305,7 +311,8 @@ def markdown(summary: list[dict], meta: dict) -> str:
         "Command: `python analysis/jump_study.py --runs "
         f"{meta['runs']} --jobs N --out DIR`. Environments: `realistic-uc01` is "
         "`realistic-nominal` (realistic set) flown on `uc01-drone-circuit`'s route; `uc01` is "
-        "`uc01-drone-circuit` as committed. Faults removed from both first.",
+        "`uc01-drone-circuit` as committed. Faults removed from both first. Jumps of 20 m to "
+        "500 km, with and without the jump guard: `analysis/guard_jump_sizes.py` (ADR-0038).",
         "",
         "## Findings per estimator",
         "",
