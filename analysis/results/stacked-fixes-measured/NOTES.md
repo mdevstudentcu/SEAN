@@ -18,7 +18,7 @@ Only the LTE white noise: 50 m on every 1 Hz record (assumed) against ADR-0036's
 
 ## Not checked
 
-- `ekf-calibrated`: running on g14 at the same commit when this was written; merged into `rows.json` by the script when it finishes.
+- `ekf-calibrated`: finished on g14 at the same commit (222.8 min) after this was written and is in `summary.md` and `rows.json`; its rows are not read here. Its assumed rows equal #247's `ekf-calibrated` numbers.
 - `ekf-honest` (#251): its branch had not been rebased onto `main` when this study started.
 - Two unmeasured sizes moved together (e.g. at-rest multipath with arc restarts): each sensitivity row moves one size.
 - A moving capture: every size here is at rest or assumed.

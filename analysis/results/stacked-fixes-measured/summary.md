@@ -1,6 +1,6 @@
 # Stacked fixes with LTE error sizes from our captures (#257)
 
-**Sim, a study variant of the drone leg** (ADR-0015; no committed scenario entry or default changed). At ebf7802: `python analysis/stacked_fixes.py --study measured --families ekf --seeds 0-49 --jobs 4` on g14 (Ryzen 7 8845HS, Linux), 11.2 min. Seeds 0–49, paired: on a seed every row sees the same trajectory, GNSS, IMU, baro, dongle, tower clocks, multipath, dropout and table error draws, so *assumed* and *measured* differ only in the LTE white noise (and a sensitivity row in its one moved size). Only the white noise is measured, and at rest (ADR-0036): the measured rows keep every other size at the leg's assumed value. Hopping is a study leg (ADR-0040): the payload cannot hop yet. Choices of this study: ADR-0049 (Proposed).
+**Sim, a study variant of the drone leg** (ADR-0015; no committed scenario entry or default changed). At ebf7802: `python analysis/stacked_fixes.py --study measured --families ekf --seeds 0-49 --jobs 4` on g14 (Ryzen 7 8845HS, Linux), 11.2 min; `python analysis/stacked_fixes.py --study measured --families ekf-calibrated --seeds 0-49 --jobs 4` on g14 (Ryzen 7 8845HS, Linux), 222.8 min. Seeds 0–49, paired: on a seed every row sees the same trajectory, GNSS, IMU, baro, dongle, tower clocks, multipath, dropout and table error draws, so *assumed* and *measured* differ only in the LTE white noise (and a sensitivity row in its one moved size). Only the white noise is measured, and at rest (ADR-0036): the measured rows keep every other size at the leg's assumed value. Hopping is a study leg (ADR-0040): the payload cannot hop yet. Choices of this study: ADR-0049 (Proposed).
 
 ## Sizes
 
@@ -22,14 +22,14 @@ Specs: `nolte` = no LTE records (`challenge-drone-outage` without `sources.lte`)
 
 ## Ladder: assumed against measured
 
-| Row | `ekf` assumed 120 / 300 s (m) | `ekf` measured 120 / 300 s (m) |
-|---|---|---|
-| no LTE (control) | 1,329 / 2,909 | 1,329 / 2,909 |
-| today: 1 carrier, told 2 m | 3,268 / 12,507 | 2,309 / 6,604 |
-| + learned noise | 813 / 2,474 | 1,058 / 4,024 |
-| + 13 carriers | 3,628 / 11,894 | 3,073 / 11,098 |
-| learned noise + 13 carriers | 132 / 132 | 105 / 105 |
-| ceiling: told the true noise, 13 carriers | 111 / 111 | 101 / 101 |
+| Row | `ekf` assumed 120 / 300 s (m) | `ekf` measured 120 / 300 s (m) | `ekf-calibrated` assumed 120 / 300 s (m) | `ekf-calibrated` measured 120 / 300 s (m) |
+|---|---|---|---|---|
+| no LTE (control) | 1,329 / 2,909 | 1,329 / 2,909 | 1,329 / 2,909 | 1,329 / 2,909 |
+| today: 1 carrier, told 2 m | 3,268 / 12,507 | 2,309 / 6,604 | 3,418 / 10,154 | 2,577 / 5,673 |
+| + learned noise | 813 / 2,474 | 1,058 / 4,024 | 848 / 2,268 | 1,124 / 3,352 |
+| + 13 carriers | 3,628 / 11,894 | 3,073 / 11,098 | 4,065 / 15,256 | 2,177 / 4,791 |
+| learned noise + 13 carriers | 132 / 132 | 105 / 105 | 158 / 203 | 154 / 183 |
+| ceiling: told the true noise, 13 carriers | 111 / 111 | 101 / 101 | 122 / 144 | 106 / 146 |
 
 ## Every row
 
@@ -51,6 +51,22 @@ Specs: `nolte` = no LTE records (`challenge-drone-outage` without `sources.lte`)
 | stack, multipath at rest (10 m, 3 s) | sensitivity | `ekf-learned-noise` | `m-13c-mprest` | 51 (s 87) | no | 51 (s 87) | no | 29 / 29 | 0 [0/50] | 1.00 (1.00) |
 | stack, arc restarts and steps | sensitivity | `ekf-learned-noise` | `m-13c-arcs` | 143 (s 89) | no | 151 (s 177) | no | 71 / 85 | 0 [0/50] | 1.00 (0.98) |
 | stack, half of hop dwells lost | sensitivity | `ekf-learned-noise` | `m-13c-hoploss` | 117 (s 89) | no | 118 (s 171) | no | 85 / 84 | 0 [0/50] | 1.00 (0.99) |
+| no LTE (control) | both | `ekf-calibrated` | `nolte` | 1,329 (s 120) | no | 2,909 (s 300) | no | 1,140 / 2,468 | 0 [0/50] | 1.00 (1.00) |
+| today: 1 carrier, told 2 m | assumed | `ekf-calibrated` | `1c` | 3,418 (s 117) | no | 10,154 (s 300) | no | 1,239 / 3,180 | 56 [1/50] (35) | 0.70 (0.04) |
+| today: 1 carrier, told 2 m | measured | `ekf-calibrated` | `m-1c` | 2,577 (s 116) | no | 5,673 (s 297) | no | 1,088 / 2,417 | 374 [8/50] (5, 6, 7, 9, 14, 16, …) | 0.28 (0.03) |
+| + learned noise | assumed | `ekf-calibrated-learned-noise` | `1c` | 848 (s 120) | no | 2,268 (s 300) | no | 450 / 1,163 | 0 [0/50] | 1.00 (0.57) |
+| + learned noise | measured | `ekf-calibrated-learned-noise` | `m-1c` | 1,124 (s 120) | no | 3,352 (s 300) | no | 631 / 1,713 | 0 [0/50] | 1.00 (0.46) |
+| + 13 carriers | assumed | `ekf-calibrated` | `13c` | 4,065 (s 120) | no | 15,256 (s 300) | no | 1,085 / 2,580 | 187 [6/50] (0, 30, 31, 35, 44, 48) | 0.44 (0.05) |
+| + 13 carriers | measured | `ekf-calibrated` | `m-13c` | 2,177 (s 115) | no | 4,791 (s 300) | no | 562 / 1,851 | 1,050 [26/50] (0, 2, 5, 6, 8, 15, …) | 0.10 (0.03) |
+| learned noise + 13 carriers | assumed | `ekf-calibrated-learned-noise` | `13c` | 158 (s 89) | no | 203 (s 173) | no | 98 / 126 | 0 [0/50] | 1.00 (0.95) |
+| learned noise + 13 carriers | measured | `ekf-calibrated-learned-noise` | `m-13c` | 154 (s 115) | no | 183 (s 185) | no | 75 / 112 | 0 [0/50] | 1.00 (0.79) |
+| ceiling: told the true noise, 13 carriers | assumed | `ekf-calibrated` | `13c-true` | 122 (s 90) | no | 144 (s 171) | no | 71 / 84 | 0 [0/50] | 1.00 (1.00) |
+| ceiling: told the true noise, 13 carriers | measured | `ekf-calibrated` | `m-13c-true` | 106 (s 87) | no | 146 (s 181) | no | 61 / 78 | 0 [0/50] | 1.00 (1.00) |
+| stack, tower position 50 m | sensitivity | `ekf-calibrated-learned-noise` | `m-13c-tp50` | 146 (s 115) | no | 177 (s 171) | no | 82 / 114 | 0 [0/50] | 1.00 (0.83) |
+| stack, tower position 20 m | sensitivity | `ekf-calibrated-learned-noise` | `m-13c-tp20` | 144 (s 114) | no | 171 (s 300) | no | 81 / 110 | 0 [0/50] | 1.00 (0.79) |
+| stack, multipath at rest (10 m, 3 s) | sensitivity | `ekf-calibrated-learned-noise` | `m-13c-mprest` | 50 (s 87) | yes | 54 (s 178) | no | 30 / 35 | 0 [0/50] | 1.00 (1.00) |
+| stack, arc restarts and steps | sensitivity | `ekf-calibrated-learned-noise` | `m-13c-arcs` | 459 (s 106) | no | 608 (s 158) | no | 87 / 124 | 0 [0/50] | 1.00 (0.94) |
+| stack, half of hop dwells lost | sensitivity | `ekf-calibrated-learned-noise` | `m-13c-hoploss` | 136 (s 107) | no | 189 (s 172) | no | 87 / 117 | 0 [0/50] | 1.00 (0.99) |
 
 ## Read with
 
