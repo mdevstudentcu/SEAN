@@ -35,8 +35,8 @@ Not measured yet. Whoever has the assembled payload fills in both rows: the numb
 
 | Quantity | Value | Measured on | How |
 | --- | --- | --- | --- |
-| Weight, payload as flown (Pi 4B, GPS HAT, both SDRs, sensors, antennas and cables) | `TBD` g | `TBD` | Weigh the assembled payload with its antennas and cables on a kitchen scale that reads to 1 g. Write the reading here |
-| Current draw at 5 V, average and peak | `TBD` A avg, `TBD` A peak | `TBD` | Put a USB power meter (or the DPS-150, section 4) in line with the Pi's supply and run `bash deploy/pi/day1.sh 10` (a 10-minute `pnt record`, both SDRs). Read average and peak current; write them here with the session name |
+| Weight, payload as flown (Pi 4B, GPS HAT, both SDRs, the USB drive the IQ goes to (ADR-0042), sensors, heatsink and fan, USB extensions and ferrites, antennas and cables) | `TBD` g | `TBD` | Weigh the assembled payload with its antennas and cables on a kitchen scale that reads to 1 g. Write the reading here |
+| Current draw at 5 V, average and peak | `TBD` A avg, `TBD` A peak | `TBD` | Put a USB power meter (or the DPS-150, section 4) in line with the Pi's supply and run a 10-minute `pnt record` of both SDRs with the session on the USB drive, as flown (ADR-0042; mount point `TBC`). `bash deploy/pi/day1.sh 10` records the same but writes under `data/sessions/` on the SD card, so it misses the drive's write load: change its `--out` to the drive first. Read average and peak current; write them here with the session name |
 
 Size: `TBD`. These numbers feed H3 in [`safety.md`](../systems/safety.md#hazard-analysis) and the USB-current question under *Open decisions*.
 
