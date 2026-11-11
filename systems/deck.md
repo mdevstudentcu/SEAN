@@ -109,7 +109,7 @@ Fallback: the numbers on the agreed statistic (best 10,154 m at 300 s, not met: 
 
 **On the slide:** the three fixes, and the ladder for 0–300 s (`ekf`): no towers 2,909 m; today 12,507 m; learned noise 2,474 m; more frequencies only 11,894 m; both 132 m; against the 25 m line.
 
-**Figure:** the stacked-fixes ladder, `analysis/results/stacked-fixes/ladder.png` in draft PR #247 (sim, `challenge-drone-outage` and `challenge-drone-hop-outage`, seeds 0–49, commit 4faf994; 95th percentile across runs at each second, worst second).
+**Figure:** the stacked-fixes ladder, `analysis/results/stacked-fixes/ladder.png` in draft PR #247 (sim, `challenge-drone-outage` and `challenge-drone-hop-outage`, seeds 0–49, commit 35d061c; 95th percentile across runs at each second, worst second).
 
 **Script (65 words, 30 s):**
 > Why? Our radio reports only its fast noise, so the filter over-trusts the towers; in simulation that is worse than no towers at all. The fixes: learn each tower's real noise, listen on more frequencies, and refuse a flagged jump. Together, ninety-five percent of fifty simulated flights stay within a hundred and thirty metres for five minutes, down from kilometres. Still short of our target.
