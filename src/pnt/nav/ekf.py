@@ -76,7 +76,7 @@ the innovations, and the reported sigma is only a lower bound:
   (`noise_prior_m`, TBC) counted as one sample. Innovations the gate rejects count too:
   otherwise a sigma too small would get every large innovation rejected and never be seen to be
   too small.
-- Prior, not the reported sigma: a cell's first records carry `noise_prior_m` (40 m, TBC; ADR-0037
+- Prior, not the reported sigma: a cell's first records carry `noise_prior_m` (40 m, TBC; ADR-0039
   Proposed), never their reported sigma. Counted as the reported 2 m, the first two records
   pinned the dongle clock's drift so tightly that every later record of the cell was rejected
   (#147). 40 m is above every 1-10 s error measured on real static captures (up to 38 m, weak
