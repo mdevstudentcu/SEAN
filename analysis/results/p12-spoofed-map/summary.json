@@ -1,0 +1,1374 @@
+{
+ "commit": "1cdc8ea",
+ "runs": 20,
+ "user": {
+  "no aid": {
+   "t1_120": 277.704329082071,
+   "t1_300": 617.8484046693131,
+   "p95_120": 208.86885785274333,
+   "p95_300": 396.2774955333411,
+   "worst_300": 1003.5058115906215,
+   "worst_seed": 3,
+   "bound_300": 0.9885,
+   "misleading": 0,
+   "hazardous": 0,
+   "unsafe_300": 0.9836666666666667
+  },
+  "honest map": {
+   "t1_120": 290.5436470036644,
+   "t1_300": 416.02965145624444,
+   "p95_120": 236.29483803608287,
+   "p95_300": 310.11247492908893,
+   "worst_300": 415.71038091903705,
+   "worst_seed": 14,
+   "bound_300": 1.0,
+   "misleading": 0,
+   "hazardous": 0,
+   "unsafe_300": 0.9836666666666667
+  },
+  "ramp-spoofed map": {
+   "t1_120": 635.2356308783266,
+   "t1_300": 751.0032169764704,
+   "p95_120": 479.4587408660476,
+   "p95_300": 647.2841855140099,
+   "worst_300": 853.932962539647,
+   "worst_seed": 0,
+   "bound_300": 0.8733833333333333,
+   "misleading": 0,
+   "hazardous": 0,
+   "unsafe_300": 0.9836666666666667
+  },
+  "ramp-spoofed map, guarded build": {
+   "t1_120": 635.2356308783266,
+   "t1_300": 751.0032169764704,
+   "p95_120": 479.4587408660476,
+   "p95_300": 647.2841855140099,
+   "worst_300": 853.932962539647,
+   "worst_seed": 0,
+   "bound_300": 0.8733833333333333,
+   "misleading": 0,
+   "hazardous": 0,
+   "unsafe_300": 0.9836666666666667
+  },
+  "ramp-spoofed map, guarded build + refusal": {
+   "t1_120": 635.2356308783266,
+   "t1_300": 751.0032169764704,
+   "p95_120": 479.4587408660476,
+   "p95_300": 647.2841855140099,
+   "worst_300": 853.932962539647,
+   "worst_seed": 0,
+   "bound_300": 0.8733833333333333,
+   "misleading": 0,
+   "hazardous": 0,
+   "unsafe_300": 0.9836666666666667
+  },
+  "jump-spoofed map": {
+   "t1_120": 594.9350257137985,
+   "t1_300": 705.7807147012776,
+   "p95_120": 409.3973968284875,
+   "p95_300": 594.9330080955914,
+   "worst_300": 744.2342599099093,
+   "worst_seed": 0,
+   "bound_300": 0.9872,
+   "misleading": 0,
+   "hazardous": 0,
+   "unsafe_300": 0.9836666666666667
+  },
+  "jump-spoofed map, guarded build": {
+   "t1_120": 338.9207716997119,
+   "t1_300": 452.33172605019473,
+   "p95_120": 207.54376252303916,
+   "p95_300": 323.5666016338116,
+   "worst_300": 442.9635898307039,
+   "worst_seed": 11,
+   "bound_300": 1.0,
+   "misleading": 0,
+   "hazardous": 0,
+   "unsafe_300": 0.9836666666666667
+  },
+  "jump-spoofed map, guarded build + refusal": {
+   "t1_120": 277.704329082071,
+   "t1_300": 617.8484046693131,
+   "p95_120": 208.86885785274333,
+   "p95_300": 396.2774955333411,
+   "worst_300": 1003.5058115906215,
+   "worst_seed": 3,
+   "bound_300": 0.9885,
+   "misleading": 0,
+   "hazardous": 0,
+   "unsafe_300": 0.9836666666666667
+  }
+ },
+ "drone": {
+  "honest ekf-calibrated": [
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   }
+  ],
+  "honest ekf-calibrated-guard": [
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   }
+  ],
+  "honest ekf-calibrated-spoof": [
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   }
+  ],
+  "honest ekf-guard": [
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   }
+  ],
+  "ramp ekf-calibrated": [
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   }
+  ],
+  "ramp ekf-calibrated-guard": [
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   }
+  ],
+  "ramp ekf-calibrated-spoof": [
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   }
+  ],
+  "ramp ekf-guard": [
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   }
+  ],
+  "jump ekf-calibrated": [
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   }
+  ],
+  "jump ekf-calibrated-guard": [
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   }
+  ],
+  "jump ekf-calibrated-spoof": [
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   },
+   {
+    "first_s": null,
+    "before": false,
+    "level": "unknown"
+   }
+  ],
+  "jump ekf-guard": [
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   },
+   {
+    "first_s": 0.1,
+    "before": false,
+    "level": "suspect"
+   }
+  ]
+ },
+ "withheld": {
+  "ramp": [
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false,
+   false
+  ],
+  "jump": [
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true,
+   true
+  ]
+ }
+}
