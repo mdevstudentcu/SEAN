@@ -120,3 +120,10 @@ def test_sites_on_the_committed_table():
     assert len(info) == 86  # matched eNBs on Rogers EARFCN 2460 (regression guard)
     assert len(tc.choose(info, "strongest", "all")) == 17
     assert tc.choose(info, "strongest", 1) == [30018]  # the strongest at Carleton (PR #133)
+
+
+def test_summary_says_where_recited_runs_were_computed():
+    meta = {"commit": "bbbbbbb", "seeds": 2, "jobs": 1, "minutes": 1.0}
+    assert tc._recited(meta) == ""
+    text = tc._recited({**meta, "recited_from": "aaaaaaa"})
+    assert "computed at aaaaaaa" in text and "seed 0 rerun at bbbbbbb" in text
