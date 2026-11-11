@@ -563,7 +563,11 @@ def report(sessions: list[Session], res: dict, commit: str) -> str:
         )
     add("")
     add(
-        "Ratio = observed / reported at 10 Hz: above 1, `Config.sigma_scale` is too low. "
+        "Ratio = observed / reported at 10 Hz. The observed spread includes the correlated "
+        "part (dongle and tower wander, multipath change, the tracker's loop), so a ratio "
+        "above 1 does not by itself mean `Config.sigma_scale` is too low: split the white part "
+        "from the correlated part first (`analysis/lte_single_cell.py`; #190 / ADR-0036, "
+        "Proposed, finds the white part below the reported σ on the 2026-11-10 captures). "
         "The 1 s value is the spread of 1 s means inside each window (the window's quadratic "
         "absorbs some of it at long correlation times)."
     )
