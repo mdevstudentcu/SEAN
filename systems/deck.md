@@ -2,7 +2,7 @@
 
 **The pitch in one line:** a navigation layer that knows when it is wrong, and tells the operator not to trust it.
 
-Seven slides, 251 s, 516 words of script, 16 numbers spoken. Seconds are the words at 2.1 a second, except the demo, which the panel's clock sets at 80 s. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md) (*Numbers the deck speaks or shows*).
+Seven slides, 251 s, 517 words of script, 15 numbers spoken. Seconds are the words at 2.1 a second, except the demo, which the panel's clock sets at 80 s. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md) (*Numbers the deck speaks or shows*).
 
 **Three rules on stage.** Say "simulated" whenever a number is simulated. Say "consistent with a registered site", never "identified". Never say "first": say "we found no published…".
 
@@ -10,14 +10,14 @@ Seven slides, 251 s, 516 words of script, 16 numbers spoken. Seconds are the wor
 | --- | --- | --- | --- | --- |
 | 1 | The moment: green and 300 m wrong | 21 | 44 | 1 |
 | 2 | What we built | 21 | 45 | 0 |
-| 3 | Live demo | 80 | 156 | 4 |
+| 3 | Live demo | 80 | 157 | 3 |
 | 4 | Real signals | 26 | 54 | 2 |
 | 5 | Where we miss, and what closes the gap | 45 | 95 | 7 |
 | 6 | Every source can lie | 32 | 67 | 1 |
 | 7 | Roadmap | 26 | 55 | 1 |
-| | **Total** | **251** | **516** | **16** |
+| | **Total** | **251** | **517** | **15** |
 
-Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within two metres (3); seven-tenths of a metre, eight metres (4); two metres, thirteen carriers, ninety-five percent, fifty, a hundred and thirty-two metres, five minutes, twenty-five (5); fifty-nine (6); a hundred and seventy dollars (7).
+Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute (3); seven-tenths of a metre, eight metres (4); two metres, thirteen carriers, ninety-five percent, fifty, a hundred and thirty-two metres, five minutes, twenty-five (5); fifty-nine (6); a hundred and seventy dollars (7).
 
 ---
 
@@ -60,10 +60,10 @@ Fallback: the script no longer says the laptop "fuses everything": today the def
 
 **Figure:** the live panel. If the laptop fails: the nine screenshots in the guard demo evidence folder, with the runbook's 60-second screenshot path.
 
-**Script (156 words, 80 s)**, cued by the panel's T+ clock and segment, as in the runbook:
-> *[Segment 1, T+0, green]* A simulated drone flying a loop over Carleton. The triangles are the real Rogers tower sites from the government registry. Green means: trust this position. *[T+62, amber]* GPS is gone. *[T+65, red]* Within five seconds the panel turns red: do not navigate on this position. *[T+65–105]* The error grows, but the bound, the blue line, stays above it on this run. *[Enter; NO DATA gap]* Now a spoofer: fake GPS that puts us three hundred metres east. *[Segment 2, T+150, amber]* Caught at the very first fake fix: GPS rejected. *[T+177, green]* But watch. Half a minute later this plain filter lets the fake GPS back in: green, a tight bound, and that far wrong. *[Enter; NO DATA gap; point at `ekf-guard` on the top bar]* Same flight, same attack, now with our jump guard. *[Segment 3, T+150]* Caught again. *[T+155–200, red]* This time the fake GPS stays out. The error grows, but the bound grows faster and the panel stays red. The panel never goes green on the fake position. *[T+200, green]* The spoofer stops, real GPS comes straight back, and we are green and within two metres.
+**Script (157 words, 80 s)**, cued by the panel's T+ clock and segment, as in the runbook:
+> *[Segment 1, T+0, green]* A simulated drone flying a loop over Carleton. The triangles are the real Rogers tower sites from the government registry. Green means: trust this position. *[T+62, amber]* GPS is gone. *[T+65, red]* Within five seconds the panel turns red: do not navigate on this position. *[T+65–105]* The error grows, but the bound, the blue line, stays above it on this run. *[Enter; NO DATA gap]* Now a spoofer: fake GPS that puts us three hundred metres east. *[Segment 2, T+150, amber]* Caught at the very first fake fix: GPS rejected. *[T+177, green]* But watch. Half a minute later this plain filter lets the fake GPS back in: green, a tight bound, and that far wrong. *[Enter; NO DATA gap; point at `ekf-guard` on the top bar]* Same flight, same attack, now with our jump guard. *[Segment 3, T+150]* Caught again. *[T+155–200, red]* This time the fake GPS stays out. The error grows, but the bound grows faster and the panel stays red. The panel never goes green on the fake position. *[T+200, green]* The spoofer stops, real GPS comes straight back, and we are green and within a few metres.
 
-If Enter comes too early in segment 2, carry on and show `jump-3-followed.png` afterwards (runbook *Fallbacks*). The guard is opt-in, not our default: say so if asked.
+"Within a few metres": after GPS returns the error is 1.7 m at T+200.0, then 0.1 to 3.6 m to T+220, median 1.5 m (seed 0, `challenge-drone-gps-return`, `ekf-guard`; guard demo runbook in PR #220 at `e340a56`, measured headlessly there, not re-run by us). If Enter comes too early in segment 2, carry on and show `jump-3-followed.png` afterwards (runbook *Fallbacks*). The guard is opt-in, not our default: say so if asked.
 
 Room for one more segment: a demo of the towers helping (learned noise and hopping, sim study) may be added (#266). No script here. It would add about 25 s: 276 s in all at this pace, inside #268's 4 min 45 s.
 
@@ -71,19 +71,19 @@ Room for one more segment: a demo of the towers helping (learned noise and hoppi
 
 ## 4. Real signals
 
-**Headline:** On real towers our low-cost radio is precise on strong cells, but a slower error it does not report sits on top; on real static sessions with GPS removed, the towers made position worse; nothing is measured on the move yet.
+**Headline:** On real towers our low-cost radio is precise on strong cells, but a slower error it does not report sits on top; on real static sessions with GPS removed, the towers still made position worse, by hundreds of metres; nothing is measured on the move yet.
 
 **On the slide:**
 - Range jitter on the strongest cells: 0.73 m (real, 10 records a second). A slower error, median 8.1 m at 1 s, that the radio's own estimate leaves out.
-- Two real static sessions, GPS removed in software: with towers, kilometres worse than without (median at 300 s 21,553 m and 10,718 m, against 0.6 m and 1.3 m).
+- Two real static sessions, GPS removed in software: with towers, hundreds of metres worse than without (median at 300 s 595 m and 364 m, against 0.6 m and 1.3 m), and the bound misses a quarter of the withheld fixes.
 - Nothing measured on the move yet.
 
 **Figure:** [`analysis/results/lte-measured-noise/white_vs_snr.png`](../analysis/results/lte-measured-noise/white_vs_snr.png) (real).
 
 **Script (54 words, 26 s):**
-> This part is real. On strong cells our radio's range jitter is seven-tenths of a metre, but a slower error of about eight metres sits on top, unreported. On two real sessions with GPS removed in software, standing still, the towers made position worse, by kilometres. And nothing is measured on the move yet.
+> This part is real. On strong cells our radio's range jitter is seven-tenths of a metre, but a slower error of about eight metres sits on top, unreported. On two real sessions with GPS removed in software, standing still, towers made position hundreds of metres worse. And nothing is measured on the move yet.
 
-Source: ADR-0036 on `main` (numbers regenerated after #245: white σ 0.73 m at 13–16 dB; S(1 s) median 8.1 m). GPS cut: #245's rerun of #233, not re-run by us ([`lte-reacq-steps/NOTES.md`](../analysis/results/lte-reacq-steps/NOTES.md) *GPS cut*): `ekf` median at 300 s 21,553 m (`20261111-0151`) and 10,718 m (`20261111-0233`) with LTE against 0.6 m and 1.3 m without. #245 fixed most of the front end's arc steps; the filter still trusts records told 1 to 5 m that are off by tens of metres. Both predate ADR-0047's default (not rerun). If asked for the number, give it with that caveat.
+Source: ADR-0036 on `main` (numbers regenerated after #245: white σ 0.73 m at 13–16 dB; S(1 s) median 8.1 m). GPS cut: #267 (merged; ADR-0050, Accepted), the other owner's result, not re-run by us ([`real-lte-filter/NOTES.md`](../analysis/results/real-lte-filter/NOTES.md), run at `af9dd16` (the commit `summary.json` names, on #267's branch; the files are on `main` at `aac7bd4`)): the default `ekf`, which now tells a real capture's LTE records the measured σ and gives each new arc a bias, median (worst) at 300 s over five cut times 595 m (1,536 m) on `20261111-0151` and 364 m (1,582 m) on `20261111-0233` with LTE, against 0.6 m and 1.3 m without; HPL at or above the error on 76 % and 75 % of the withheld fixes. Before ADR-0050 the same sessions gave 21,553 m and 10,718 m. "No variant beats no LTE on a static receiver, and the HPL still misses a quarter of the fixes" (NOTES). The five cuts share one recording per session, and a static receiver favours no LTE by construction. If asked for the number, give it with those caveats.
 
 **If asked:** Q2 (is any of it real), Q5 (8-bit radio), Q17 (multipath or oscillator), Q15 (what the sim got wrong), Q20 (why believe 132 m).
 
@@ -158,4 +158,4 @@ Source: `reports/sources-research-20261111.md` on `main` (#271), research by ano
 
 ---
 
-*Status: 2026-11-11, seven slides (#268) against `main` at `2499f87`; numbers from `main` and the named PRs; demo cues from PR #220 (open). Slide 7 rewritten around the trust-monitor product (#273) from the research report on `main` at `3493cfb`.*
+*Status: 2026-11-11, seven slides (#268) against `main` at `2499f87`; numbers from `main` and the named PRs; demo cues from PR #220 (open). Slide 7 rewritten around the trust-monitor product (#273) from the research report on `main` at `3493cfb`. Rebased onto `3493cfb`: slide 3's last line follows the runbook at `e340a56`, and slide 4 follows ADR-0050 (#267).*

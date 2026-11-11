@@ -134,7 +134,7 @@ The mentors accept simulated attacks if the architecture says how the sim aligns
 | LTE pseudorange | `placeholder` (50 m white, 50 m multipath, records told 2 m, `TBC`) | Measured at rest: white σ against SNR, a correlated part, sector clocks ([ADR-0036](adr/0036-lte-measured-error-model.md), Proposed; not yet moved in *Sim validity*) |
 | LTE hearing (cells per carrier) | `placeholder` | Real: 1 to 4 cells per carrier in the 15 static captures, often sectors of one site; placement mattered by ≥ 25.7 dB |
 | Tower identity | Registry | Real cells consistent with registered eNBs; one heard PCI not in the table |
-| GNSS position | `placeholder` | Static sessions with a PPS-locked fix; GPS cut in software on two of them: 0.6 and 1.3 m without LTE, kilometres with it ([`results.md`](results.md) (e)) |
+| GNSS position | `placeholder` | Static sessions with a PPS-locked fix; GPS cut in software on two of them: 0.6 and 1.3 m without LTE, hundreds of metres with it since ADR-0050 ([`results.md`](results.md) (e)) |
 | Barometer, VOR, ADS-B, Wi-Fi | `placeholder` | ADS-B frames; VOR no lock |
 | LEO, reference station, hostile emitter | `placeholder`, sim only | None possible this week ([ADR-0013](adr/0013-no-iridium-hardware.md), ADR-0020, ADR-0025) |
 | Attacks | Software injection only ([ADR-0001](adr/0001-receive-only-payload.md)) | Injection into a real recording works: a 300 m jump injected into a real static session was flagged 0.6 s after onset (PR #241, open); a fake sky injected into one was flagged in 59 of 59 skyviews (#239) |
