@@ -99,6 +99,15 @@ button.on { border-color: var(--est); color: var(--est); }
 .status.lost { border-left-color: var(--critical); }
 .status.lost .status-word { color: #ff6b6b; }
 
+.spoof { border-left: 6px solid var(--muted); }
+.spoof-word { font-size: 20px; font-weight: 800; letter-spacing: .06em; color: var(--muted); }
+.spoof.not_spoofed { border-left-color: var(--good); }
+.spoof.not_spoofed .spoof-word { color: var(--good); }
+.spoof.suspect { border-left-color: var(--warning); }
+.spoof.suspect .spoof-word { color: var(--warning); }
+.spoof.spoofed { border-left-color: var(--critical); background: #2a1515; }
+.spoof.spoofed .spoof-word { color: #ff6b6b; }
+
 .nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .nums label, .row label { display: block; font-size: 11px; color: var(--muted); }
 .nums b { font-size: 20px; font-variant-numeric: tabular-nums; }

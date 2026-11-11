@@ -335,6 +335,24 @@ def test_front_end_lte_cells_are_drawn_at_their_registered_site():
     assert np.allclose([f["pos"] for f in out], [a.pos_enu for a in alone])
 
 
+def test_frames_carry_the_spoof_decision(tmp_path):
+    # #206, ADR-0041: no sky in a frame says unknown; a sky says not spoofed, then a faked sky
+    # (every satellite at one power) is named on the panel
+    plain = list(frames(sim_feed(_small(tmp_path), preflight=False), HealthMonitor(50.0, 1.5e-6)))
+    assert {f["spoof"]["level"] for f in plain} == {"unknown"}
+    p = tmp_path / "sky.yaml"
+    sky = SMALL.replace("sigma_m: 2.5}", "sigma_m: 2.5, health: true, sky: true}")
+    fault = "type: fake_sky, start_s: 12, flat_cn0_dbhz: 45"
+    p.write_text(sky.replace("type: outage, source: gnss, start_s: 12, end_s: 22", fault))
+    out = list(frames(sim_feed(str(p), preflight=False), HealthMonitor(50.0, 1.5e-6)))
+    json.dumps([f["spoof"] for f in out], allow_nan=False)
+    level = {round(f["t_s"]): f["spoof"]["level"] for f in out}
+    assert level[5] == level[11] == "not_spoofed"
+    # Skyviews every 5 s: the first faked one is at 15 s. The power cue alone is never red
+    assert level[14] == "not_spoofed" and level[16] == level[29] == "suspect"
+    assert out[-1]["spoof"]["cues"] == ["power_flat (held)"]
+
+
 def test_live_stream_gives_the_panel_what_the_sim_does(tmp_path):
     # ADR-0004: the same run, streamed over ZeroMQ as the payload does (loopback), gives the panel
     # the same frames as the sim feed, less the truth

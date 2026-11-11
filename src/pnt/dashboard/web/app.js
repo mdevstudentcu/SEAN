@@ -339,6 +339,38 @@ function ack(body) {
 }
 $("ack-all").onclick = () => ack({});
 
+// ---- spoof decision (ADR-0041) -----------------------------------------------------------
+const SPOOF_WORD = { unknown: "UNKNOWN", not_spoofed: "NOT SPOOFED", suspect: "SUSPECT", spoofed: "SPOOFED" };
+const CUE_WORDS = {
+  sky_below_horizon: "a satellite is received that is below the horizon here",
+  power_flat: "every satellite arrives at the same power, unrelated to elevation",
+  jump_latched: "GPS position jumped (jump guard)",
+  towers_refute: "the towers contradict the GPS position",
+};
+function spoofWhy(sp) {
+  const cues = sp.cues.map((c) => {
+    const held = c.endsWith(" (held)");
+    const k = held ? c.slice(0, -7) : c;
+    return `${CUE_WORDS[k] || k}${held ? " (held)" : ""}`;
+  });
+  const parts = [cues.length ? `Cue: ${cues.join("; ")}.` : "No cue."];
+  const s = sp.sky;
+  if (s) {
+    const pw = s.spread_db == null ? "" : `, C/N0 spread ${s.spread_db.toFixed(1)} dB, correlation with elevation ${s.corr.toFixed(2)}`;
+    parts.push(`${s.n_judged} GPS satellites judged, ${s.n_below} below the horizon${pw}.`);
+  }
+  parts.push(...sp.notes.map((n) => `${n[0].toUpperCase()}${n.slice(1)}.`));
+  parts.push(`Score ${sp.score.toFixed(2)}.`);
+  return parts.join(" ");
+}
+
+function renderSpoof(sp) {
+  if (!sp) return;
+  $("spoof").className = `card spoof ${sp.level}`;
+  $("spoof-word").textContent = SPOOF_WORD[sp.level] || sp.level;
+  $("spoof-why").textContent = spoofWhy(sp);
+}
+
 function renderSide() {
   const f = S.frame;
   if (!f) return;
@@ -369,6 +401,7 @@ function renderSide() {
     ? h.causes.map((c) => `<li class="${c.severity}"><span class="sev">${c.severity}</span>${esc(c.text)}</li>`).join("")
     : '<li class="muted">Nothing flagged.</li>';
   renderAlerts(h.alerts, h.settled);
+  renderSpoof(f.spoof);
   $("trusted").innerHTML = chips(h.trusted, false);
   $("lowtrust").innerHTML = chips(h.low_trust, true);
   const towers = [...S.emitters.keys()];
