@@ -16,9 +16,10 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from pnt.core.frames import emitter_enu, llh_to_enu
+from pnt.core.frames import emitter_enu, enu_to_llh, llh_to_enu
 from pnt.core.measurement import Measurement, Truth
 from pnt.dashboard.health import HealthMonitor
+from pnt.integrity.sky import SpoofDecision
 from pnt.metrics import ALERT_LIMIT_M
 from pnt.nav import cells, estimate
 
@@ -173,17 +174,24 @@ class _Watch:
     was last heard (payload receiver only: the reference station is drawn from the session).
     It watches records after the registry lookup (`pnt.nav.cells.attach`), so a real or
     front-end-shaped LTE cell, which carries no position of its own, is drawn at its registered
-    site; `estimate` then passes the placed records through unchanged."""
+    site; `estimate` then passes the placed records through unchanged.
+    With `spoof`, each GPS skyview (a `gnss_health` with per-PRN C/N0) goes to the spoof
+    decision, seen from the latest estimate (`pos_enu`); it needs the session origin."""
 
-    def __init__(self, measurements: Iterable[Measurement], origin_llh):
+    def __init__(self, measurements: Iterable[Measurement], origin_llh, spoof=None):
         self.it = iter(measurements)
         self.origin_llh = origin_llh
+        self.spoof = spoof
+        self.pos_enu = (0.0, 0.0, 0.0)  # the latest estimate's position
         self.last: dict[str, int] = {}
         self.new: list[dict] = []
         self._known: set[str] = set()
 
     def __iter__(self) -> Iterator[Measurement]:
         for m in self.it:
+            if self.spoof is not None and self.origin_llh is not None and m.receiver == "payload":
+                if m.kind == "gnss_health" and m.meta.get("snr"):
+                    self.spoof.measurement(m, enu_to_llh(self.pos_enu, self.origin_llh))
             if m.emitter and m.receiver == "payload":
                 if m.emitter not in self._known:
                     self._known.add(m.emitter)
@@ -203,7 +211,8 @@ def _num(x) -> float | None:
 def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
     """One frame per Estimate. `lock`, if given, guards the monitor (the server acknowledges
     alerts from another thread)."""
-    watch = _Watch(cells.attach(feed.measurements, feed.origin_llh), feed.origin_llh)
+    spoof = SpoofDecision()  # advisory (ADR-0041): reads the estimates, never changes them
+    watch = _Watch(cells.attach(feed.measurements, feed.origin_llh), feed.origin_llh, spoof)
     heard_ns = int(HEARD_S * 1e9)
     run = estimate(feed.estimator, watch, origin_llh=feed.origin_llh, reference=feed.reference)
     for est in run:
@@ -218,6 +227,7 @@ def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
         if truth is not None:
             err = float(np.hypot(*np.subtract(est.pos_enu, truth.pos_enu)[:2]))
         new, watch.new = watch.new, []
+        watch.pos_enu = est.pos_enu
         yield {
             "t_s": health["t_s"],
             "pos": [float(v) for v in est.pos_enu],
@@ -235,6 +245,7 @@ def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
             "health": {k: _num(v) if isinstance(v, float) else v for k, v in health.items()},
             "heard": sorted(e for e, t in watch.last.items() if est.t_ns - t <= heard_ns),
             "new_emitters": new,
+            "spoof": spoof.decide(est.t_ns, est.flags).to_dict(),
         }
 
 
