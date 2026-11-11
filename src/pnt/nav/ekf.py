@@ -242,7 +242,7 @@ from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.gnss_readmit import GnssReadmit
 from pnt.integrity.jump_guard import JumpGuard
 from pnt.integrity.protection import hpl, vpl
-from pnt.nav import told_sigma
+from pnt.nav import _kernels, told_sigma
 from pnt.nav.baseline import CHI2_999
 from pnt.nav.hostile import BeaconParams, Beacons
 from pnt.nav.imu import ImuMotion, rotation, skew
@@ -744,7 +744,7 @@ class EKF:
         self.x = F @ self.x
         if nav is not None:
             self.x[nav[0]] = nav[1]  # the nonlinear mean of position, velocity and attitude
-        self.P = F @ self.P @ F.T + Q
+        self.P = _kernels.propagate(F, self.P, Q)
         self.t_ns = t_ns
         if self.calibrated and self.rollback_ns is not None:
             self._snapshot()
@@ -870,8 +870,7 @@ class EKF:
             return False
         K = self.P @ H.T @ S_inv
         self.x = self.x + K @ y
-        I_KH = np.eye(len(self.x)) - K @ H
-        self.P = I_KH @ self.P @ I_KH.T + K @ R @ K.T  # Joseph form
+        self.P = _kernels.joseph(self.P, K, H, R)  # Joseph form
         self.last_used[key] = t_ns
         return True
 
