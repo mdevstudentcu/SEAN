@@ -27,7 +27,9 @@ frequency name different stations, or no known station, is dropped and counted.
 
 **Output.** `bearing` (ICD-measurement): from the station to us, clockwise from true north, rad
 in [0, 2π): radial + the station's magnetic variation (east positive). Emitter `vor:<ident>`,
-`meta.emitter_llh` the station. Sigma is `BEARING_SIGMA_DEG`, a placeholder.
+`meta.emitter_llh` the station. Sigma is `BEARING_SIGMA_DEG`, a placeholder: the radial's
+white noise only. The station's alignment error is constant, so the estimator holds it as a
+bias state per station (`pnt.nav.ekf`), not the record.
 
 The receiver only listens to the VOR broadcast (ADR-0001); Voracious runs outside this repo.
 """
@@ -42,8 +44,10 @@ from dataclasses import dataclass
 from pnt.core.measurement import Measurement
 from pnt.core.time import unix_ns_to_gps_ns
 
-# 1-sigma of one radial, degrees. Placeholder (TBC) until a static session at a surveyed point
-# measures it against the true bearing; it includes the station's own alignment error.
+# 1-sigma of one radial's white noise, degrees. Placeholder (TBC) until a static session at a
+# surveyed point measures the radials' scatter about their mean. It leaves out the station's own
+# alignment error (the mean's offset from the true bearing): the EKF's per-station bias state
+# holds that (`BEARING_BIAS_SIGMA_RAD`, #155).
 BEARING_SIGMA_DEG = 2.0
 # VOR channels are 50 kHz apart: a frequency within half of that names the channel.
 FREQ_TOL_MHZ = 0.025
