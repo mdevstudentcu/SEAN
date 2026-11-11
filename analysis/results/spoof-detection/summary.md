@@ -1,8 +1,10 @@
 # Spoof detection, before and after the tower monitor (#173)
 
-Sim, every value `TBC`. Commit 220a6fa, `python analysis/spoof_detection.py --seeds 50 --mhss-seeds 5 --jobs 2`, 143.1 min. Seeds 0–49 (`ekf-mhss` 0–4); the monitor's settings were chosen on seeds 100–109, never on these.
+Sim, every value `TBC`. Commit 97795d8, `python analysis/spoof_detection.py --seeds 50 --mhss-seeds 5 --jobs 6`, 35.0 min on Linux, AMD Ryzen 7 8845HS w/ Radeon 780M Graphics, Python 3.12.13. Seeds 0–49 (`ekf-mhss` 0–4); the monitor's settings were chosen on seeds 100–109, never on these.
 
 `-spoof` = the same estimator with `integrity.spoof_monitor` (opt-in). `drone` is the `challenge-drone` leg as committed (1 to 3 cells heard); `drone-many` the same spec with every sector within 3 km heard; `realistic` the `realistic` set. Detection is `pnt.metrics` (any of `gnss_excluded`, `spoof_suspected`, `time_spoof_suspected` held 1 s); false alarms per hour are on `nominal` and `outage` runs.
+
+The monitor is for the slow ramp. The 300 m jump and the time spoof are controls: the monitor must not lose what the filter already catches. Jumps (sizes, directions, what the output does after one) are studied in #176; refusing a detected jump is #184.
 
 ## Detection per attack
 
@@ -89,71 +91,6 @@ Sim, every value `TBC`. Commit 220a6fa, `python analysis/spoof_detection.py --se
 | realistic | outage | `ekf-calibrated-spoof` | 0.00 | 0/50 |
 | realistic | outage | `ekf-mhss` | 10.01 | 5/5 (0, 1, 2, 3, 4) |
 
-## Jumps: what happens in the first seconds, and after
-
-Medians over seeds. Follows: error 30 s after the jump over half its size. GNSS excluded: share of the first 30 s with `gnss_excluded`.
-
-| Leg | Jump (m) | Estimator | Detected | TTA median / worst (s) | Error, HPL at +1 s (m) | Error, HPL at +3 s (m) | GNSS excluded, first 30 s | Follows | Error at +30 s / +120 s (m) |
-|---|---|---|---|---|---|---|---|---|---|
-| drone | 25 | `ekf` | 50/50 | 1.1 / 1.1 | 3, 13 | 7, 31 | 0.13 | 50/50 | 25 / 25 |
-| drone | 25 | `ekf-spoof` | 50/50 | 1.1 / 1.1 | 3, 13 | 7, 31 | 0.13 | 50/50 | 25 / 25 |
-| drone | 50 | `ekf` | 50/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.24 | 50/50 | 50 / 50 |
-| drone | 50 | `ekf-spoof` | 50/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.24 | 50/50 | 50 / 50 |
-| drone | 100 | `ekf` | 50/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.41 | 50/50 | 100 / 100 |
-| drone | 100 | `ekf-spoof` | 50/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.41 | 50/50 | 100 / 100 |
-| drone | 300 | `ekf` | 50/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.91 | 49/50 | 302 / 300 |
-| drone | 300 | `ekf-spoof` | 50/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.91 | 49/50 | 302 / 300 |
-| drone | 300 | `ekf-calibrated` | 50/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.91 | 46/50 | 301 / 300 |
-| drone | 300 | `ekf-calibrated-spoof` | 50/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.91 | 46/50 | 301 / 300 |
-| drone | 300 | `ekf-mhss` | 5/5 | 1.1 / 1.1 | 3, 969 | 7, 1,046 | 0.89 | 5/5 | 301 / 300 |
-| drone-many | 25 | `ekf` | 48/50 | 1.1 / 1.1 | 3, 13 | 7, 31 | 0.13 | 50/50 | 25 / 25 |
-| drone-many | 25 | `ekf-spoof` | 48/50 | 1.1 / 1.1 | 3, 13 | 7, 31 | 0.13 | 50/50 | 25 / 25 |
-| drone-many | 50 | `ekf` | 48/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.24 | 50/50 | 50 / 50 |
-| drone-many | 50 | `ekf-spoof` | 48/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.24 | 50/50 | 50 / 50 |
-| drone-many | 100 | `ekf` | 48/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.41 | 49/50 | 100 / 100 |
-| drone-many | 100 | `ekf-spoof` | 48/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.41 | 49/50 | 100 / 100 |
-| drone-many | 300 | `ekf` | 48/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.91 | 48/50 | 302 / 300 |
-| drone-many | 300 | `ekf-spoof` | 48/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 1.00 | 9/50 | 115 / 301 |
-| drone-many | 300 | `ekf-calibrated` | 50/50 | 1.1 / 533.5 | 3, 13 | 6, 31 | 0.92 | 45/50 | 302 / 300 |
-| drone-many | 300 | `ekf-calibrated-spoof` | 49/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 1.00 | 7/50 | 113 / 301 |
-| drone-many | 300 | `ekf-mhss` | 5/5 | 1.1 / 1.1 | 1, 1,645 | 7, 1,737 | 0.88 | 4/5 | 299 / 300 |
-| timing | 25 | `ekf` | 50/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.11 | 50/50 | 25 / 25 |
-| timing | 25 | `ekf-spoof` | 50/50 | 1.1 / 1.1 | 3, 13 | 6, 31 | 0.11 | 50/50 | 25 / 25 |
-| timing | 50 | `ekf` | 50/50 | 1.1 / 1.1 | 3, 13 | 4, 31 | 0.22 | 50/50 | 50 / 50 |
-| timing | 50 | `ekf-spoof` | 50/50 | 1.1 / 1.1 | 3, 13 | 4, 31 | 0.22 | 50/50 | 50 / 50 |
-| timing | 100 | `ekf` | 50/50 | 1.1 / 1.1 | 3, 13 | 4, 31 | 0.37 | 50/50 | 100 / 100 |
-| timing | 100 | `ekf-spoof` | 50/50 | 1.1 / 1.1 | 3, 13 | 4, 31 | 0.37 | 50/50 | 100 / 100 |
-| timing | 300 | `ekf` | 50/50 | 1.1 / 1.1 | 3, 13 | 4, 31 | 0.82 | 49/50 | 300 / 300 |
-| timing | 300 | `ekf-spoof` | 50/50 | 1.1 / 1.1 | 3, 13 | 4, 31 | 0.82 | 49/50 | 300 / 300 |
-| timing | 300 | `ekf-mhss` | 5/5 | 1.1 / 1.1 | 3, 491 | 5, 536 | 0.79 | 5/5 | 299 / 300 |
-
-### Smallest jump detected on every seed
-
-Of the sizes tried (25, 50, 100, 300 m). Detected by the filter's own GNSS gate or by the monitor; whether the output then follows the jump is in the table above. In brackets, the sizes run for that estimator. A seed whose filter raised a false alarm before the spoof starts and still holds it is scored as missed by `pnt.metrics` (an alarm already running is not a response).
-
-| Leg | `ekf` | `ekf-spoof` | `ekf-calibrated` | `ekf-calibrated-spoof` | `ekf-mhss` |
-|---|---|---|---|---|---|
-| drone | 25 (25, 50, 100, 300) | 25 (25, 50, 100, 300) | 300 (300) | 300 (300) | 300 (300) |
-| drone-many | none (25, 50, 100, 300) | none (25, 50, 100, 300) | 300 (300) | none (300) | 300 (300) |
-| timing | 25 (25, 50, 100, 300) | 25 (25, 50, 100, 300) | not run | not run | 300 (300) |
-
-## Recovery: the 300 m jump ended at 300 s
-
-| Leg | Estimator | Error at end +30 s / +120 s (m, median) | Share of epochs alarmed from 120 s after the end (median) |
-|---|---|---|---|
-| drone | `ekf` | 167 / 2 | 0.00 |
-| drone | `ekf-spoof` | 167 / 2 | 0.00 |
-| drone | `ekf-calibrated` | 181 / 2 | 0.00 |
-| drone | `ekf-mhss` | 3 / 1 | 0.00 |
-| drone-many | `ekf` | 169 / 1 | 0.00 |
-| drone-many | `ekf-spoof` | 178 / 2 | 0.00 |
-| drone-many | `ekf-calibrated` | 185 / 2 | 0.00 |
-| drone-many | `ekf-mhss` | 3 / 2 | 0.00 |
-| timing | `ekf` | 2 / 1 | 0.00 |
-| timing | `ekf-spoof` | 2 / 1 | 0.00 |
-| timing | `ekf-calibrated` | 2 / 1 | 0.00 |
-| timing | `ekf-mhss` | 1 / 1 | 0.00 |
-
 ## What the towers can see: the monitor's own uncertainty
 
 Median over each run's seconds, then over seeds, of the 1-sigma (worst axis) of the displacement the tower test estimates; the share of seconds the test has an opinion (at least 5 sites heard in both windows). The ramp moves GNSS 2 m/s × lag.
@@ -169,10 +106,12 @@ Median over each run's seconds, then over seeds, of the 1-sigma (worst axis) of 
 
 ## Runtime
 
-| Estimator | Median s per run | Worst |
+CPU seconds of the estimator per run (scenario generation and scoring not counted).
+
+| Estimator | Median CPU s per run | Worst |
 |---|---|---|
-| `ekf` | 0.7 | 3.7 |
-| `ekf-spoof` | 0.9 | 6.8 |
-| `ekf-calibrated` | 2.5 | 35.7 |
-| `ekf-calibrated-spoof` | 3.0 | 1,876.6 |
-| `ekf-mhss` | 7.9 | 17.4 |
+| `ekf` | 0.7 | 1.6 |
+| `ekf-spoof` | 1.1 | 5.2 |
+| `ekf-calibrated` | 2.1 | 38.6 |
+| `ekf-calibrated-spoof` | 2.6 | 43.4 |
+| `ekf-mhss` | 11.1 | 25.9 |
