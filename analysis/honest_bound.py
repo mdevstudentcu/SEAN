@@ -391,13 +391,15 @@ RX_ON, RX_OFF = {"pseudorange_receiver_clock": True}, {"pseudorange_receiver_clo
 
 
 def plan_realistic(seeds: list[int]) -> list[tuple]:
-    """`ekf` and `ekf-honest`, and each with the receiver-clock switch the other way, so the
-    clock term and the slow-error term are seen apart."""
+    """`ekf` and `ekf-honest`, and each with the receiver-clock switch set the other ways, so
+    the clock term and the slow-error term are seen apart. `ekf` as registered puts our clock in
+    once GNSS time has been used ("observed", ADR-0047, PR #244); with it False it is `ekf` before
+    #244, the case #228 reported."""
     out = []
     for k in REALISTIC_KEYS:
         for s in seeds:
             out += [(k, s, ("ekf", "ekf-honest"), None), (k, s, ("ekf",), RX_ON),
-                    (k, s, ("ekf-honest",), RX_OFF)]  # fmt: skip
+                    (k, s, ("ekf",), RX_OFF), (k, s, ("ekf-honest",), RX_OFF)]  # fmt: skip
     return out
 
 
@@ -892,10 +894,12 @@ LIMITS = (
     "epoch.",
     "- **Real barometer.** A BMP180 told 0.3 m read −3.4 to +77.5 m on a static receiver (PR "
     "#241); the sim's barometer is white 0.5 m plus a 1 m bias. Not modelled here.",
+)
+MIXED_COMMITS = (
     "- **Hop entries and the sweep** were run at different commits from the 1-carrier part "
     "(provenance lines); the estimator code is the same in all of them, except the "
     "receiver-clock switch, which changes no drone or timing record (test) and is why the "
-    "approach leg was rerun.",
+    "approach leg was rerun."
 )
 
 
@@ -1005,7 +1009,13 @@ def write_summary(plans: dict, out: Path, figures: list[str], diagnosis: str) ->
         if p:
             L += [f"## {title}", "", _provenance(p), "", ROW_HEAD, *rows_of(p), ""]
     errs = sum(len(p["errors"]) for p in plans.values())
-    L += [f"Runs that raised: {errs}.", "", *LIMITS, ""]
+    commits = {d["commit"] for p in plans.values() for d in p["docs"]}
+    same = (
+        f"- **Commits:** every plan ran at `{next(iter(commits))}` (provenance lines)."
+        if len(commits) == 1
+        else MIXED_COMMITS
+    )
+    L += [f"Runs that raised: {errs}.", "", *LIMITS, same, ""]
     (out / "summary.md").write_text("\n".join(L))
 
 
@@ -1127,7 +1137,9 @@ def diagnosis(plans: dict) -> str:
             "",
             "The set's towers report their true white noise (50 m) but carry 50 m / 30 s "
             "multipath too, and every range carries our receiver clock (`receiver_clock: true`, "
-            "20 ppb drift), which `ekf` does not model (`pseudorange_receiver_clock` False). Its "
+            "20 ppb drift). `ekf` as registered models it once GNSS time has been used "
+            '(`pseudorange_receiver_clock` "observed", ADR-0047, PR #244); with it False it is '
+            "`ekf` before #244, which did not model it (#228). Its "
             "barometer is drawn as white 0.5 m at 10 Hz plus one constant bias of sigma 1.0 m per "
             "run (`sim.models.baro`); the filter is told the 0.5 m white part only. Rows: each "
             "estimator with the receiver-clock switch as registered and the other way; scenario "
