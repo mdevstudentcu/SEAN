@@ -29,12 +29,14 @@ def stream(
     gnss=lambda t: np.zeros(3),
     gnss_gap_s=(),
     lte_pos=lambda t: np.zeros(3),
+    arc_step=None,
     seed=1,
 ):
     """A static receiver at the origin. GNSS at 1 Hz (sigma 3 m), offset by `gnss(t)` and absent
     in `gnss_gap_s`; baro at 10 Hz; every tower at 10 Hz from one radio with its own clock,
     white noise `white_m` and a random walk of `wander_m` per sqrt(s), told `told_m`, ranging to
-    `lte_pos(t)` (the towers agree on a wrong position when it is not the origin)."""
+    `lte_pos(t)` (the towers agree on a wrong position when it is not the origin). `arc_step`
+    (tower, time s, step m): that tower's range steps and its `meta.arc` goes from 0 to 1."""
     rng = np.random.default_rng(seed)
     offsets = rng.uniform(-500, 500, len(TOWERS))
     walk = np.zeros(len(TOWERS))
@@ -53,6 +55,9 @@ def stream(
             rho = np.linalg.norm(e - lte_pos(t)) + offsets[i] + 40.0 * t + walk[i]
             rho += rng.normal(0, white_m)
             m = {"emitter_enu": [float(x) for x in e]} | meta
+            if arc_step is not None and i == arc_step[0]:
+                m["arc"] = int(t >= arc_step[1])
+                rho += arc_step[2] if t >= arc_step[1] else 0.0
             meas.append(Measurement(t_ns=t_ns, source="lte", kind="pseudorange",
                                     emitter=f"lte:{i}", value=(float(rho),), sigma=(told_m,),
                                     meta=m))  # fmt: skip
@@ -90,6 +95,24 @@ def test_calibrated_measured_keeps_the_reported_sigma_for_a_real_capture():
     meas = stream(RADIO | {"sample_index": 0}, duration_s=30.0)
     off = configured(ekf.run_calibrated_measured, capture_sigma_model=None)
     assert outputs(estimate("ekf-calibrated-measured", meas)) == outputs(estimate(off, meas))
+
+
+# --- c: a new arc's own range bias, by default for a real capture ----------------------------
+STEP = {"arc_step": (0, 70.0, 800.0), "gnss_gap_s": (60.0, 120.0), "told_m": 5.0, "white_m": 5.0}
+
+
+def test_a_real_captures_new_arc_gets_its_own_bias_by_default():
+    meas = stream(RADIO | {"sample_index": 0}, **STEP)
+    on = configured(ekf.run, arc_bias=True)
+    assert outputs(estimate("ekf", meas)) == outputs(estimate(on, meas))
+    off = configured(ekf.run, arc_bias=False)
+    assert outputs(estimate("ekf", meas)) != outputs(estimate(off, meas))
+
+
+def test_the_sims_records_keep_arc_bias_off_by_default():
+    meas = stream(RADIO, **STEP)
+    off = configured(ekf.run, arc_bias=False)
+    assert outputs(estimate("ekf", meas)) == outputs(estimate(off, meas))
 
 
 # --- b: GNSS re-admission ---------------------------------------------------------------------
