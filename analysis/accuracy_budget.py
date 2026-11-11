@@ -69,7 +69,7 @@ DEG = math.pi / 180.0
 # 95 % radius of a circular 2-D Gaussian, per-axis sigmas: P(R <= k sigma) = 1 - exp(-k^2 / 2)
 Z95_2D = math.sqrt(-2.0 * math.log(0.05))  # 2.4477
 
-# Our MPU6050, still on the bench overnight (branch shrikar/feat/imu-measured, not on main yet).
+# Our MPU6050, still on the bench overnight; the same values as main's sim model (sensors.MPU6050).
 # The Monte Carlo sets the sim's IMU to these values, so the sim and the budget agree.
 IMU_SESSION = "20261110-0306-static-bench-overnight, 1800-18000 s"
 IMU_MEASURED = {
