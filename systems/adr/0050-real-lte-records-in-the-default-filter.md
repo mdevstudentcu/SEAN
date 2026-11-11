@@ -1,6 +1,6 @@
 # ADR-0050: What the EKF does with a real capture's LTE records
 
-- **Status:** Proposed
+- **Status:** Accepted (owners, 2026-11-11)
 - **Date:** 2026-11-11
 - **Deciders:** team (the owners)
 - **Traces to:** REQ-01, REQ-02, REQ-04, ADR-0004, ADR-0015, ADR-0036, ADR-0038, ADR-0044, #147, #191, #214, #246
@@ -35,7 +35,7 @@ Real static sessions `20261111-0151-static-fullsuite2` (600 s) and `20261111-023
 
 The cut times share one recording per session, so they are not independent draws. Both receivers are static, which favours no LTE by construction.
 
-## Decision (Proposed)
+## Decision (Accepted, owners, 2026-11-11)
 
 1. **(a) default, real captures only:** a real capture's LTE pseudoranges are told ADR-0036's σ (`capture_sigma_model="adr0036"`, as `ekf-measured-sigma` does for every radio record). It removes the GNSS latch on both sessions and takes the 300 s error from 11 to 22 km to 0.2 to 1.5 km (median). Not in `ekf-calibrated-measured`, which carries ADR-0036's correlated part as a state already.
 2. **(c) default, real captures only:** a real capture's new arc gets its own range bias (`arc_bias=None`: on for those records). On top of (a) it cuts the worst run from 4.7 to 5.1 km to 1.5 to 1.6 km and raises the HPL bound rate from 49 to 65 % to 75 to 76 %. The median on 0151 rises (205 to 595 m); on 0233 it falls (1,513 to 364 m). Chosen over (c2), which has better medians but a 9.3 km worst run on 0151: this ADR prefers the bounded worst case and the more honest HPL (REQ-02).
@@ -56,3 +56,11 @@ The cut times share one recording per session, so they are not independent draws
 - With LTE, the default still does not beat no LTE on a static receiver (hundreds of metres against 1 m at 300 s), and the HPL still misses a quarter of the withheld fixes. LTE-aided coasting on real data is not yet fit to show as a result. ADR-0044 option 6 (leave radio LTE out of the default solution until #183) remains open.
 - (c) resets a cell's range information at every new arc, so a cell that re-finds often adds little after a GPS cut (ADR-0044 consequence 4).
 - Reopen when a moving session with GPS truth exists, when the front end reports ADR-0036's σ itself (then (a) and the `sample_index` branch go), or when a tighter rule for (b) passes the attack runs (`analysis/readmit_attacks.py`).
+
+## Owner decisions (2026-11-11)
+
+- (a) and (c) accepted as defaults for a real capture's records only, carried by the `sample_index` branch.
+- (b) GNSS re-admission stays opt-in: it fails `spoof-ramp` (misleading epochs per run 1,441 → about 2,050).
+- (c) chosen over (c2): bounded worst run, more honest HPL (REQ-02).
+- B on the sim's front-end-shaped records (#147): not now; it would change every sim result.
+- Radio LTE stays in the default solution until a moving capture decides it.
