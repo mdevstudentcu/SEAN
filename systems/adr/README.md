@@ -41,7 +41,7 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0036](0036-lte-measured-error-model.md) | The LTE error model is split into white and correlated parts, sized from real captures | Proposed; *Amendment 2026-11-11* (front-end fixes, Doppler records off) Accepted |
 | [0037](0037-tower-spoof-monitor.md) | A tower displacement monitor checks the GNSS position against the towers, opt-in | Proposed |
 | [0038](0038-refuse-detected-gnss-jump.md) | Refuse a detected GNSS position jump until the jump is undone (opt-in: `*-guard` estimators) | Proposed |
-| [0037](0039-learned-lte-range-noise.md) | Learn a radio's LTE range noise from its innovations, starting from a prior | Proposed |
+| [0039](0039-learned-lte-range-noise.md) | Learn a radio's LTE range noise from its innovations, starting from a prior | Proposed |
 | [0040](0040-lte-carrier-hopping.md) | LTE carrier hopping with one dongle is a modelled option and a study leg, not part of the benchmark | Proposed |
 | [0041](0041-spoof-decision-from-the-sky.md) | Decide GNSS spoofing from the known sky, the satellites' power and the other cues (advisory) | Accepted |
 | [0042](0042-record-iq-to-usb-drive.md) | Record the radios' IQ to a USB drive, not the SD card | Accepted |
