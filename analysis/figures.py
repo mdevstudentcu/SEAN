@@ -3,8 +3,9 @@
     python analysis/figures.py --estimator ekf --runs 50          (or: just figures ekf 50)
 
 Writes to `--out` (default `analysis/results/figures-<estimator>/`):
-- error_after_gps_loss.png: horizontal error (median, 95th percentile) and HPL (median) across
-  seeds against time since GPS loss (REQ-01, T1)
+- error_after_gps_loss.png: the T1 statistic (ADR-0034 amendment): at each second after GPS
+  loss, the 95th percentile of the horizontal error across seeds, with its worst second in T1's
+  window and in the fallback's; the median error and HPL beside it (REQ-01, T1)
 - stanford.png: HPL against true error, pooled over every seed of the `--stanford` scenarios
   (REQ-02); the default `realistic` set includes its fault-free `realistic-nominal` entry
 - ablation.png: fault-window p95 error with each source removed, paired seeds (REQ-06)
@@ -17,8 +18,8 @@ Every run is a committed scenario at seeds 0..runs-1, so every variant sees the 
 Scoring is `pnt.metrics.score`/`summarize` and the per-epoch series is `pnt.plots.series`, the
 same code as `pnt eval` and `pnt plot`.
 
-Real sessions: none exist yet. Their results are a placeholder in summary.md until the first
-captures (#30) can be replayed and scored.
+Real sessions: a placeholder table in summary.md, with no numbers, until replayed real sessions
+can be scored against these figures (#21 LTE ranging, #30 sim-to-real validation).
 """
 
 from __future__ import annotations
@@ -38,9 +39,13 @@ from pnt.sim.scenario import T0_NS, expand, generate, load
 
 REPO = Path(__file__).resolve().parents[1]
 
-# TBC: T1 in systems/plan.md, 95 % horizontal error for >= 300 s after GPS loss (REQ-01)
+# TBC: T1 in systems/plan.md, 95 % horizontal error for >= 300 s after GPS loss (REQ-01), and
+# its fallback, the mentors' figure (ADR-0034). Each is scored as that ADR's amendment says: the
+# per-second 95th percentile across runs, held over the whole window (`t1_statistic`).
 T1_M = 25.0
 T1_WINDOW_S = 300.0
+FALLBACK_M = 50.0
+FALLBACK_WINDOW_S = 120.0
 # Communication signals of opportunity (REQ-06, ICD source registry). REQ-06's ablation removes
 # all of these together and compares that with removing any single other aid. GNSS is never
 # removed: it is what the scenario takes away.
@@ -49,6 +54,18 @@ NEVER_ABLATED = frozenset({"gnss"})
 
 # Categorical slots 1 and 2 and recessive ink, as in analysis/base_rover_error.py
 BLUE, ORANGE, INK, GRID = "#2a78d6", "#eb6834", "#52514e", "#e4e3df"
+
+
+# The real-session slot of the results (#27): no numbers until replayed sessions can be scored
+REAL_SESSIONS = [
+    {"figure": "Error after GPS loss (REQ-01)", "result": "TBD",
+     "waiting_on": "#21 (LTE ranging go/no-go on real captures), #30 (sim-to-real validation)"},
+    {"figure": "Stanford plot (REQ-02)", "result": "TBD",
+     "waiting_on": "#30: real sessions with faults injected (`pnt replay --inject`)"},
+    {"figure": "Ablation (REQ-06)", "result": "TBD", "waiting_on": "#21, #30"},
+    {"figure": "Timing holdover (REQ-03)", "result": "TBD",
+     "waiting_on": "#30: a real session with PPS logged but hidden from the filter"},
+]  # fmt: skip
 
 
 def run_one(scenario: str, seed: int, estimator: str, drop: tuple[str, ...] = ()) -> dict:
@@ -90,6 +107,35 @@ def stack(runs: list[dict], key: str) -> tuple[np.ndarray, np.ndarray]:
     return t, out
 
 
+def per_second_p95(runs: list[dict], loss: float, window_s: float) -> np.ndarray:
+    """ADR-0034 amendment, steps 1-2: at each whole second 0..window_s after GPS loss, the 95th
+    percentile of the horizontal error across the runs (each run's first epoch at or after that
+    second). nan where no run has an epoch."""
+    k = np.arange(int(window_s) + 1)
+    out = np.full((len(runs), len(k)), np.nan)
+    for i, r in enumerate(runs):
+        t = np.asarray(r["t_s"], float)
+        idx = np.searchsorted(t, loss + k - 1e-6)
+        ok = idx < len(t)
+        out[i, ok] = np.asarray(r["err"], float)[idx[ok]]
+    with np.errstate(all="ignore"):
+        return np.nanpercentile(out, 95, axis=0)
+
+
+def t1_statistic(curve: np.ndarray, limit_m: float, window_s: float) -> dict:
+    """ADR-0034 amendment, step 3: the target holds if the per-second 95th percentile stays
+    within `limit_m` for every second of 0..window_s; the worst second decides."""
+    seg = np.asarray(curve, float)[: int(window_s) + 1]
+    i = int(np.nanargmax(seg))
+    return {
+        "target_m": limit_m,
+        "window_s": window_s,
+        "worst_p95_m": float(seg[i]),
+        "worst_at_s": i,
+        "met": bool(np.all(seg <= limit_m)),
+    }
+
+
 def _style(ax) -> None:
     ax.grid(True, which="major", color=GRID, lw=0.6)
     for side in ("top", "right"):
@@ -107,23 +153,38 @@ def fig_error(runs: list[dict], loss: float, title: str, caption: str):
     _, hpl = stack(runs, "hpl")
     keep = t >= loss - 30
     x = t[keep] - loss
+    window = int(max(T1_WINDOW_S, FALLBACK_WINDOW_S, x[-1]))
+    p95 = per_second_p95(runs, loss, window)
     fig, ax = plt.subplots(figsize=(9, 4.8), dpi=150)
-    ax.plot(x, np.nanmedian(err[:, keep], axis=0), color=BLUE, lw=2, label="error: median")
     ax.plot(
-        x,
-        np.nanpercentile(err[:, keep], 95, axis=0),
+        np.arange(len(p95)),
+        p95,
         color=BLUE,
-        lw=1.2,
-        ls="--",
-        label="error: 95th percentile",
+        lw=2,
+        label=f"error: 95th percentile across {len(runs)} runs, each second (T1 statistic)",
+    )
+    ax.plot(
+        x, np.nanmedian(err[:, keep], axis=0), color=BLUE, lw=1, ls="--", label="error: median"
     )
     ax.plot(x, np.nanmedian(hpl[:, keep], axis=0), color=ORANGE, lw=2, label="HPL: median")
-    for y, text, ls in (
-        (T1_M, f"T1 {T1_M:g} m (TBC)", ":"),
-        (ALERT_LIMIT_M, f"alert limit {ALERT_LIMIT_M:g} m (TBC)", "-."),
-    ):
-        ax.axhline(y, color=INK, lw=1, ls=ls)
-        ax.text(x[-1], y * 1.08, text, color=INK, fontsize=8, ha="right")
+    ax.axhline(ALERT_LIMIT_M, color=INK, lw=1, ls="-.")
+    ax.text(x[-1], ALERT_LIMIT_M * 1.08, f"alert limit {ALERT_LIMIT_M:g} m (TBC)", color=INK,
+            fontsize=8, ha="right")  # fmt: skip
+    # Each target over its own window, with the worst second that decides it (ADR-0034)
+    for name, m, w in (("T1", T1_M, T1_WINDOW_S), ("fallback", FALLBACK_M, FALLBACK_WINDOW_S)):
+        st = t1_statistic(p95, m, w)
+        ax.plot([0, w], [m, m], color=INK, lw=1.5, ls=":")
+        verdict = "met" if st["met"] else "missed"
+        ax.plot(st["worst_at_s"], st["worst_p95_m"], "o", ms=7, mfc="none", mec=INK)
+        ax.text(
+            w,
+            m * 0.82,
+            f"{name}: ≤ {m:g} m for {w:g} s (TBC), worst second "
+            f"{st['worst_p95_m']:.1f} m at +{st['worst_at_s']} s: {verdict}",
+            color=INK,
+            fontsize=8,
+            ha="right",
+        )
     ax.axvline(0, color=INK, lw=1)
     ax.text(2, 1.2, "GPS lost", color=INK, fontsize=8)
     ax.set_yscale("log")
@@ -319,10 +380,7 @@ def main(argv=None) -> None:
         ),
         "error_after_gps_loss.png",
     )
-    t, err = stack(base, "err")
-    window = (t >= loss) & (t < loss + T1_WINDOW_S)
-    t1_pooled = float(np.nanpercentile(err[:, window], 95))
-    t1_runs = int(np.sum(np.nanpercentile(err[:, window], 95, axis=1) <= T1_M))
+    p95 = per_second_p95(base, loss, max(T1_WINDOW_S, FALLBACK_WINDOW_S))
 
     # 2. Stanford plot, pooled over every scenario in --stanford (fault-free entries included)
     err_all = np.concatenate([r["err"] for n in stanford for r in by_key[(n, ())]])
@@ -384,12 +442,9 @@ def main(argv=None) -> None:
         "runs": args.runs,
         "outage_scenario": args.outage,
         "gps_loss_s": loss,
-        "t1": {
-            "pooled_p95_m": t1_pooled,
-            "window_s": T1_WINDOW_S,
-            "target_m": T1_M,
-            "runs_meeting": t1_runs,
-        },
+        # ADR-0034 amendment: per-second p95 across runs, worst second of the window
+        "t1": t1_statistic(p95, T1_M, T1_WINDOW_S),
+        "fallback": t1_statistic(p95, FALLBACK_M, FALLBACK_WINDOW_S),
         "outage_summary": outage_summary,
         "ablation": rows,
         "stanford": stanford_rows,
@@ -404,7 +459,7 @@ def main(argv=None) -> None:
                 "min_time_pl_bound_frac",
             )
         },
-        "real_sessions": None,
+        "real_sessions": REAL_SESSIONS,
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2, default=float))
     (out / "summary.md").write_text(markdown(summary, written, out))
@@ -425,9 +480,16 @@ def markdown(s: dict, written: list[Path], out: Path) -> str:
         "",
         f"## Error after GPS loss (REQ-01): `{s['outage_scenario']}`",
         "",
-        f"- p95 horizontal error over the {s['t1']['window_s']:g} s after GPS loss, pooled over "
-        f"seeds: {s['t1']['pooled_p95_m']:.1f} m (T1 target {s['t1']['target_m']:g} m, TBC)",
-        f"- runs whose own p95 meets T1: {s['t1']['runs_meeting']} of {s['runs']}",
+        "Scored as ADR-0034's amendment says: at each second after GPS loss, the 95th percentile "
+        f"of the horizontal error across the {s['runs']} runs; a target holds if that stays "
+        "within it for every second of its window.",
+        "",
+        *(
+            f"- {name} (≤ {st['target_m']:g} m for {st['window_s']:g} s, TBC): worst second "
+            f"{st['worst_p95_m']:.1f} m at +{st['worst_at_s']} s, "
+            f"**{'met' if st['met'] else 'missed'}**"
+            for name, st in (("T1", s["t1"]), ("Fallback", s["fallback"]))
+        ),
         f"- worst run's maximum error in the fault window: "
         f"{s['outage_summary']['worst_fault_h_max_m']:.1f} m",
         "",
@@ -470,11 +532,15 @@ def markdown(s: dict, written: list[Path], out: Path) -> str:
         "",
         "## Real sessions",
         "",
-        "**Placeholder: no real session has been recorded yet.** When the first captures exist "
-        "(#30), their replayed results (`pnt replay <session>`, named session plus commit, "
-        "REQ-10) go here beside the sim numbers above.",
+        "**Placeholder: no numbers yet.** Replayed real sessions (named session plus commit, "
+        "REQ-10) go here beside the sim numbers once the work below lands. Nothing in this table "
+        "is a result.",
         "",
+        "| Figure | Real-session result | Waiting on |",
+        "| --- | --- | --- |",
     ]
+    lines += [f"| {r['figure']} | {r['result']} | {r['waiting_on']} |" for r in s["real_sessions"]]
+    lines.append("")
     return "\n".join(lines)
 
 
