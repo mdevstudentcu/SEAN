@@ -72,7 +72,7 @@ Carrier scan on the Pi (Mo, 2026-11-10, sessions `1610-*`, `1623-*`, `1759-*`). 
 | 5255, TELUS | 85 → 219129; 175, 347 → 219076 |
 | 2560, TELUS (band 5) | 175, 347 not in the table on 2560 (on 5145 and 5255 these PCIs are 219076, 1501 Bank St: possibly a carrier the register does not list there, `TBC`) |
 
-Its other carriers (2535, 5035, 5085 and the band 71 carriers 68611 to 68761) have no row in that summary: `TBC` whether nothing was found or they were not processed. Never scanned: 9690, 9740, 2572, 2598, 68811, 68861, 68911.
+PR #190's `NOTES.md` lists no cell found on 2535, 5035, 5085 and 68611. Whether the scan list's other carriers were scanned on the Pi is `TBD`.
 
 - The 850 MHz layer (Rogers EARFCN 2460, band 5) is on air: it was heard on every capture tuned to it.
 - Real data agrees with section 3: sectors of one mast carry PCIs in different `PCI // 3` groups (204 and 220 on eNB 36122, 90 and 106 on 36118, 188 and 189 on 219003).
