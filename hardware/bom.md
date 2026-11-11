@@ -1,6 +1,6 @@
 # Bill of materials
 
-- **Status:** Draft, 2026-11-08; ground reference station adopted 2026-11-09 (ADR-0020); first parts received 2026-11-09 evening ([In hand](#in-hand))
+- **Status:** Draft, 2026-11-08; ground reference station adopted 2026-11-09 (ADR-0020), then kept in sim only 2026-11-10 (ADR-0020, *Amendment 2026-11-10*); first parts received 2026-11-09 evening ([In hand](#in-hand))
 - **Prices:** CAD before tax, as listed on Amazon.ca and PiShop.ca on the date in each section (2026-11-08 unless noted). Delivery dates are what Amazon showed then for Ottawa (K1V); recheck at checkout.
 - Unknowns are `TBD` (no value yet) or `TBC` (proposed, not confirmed).
 
@@ -25,9 +25,9 @@ Every item in this file meets these, and anything added later must too. An item 
 | Tier | Items | Cost |
 | --- | --- | --- |
 | Must buy: payload radios | SDR A (FlightStick), SDR B (NESDR bundle) | **$123.10** |
-| Must buy: antennas | LTE 2-pack (payload + ground), ADS-B | **$46.44** |
+| Must buy: antennas | LTE 2-pack (payload + spare), ADS-B | **$46.44** |
 | Pi Zero 2 W hub (ADR-0018) | In hand: nothing to buy | — |
-| Must buy: ground reference station (ADR-0020) | Reference SDR (dongle) + GPS with PPS; its LTE antenna is in the 2-pack above | **$78.34** |
+| Ground reference station (ADR-0020) | Not bought: it stays in sim (ADR-0020, *Amendment 2026-11-10*) | — |
 
 ## In hand
 
@@ -37,7 +37,11 @@ Checked 2026-11-09 evening, updated 2026-11-10. Everything else in this file is 
 | --- | --- | --- | --- |
 | Raspberry Pi 4 Model B Rev 1.5, **4 GB** | `TBC` | `/proc/cpuinfo` and `free -m` on the Pi | **Payload recorder** from 2026-11-10 (ADR-0018 *RAM*). Raspberry Pi OS Trixie on a 32 GB SD card; it would not boot from a USB drive |
 | Raspberry Pi 4B, **1 GB** | HON (kit with case, power supply and SD card; the kit contents are `TBC`) | Team read the board | **Spare** from 2026-11-10. 1 GB, not the 2 GB on Honeywell's list: see ADR-0018 *RAM* |
-| NooElec NESDR SMArt v5, one | Buy (one of the two NESDR orders, section 2 and section 5) | USB descriptors on the laptop: `0bda:2838`, "Nooelec", "NESDR SMArt v5", serial `52453800` | Bundle or dongle-only is `TBC`: the bundle comes with three antennas and a magnetic base. Either way it is the same radio, so the roles (payload SDR B or reference) are assigned when the second one arrives |
+| NooElec NESDR SMArt v5, one | Buy (section 2) | USB descriptors on the laptop: `0bda:2838`, "Nooelec", "NESDR SMArt v5", serial `52453800` | **Payload SDR B** (LTE). Bundle or dongle-only is `TBC`: the bundle comes with three antennas and a magnetic base. No second NESDR is bought (ADR-0020, *Amendment 2026-11-10*) |
+| AirNav Radar FlightStick | Buy (section 2) | Team, 2026-11-10 | **Payload SDR A** (ADS-B). Built-in 1090 MHz filter, so it cannot hear LTE |
+| Bingfu 4G LTE antenna, **2-pack** | Buy (section 3) | Team, 2026-11-10 | One for the payload's SDR B; the second is a spare |
+| NooElec antennas, including a 1090 MHz ADS-B antenna | Buy (section 3) | Team, 2026-11-10 | The 1090 MHz one is for the FlightStick. Which other NooElec antennas came is `TBC` |
+| LoRa HAT, 915 MHz | HON | Team, 2026-11-10 | **In hand, not using** (*Not using*) |
 | Adafruit Ultimate GPS HAT | HON | Team | ADR-0014 |
 | GPS active antenna, Adafruit product 960 | HON | Team | The 28 dB, 5 m SMA antenna in section 1 |
 | MPU6050 IMU | HON (sensor kit) | Team; on the payload Pi at `0x68` (`i2cdetect`, 2026-11-10) | ADR-0014. Records at 100 Hz: session `20261110-0301-static-bench`, commit `25ce8ba` |
@@ -45,14 +49,14 @@ Checked 2026-11-09 evening, updated 2026-11-10. Everything else in this file is 
 | Raspberry Pi Zero 2 W | `TBC` (team) | Team | The ADR-0018 hub fallback; nothing to buy |
 | VL53L1X ToF breakout | HON | Team | Still not used (*Not using*) |
 
-**Not in hand yet:** the FlightStick (SDR A), the second NESDR, the SDR antennas (unless this NESDR is the bundle), the NEO-6M, the LoRa HAT (expected 2026-11-10 `TBC`, see *Open decisions*), and the drone parts.
+**Not in hand yet:** the drone parts. **Not bought:** the second NESDR and the NEO-6M, since the reference station stays in sim (ADR-0020, *Amendment 2026-11-10*).
 
 ## 1. Payload: compute, timing and sensors
 
 | Item | Qty | Role | Source | Price | Status / notes |
 | --- | --- | --- | --- | --- | --- |
 | Raspberry Pi 4B, 4 GB (payload) | 1 | Records SDR IQ, GPS, sensors; streams to laptop | `TBC`, **in hand** (Honeywell's 1 GB is the spare) | — | ADR-0018. SDRs on the USB 2 ports (USB 3 noise, RSK-06); 5 V 3 A supply, heatsink or fan; USB current `TBC` |
-| Raspberry Pi 3B+ | 1 | Not on the payload; runs the ground reference station (section 5) | Team (owned) | — | ADR-0018, ADR-0020 |
+| Raspberry Pi 3B+ | 1 | Not on the payload. It was to run the ground reference station, which stays in sim (section 5) | Team (owned) | — | ADR-0018, ADR-0020 |
 | microSD card, ≥ 64 GB, A2 (or a USB SSD) | 1 | OS + session logs. Raw IQ from one SDR at 2.4 MS/s is ~17 GB/h; both SDRs ~35 GB/h | Team `TBC` | — | Confirm size and speed. The payload Pi boots from a 32 GB card today, 23 GB free (2026-11-10): about 40 min of both SDRs at 35 GB/h |
 | Raspberry Pi Zero 2 W | 0–1 | Fallback sensor hub if day-1 tests fail on the 4B: IMU, baro, PPS edge, Wi-Fi scans (ADR-0018) | **In hand** (2026-11-09) | — | Plugs into a 4B USB 2 port (data port) |
 | Adafruit Ultimate GPS HAT | 1 | GPS fix, PPS on GPIO4, truth outdoors | HON, **in hand** | — | ADR-0014 |
@@ -67,8 +71,8 @@ Checked 2026-11-09 evening, updated 2026-11-10. Everything else in this file is 
 
 | Item | Qty | Role | Source | Price | Status / notes |
 | --- | --- | --- | --- | --- | --- |
-| AirNav Radar FlightStick | 1 | **SDR A:** ADS-B only (built-in 1090 MHz filter + amplifier). No antenna included (section 3) | Buy: Amazon.ca, ASIN B07K47P7XD | $45.15 | Tue Nov 10; ships internationally (import fees included) |
-| NooElec NESDR SMArt v5 **Bundle** | 1 | **SDR B:** LTE + VOR. 0.5 ppm TCXO. Bundle adds a magnetic base with 2 m RG58 and 3 antennas; its telescopic one serves VOR, and LTE uses a Bingfu (section 3) | Buy: Amazon.ca, ASIN B01GDN1T4S | $77.95 | Tue Nov 10 |
+| AirNav Radar FlightStick | 1 | **SDR A:** ADS-B only (built-in 1090 MHz filter + amplifier). No antenna included (section 3) | Buy: Amazon.ca, ASIN B07K47P7XD | $45.15 | **In hand** (2026-11-10) |
+| NooElec NESDR SMArt v5 **Bundle** | 1 | **SDR B:** LTE + VOR. 0.5 ppm TCXO. Bundle adds a magnetic base with 2 m RG58 and 3 antennas; its telescopic one serves VOR, and LTE uses a Bingfu (section 3) | Buy: Amazon.ca, ASIN B01GDN1T4S | $77.95 | **In hand** (*In hand*; bundle or dongle-only `TBC`) |
 | USB 2.0 extension, ~30 cm | 2 | Moves the SDRs off the Pi's ports (spacing, less RF noise) | Team / Workshop `TBC` | — | Use USB 2 ports (RSK-06) |
 | Clip-on ferrites | 2–4 | On USB and power leads (RSK-06) | Workshop `TBC` | — | |
 
@@ -78,14 +82,14 @@ Antennas are bought, not built: nobody is free to build them this week. The DIY 
 
 | Item | Qty | For | Source | Price | Status / notes |
 | --- | --- | --- | --- | --- | --- |
-| Bingfu 4G LTE antenna, 8 dBi, magnetic base, 3 m cable, **2-pack** | 1 pack | LTE on the payload's SDR B **and** on the ground reference station (ADR-0020). Identical antennas keep the base/payload difference clean | Buy: Amazon.ca, ASIN B08DG87HBV | $20.49 | **Today (Nov 9), 2–6 pm** on orders over $25. Rated 698–960 MHz: covers 700 and 850 MHz LTE; band 71 (600 MHz) only weakly. The RF survey picks the band |
-| NooElec ADS-B Antenna Bundle (1090 MHz SMA antenna, plus a 978 MHz antenna and MCX pigtails we don't need) | 1 | ADS-B on the payload's FlightStick (SDR A has no antenna) | Buy: Amazon.ca, ASIN B01FS0GI0W | $25.95 | **Tomorrow (Nov 10).** Small, light and hinged: good on the drone |
+| Bingfu 4G LTE antenna, 8 dBi, magnetic base, 3 m cable, **2-pack** | 1 pack | LTE on the payload's SDR B; the second is a spare (the reference station stays in sim, ADR-0020) | Buy: Amazon.ca, ASIN B08DG87HBV | $20.49 | **In hand** (2026-11-10). Rated 698–960 MHz: covers 700 and 850 MHz LTE; band 71 (600 MHz) only weakly. The RF survey picks the band |
+| NooElec ADS-B Antenna Bundle (1090 MHz SMA antenna, plus a 978 MHz antenna and MCX pigtails we don't need) | 1 | ADS-B on the payload's FlightStick (SDR A has no antenna) | Buy: Amazon.ca, ASIN B01FS0GI0W | $25.95 | **In hand** (2026-11-10). Small, light and hinged: good on the drone |
 | SDR B bundle's telescopic antenna | — | VOR 114.6 MHz, fully extended and laid horizontal (VOR is horizontally polarised) | Comes with SDR B (section 2) | — | VOR is an add-on; if reception is poor, VOR stays in sim |
-| GPS antennas | — | Payload: HON active antenna (section 1). Ground: patch antenna that comes with the NEO-6M (section 5) | — | — | |
+| GPS antenna | — | Payload: HON active antenna (section 1) | — | — | |
 
 **Total antennas: $46.44.**
 
-**Weight on the drone:** the Bingfu magnetic base and its 3 m cable add weight on a 5" quad. Either strip the magnet and tape the coiled cable down, or use a stub antenna with no cable. One candidate is the Superbat 5G/4G SMA stub (ASIN B0D12H2CDP, $16.37, today); its frequency range has not been checked (`TBC`), so check the listing before ordering. The ground station keeps the magnetic one.
+**Weight on the drone:** the Bingfu magnetic base and its 3 m cable add weight on a 5" quad. Either strip the magnet and tape the coiled cable down, or use a stub antenna with no cable. One candidate is the Superbat 5G/4G SMA stub (ASIN B0D12H2CDP, $16.37, today); its frequency range has not been checked (`TBC`), so check the listing before ordering.
 
 ## 4. Power
 
@@ -104,36 +108,11 @@ Antennas are bought, not built: nobody is free to build them this week. The DIY 
 | Laptop | 1 | Front-ends, estimator, dashboard | Team | — | |
 | Wi-Fi link (phone hotspot or router) | 1 | Live stream (ADR-0009) | Team | — | Replay is the fallback (RSK-04) |
 
-### Ground reference station (prices and delivery checked 2026-11-09)
+### Ground reference station: sim only
 
-**Adopted (ADR-0020).** A static receiver at a surveyed point that hears the same towers as the payload. It estimates their clocks for differential LTE (base/rover), and the sim gets the same second receiver.
+**Not built** (ADR-0020, *Amendment 2026-11-10*). There is no second LTE-capable SDR (the FlightStick is 1090 MHz-filtered) and no GPS with PPS for it (the GPS HAT is on the payload). It stays in sim: `ekf-base` and the `*-with-base` scenarios. Issues #84–#86 are closed.
 
-It needs **no IMU, barometer or camera**, since it doesn't move. It does need a **GPS with PPS**: base and payload must share a time frame to well under 1 µs (1 µs ≈ 300 m), and NTP from the laptop only gives milliseconds.
-
-| Item | Qty | Role | Source | Price | Status / notes |
-| --- | --- | --- | --- | --- | --- |
-| NooElec NESDR SMArt v5 (dongle only) | 1 | Reference LTE receiver: same radio as the payload's SDR B, so the receiver biases match | Buy: Amazon.ca, ASIN B01HA642SW | $63.95 | **Tomorrow (Nov 10)** |
-| Bingfu LTE antenna | 1 | Reference LTE antenna, identical to the payload's | From the 2-pack (section 3) | — | Mount high and fixed (window or roof) |
-| GY-NEO6MV2 NEO-6M GPS, with patch antenna | 1 | PPS timebase and surveyed position (average the fix over ≥ 1 h) | Buy: Amazon.ca, ASIN B0CTG63TYF | $14.39 | **Today (Nov 9), 2–6 pm** on orders over $25. **No PPS pin:** solder one wire from the PPS LED's pad to Pi GPIO4 (`TBC`: check the board photos) |
-| Raspberry Pi 3B+ | 1 | Runs the reference SDR; PPS-disciplined timestamps (chrony + `pps-gpio`) | Team (owned, ADR-0018) | — | Or the HON lab Pi |
-| microSD, 16–32 GB | 1 | Reference Pi OS. Data streams to the laptop, so nothing large is stored | Team `TBC`, else Buy | ~$12 `TBC` | The payload keeps the team's 32 GB card |
-| 5 V 2.5 A micro-USB supply | 1 | Reference Pi power (wall) | Team `TBC` | — | |
-| Ethernet cable | 1 | Reference → laptop, live | Team `TBC` | — | No SD storage limit, no Wi-Fi contention |
-| Female–female jumper wires | 4 | GPS UART + PPS to the Pi header | HON (sensor kit) | — | |
-
-**Total to buy: $78.34** (≈ $88.50 with 13% HST), arriving by tomorrow. The antenna is counted in section 3.
-
-**Before use, run a zero-baseline test:**
-- Run the reference and the payload side by side for 5–10 min.
-- Any difference between their measurements is receiver bias. Measure it once and subtract it.
-
-**Alternatives:**
-
-| Option | Price | Arrives | Trade-off |
-| --- | --- | --- | --- |
-| ATGM336H GPS (ASIN B0GSZY9ZYB) instead of the NEO-6M | $20.20 | Wed Nov 11, ships internationally | Real PPS pin, no soldering; arrives the day before judging, so backup only |
-| NESDR SMArt v5 **bundle** (ASIN B01GDN1T4S) instead of the dongle | $77.95 | Today (Nov 9) | $14 more; its telescopic antenna replaces the Bingfu, but then base and payload antennas no longer match |
-| GT-U7 GPS (has a PPS pin) | $19.99 | Nov 13–24 | Breaks rule 1: too late |
+What a built station would need is in ADR-0020 *Consequences*; the two parts it would have added (a second NESDR and a NEO-6M) are under *Not using*.
 
 ## 6. Drone
 
@@ -162,23 +141,24 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 | ESP32-S3 | None available; sensors go on the Pi 4B, Pi Zero 2 W hub as fallback (ADR-0018). Wi-Fi FTM and FTM responders are dropped |
 | Raspberry Pi Pico 2W (HON) | Considered as the hub; the Pi 4B (or the Zero fallback) runs the same Python and generated MAVLink as the recorder (ADR-0018) |
 | RTL-SDR Blog V3/V4, dipole kit, FM filter | Amazon.ca delivery Dec 21–25 (rule 1) |
-| GT-U7 GPS module | Amazon.ca delivery Nov 13–24 (rule 1); the ground station uses a NEO-6M instead |
+| GT-U7 GPS module | Amazon.ca delivery Nov 13–24 (rule 1); the reference station stays in sim anyway |
+| NooElec NESDR SMArt v5 dongle for the reference station (ASIN B01HA642SW, $63.95, checked 2026-11-09) | The reference station stays in sim (ADR-0020, *Amendment 2026-11-10*) |
+| GY-NEO6MV2 NEO-6M GPS for the reference station (ASIN B0CTG63TYF, $14.39, checked 2026-11-09); ATGM336H alternative | The reference station stays in sim (ADR-0020, *Amendment 2026-11-10*) |
 | Airspy Mini | Budget |
 | Flamingo FM band-stop filter ($46) | Skipped; VOR is 16.8 km away. Revisit only if the RF survey shows FM overload |
-| LoRa HAT 915 MHz (HON) | A 22 dBm transmitter ~20 MHz above the 850 MHz LTE downlink would desensitize the unfiltered SDRs; Canadian certification unconfirmed |
+| LoRa HAT 915 MHz (HON, **in hand** 2026-11-10) | A 22 dBm transmitter ~20–40 MHz above the 850 MHz LTE downlink would desensitize the unfiltered SDRs; Canadian certification unconfirmed; the payload is receive-only (REQ-07); no link is needed, since the laptop does the navigation (ADR-0002) |
 | VL53L1X ToF (HON, in hand) | Optional indoor height truth only; drone already has the MTF-01 rangefinder |
 | L-band patch antenna (Iridium) | LEO layer is simulated (ADR-0013, mentor Q5) |
 | DIY antennas (ADS-B and LTE ground planes, VOR dipole), SMA pigtails, copper wire, PCB plates | Nobody free to build them this week; antennas are bought (section 3). [`antennas.md`](antennas.md) is the fallback |
 
 ## Open decisions
 
-- **LoRa HAT (915 MHz): expected from Honeywell 2026-11-10 (`TBC`), but it is under *Not using*** (it would desensitize the SDRs, and its Canadian certification is unconfirmed). Receiving it changes nothing on its own. Using it on the payload or the ground station needs a decision (an ADR) first.
+- **LoRa HAT (915 MHz): in hand (HON, 2026-11-10), not using** (*Not using*). Using it anywhere needs a decision (an ADR) first.
 
 - **Flight-controller firmware: decided, INAV (ADR-0028).** Which MAVLink messages INAV sends to the recorder is `TBC`.
 - **RC transmitter and receiver with a kill switch: not in hand.** Without them the drone doesn't fly (ADR-0028, `safety.md`). Buy in time for rule 1.
 
-- Ground reference station (ADR-0020) and antennas: **order today**. The GPS and LTE 2-pack come today, the SDR and ADS-B antenna tomorrow. The NEO-6M PPS solder joint needs someone with a soldering iron. If the parts miss Tue Nov 10, it stays in sim (ADR-0020, reopen).
-- Base/payload receiver ID in the measurement or session ICD: a separate `icd` PR (ADR-0020).
+- **Ground reference station: decided, sim only** (ADR-0020, *Amendment 2026-11-10*); #84–#86 closed. The antennas are in hand (section 3).
 
 - Hub needed at all: day-1 test of IMU jitter, CPU load, dropped samples and PPS offset on the 4B (ADR-0018, `TBD`). If yes, its USB link is serial or network gadget (`TBC`).
 - USB current: two SDRs (plus the Zero, if used) against the 4B's USB budget; measure with the DPS-150 (ADR-0018, `TBC`).

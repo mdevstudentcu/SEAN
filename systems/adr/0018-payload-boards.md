@@ -36,7 +36,7 @@ The payload recorder is the **Raspberry Pi 4B** (recorder and streamer, ADR-0002
 - **SDRs:** both go on the 4B's **USB 2 ports** (the black ones). The USB 3 ports stay empty unless a recording SSD needs one. That SSD is shielded and kept away from the GPS antenna (RSK-06).
 - **Sensors:** by default the MPU6050 and BMP180 are on the 4B's I2C bus and the PPS is on its GPIO4, with **no hub**.
 - **Hub fallback:** a day-1 test with both SDRs recording measures IMU sample jitter, CPU load, dropped SDR samples and PPS offset (RSK-05). If any fails its threshold (`TBD`), the Pi Zero 2 W hub from the first version of this ADR comes back. It speaks the existing `pnt.xml` MAVLink dialect over USB (ADR-0005's protocol, unchanged).
-- **The Pi 3B+** is not on the payload. It runs the ground reference station (ADR-0020).
+- **The Pi 3B+** is not on the payload. It runs the ground reference station (ADR-0020). (2026-11-10: the reference station stays in sim, so the 3B+ is unused; ADR-0020, *Amendment 2026-11-10*.)
 
 ## Consequences
 

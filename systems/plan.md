@@ -19,9 +19,9 @@ Learn the signals of opportunity while GPS is trusted, then use them to keep pos
 | P5 time protection level and timing results | #78 | 1 | — |
 | P0 report card: time-to-alert, hazardous counts, resilience level | #79 | 1 | — |
 | Sim: ground reference station as a second receiver | #80 | 1 | #76 |
-| Order and assemble the ground reference station | #84 | 2 | — |
-| Ground station setup, survey and streaming | #85 | 2 | #84, #76 |
-| Zero-baseline test | #86 | 2 | #85 |
+| Order and assemble the ground reference station (closed: sim only, ADR-0020, *Amendment 2026-11-10*) | #84 | 2 | — |
+| Ground station setup, survey and streaming (closed: sim only) | #85 | 2 | #84, #76 |
+| Zero-baseline test (closed: sim only) | #86 | 2 | #85 |
 | Tower identity: scan list and cell-to-site table | #87 | 2 | #75 |
 | Pi 4B day-1 test (ADR-0018) | #88 | 2 | — |
 | Ground-link security | #89 | 2 | #75 |
@@ -55,7 +55,7 @@ Existing issues that still apply:
   - a software-injected spoof setting off the alarm
   - the health panel
 - **Replay of outdoor captures (real signals):**
-  - tower ranges with the ground station
+  - tower ranges (the ground reference station is sim only, ADR-0020)
   - attacks injected into the recordings
   - sim-to-real calibration (ADR-0015)
 - **Sim at scale:**

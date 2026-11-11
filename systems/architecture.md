@@ -34,7 +34,7 @@ flowchart LR
     GPS --> REC
     SENS --> REC
   end
-  subgraph BASE["Ground reference station: Pi 3B+ (ADR-0020)"]
+  subgraph BASE["Ground reference station: sim only (ADR-0020)"]
     BSDR["RTL-SDR, same towers<br/>surveyed position, PPS"]
   end
   subgraph GND["Ground laptop (ADR-0002)"]
@@ -114,7 +114,7 @@ On `main`: the tower site, network builder, source layer, GNSS common mode and r
 | LTE front end (PSS/SSS tracking on RTL-SDR) | **Not built** (`src/pnt/frontends/` is empty; #21, #23) | — |
 | Payload recorder and streamer on the Pi 4B | **Not built** (`src/pnt/payload/` is empty; #17, #19). Live source is a stub | — |
 | Operator panel | **Not built** (#25, #90) | — |
-| Ground reference station | Simulated; hardware on the BOM, assembly is #84 | Simulated |
+| Ground reference station | Simulated only: not built on hardware (ADR-0020, *Amendment 2026-11-10*; #84–#86 closed) | Simulated |
 | Ground-link authentication (CurveZMQ, MAVLink signing) | **Not built** (#89) | — |
 | Hostile-emitter hypothesis | Code on `main` (`ekf-mhss-beacon`, #93); the jammer's received power is simulated (`sim/hostile.py`) | Simulation only. No real jammer can be used (ADR-0025) |
 | Real sessions | **None recorded yet** | — |

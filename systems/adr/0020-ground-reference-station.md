@@ -1,7 +1,7 @@
 # ADR-0020: A ground reference station measures tower clocks for differential LTE
 
 - **Status:** Proposed
-- **Date:** 2026-11-09
+- **Date:** 2026-11-09, amended 2026-11-10 (the reference station stays in sim, decided by the owner: see *Amendment 2026-11-10*)
 - **Deciders:** team
 - **Traces to:** REQ-01, REQ-02, REQ-03, REQ-04, REQ-06, ADR-0001, ADR-0002, ADR-0015, ADR-0018
 
@@ -43,3 +43,13 @@ A static ground reference station measures the same LTE towers as the payload, a
   - the parts don't arrive by Tue 2026-11-10 (rule 1 in `hardware/bom.md`), in which case it stays in sim and on the roadmap
   - the NEO-6M PPS cannot be made to work
   - the zero-baseline bias is unstable
+
+## Amendment 2026-11-10: the reference station stays in sim (decided by the owner)
+
+The reference station is not built on hardware for judging. It stays in sim: `ekf-base` and the `*-with-base` scenarios on `main` (the `realistic-with-base` set and `uc01-drone-circuit-with-base`). The *Decision* and *Consequences* above are not edited; they describe the station if it is built later (roadmap).
+
+- **No second LTE receiver.** The payload's two SDRs are the NESDR SMArt v5 (LTE) and the AirNav FlightStick. The FlightStick has a built-in 1090 MHz filter, so it cannot hear LTE. The second NESDR is not being bought.
+- **No GPS with PPS for the base.** The only GPS is Honeywell's GPS HAT, which is on the payload. The NEO-6M is not being bought.
+- This is the first *Reopen if* above: the base parts are not in hand by Tue 2026-11-10.
+- Issues #84 (order and assemble), #85 (setup, survey and streaming) and #86 (zero-baseline test) are closed for this.
+- Every base result is simulation only. The LTE reference station row of *Sim validity* (`verification.md`) has no real check.
