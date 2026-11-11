@@ -71,6 +71,36 @@ def test_worst_run_is_the_largest_share_above():
     assert c["worst_run"] == pytest.approx(0.3) and c["worst_seed"] == 1
 
 
+def test_whole_outage_p95_runs_from_gps_loss_to_its_end():
+    # 20 runs, loss at 10 s, a 40 s outage: error = seed + 1 m, 100x larger once GNSS is back
+    n, loss, outage = 100, 10, 40
+    runs = [
+        _run(s, [s + 1.0] * (loss + outage + 1) + [100.0 * (s + 1)] * (n - loss - outage - 1),
+             [1e4] * n, loss_s=float(loss))
+        for s in range(20)
+    ]  # fmt: skip
+    c = hb.cell(runs, outage)
+    p95 = np.percentile(np.arange(1, 21), 95)
+    assert c["p95_whole_worst"] == pytest.approx(p95)  # the after-outage epochs are left out
+    assert len(c["p95_whole_curve"]) == outage + 1
+    assert "p95_whole_worst" not in hb.cell(runs)  # no outage length: not computed
+    assert hb.outage_s("drone/outage/1c") == 600 and hb.outage_s("drone/spoof-jump/1c") is None
+
+
+@pytest.mark.parametrize(("fix_m", "met"), [(105.0, True), (106.0, False)])
+def test_no_harm_whole_outage_uses_the_same_bar(fix_m, met):
+    n = hb.TIGHT_WINDOW_S + 1
+    p = {"cells": {
+        ("drone/outage/1c", name, "{}"): {
+            **hb.cell([_run(s, [1.0] * n, [10.0] * n) for s in range(3)]),
+            "p95_whole_worst": worst,
+        }
+        for name, worst in (("ekf-honest", fix_m), ("ekf-learned-noise", 100.0), ("ekf", 1e3))
+    }}  # fmt: skip
+    (b,) = hb.bars(p, ["drone/outage/1c"])
+    assert b["whole_ratio"] == pytest.approx(fix_m / 100.0) and b["no_harm_whole"] is met
+
+
 def test_the_stress_plan_covers_every_drone_entry_on_three_carrier_counts():
     tasks = hb.plan_stress(list(range(3)))
     keys = {t[0] for t in tasks}
