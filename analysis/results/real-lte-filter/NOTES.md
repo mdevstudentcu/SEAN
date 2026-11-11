@@ -27,7 +27,7 @@ Cuts: 100 to 300 s by 50 s (0151), 600 to 3,000 s by 600 s (0233). Median (worst
 
 ## Does re-admission (b) let a spoof in? (sim)
 
-`analysis/readmit_attacks.py` at `a850411`, seeds 0 and 1, `ekf`, `ekf-imu`, `ekf-guard`, `ekf-imu-guard`, `ekf-calibrated-guard`, each as registered and with `gnss_readmit` ([`readmit_attacks.json`](readmit_attacks.json)). Sim, LTE model `placeholder`.
+`analysis/readmit_attacks.py` at `af9dd16`, seeds 0 and 1, `ekf`, `ekf-imu`, `ekf-guard`, `ekf-imu-guard`, `ekf-calibrated-guard`, each as registered and with `gnss_readmit` ([`readmit_attacks.json`](readmit_attacks.json)). Sim, LTE model `placeholder`.
 
 - `spoof-jump`, `meaconing`, `gps-outage`, `challenge-drone-spoof-ramp`, `challenge-drone-meaconing`: no re-admission from the fault on; every metric equal.
 - **`spoof-ramp`: re-admitted once in two runs** for every family but `ekf-calibrated-guard`. Misleading epochs per run 1,441 → 2,060 (`ekf`, `ekf-guard`) and 2,026 (`ekf-imu`, `ekf-imu-guard`); hazardous 1,204 → 1,823 and 1,789. The towers there are told their true σ, so the tower test alone did not hold it, and the IMU velocity check did not stop it.
@@ -37,7 +37,7 @@ So (b) reopens the slow-spoof hole: it is not fit to be a default, and its opt-i
 
 ## Sim defaults unchanged
 
-Every estimator registered on `main` (18), hashed (`pos_enu`, `pos_cov`, `hpl_m` of every estimate) on `challenge-drone-outage`, `challenge-approach-outage`, `challenge-timing-outage`, `gps-outage`, `realistic-long-outage`, `meaconing`, `spoof-jump` and `spoof-ramp`, seeds 0 and 1: **288 of 288 identical** between `main` (`7c20323` and `8892fca`, whose `src/pnt/{nav,sim,integrity,core}` differ in comments only) and this branch at `a850411`. `challenge-drone-hop-outage`: HOP.
+Every estimator registered on `main` (18), hashed (`pos_enu`, `pos_cov`, `hpl_m` of every estimate) on `challenge-drone-outage`, `challenge-approach-outage`, `challenge-timing-outage`, `gps-outage`, `realistic-long-outage`, `meaconing`, `spoof-jump` and `spoof-ramp`, seeds 0 and 1: **288 of 288 identical** between `main` at `c97e09a` and this branch at `af9dd16`. `challenge-drone-hop-outage` was not compared on this base: one hop run takes about 13 min per estimator, so both sides need about 80 min each. Before the last rebase, `main` at `8892fca` hashed it (all 36 entries), and its records carry no `sample_index`, like the drone leg's.
 
 ## Commands
 
