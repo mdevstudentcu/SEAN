@@ -29,6 +29,8 @@ import numpy as np
 from pnt.core.frames import llh_to_enu
 from pnt.nav.cells import CELL_TABLE
 
+TITLE = "LTE scan, 2026-11-10 captures (#87)"
+
 
 def load_table(path: str | Path = CELL_TABLE) -> list[dict]:
     with open(path, newline="") as f:
@@ -106,14 +108,20 @@ def _km(x) -> str:
     return "position unknown" if x is None else f"{x:.2f}"
 
 
-def table_md(scans: list[dict], rows: list[dict], receiver_llh, stamp: str) -> str:
+def table_md(
+    scans: list[dict], rows: list[dict], receiver_llh, stamp: str, title: str = TITLE
+) -> str:
+    where = (
+        "the receiver position is not given (`--receiver-llh`), so no distance from it is listed"
+        if receiver_llh is None
+        else "distances from the receiver use the position given with `--receiver-llh`"
+    )
     out = [
-        "# LTE scan, 2026-11-10 captures (#87)",
+        f"# {title}",
         "",
         f"`python analysis/lte_scan_table.py <captures> --out <dir>` at `{stamp}`, LTE front end "
         "on each `sdr_a.cu8`, cells looked up in `data/reference/lte-cells-ottawa.csv`. Real "
-        "sessions; no GNSS fix in them, so the receiver position is unknown and no distance "
-        "from it is given. A `unique` match is a hypothesis: eNBs beyond the table's 10 km "
+        f"sessions; {where}. A `unique` match is a hypothesis: eNBs beyond the table's 10 km "
         "can reuse a PCI.",
         "",
         "| Session | EARFCN | PCI | Tracked (s) | SNR (dB) | CFO (ppm) | Arcs | Table "
@@ -157,13 +165,14 @@ def main() -> None:
     p.add_argument("captures", nargs="+", help="sdr_a.cu8 files, each with its sidecar")
     p.add_argument("--receiver-llh", type=float, nargs=3, metavar=("LAT", "LON", "H"))
     p.add_argument("--out", default="analysis/results/lte-scan-20261110")
+    p.add_argument("--title", default=TITLE, help="the summary's heading")
     a = p.parse_args()
     rows = load_table()
     scans = [scan(Path(c)) for c in a.captures]
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     stamp = commit()
-    (out / "summary.md").write_text(table_md(scans, rows, a.receiver_llh, stamp))
+    (out / "summary.md").write_text(table_md(scans, rows, a.receiver_llh, stamp, a.title))
     for s in scans:
         for c in s["cells"]:
             c["table"] = lookup(rows, c["earfcn"], c["pci"], a.receiver_llh)
