@@ -74,6 +74,10 @@ ESTIMATORS = {
     "ekf-calibrated-learned-noise": configured(
         ekf.run_calibrated, noise_tau_s=ekf.CALIBRATED_NOISE_TAU_S
     ),
+    # opt-in (#226, ADR-0041): learned noise with the slow range error as a state, so the
+    # protection level stays honest after GPS loss; with the jump guard for held GNSS jumps
+    "ekf-honest": configured(ekf.run, **ekf.HONEST),
+    "ekf-honest-guard": configured(ekf.run, **ekf.HONEST, jump_guard=JumpGuard),
 }
 
 log = logging.getLogger(__name__)
