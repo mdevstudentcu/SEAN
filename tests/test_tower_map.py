@@ -9,6 +9,7 @@ import pytest
 
 from pnt.core.measurement import Measurement
 from pnt.core.time import s_to_ns
+from pnt.integrity import dependency as dep
 from pnt.integrity.jump_guard import JumpGuard
 from pnt.metrics import gps_loss
 from pnt.nav import ekf, tower_map
@@ -234,30 +235,52 @@ def test_a_spoofed_drone_hands_on_a_map_that_drags_the_ground_user():
     )
     honest = np.median(_user_error("honest", _learn("honest")))
     for kind in ("ramp", "jump"):
+        # Without the export policy (no guard, no refusal) the map carries the spoof.
         # Seed 1: honest 52 m, ramp 180 m, jump 208 m (median 30-90 s after GPS loss)
-        assert np.median(_user_error(kind, _learn(kind))) > honest + 80, kind
+        unguarded = _learn(kind, jump_guard=None, refuse_flagged=False)
+        assert np.median(_user_error(kind, unguarded)) > honest + 80, kind
 
 
-def test_a_drone_that_flagged_a_jump_withholds_its_map():
-    # By default the map is exported whatever the drone saw
-    _learn("jump", jump_guard=JumpGuard)
+def test_the_map_is_built_with_the_jump_guard_by_default_adr0048():
+    # The guard's rollback takes the clocks back to before the jump: the exported map is the
+    # guarded one, and not the map the unguarded filter learned
+    guarded = _learn("jump", refuse_flagged=False)
+    explicit = _learn("jump", jump_guard=JumpGuard, refuse_flagged=False)
+    unguarded = _learn("jump", jump_guard=None, refuse_flagged=False)
+    assert np.array_equal(guarded.mean, explicit.mean)
+    assert np.array_equal(guarded.cov, explicit.cov)
+    assert not np.allclose(guarded.mean, unguarded.mean)
+    # An honest build never latches, so the guard leaves its map as the unguarded filter's
+    honest = _learn("honest")
+    assert np.array_equal(honest.mean, _learn("honest", jump_guard=None).mean)
+
+
+def test_a_drone_that_flagged_a_jump_withholds_its_map_by_default_adr0048():
     with pytest.raises(tower_map.MapWithheld, match="gnss_jump_latched"):
-        _learn("jump", jump_guard=JumpGuard, refuse_flagged=True)
+        _learn("jump")
+    # For analysis only: the guarded build's map, exported anyway
+    _learn("jump", refuse_flagged=False)
     # An honest build is handed on
-    _learn("honest", jump_guard=JumpGuard, refuse_flagged=True)
+    _learn("honest")
     # Not covered: the ramp raises no cue on these four towers, so its map is handed on.
-    # If this starts failing a detector now catches the ramp: update `tower_map`'s docstring
-    # and analysis/results/p12-spoofed-map/
-    _learn("ramp", jump_guard=JumpGuard, refuse_flagged=True)
+    # If this starts failing a detector now catches the ramp: update `tower_map`'s docstring,
+    # ADR-0048 and analysis/results/p12-spoofed-map/
+    _learn("ramp")
 
 
 def test_the_towers_spoof_alarm_also_withholds_the_map():
     f = EKF(**CALIBRATED)
     f.process(_fix(T0_NS))
     assert tower_map.spoof_cues(f) == []
-    tower_map.export(f, refuse_flagged=True)
+    tower_map.export(f)
     f.raise_spoof_alarm()  # as the filter's own detector or a monitor (ADR-0037) raises it
     assert tower_map.spoof_cues(f) == ["spoof_suspected"]
-    tower_map.export(f)  # opt-in: the default still exports
     with pytest.raises(tower_map.MapWithheld, match="spoof_suspected"):
-        tower_map.export(f, refuse_flagged=True)
+        tower_map.export(f)  # the default (ADR-0048)
+    tower_map.export(f, refuse_flagged=False)  # for analysis only
+
+
+def test_a_tower_map_is_gnss_derived_adr0048():
+    # It is fitted to the drone's GNSS position, so a reading used against it never counts as
+    # independent of GNSS (ADR-0024's classes)
+    assert _map().dependency == dep.GNSS_DERIVED
