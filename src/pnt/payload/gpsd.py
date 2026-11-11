@@ -101,11 +101,14 @@ def pps_event(msg: dict) -> dict:
 
 
 def sky_event(msg: dict) -> dict:
+    """A SKY report as the `gnss_sky` event. `listed` says whether gpsd sent a satellite list
+    at all (it is optional); an empty list is a sky with nothing in it, not a missing one."""
     sats = msg.get("satellites") or []
     used = [s for s in sats if s.get("used")]
     snr = [s["ss"] for s in used if "ss" in s]
     return {
         "text": "gnss_sky",
+        "listed": isinstance(msg.get("satellites"), list),
         "n_seen": len(sats),
         "n_used": len(used),
         "hdop": msg.get("hdop"),

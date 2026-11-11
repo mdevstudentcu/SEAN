@@ -151,3 +151,50 @@ def test_cli_writes_a_session_that_replay_reads(tmp_path, capsys):
     assert health[2].value[0] == pytest.approx((42 - 33.75) / 17)
     with pytest.raises(SystemExit):
         main(["frontend", "gnss", str(src), "--out", str(out)])  # never overwrites
+
+
+# SKY reports at 14:30:10 to 14:30:15, one per second; the last field is whether a record is due.
+EDGE_SKIES = [
+    ({"hdop": 0.9, "satellites": [{"PRN": 5, "ss": 41.0, "used": True}]}, True),
+    ({"hdop": 1.2, "satellites": []}, True),  # empty sky with DOPs: indicator 1
+    ({}, False),  # neither satellites nor DOPs: says nothing
+    ({"hdop": 0.9}, False),  # DOPs only
+    ({"satellites": []}, True),  # empty sky, no DOPs: indicator 1
+    ({"hdop": 0.9, "satellites": None}, False),  # a null list is no list
+]
+
+
+def test_log_and_session_paths_agree_on_every_sky_report(tmp_path):
+    """The same SKY reports, read from a gpsd log and from a recorded session's `gnss_sky`
+    events stamped at the report's own time, give identical `gnss_health` records."""
+    import json
+
+    log = []
+    for i, (fields, _) in enumerate(EDGE_SKIES):
+        time = f"2026-11-10T14:30:{10 + i:02d}.000Z"
+        log.append(json.dumps({"class": "SKY", "device": "/dev/serial0", "time": time} | fields))
+    via_log = by_kind(gnss.from_gpsd_json(log, ORIGIN), "gnss_health")
+
+    src = tmp_path / "edge"
+    src.mkdir()
+    session.write_meta(src, {"name": "edge", "platform": "static", "origin_llh": list(ORIGIN),
+                             "simulated": False})  # fmt: skip
+    with SessionWriter(src / session.MCAP_NAME) as w:
+        for ln in log:
+            msg = json.loads(ln)
+            w.write_json("/events", gpsd.parse_time(msg["time"]), gpsd.sky_event(msg))
+    via_session = gnss.derive_session(src, tmp_path / "out", "abc1234")
+
+    due = [t(10 + i) for i, (_, keep) in enumerate(EDGE_SKIES) if keep]
+    assert [m.t_ns for m in via_log] == due
+    assert via_session == via_log
+    # one satellite at 41 dB-Hz and three counted lost: S = (41 + 3 * 25) / 4 = 29
+    assert [m.value[0] for m in via_log] == pytest.approx([11 / 15, 1.0, 1.0])
+    assert [m.value[2] for m in via_log] == [0.9, 1.2, gnss.NO_FIX_HDOP]
+
+
+def test_events_recorded_before_listed_existed_need_a_satellite():
+    assert gnss.has_skyview({"n_seen": 3, "hdop": 1.0})
+    assert not gnss.has_skyview({"n_seen": 0, "hdop": 1.0})
+    assert not gnss.has_skyview({"n_seen": 0, "hdop": None})  # empty or missing: can't tell
+    assert gnss.has_skyview({"listed": True, "n_seen": 0, "hdop": None})
