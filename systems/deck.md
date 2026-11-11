@@ -2,7 +2,7 @@
 
 **The pitch in one line:** a navigation layer that knows when it is wrong, and tells the operator not to trust it.
 
-Nine slides, 295 s, 629 words of script, 15 numbers spoken. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md).
+Nine slides, 295 s, 631 words of script, 16 numbers spoken. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md).
 
 **Three rules on stage.** Say "simulated" whenever a number is simulated. Say "consistent with a registered site", never "identified". Never say "first": say "we found no published…".
 
@@ -14,12 +14,12 @@ Nine slides, 295 s, 629 words of script, 15 numbers spoken. Each slide gives the
 | 4 | Real signals | 25 | 51 | 1 |
 | 5 | The scoreboard | 30 | 63 | 2 |
 | 6 | Why, and what the fixes buy | 30 | 65 | 3 |
-| 7 | Every source can lie | 30 | 68 | 2 |
+| 7 | Every source can lie | 30 | 70 | 3 |
 | 8 | Limits | 25 | 50 | 0 |
 | 9 | Roadmap | 25 | 57 | 2 |
-| | **Total** | **295** | **629** | **15** |
+| | **Total** | **295** | **631** | **16** |
 
-Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); six-tenths of a metre (4); fifty-metre, none of fifty (5); ninety-five percent of fifty, a hundred and thirty metres, five minutes (6); forty-five percent, one percent (7); a hundred and twenty metres, a hundred and seventy dollars (9).
+Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); six-tenths of a metre (4); fifty-metre, none of fifty (5); ninety-five percent of fifty, a hundred and thirty metres, five minutes (6); forty-five percent, one percent, two minutes (7); a hundred and twenty metres, a hundred and seventy dollars (9).
 
 ---
 
@@ -125,12 +125,12 @@ Fallback: #247 is a draft on unmerged branches; if a judge asks, say so. Told th
 **On the slide:**
 - GPS: jump, slow drag, fake time. Towers: clock jump, wrong registry entry, fake tower. Aircraft reports: someone else's GPS.
 - Towers take their time from GPS: they may contradict it, never confirm it.
-- The bound is under our model. Sim, `challenge-drone-outage`, 1 carrier, seeds 0–199 (draft PR #251): error above the bound in 45.3 % of epochs after GPS loss for `ekf`, 0.44 % for the opt-in `ekf-honest`; single runs still escape (worst 18.5 %); the 2 m/s ramp is undefended (99.3 %; draft PR #254: 0 of 50 detected with hopping).
+- The bound is under our model. Sim, `challenge-drone-outage`, 1 carrier, seeds 0–199 (draft PR #251): error above the bound in 45.3 % of epochs after GPS loss for `ekf`, 0.44 % for the opt-in `ekf-honest`; single runs still escape (worst 18.5 %); the 2 m/s ramp escapes every default filter (99.3 %); with 13 carriers hopped the opt-in tower monitor flags it on 50 of 50 seeds, median 127 s, worst 276 s, 0 added false alarms, against T4's 30 s (PR #263, sim, study leg: the payload cannot hop yet).
 
 **Figure:** [`analysis/results/gnss-health-20261111-fullsuite/gnss_health.png`](../analysis/results/gnss-health-20261111-fullsuite/gnss_health.png) (real GPS signal power, the baseline a jamming check uses).
 
-**Script (68 words, 30 s):**
-> Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so they may contradict GPS time, but never confirm it. And our bound is a bound under our model. In simulation, after GPS loss, the error escaped it forty-five percent of the time. An opt-in fix brings that under one percent, but a slow spoof still defeats every filter we have.
+**Script (70 words, 30 s):**
+> Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so they may contradict GPS time, but never confirm it. And our bound is a bound under our model. In simulation, after GPS loss, the error escaped it forty-five percent of the time. An opt-in fix brings that under one percent. A slow spoof we catch only in simulation, after two minutes.
 
 Fallback: the sky-map check is merged (#239 via #250, #206; ADR-0041 Accepted). Its figure, [`spoof-decision-real-sky.png`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/spoof-decision-real-sky.png), can be added here; nothing changes in the script.
 
