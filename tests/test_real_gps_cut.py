@@ -1,6 +1,7 @@
 """`analysis/real_gps_cut.py` (#214). Synthetic records only; no session in git."""
 
 import importlib.util
+import json
 import math
 import sys
 from pathlib import Path
@@ -165,3 +166,18 @@ def test_arc_steps_take_off_the_drift_and_split_at_minus_8_db():
     assert out["above"]["median_jump_m"] == pytest.approx(1500.0, abs=1.0)
     assert out["below"]["arcs"] == 1 and out["below"]["over_100m"] == 0
     assert math.isnan(out["below"]["median_jump_m"])
+
+
+def test_main_writes_the_summary_and_figure(tmp_path):
+    path = _session(tmp_path)
+    out = tmp_path / "out"
+    rgc.load.cache_clear()
+    rgc.main([str(path), "--cuts", "60", "--estimators", "ekf", "--variants", "none", "--out",
+              str(out)])  # fmt: skip
+    rgc.load.cache_clear()
+    text = (out / "summary.md").read_text()
+    assert "| ekf | none |" in text
+    agg = json.loads((out / "summary.json").read_text())["aggregate"]["ekf|none"]
+    assert agg["err_30s_m"]["median"] == pytest.approx(100.0, abs=1.0)  # the withheld fixes
+    assert "## HPL at the same instants" in text and "| hold | last fix |" in text
+    assert (out / "error_after_cut.png").stat().st_size > 0
