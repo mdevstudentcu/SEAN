@@ -76,3 +76,29 @@ def test_cell_3_us_behind_one_on_its_pss_root_keeps_its_own_timing_and_arc(tmp_p
     assert err.size > 200  # > 1 s of 5 ms epochs
     assert np.max(np.abs(err)) < 150  # regression guard: on its own path, not 960 m off
     assert [c.arc for c in r.cells if c.pci == 268] == [0]
+
+
+def test_faded_cell_does_not_walk_onto_its_neighbours_sync_signals(tmp_path):
+    # A tracked cell fades 12 dB below two co-timed neighbours on other PSS roots. Their PSS and
+    # SSS correlate with its sequences at every delay, a floor the reserved-bin noise does not
+    # see and averaging does not lower. Before the fix the first-path check took bumps of that
+    # floor for earlier paths: the track moved 4 to 6 samples earlier every 200 ms, each move a
+    # new arc, 2 km off within 1.5 s. On the real static captures 20261111-0151 and -0233 this
+    # was 93 % of the new arcs, and the ~700 m "re-acquisition" steps of #214.
+    cell = synth.Tower(pci=8, delay_s=DELAY)
+    others = [
+        synth.Tower(pci=13, delay_s=DELAY + 1.1e-6, phase=1.0),
+        synth.Tower(pci=30, delay_s=DELAY - 0.7e-6, power_db=-3.0, phase=2.0),
+    ]
+    faded = synth.Tower(pci=8, delay_s=DELAY, power_db=-12.0)
+    kw = {"fs": FS, "fc": FC, "clock_ppm": PPM, "snr_db": 20.0, "seed": 1}
+    x = synth.synthesize([cell, *others], 2.0, **kw)
+    y = synth.synthesize([faded, *others], 2.0, **kw)
+    at = round(0.6 * FS)
+    meta = {"sample_rate_hz": FS, "center_freq_hz": FC, "t_ns": T0}
+    z = capture.complex_to_cu8(np.r_[x[:at], y[at:]])
+    r = process_file(capture.write_capture(tmp_path / "c.cu8", z, meta))
+    err = epoch_errors_m(r, cell)
+    assert err.size > 300  # tracked through the fade
+    assert np.max(np.abs(err)) < 100  # regression guard: 30 m seen; the walk reached 2 km
+    assert [c.arc for c in r.cells if c.pci == 8] == [0]
