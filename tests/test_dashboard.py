@@ -220,6 +220,13 @@ def test_gps_lost_sentence_names_no_source_it_may_not_be_using():
     assert sev == "caution" and "towers" not in text and "rejected" in text
 
 
+def test_sources_rows_speak_to_the_operator_not_the_repo():
+    # The operator reads the tooltips on stage: "on main" names a git branch, not the system
+    page = (SRC / "dashboard" / "web" / "index.html").read_text()
+    titles = re.findall(r'title="([^"]*)"', page)
+    assert titles and not any(re.search(r"\bmain\b", t) for t in titles)
+
+
 def test_low_trust_listed_apart():
     s = HealthMonitor(50.0, 1.5e-6).update(_est(0.0, trust={"gnss": 0.0, "lte": 1.0}))
     assert s["low_trust"] == {"gnss": 0.0} and s["trusted"] == {"lte": 1.0}
