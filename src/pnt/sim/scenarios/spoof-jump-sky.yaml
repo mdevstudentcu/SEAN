@@ -7,7 +7,7 @@ dt_s: 0.1
 origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin)
 trajectory: {type: square, side_m: 200, speed_mps: 8, altitude_m: 30}
 sources:
-  # sky: per-PRN C/N0 every 5 s (pnt.sim.gnss_sky, placeholder fitted on one real session, TBC)
+  # sky: per-PRN C/N0 every 5 s (pnt.sim.gnss_sky, measured on one real session, TBC)
   gnss: {rate_hz: 5, sigma_m: 2.5, health: true, sky: true}
   baro: {rate_hz: 10, sigma_m: 0.5}
   lte:

@@ -38,9 +38,9 @@ context only: it turns the power check off, and is reported.
 
 Limits: a spoofer that simulates the right sky for our place and time, and shapes each
 satellite's power with elevation, passes both sky checks; a multi-antenna spoofer can too. The
-power thresholds come from one static session on the GPS HAT with its external antenna, under an
-open sky: an antenna that is blocked on one side, indoors or on a moving drone may show a flatter
-pattern. Every value is `TBC`.
+power thresholds come from one ten-minute static session on the GPS HAT with its external
+antenna, outdoors: an antenna that is blocked on one side, indoors or on a moving drone may show a
+flatter pattern. Every value is `TBC`.
 """
 
 from __future__ import annotations
