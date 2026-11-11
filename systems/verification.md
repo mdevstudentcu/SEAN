@@ -17,7 +17,7 @@ How each requirement is shown to be met. The **Result** column between the marke
 
 ## Sim validity (ADR-0015)
 
-How each simulated model aligns to reality. Status: `placeholder` (datasheet/literature value), `measured` (parameter from a real session), `validated` (sim and real residual distributions compared, gap recorded).
+How each simulated model aligns to reality. Status: `placeholder` (datasheet/literature value), `measured` (parameter from a real session), `validated` (sim and real residual distributions compared, gap recorded), `not modelled` (a source on the shortlist with no sim model yet).
 
 | Model | Parameters | Current source | Real check | Status |
 | --- | --- | --- | --- | --- |
@@ -29,7 +29,7 @@ How each simulated model aligns to reality. Status: `placeholder` (datasheet/lit
 | LTE reference station (#80, ADR-0020) | static second receiver: same towers and tower clocks; own σ, multipath, dropouts, PPS-disciplined clock (offset, wander), survey error; on in `realistic-with-base` and `uc01-drone-circuit-with-base` only | TBC (scenario `reference:` blocks) | None: the reference station stays in sim (ADR-0020, *Amendment 2026-11-10*; #85 and #86 closed) | placeholder |
 | VOR bearing | bias, σ | literature | RF survey at known points. First attempt, 2026-11-10: no lock at 114.6 or 115.2 MHz in three IQ captures ([below](#first-real-air-sessions-2026-11-10)) | placeholder |
 | ADS-B | message rate, NIC/NACp behaviour; traffic (`sim/adsb.py`, #91): synthetic tracks, NACp/NIC from each aircraft's fix sigma on the DO-260B tables, the scenario's jamming and spoof zones reaching the aircraft too, nuisance quality dips | literature + TBC (tracks, avionics quality, dip rate and length) | RF survey; recorded traffic through the #22 front end (how often do quality dips happen?). First recorded traffic, 2026-11-10: one aircraft through the #22 front end, frames untimed so no message rate ([below](#first-real-air-sessions-2026-11-10)) | placeholder |
-| Wi-Fi RSSI | σ, NLOS bias | literature | Indoor session at surveyed points | placeholder |
+| Wi-Fi RSSI | None yet: no sim model produces Wi-Fi records and no estimator reads them (#11). Wi-Fi FTM range is dropped (ADR-0018: it would transmit, REQ-07) | — | Indoor session at surveyed points, once a model exists | not modelled |
 | Iridium (LEO) | Doppler σ, visibility; the filter is told the exact satellite position and velocity (no ephemeris error, TBC) | literature + real orbits | Not measurable this week: bound stated | placeholder |
 | Starlink (LEO, P13, #97) | Doppler σ (1 m/s), elevation mask (25°), pass availability (0.5), Doppler carrier (11.325 GHz); the filter is told the exact satellite position and velocity (no TLE ephemeris error, no satellite clock drift, TBC) | real orbits (`tle-starlink-20261110.txt`); every other value TBC | Not measurable: Ku-band needs an LNB and downconverter we don't have | placeholder |
 | Attacks (spoof, jam) | injected in software | — | Same attacks injected into real sessions | placeholder |
