@@ -175,7 +175,7 @@ def test_measurements_follow_the_icd_and_carry_the_clock(single):
 
 def test_no_doppler_records_unless_asked(tmp_path):
     # The carrier can sit on a whole 100 Hz alias that nothing checks (`Config.doppler`): on the
-    # real 20261111 captures over half of two-cell doppler differences did, told 0.1 m/s.
+    # real 20261111 captures about half of two-cell doppler differences did, told 0.1 m/s.
     r = process_file(write(tmp_path, "nodop", [TOWER], 1.0, 10.0))
     assert {m.kind for m in r.measurements} == {"pseudorange"}
 
