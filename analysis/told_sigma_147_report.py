@@ -4,8 +4,8 @@
     python analysis/told_sigma_147_report.py <dir with summary-*.json [real-*.json]> --out <dir>
 
 Writes `tables.md` (pasted into `summary.md`, which adds what the numbers can and cannot show;
-not committed)
-and `t1_curves.png`, `real_replay.png`. Reads only summaries: no records, positions or ranges.
+not committed), `t1_curves.png` and `real_replay.png`. Reads only summaries: no records,
+positions or ranges.
 """
 
 from __future__ import annotations
