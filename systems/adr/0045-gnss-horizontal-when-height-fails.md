@@ -1,4 +1,4 @@
-# ADR-0042: When only its height fails the gate, a GNSS fix's horizontal part is still used
+# ADR-0045: When only its height fails the gate, a GNSS fix's horizontal part is still used
 
 - **Status:** Proposed
 - **Date:** 2026-11-11

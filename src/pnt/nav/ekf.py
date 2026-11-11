@@ -155,7 +155,7 @@ time can't confirm GNSS; differences between towers, their geometry, can refute 
 GNSS position and GNSS time are tracked separately for health, so rejecting one is never hidden
 by accepting the other at the same instant.
 
-GNSS height (#227, ADR-0042 Proposed). A GNSS position fix is gated in 3-D (`CHI2_999[3]`). If
+GNSS height (#227, ADR-0045 Proposed). A GNSS position fix is gated in 3-D (`CHI2_999[3]`). If
 that gate fails, the horizontal part alone is gated (`CHI2_999[2]`) and, if it passes, used: the
 fix's height is rejected and the estimate carries `gnss_alt_excluded` instead of `gnss_excluded`.
 Why: the barometer is told a few decimetres and updates at 10 Hz, so the vertical state follows
@@ -397,7 +397,7 @@ class EKF:
         self.readmit = gnss_readmit() if gnss_readmit is not None else None
         self.heard_cell_radius_m = heard_cell_radius_m
         self._bounded: dict[str, int] = {}  # emitter -> last time its coverage bound was applied
-        self.gnss_alt_excluded = False  # last GNSS fix used for horizontal only (ADR-0042)
+        self.gnss_alt_excluded = False  # last GNSS fix used for horizontal only (ADR-0045)
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -862,7 +862,7 @@ class EKF:
             self.rmap.learn(m.emitter, at, float(y) + corr)  # before the map's correction
         alt_rejected = False
         if key == "gnss" and m.kind == "position_enu" and verdict == "gate":
-            if not used:  # ADR-0042: the 3-D gate failed; keep the horizontal if it agrees
+            if not used:  # ADR-0045: the 3-D gate failed; keep the horizontal if it agrees
                 used = alt_rejected = self._update(key, m.t_ns, y[:2], H[:2], R[:2, :2])
             self.gnss_alt_excluded = alt_rejected
         if self.calibrated:
@@ -1080,7 +1080,7 @@ class EKF:
         if self.last_rejected.get("gnss", never) > self.last_used.get("gnss", never):
             flags.append("gnss_excluded")
         elif self.gnss_alt_excluded and "gnss_unavailable" not in flags:
-            flags.append("gnss_alt_excluded")  # horizontal used, height rejected (ADR-0042)
+            flags.append("gnss_alt_excluded")  # horizontal used, height rejected (ADR-0045)
         if self.last_rejected.get(GNSS_TIME, never) > self.last_used.get(GNSS_TIME, never):
             flags.append("time_spoof_suspected")  # GNSS time disagrees with our clock model
         if self.spoof_alarm:
