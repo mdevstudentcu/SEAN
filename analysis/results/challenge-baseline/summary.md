@@ -293,6 +293,21 @@ Means over seeds unless marked; *worst* is the worst seed. Slices count from GPS
 ![t1_drone.png](t1_drone.png)
 ![t3_timing.png](t3_timing.png)
 ![t4_detection.png](t4_detection.png)
+![t5_bound.png](t5_bound.png)
+
+*t5_bound.png*: the drone leg's true horizontal error against HPL at every 0.1 s epoch of each whole run (the epochs T5 scores). Above the diagonal the error escaped the bound. Per panel: the share of all epochs above it (pooled over runs); the worst run's share with HPL ≥ error (the *HPL bound worst* column above); hazardous epochs (summed, the *hazardous* column). Computed at `d0e2af3` (`python analysis/challenge_baseline.py --bound --jobs 3`, the runs' metrics checked equal to `runs.json`); every table and the other figures are from `927f25f`.
+
+| Entry | Estimator | runs | epochs above HPL | worst run bounded | hazardous |
+|---|---|---|---|---|---|
+| `outage` | `ekf` | 50 | 43.71 % | 12.78 % | 320 |
+| `outage` | `ekf-guard` | 50 | 43.71 % | 12.78 % | 320 |
+| `outage` | `ekf-calibrated` | 50 | 42.54 % | 10.14 % | 56 |
+| `outage` | `ekf-calibrated-guard` | 50 | 42.54 % | 10.14 % | 56 |
+| `outage` | `ekf-mhss` | 20 | 0.00 % | 100.00 % | 0 |
+| `spoof-jump` | `ekf` | 50 | 75.04 % | 24.23 % | 262,178 |
+| `spoof-jump` | `ekf-guard` | 50 | 38.57 % | 28.21 % | 131 |
+| `spoof-jump` | `ekf-calibrated` | 50 | 74.64 % | 24.23 % | 246,957 |
+| `spoof-jump` | `ekf-calibrated-guard` | 50 | 35.97 % | 24.86 % | 40 |
 
 ## Reproduce
 
