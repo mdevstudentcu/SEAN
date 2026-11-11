@@ -12,12 +12,12 @@ Nine slides, 285 s, 612 words of script, 11 numbers spoken. Each slide gives the
 | 2 | What we built | 25 | 60 | 0 |
 | 3 | Live demo | 80 | 155 | 4 |
 | 4 | Real signals | 25 | 51 | 1 |
-| 5 | The scoreboard | 30 | 69 | 2 |
+| 5 | The scoreboard | 30 | 63 | 2 |
 | 6 | Why, and what the fixes buy | 30 | 65 | 3 |
 | 7 | Every source can lie | 30 | 68 | 2 |
 | 8 | Limits | 25 | 50 | 0 |
 | 9 | Roadmap | 25 | 57 | 2 |
-| | **Total** | **295** | **635** | **15** |
+| | **Total** | **295** | **629** | **15** |
 
 Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); six-tenths of a metre (4); fifty-metre, none of fifty (5); ninety-five percent of fifty, a hundred and thirty metres, five minutes (6); forty-five percent, one percent (7); a hundred and twenty metres, a hundred and seventy dollars (9).
 
@@ -87,7 +87,7 @@ If Enter comes too early in segment 2, carry on and show `jump-3-followed.png` a
 
 **Headline:** Against our own targets, in simulation: spoof and clock-drift detection work with no false alarms; accuracy without GPS and the slow drag do not.
 
-**On the slide:** "Our targets; simulation; partly work still in review."
+**On the slide:** "Our targets; simulation."
 
 | Works | Does not work yet |
 | --- | --- |
@@ -96,10 +96,10 @@ If Enter comes too early in segment 2, carry on and show `jump-3-followed.png` a
 
 **Figure:** none; the table is the slide.
 
-**Script (69 words, 30 s):**
-> The scoreboard, against our own targets, in simulation, partly on work still in review. What works: GPS jumps and a drifting GPS clock are caught within seconds, with no false alarms on clean runs. What does not: accuracy without GPS. No simulated flight meets our target or the mentors' fifty-metre fallback. And a slow drag of GPS, the realistic attack, our default filter catches in none of fifty runs.
+**Script (63 words, 30 s):**
+> The scoreboard, against our own targets, in simulation. What works: GPS jumps and a drifting GPS clock are caught within seconds, with no false alarms on clean runs. What does not: accuracy without GPS. No simulated flight meets our target or the mentors' fifty-metre fallback. And a slow drag of GPS, the realistic attack, our default filter catches in none of fifty runs.
 
-Fallback: the numbers on the agreed statistic (`TBD (#187)`) do not change this slide, which quotes no accuracy value. If a judge asks for one, give the line in `results.md` (b) with its source.
+Fallback: the numbers on the agreed statistic (best 10,154 m at 300 s, not met: `results.md` (b), from #170 merged via #250) do not change this slide, which quotes no accuracy value. If a judge asks for one, give the line in `results.md` (b) with its source.
 
 **If asked:** Q1 (why we miss), Q7 (slow drag), Q8 (false alarms).
 
@@ -132,7 +132,7 @@ Fallback: #247 is a draft on unmerged branches; if a judge asks, say so. Told th
 **Script (68 words, 30 s):**
 > Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so they may contradict GPS time, but never confirm it. And our bound is a bound under our model. In simulation, after GPS loss, the error escaped it forty-five percent of the time. An opt-in fix brings that under one percent, but a slow spoof still defeats every filter we have.
 
-Fallback: the sky-map check is open as PR #239 (#206), not merged; if it lands, add its figure here and nothing to the script.
+Fallback: the sky-map check is merged (#239 via #250, #206; ADR-0041 Accepted). Its figure, [`spoof-decision-real-sky.png`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/spoof-decision-real-sky.png), can be added here; nothing changes in the script.
 
 **If asked:** Q6 (how the bound is computed), Q11 (what is new).
 
@@ -147,7 +147,7 @@ Fallback: the sky-map check is open as PR #239 (#206), not merged; if it lands, 
 **Script (50 words, 25 s):**
 > Plainly, our limits. In the demo, the filter rejected nearly every tower reading. On our one real session with GPS removed in software, the towers made position worse, by kilometres: our front end restarts its tracking. Our noise model is measured standing still. Every attack is simulated; we never transmit.
 
-Source: open PR #233 (#214), not merged and not re-run by us: real static session, GPS removed in software, 6.6 to 12.4 km at 300 s with LTE against 0.6 m without; cause, the front end's arc steps. If asked for the number, give it with that caveat.
+Source: #233 (#214), merged via #250 and not re-run by us ([`real-gps-cut-20261111/summary.md`](../analysis/results/real-gps-cut-20261111/summary.md)): real static session, GPS removed in software, 6.6 to 12.4 km at 300 s with LTE against 0.6 m without; cause, the front end's arc steps. If asked for the number, give it with that caveat.
 
 **If asked:** Q2, Q16.
 
@@ -160,7 +160,7 @@ Source: open PR #233 (#214), not merged and not re-run by us: real static sessio
 - Payload: radios and antennas CAD 169.54 as bought; the rest supplied, price `TBD`; power 5 V from a supply rated ≥ 3 A, draw `TBD`.
 - Milestones: flights with independent truth → fault statistics → a multi-frequency receiver with a first operator. Details: [`roadmap.md`](roadmap.md).
 
-**Figure:** the error-against-masts-heard figure of the carrier hopping study (open PR #179; simulation).
+**Figure:** the error-against-masts-heard figure of the carrier hopping study ([`analysis/results/hopping-study/error_vs_masts.png`](../analysis/results/hopping-study/error_vs_masts.png), #179 merged via #250; simulation).
 
 **Script (57 words, 25 s):**
 > Our first user: an operator of inspection or delivery drones below a hundred and twenty metres over Ottawa. The radios and antennas we bought cost under a hundred and seventy dollars. Milestones: flights with independent truth; fault statistics from many hours of data; then a multi-frequency receiver, as the radio layer Honeywell's suite lists without a product.
@@ -169,4 +169,4 @@ Source: open PR #233 (#214), not merged and not re-run by us: real static sessio
 
 ---
 
-*Status: 2026-11-11, against `main` at `c21e047`; demo cues from draft PR #220.*
+*Status: 2026-11-11, against `main` at `c21e047`; PR states and placeholders brought up to `8892fca`; demo cues from draft PR #220.*
