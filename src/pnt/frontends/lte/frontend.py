@@ -8,7 +8,8 @@ Per cell and output period (10 Hz by default) it emits:
   The value is the carrier-aided weighted mean of the period's 5 ms epochs, so successive outputs
   have independent noise; smoothing beyond that is the navigation filter's job.
 - `doppler` (m/s): -c · CFO / fc, the raw pseudorange rate seen through the dongle's clock, from
-  the carrier phase over the period. Emitted only while carrier aiding is on.
+  the carrier phase over the period. Emitted only with `Config.doppler` (off by default: it can
+  sit on a 100 Hz carrier alias, see there) and while carrier aiding is on.
 
 `meta.rx_clock` names the receiver clock. The RTL-SDR's tuner LO and ADC run from one TCXO, so
 every record with the same `rx_clock` shares one clock offset and drift: the drift appears in the
@@ -276,7 +277,7 @@ def _outputs(cell, g, flags, cap, gaps, cfg, receiver, L) -> list[Measurement]:
         Measurement(t_ns=t_ns, source="lte", kind="pseudorange", emitter=emitter,
                     receiver=receiver, value=(value,), sigma=(sigma,), meta=meta)
     ]  # fmt: skip
-    dop = _doppler(g, fs, fc)
+    dop = _doppler(g, fs, fc) if cfg.doppler else None
     if dop is not None:
         out.append(Measurement(t_ns=t_ns, source="lte", kind="doppler", emitter=emitter,
                                receiver=receiver, value=(dop[0],), sigma=(dop[1],),

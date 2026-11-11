@@ -12,6 +12,7 @@ import pytest
 
 from pnt.frontends.lte import capture, process_file, synth
 from pnt.frontends.lte import signals as sig
+from pnt.frontends.lte.tracker import Config
 
 FS, FC, PPM = 1.92e6, 875e6, 0.4
 T0 = 1_446_000_000_000_000_000
@@ -45,7 +46,7 @@ def test_carrier_offset_is_the_dongles_when_a_co_timed_cell_shares_the_pss_root(
         synth.Tower(pci=8, delay_s=DELAY),
         synth.Tower(pci=2, delay_s=DELAY + 0.2e-6, power_db=-1.0, phase=2.0),
     ]
-    r = process_file(write(tmp_path, towers, 1.0, 10.0))
+    r = process_file(write(tmp_path, towers, 1.0, 10.0), Config(doppler=True))
     truth = -PPM * 1e-6 * FC  # -350 Hz: the dongle's 0.4 ppm, nothing else moves
     locked = [e for c in r.cells for e in c.epochs if e.locked]
     assert len(locked) > 50

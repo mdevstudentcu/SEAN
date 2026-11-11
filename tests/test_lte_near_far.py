@@ -14,7 +14,7 @@ from pnt.frontends.lte import signals as sig
 FS, FC, PPM = 1.92e6, 875e6, 0.4
 T0 = 1_446_000_000_000_000_000
 STRONG = synth.Tower(pci=8, delay_s=1.2345e-3)  # N_ID2 2
-COHERENT = Config(acq_coherent=15, track_coherent=8)  # 80 ms search, 40 ms tracking blocks
+COHERENT = Config(acq_coherent=15, track_coherent=8, doppler=True)  # 80 ms search, 40 ms blocks
 SNR_DB = 30.0  # the strong cell over thermal noise
 
 

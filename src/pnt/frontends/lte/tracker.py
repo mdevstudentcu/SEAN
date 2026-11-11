@@ -109,6 +109,14 @@ class Config:
     miss_limit: int = 4  # consecutive misses before re-searching near the prediction
     lost_s: float = 2.0  # give a cell up after this long without it
     output_period_s: float = 0.1  # 10 Hz
+    # Doppler records, off by default (TBC, until the alias below is resolved and checked on a
+    # real capture). The carrier phase is only known modulo the 200 Hz half-frame rate, and
+    # less if subframes 0 and 5 reach us with different phases (TS 36.211 leaves the sync
+    # signals' antenna port to the eNB): a whole 100 Hz (34.3 m/s) alias is then as good a fit.
+    # Nothing checks the record against the code rate. On the real static captures
+    # 20261111-0151 and -0233, 52 to 71 % of two-cell doppler differences (zero at rest) sat on
+    # a non-zero 100 Hz alias while each record was told 0.01 to 0.1 m/s (#214, lte-reacq).
+    doppler: bool = False
     sigma_scale: float = 1.5  # reported σ / ranging bound; 1.5 covers the synthetic tests, TBC
     # Threads for the search's FFTs (scipy `workers`; -1 = every core). Same results either way.
     fft_workers: int = 2
