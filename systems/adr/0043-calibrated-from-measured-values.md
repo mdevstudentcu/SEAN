@@ -36,5 +36,6 @@ Default `multipath_sigma_m` is 0 (off), so every other estimator's output is unc
 ## Consequences
 
 - Results with `ekf-calibrated-measured` on a sim set are a filter sized from real data meeting a placeholder world, so its NEES there is a test, not self-consistency. Paired results against `ekf` and `ekf-calibrated` are in `analysis/results/calibrated-measured/`.
+- First result (sim, 50 paired runs, `summary.md` there): on `ottawa-sionna` it is honest (NEES 1.6) with the lowest T1 statistic of `ekf`, `ekf-calibrated` and itself (85 m); on `realistic-long-outage` and `worst-long-outage` it is overconfident (NEES 26.5 and 85.3), because those sets' placeholder multipath is 5 to 10 times the measured at-rest part. Its time-misleading epochs come from the literature clock default for our clock, not from the LTE model. It is not proposed as the default.
 - `ekf-calibrated` stays as it is; which of the two becomes the calibrated filter we pitch is for the owners once ADR-0036 is accepted and the moving capture with GPS sizes the correlated part and the told position.
 - What would reopen it: the moving capture (ADR-0036 (4)); a measured told-position error (ASM-02); ADR-0036 changed by the owners; a front end that reports the correlated part in `meta` (ADR-0036 (1)), which the filter should then read in place of the fixed 10 m and 3 s.
