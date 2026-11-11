@@ -5,8 +5,9 @@ One command, from a clean commit:
     python analysis/spoof_detection.py --seeds 50 --mhss-seeds 5 --jobs 2
 
 writes `summary.md` (the tables) and `detection.png` to `analysis/results/spoof-detection/`
-(committed), and one row per run to `analysis/results/runs/spoof-detection.json` (git-ignored,
-rounded, missing values as null). `--redraw` rebuilds the summary and figure from that file.
+(committed, so only from a clean tree: REQ-10), and one row per run to
+`analysis/results/runs/spoof-detection.json` (git-ignored, rounded, missing values as null).
+`--redraw` rebuilds the summary and figure from that file.
 
 Legs, each from committed scenarios (no scenario file is added):
 - `drone`: the `challenge-drone` leg as committed (1 to 3 cells heard per epoch).
@@ -412,6 +413,12 @@ def write(data: dict, out_dir: Path) -> None:
     print(f"wrote {out_dir / 'summary.md'}")
 
 
+def clean_commit(commit: str) -> bool:
+    """True for the hash of a clean tree: `_commit()` gives `<hash>-dirty` for a tree with
+    uncommitted changes to tracked files, and a word when there is no git."""
+    return len(commit) >= 7 and all(c in "0123456789abcdef" for c in commit)
+
+
 def main(argv=None) -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument("--seeds", type=int, default=50)
@@ -422,6 +429,13 @@ def main(argv=None) -> None:
     p.add_argument("--redraw", action="store_true", help="rebuild from the runs file")
     a = p.parse_args(argv)
     out_dir, runs_path = Path(a.out), Path(a.runs)
+    commit = _commit()
+    # REQ-10: the committed results name a commit they can be regenerated from
+    if not a.redraw and out_dir.resolve() == OUT.resolve() and not clean_commit(commit):
+        raise SystemExit(
+            f"tree is {commit}: commit first, the committed results must name a clean commit "
+            "(or write elsewhere with --out)"
+        )
     out_dir.mkdir(parents=True, exist_ok=True)
     if not a.redraw:
         tasks = plan(a.seeds, a.mhss_seeds)
@@ -429,7 +443,7 @@ def main(argv=None) -> None:
         t0 = time.time()
         runs = _map(tasks, a.jobs)
         meta = {
-            "commit": _commit(),
+            "commit": commit,
             "command": f"python analysis/spoof_detection.py --seeds {a.seeds} "
             f"--mhss-seeds {a.mhss_seeds} --jobs {a.jobs}",
             "seeds": a.seeds,
