@@ -9,8 +9,8 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
   - `stanford.png`: HPL against true error with the nominal, misleading, hazardous and unavailable counts (`--alert-limit`, 50 m TBC)
   - `trust.png`: per-source trust over time
   - `time.png`: clock error and ±1σ, only when the estimator estimates the clock
-- `python analysis/figures.py --estimator NAME --runs N` (`just figures NAME N`): the four results figures for one estimator, from committed scenarios at seeds 0..N-1 (paired), with the numbers behind them in `summary.md` and `summary.json`. Writes to `results/figures-<estimator>/`:
-  - `error_after_gps_loss.png`: error (median, 95th percentile) and HPL against time since GPS loss (REQ-01, T1), on `--outage` (default `realistic-long-outage`)
+- `python analysis/figures.py --estimator NAME --runs N` (`just figures NAME N`; `just results` writes them to `results/final/` beside the verification table): the four results figures for one estimator, from committed scenarios at seeds 0..N-1 (paired), with the numbers behind them in `summary.md` and `summary.json`. Writes to `results/figures-<estimator>/`:
+  - `error_after_gps_loss.png`: the per-second 95th percentile of the error across runs against time since GPS loss, with T1's and the fallback's worst second (REQ-01, ADR-0034 amendment), median error and HPL, on `--outage` (default `realistic-long-outage`)
   - `stanford.png`: HPL against error pooled over `--stanford` (default the `realistic` set) (REQ-02)
   - `ablation.png`: fault-window p95 with all SoOP removed and with each other aid removed (REQ-06)
   - `holdover.png`: clock error and time protection level after GPS loss (REQ-03), when the estimator has a clock
