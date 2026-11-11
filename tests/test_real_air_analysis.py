@@ -118,3 +118,12 @@ def test_scan_lookup_gives_distance_only_with_a_receiver_position():
         _ROWS, None, "abc1234",
     )  # fmt: skip
     assert "position unknown" in md and "abc1234" in md
+
+
+def test_scan_table_heading_and_receiver_note():
+    scans = [{"session": "s", "earfcn": 2460, "capture_s": 1.0, "cells": []}]
+    md = scan.table_md(scans, _ROWS, None, "abc1234", title="LTE scan, night captures (#87)")
+    assert md.startswith("# LTE scan, night captures (#87)\n")
+    assert "not given (`--receiver-llh`)" in md and "no GNSS fix" not in md
+    md = scan.table_md(scans, _ROWS, (45.4, -75.7, 70.0), "abc1234")
+    assert md.startswith(f"# {scan.TITLE}\n") and "position given" in md
