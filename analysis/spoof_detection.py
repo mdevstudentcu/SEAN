@@ -222,6 +222,10 @@ def ests_in(runs) -> list[str]:
     return [e for e in (*FAST, MHSS) if e in present]
 
 
+def mhss_text(n: int) -> str:
+    return f"`{MHSS}` 0–{n - 1}" if n > 0 else f"`{MHSS}` not run"
+
+
 def summary(data: dict) -> str:
     runs, meta = data["runs"], data["meta"]
     lines = [
@@ -229,9 +233,8 @@ def summary(data: dict) -> str:
         "",
         f"Sim, every value `TBC`. Commit {meta['commit']}, `{meta['command']}`, "
         f"{meta['minutes']:.1f} min on {meta.get('host', 'an unrecorded host')}. "
-        f"Seeds 0–{meta['seeds'] - 1} "
-        f"(`{MHSS}` 0–{meta['mhss_seeds'] - 1}); the monitor's settings were chosen on seeds "
-        "100–109, never on these.",
+        f"Seeds 0–{meta['seeds'] - 1} ({mhss_text(meta['mhss_seeds'])}); the monitor's settings "
+        "were chosen on seeds 100–109, never on these.",
         "",
         "`-spoof` = the same estimator with `integrity.spoof_monitor` (opt-in). `drone` is the "
         "`challenge-drone` leg as committed (1 to 3 cells heard); `drone-many` the same spec "

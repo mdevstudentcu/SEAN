@@ -1,4 +1,5 @@
-"""`analysis/spoof_detection.py` (#173, #189): the clean-tree guard. No scenario is run."""
+"""`analysis/spoof_detection.py` (#173, #189): the clean-tree guard and the summary header.
+No scenario is run."""
 
 import importlib.util
 import sys
@@ -41,3 +42,9 @@ def test_dirty_tree_may_write_elsewhere_or_redraw(monkeypatch, tmp_path):
     assert drawn[-1][0]["commit"] == "abc1234-dirty"
     sd.main(["--redraw", "--runs", str(runs)])  # redraw into the committed folder: no new runs
     assert drawn[-1][1] == sd.OUT
+
+
+def test_header_without_mhss_seeds():
+    meta = {"commit": "abc1234", "command": "x", "minutes": 1.0, "seeds": 1, "mhss_seeds": 0}
+    head = sd.summary({"meta": meta, "runs": []}).splitlines()[2]
+    assert "`ekf-mhss` not run" in head and "0–-1" not in head
