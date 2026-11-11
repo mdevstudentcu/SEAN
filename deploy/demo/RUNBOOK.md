@@ -1,24 +1,27 @@
 # Demo runbook: the 5-minute judging demo
 
-The live part of the pitch: 60–90 s on the operator panel, then 15 s of real towers on the terminal. It runs on the laptop alone, from committed scenarios at seed 0 (RSK-04, ADR-0004): no Pi, no network, no recorded file to lose. Commands are in `deploy/demo/demo.sh`; `just demo <segment>` calls the same script.
+Written for a presenter who did not build this. The live part is about 75 s on the operator panel (three short simulations, one after the other), then 15 s of real towers on the terminal. Everything runs on the laptop alone, from committed scenarios at seed 0: no Pi, no network, no recorded file to lose. The same seed gives the same screen on every run, so the numbers below are what you will see.
 
-**What the demo claims, and nothing more:**
+Commands are in `deploy/demo/demo.sh`; `just demo <segment>` runs the same script.
 
-- The panel tells the operator, within seconds, when the position or the time can no longer be trusted. On this run (seed 0) the bound holds (protection level above the true error) through a GPS loss. Not on every run: over 50 seeds, `ekf` on `challenge-drone-outage` has hazardous epochs on 7 of 50 seeds (#170).
-- A location jump is flagged and latched about a second after onset (1.1 s on 50 of 50 seeds, #180). A time spoof is flagged 1.2 s after onset on this run; over 50 seeds the median is 3.3 s and the worst 4.1 s (#170 at `e7bd988`).
-- The towers on the map are the real registered sites around Carleton, and we track real cells from real captures. Each cell heard is *consistent with* a registered site: the match is made around Carleton, not around the receiver, so it is a hypothesis, not an identification.
+**Say "simulated" out loud.** Every panel segment is a simulation with placeholder error models (`systems/verification.md`, *Sim validity*). The **SIM** chip, scenario, seed and estimator are on the panel's top bar.
 
-**What it does not claim:** that we meet the position target without GPS (we don't: 321 m error 40 s into the outage below), or that a detected jump is refused (the demo runs plain `ekf`, whose output follows it; the opt-in `ekf-guard` that refuses it is not shown; see the jump segment).
+## What the demo claims, and nothing more
 
-Every number on screen is reproducible: scenario and seed on the panel's title bar, commit from `git describe`. All panel segments are **simulation** with placeholder error models (`systems/verification.md`, *Sim validity*); say "simulated" out loud.
+- The panel tells the operator, within seconds, when the position can no longer be trusted, and shows it as a colour: green NOMINAL, amber DEGRADED, red UNSAFE.
+- A 300 m GPS location jump is caught at the first jumped fix (this run: T+150.0, the jump's start).
+- **Without the jump guard** (`ekf`) the filter takes the fake GPS back 27 s later and shows green while 300 m wrong. **With the jump guard** (`ekf-guard`, opt-in on `main`, ADR-0038 *Proposed*) the fake GPS stays refused, the panel stays red with a growing bound, and real GPS is taken back as soon as the spoofer stops.
+- The towers on the map are the real registered Rogers sites around Carleton, and we track real LTE cells from a real capture (`demo.sh real`).
+
+**What it does not claim:** that we meet the position target without GPS (we don't: the error is hundreds of metres after a minute without GPS, below); that the guard is our default (it is opt-in: ADR-0038 keeps it off until the manoeuvre follow-up is done); that one seed is a statistic. 50-seed figures are under *Numbers you may quote*, with their source.
 
 ## Pre-flight
 
 **The day before**
 
 - [ ] Laptop on the commit to be shown, clean tree: `git status` empty, `git describe --always --dirty` noted.
-- [ ] `deploy/demo/demo.sh check` prints `pre-flight passed`.
-- [ ] Rehearse once end to end, timed (below).
+- [ ] `deploy/demo/demo.sh check` prints `pre-flight passed` (it also checks that `ekf-guard` exists).
+- [ ] Rehearse once end to end with a stopwatch (*Timing* below).
 
 **T−30 min (at the venue)**
 
@@ -27,6 +30,7 @@ Every number on screen is reproducible: scenario and seed on the panel's title b
 - [ ] Projector at 1920×1080 if possible. Browser full screen (Ctrl-Cmd-F), zoom 100 %.
 - [ ] `deploy/demo/demo.sh check` → `pre-flight passed`. This also warms the Python caches.
 - [ ] Warm-up: `deploy/demo/demo.sh outage`, wait for the panel, Ctrl-C.
+- [ ] Open `analysis/pr-evidence/elshoubky-docs-28-demo-guard/` in Finder, ready for *If everything fails*.
 
 **T−2 min**
 
@@ -37,87 +41,121 @@ Every number on screen is reproducible: scenario and seed on the panel's title b
 
 | Segment | Command | What it runs |
 | --- | --- | --- |
-| Pre-flight | `deploy/demo/demo.sh check` | Python and panel imports, `lsof` present, port 8050 free, the three scenarios load, the real session is there |
-| **Stage sequence** | `deploy/demo/demo.sh stage` | outage → jump → time on port 8050; Enter moves on, the page reconnects by itself |
-| GPS lost | `deploy/demo/demo.sh outage` | `challenge-drone-outage`, seed 0, ekf, ×5 |
-| Location jump | `deploy/demo/demo.sh jump` | `challenge-drone-spoof-jump`, seed 0, ekf, ×10 |
-| Time spoof | `deploy/demo/demo.sh time` | `challenge-timing-time-spoof`, seed 0, ekf, ×10 |
-| Real towers | `deploy/demo/demo.sh real` | the cells heard in session `20261110-1623-static-out-e5060-lte`, each with the ISED-registered site it is consistent with |
-| Live (bonus) | `deploy/demo/demo.sh live --connect payload=tcp://<pi>:5556 --origin <lat,lon,h>` | `pnt live --dash --estimator ekf` (see *Live segment* below) |
+| Pre-flight | `deploy/demo/demo.sh check` | Python and panel imports, `lsof`, port 8050 free, the four scenarios load and their estimators exist, the real session is there |
+| **Stage sequence** | `deploy/demo/demo.sh stage` | GPS lost → jump without guard → jump with guard, on port 8050; **Enter** moves on, the page reconnects by itself, the last Enter stops |
+| GPS lost | `deploy/demo/demo.sh outage` | `challenge-drone-outage`, seed 0, `ekf`, ×5 |
+| Location jump | `deploy/demo/demo.sh jump` | `challenge-drone-spoof-jump`, seed 0, `ekf`, ×10; Enter; then `challenge-drone-gps-return`, seed 0, `ekf-guard`, ×10 |
+| Jump with guard only | `deploy/demo/demo.sh guard` | the second half of `jump` alone |
+| Time spoof (Q&A only) | `deploy/demo/demo.sh time` | `challenge-timing-time-spoof`, seed 0, `ekf`, ×10 |
+| Real towers | `deploy/demo/demo.sh real` | the cells heard in session `20261110-1623-static-out-e5060-lte`, each with the registered site it is consistent with |
+| Live (bonus) | `deploy/demo/demo.sh live --connect payload=tcp://<pi>:5556 --origin <lat,lon,h>` | `pnt live --dash --estimator ekf` (*Live segment* below) |
 
 Without the repo's `.venv`, set `PNT_PY=/path/to/python`. Real sessions live outside git: `PNT_SESSIONS=/path/to/data/sessions` if they are not in this checkout. `PNT_DEMO_OPEN=0` stops the script opening the browser.
 
-Ctrl-C stops any segment and frees the port. Each switch prints `ERROR: Cancel 1 running task(s), timeout graceful shutdown exceeded` in the terminal: that is uvicorn closing the open stream, not a fault.
+Ctrl-C stops any segment and frees the port. Each switch may print `ERROR: Cancel 1 running task(s), timeout graceful shutdown exceeded`: that is the server closing the open stream, not a fault.
+
+**Why the time spoof is not in the stage sequence:** the mentor asked us to focus on location before timing, and three location segments fill the 90 s. Run `demo.sh time` only if a judge asks about timing (*Time spoof* below).
 
 ## The stage sequence, second by second
 
-Times are wall seconds after pressing Enter on `deploy/demo/demo.sh stage`, as measured in the rehearsals below. **T+** is the panel's clock (top right). Move on by watching T+, not a stopwatch.
+**Wall** is seconds after pressing Enter on `deploy/demo/demo.sh stage`, from the timed runs below (±3 s). **T+** is the panel's own clock, top right: move on by watching T+, not a stopwatch. All values: simulation, seed 0, commit `ec5da67`.
 
-### 1. GPS lost (0–32 s): `challenge-drone-outage`, seed 0, ×5
+Where to look: the big coloured word top right (NOMINAL / DEGRADED / UNSAFE); **HPL** under it (our bound on the error) and **Error against truth** (the real error, known only because this is a simulation); the **HPL chart** bottom left (blue: HPL, green: true error, red dashed: the 50 m alert limit); **What is wrong now** and **Alerts** on the right.
 
-| Wall | Panel | Say |
-| --- | --- | --- |
-| 0–4 s | Browser opens, panel connects. **SIM** chip, `challenge-drone-outage (seed 0)` | "A simulated drone circuit over Carleton. The towers are the real Rogers sites from the ISED registry." Click **Area** to show them, then **Follow**. |
-| 4–15 s (T+0–60) | **NOMINAL**, HPL 6.9 m against the 50 m alert limit, time PL 29 ns | "GPS, barometer and towers. HPL is our bound on the error; the red dashed line is the alert limit." |
-| 15.6 s (T+61.8) | **DEGRADED**, *GPS lost* caution | "GPS is gone." |
-| 16.4 s (T+64.8) | **UNSAFE**, alert latched *since T+64.8 s*. HPL circle grows on the map | "Five seconds after the loss the panel says: do not navigate on this position. It stays latched until someone acknowledges it." |
-| 16–24 s (T+65–100) | HPL chart: blue HPL above the green true error. T+100: HPL 829 m, error 321 m | "Honest number: 40 s without GPS we are 321 m off. The point is that on this run the bound stays above the error." If asked about other runs: over 50 seeds, 7 have hazardous epochs (#170); do not say the panel never tells you less than the truth. |
-| 24–32 s (T+100–142) | Time PL rises; at T+138.9 the *time PL over limit* alarm latches. Clock error (green) still a few ns | "Time: the clock is still within ~20 ns of truth, but our bound is cautious and calls time unsafe after 79 s. We would rather warn early." |
-
-Press Enter when T+ passes 142.
-
-### 2. Location jump (32–56 s): `challenge-drone-spoof-jump`, seed 0, ×10
-
-The panel shows **NO DATA** for 3–6 s while the next segment starts, then reconnects by itself (on T+20–25: the clean part is already drawn). Talk over the gap: "Now a spoofer: GPS jumps 300 m east."
+### 1. GPS lost (wall 0–24 s): `challenge-drone-outage`, seed 0, `ekf`, ×5
 
 | Wall | Panel | Say |
 | --- | --- | --- |
-| 38–51 s (T+25–150) | **NOMINAL**, HPL 6.9 m | "Same circuit, GPS healthy." |
-| 51 s (T+150.0) | **DEGRADED**, *GPS rejected* latched *since T+150.0 s* | "The jump is caught at the first epoch: GPS rejected." |
-| 51.5 s (T+154.8) | **UNSAFE**, HPL grows (399 m at T+174 against 93 m true error) | "Without GPS the bound opens up, as in the outage." |
-| 54 s (T+176.7) | **NOMINAL** again, HPL 7 m, *error against truth* about 300 m; the three alerts stay listed, *cleared, unacknowledged* | **Say it plainly:** "Here is our open bug. After 27 s the filter lets the spoofed GPS back in and follows it: green, 7 m bound, 300 m wrong. The latched alerts are still on the panel, which is what an operator would see. The fix, refusing a flagged jump until GPS steps back, is in main as the opt-in `ekf-guard` (#191, ADR-0038, Proposed); this demo runs plain `ekf`." |
+| 0–4 s | Browser opens, panel connects. **SIM**, `challenge-drone-outage (seed 0)`, `estimator ekf` | "A simulated drone flying a loop over Carleton. The triangles are the real Rogers tower sites from the government registry." |
+| 4–15 s (T+0–60) | Green **NOMINAL**, HPL about 7 m against the 50 m alert limit | "Green means: trust this position. HPL is our bound on the error, here 7 metres." |
+| 15 s (T+61.8) | Amber **DEGRADED**: *GPS not in use* | "GPS is gone." |
+| 16 s (T+64.8) | Red **UNSAFE**, alert latched *since T+64.8 s*; the dashed HPL circle grows on the map | "Within five seconds of the loss the panel turns red: do not navigate on this position. The alert stays on the list until someone acknowledges it." |
+| 16–24 s (T+65–105) | HPL chart: blue above green. About T+100: HPL 865 m, error 335 m | "Honest number: 40 seconds without GPS we are over 300 metres off. What matters is that the bound, the blue line, stays above the real error on this run." |
 
-Press Enter when T+ passes ~190.
+**Press Enter when T+ passes 105.**
 
-**Do not** swap in the plain `spoof-jump` scenario, where the output does not follow: it has six synthetic towers with 20 m noise, an easier world than the challenge leg. Showing it would be choosing the run that looks good.
+### 2. Location jump, without the guard (wall 24–48 s): `challenge-drone-spoof-jump`, seed 0, `ekf`, ×10
 
-**`ekf-guard` (#191, merged, opt-in):** `demo.sh` runs `ekf` only. Showing `ekf-guard` instead is the owners' call (ADR-0038 keeps the guard opt-in); not rehearsed. If chosen: `pnt sim challenge-drone-spoof-jump --seed 0 --estimator ekf-guard --dash --speed 10 --port 8050`, and look at T+177–190. Expected, not checked: no return to NOMINAL while the jump persists; GPS stays excluded and the status follows the HPL (UNSAFE, as in the outage). Then replace the last row's line with "caught at the first epoch and refused", retake `jump-3-followed.png`, and quote the paired numbers in `analysis/results/jump-refusal/summary.md` (seeds 0–49), not this one seed.
-
-### 3. Time spoof (56–84 s): `challenge-timing-time-spoof`, seed 0, ×10
+The page shows **NO DATA** for 3–6 s, then reconnects by itself; the top bar now says `challenge-drone-spoof-jump (seed 0) · estimator ekf`. Talk over the gap: "Now a spoofer: someone transmits fake GPS that puts us 300 metres east."
 
 | Wall | Panel | Say |
 | --- | --- | --- |
-| 56–60 s | NO DATA for ~3 s, then **NOMINAL**: a static timing receiver | "A timing receiver, for a cell site or a substation. GPS time now drifts at 50 ns per second while positions look normal." |
-| 74.5 s (T+151.2) | **DEGRADED**, *GPS time spoofing suspected* ALARM latched *since T+151.2 s* | "1.2 s after onset on this run: GPS time disagrees with our clock model, so we stop using it." |
-| 75–82 s (T+152–230) | Timing chart: clock error (green) grows to 225 ns by T+220, time PL (blue) above it; *time PL over limit* at T+230.4 | "The clock still drifts with part of the attack, but the bound stays above the error and calls it unsafe at T+230." |
+| 29–44 s (T+0–150) | Green **NOMINAL**, HPL about 7 m | "Same flight, GPS healthy." |
+| 44 s (T+150.0) | Amber **DEGRADED**, *GPS rejected* latched *since T+150.0 s* | "The jump is caught at the very first fake fix: GPS rejected." |
+| 45 s (T+154.8) | Red **UNSAFE**. HPL 415 m, error 97 m at T+174.6 | "Red: without GPS the bound opens up, as before." |
+| 47 s (T+176.8) | **Green NOMINAL again**, HPL 7 m, *Error against truth* 300 m. The three alerts stay listed, *cleared … unacknowledged* | "But watch. Half a minute later this plain filter lets the fake GPS back in and follows it: green, a 7-metre bound, 300 metres wrong. That is the failure the jump guard fixes." |
 
-Press Enter to stop when T+ passes 232.
+**Press Enter when T+ passes 188.**
 
-Over 50 seeds the jump is flagged in 1.1 s on 50 of 50 (#180's evidence on the challenge legs), and the time spoof in a median 3.3 s, worst 4.1 s (#170 at `e7bd988`, `ekf`, timing leg). On `challenge-drone-outage`, `ekf` has hazardous epochs on 7 of 50 seeds (#170). These were not re-run for this runbook: quote them with their source, and never present this one seed as a statistic.
+### 3. Location jump, with the guard (wall 48–76 s): `challenge-drone-gps-return`, seed 0, `ekf-guard`, ×10
 
-### 4. Real towers (≈ 15 s): `deploy/demo/demo.sh real`
+NO DATA for 3–6 s again; the top bar now says `challenge-drone-gps-return (seed 0) · estimator ekf-guard`. **Point at `ekf-guard` on the top bar.** Talk over the gap: "Same flight, same attack, now with our jump guard. This time the spoofer stops at T+200."
+
+| Wall | Panel | Say |
+| --- | --- | --- |
+| 53–68 s (T+0–150) | Green **NOMINAL**, HPL about 7 m | (Keep talking over the clean part; it is the same as before.) |
+| 68 s (T+150.0) | Amber **DEGRADED**, *GPS rejected* | "Caught at the first fake fix, as before." |
+| 69–73 s (T+154.8–199.9) | Red **UNSAFE** throughout. T+180.0: HPL 549 m, error 133 m. T+193.9: HPL 948 m, error 255 m | "This time the fake GPS stays out. We are flying on the barometer and our last known speed and heading, so the error grows, but the bound grows faster and the panel stays red. Nobody is told a wrong position is safe." |
+| 73 s (T+200.0) | **Green NOMINAL**: real GPS back, HPL 13.5 m then 6.9 m, error 1.7 m then under 1 m. The three alerts stay listed, *cleared at T+199.9 s* | "The spoofer stops, real GPS comes straight back, and we are green and within a metre again." |
+
+On this run the HPL is above the true error at every epoch from T+10 to T+212 (and in segment 1 to T+105); in segment 2 it is below it from T+176.8, which is the failure shown.
+
+**Press Enter when T+ passes 212** (stops the demo). A single amber *GPS rejected* may flash at T+218.4 for 0.2 s if you wait: one honest fix rejected by the normal gate, on both estimators; ignore it.
+
+#### The jump segment in 25 seconds (if short of time)
+
+Segment 2: "A spoofer moves GPS 300 metres. Caught at the first fake fix: red. But half a minute later the plain filter takes the fake GPS back: green, and 300 metres wrong." Segment 3: "Same attack with our jump guard: it stays red until the spoofer stops, then real GPS comes straight back. All simulated."
+
+#### If a judge asks about the jump
+
+- *How big a jump?* This one is 300 m; ADR-0038 tests 20 m to 500 km (below). A jump under about 25 m may not be caught, and is then followed (ADR-0038: seed 17 missed a 25 m jump).
+- *Why is the guard not on by default?* It can keep honest GPS out after a hard manoeuvre when GPS is the only position source (ADR-0038: 5 of 46 manoeuvre cases at 1 Hz GPS). Making it the default waits on that follow-up.
+- *Why does the error grow to 255 m with the guard?* With GPS refused, the challenge leg has little else: tower readings are in use on about 1 % of epochs here (Sources shows `lte` under *Not in use*; #147). The guard trades accuracy for honesty: wrong but flagged red, instead of wrong and green.
+- *Can you tell it is a spoof and not just bad GPS?* The panel says GPS *disagrees with the rest of the solution*. Telling a spoof from a fault by signal power or satellite geometry, as the mentor suggested, is not in this demo.
+
+### Timing
+
+| Part | Seconds |
+| --- | --- |
+| Pre-flight `check` | 0.7 |
+| Stage sequence (Enter at T+105, T+188, T+212) | **72.9** and **75.9** |
+| Real towers | 0.4 to print, ~15 to talk |
+
+Measured twice back to back on 2026-11-11 at commit `ec5da67`, clean tree, macOS, this laptop, each run a fresh `demo.sh stage` (Python caches warm, not a rebooted laptop), load average 7.8 from two other jobs. Enter was pressed by a script reading the panel clock, not by hand, and no browser was open: a browser reconnects 0–3 s after each switch, which delays what is visible but not the sequence. The segment switch took 3.1–5.3 s. Event times on the panel clock agreed exactly between runs. A just-booted laptop's first Python start is slower (`TBD`, not measured): hence the warm-up.
+
+## Numbers you may quote
+
+Only these, with their source. Never present the seed-0 run above as a statistic.
+
+| Claim | Number | Source |
+| --- | --- | --- |
+| A held 300 m jump on the drone leg is detected | 50 of 50 seeds | `analysis/results/jump-refusal/summary.md` (sim, seeds 0–49, commit `df46bce`) |
+| Runs with hazardous epochs (error over 50 m while HPL under it), held 300 m jump, drone leg | `ekf` 49/50 seeds, mean 5,244 epochs per run; with the guard 3/50 seeds, mean 3 per run | same; ADR-0038 *Options* |
+| Jump ended (at 300 s in the study, not 200 s as on stage): real GPS taken back | `ekf` 48/50 seeds, median 18.8 s after the end; with the guard 50/50, median 0.1 s | same, *Jump ended at 300 s* |
+| Jump sizes 20 m to 500 km on the UC-01 route (realistic set, not the challenge leg): detected 1.1 s after the jump in every run but one 20 m jump; runs with hazardous epochs at 300 m | `ekf` 19/20, `ekf-guard` 0/20 | ADR-0038 *Consequences* (sim, seeds 0–19, `analysis/guard_jump_sizes.py` at `5a7a1c9`) |
+| Cost of the guard: median error on the drone leg after refusing | 115 m at +30 s, 1.2 km at +120 s, flagged unsafe | ADR-0038 *Consequences* |
+
+`ekf` on `challenge-drone-outage` over 50 seeds has hazardous epochs on some seeds (#170): do not say the panel never tells less than the truth.
+
+## Time spoof (Q&A only): `deploy/demo/demo.sh time`
+
+`challenge-timing-time-spoof`, seed 0, `ekf`, ×10: a static timing receiver whose GPS time drifts at 50 ns/s from T+150. About 15 s after start (T+151.2) the panel goes amber, *GPS time spoofing suspected*, latched. Say: "1.2 seconds after onset on this run, GPS time disagrees with our clock model, so we stop using it." At T+230.4 the *time PL over limit* alarm latches. Over 50 seeds the median detection is 3.3 s, worst 4.1 s (#170 at `e7bd988`). Screenshots: `elshoubky-docs-28-demo-rehearsal/time-*.png` (commit `8cea8cf`, before today's wording fix).
+
+## Real towers (≈ 15 s): `deploy/demo/demo.sh real`
 
 ```
 session 20261110-1623-static-out-e5060-lte (commit 4c8b0ab, real capture, 3 cells over 59 s)
+registry match around Carleton (the session has no origin; Ottawa capture)
+
 cell            records  per s  SNR dB  sigma m  registry
 lte:5060:204        600   10.1    -1.0      4.3  not matched (unknown)
 lte:5060:4          595   10.0    -3.2      5.4  eNB 102790, Vidéotron, <site>
 lte:5060:492        594   10.0    -6.3      9.0  eNB 102790, Vidéotron, <site>
 ```
 
-Say: "This is a real 60 s capture with an RTL-SDR dongle (a NESDR SMArt v5): three cells tracked at 10 per second, two consistent with one registered site. No position yet: that capture had no GPS fix, so the filter never started." The match is made around Carleton, not the receiver (`cells.py --near`), so say "consistent with", never "identified". The terminal prints the registry site name where `<site>` is shown here (left out of this file: with the cells heard it hints at where the capture was made).
+Say: "This is real: a 60-second capture with a low-cost RTL-SDR radio dongle. Three cells tracked ten times a second, two consistent with one registered tower site." Say "consistent with", never "identified": the match is made around Carleton, not around the receiver. The terminal prints the site name where `<site>` is shown here (left out of this file: with the cells heard it hints at where the capture was made).
 
-`analysis/lte_scan_table.py` (#192) gives the same comparison for many captures at once, from the `.cu8` files; `cells.py` reads one session's `/meas/lte` records, which `pnt frontend lte` has already written, so it prints in under a second on stage.
-
-### Timing
-
-| Part | Seconds |
-| --- | --- |
-| Pre-flight `check` | 0.9 |
-| Stage sequence (Enter at +32, +24, +28 s) | 86.8 and 86.9 |
-| Real towers | 0.3 to print, ~15 to talk |
-
-Measured twice back to back on 2026-11-10 at commit `8cea8cf`, macOS 26.5.2, this laptop, Python caches warm, with two other Python jobs at 100 % CPU. Event times agreed within 0.5 s between runs. A just-booted laptop's first Python start is slower (`TBD`, not measured): hence the warm-up in the pre-flight.
+**What the real segment can show today (2026-11-11):** only this table. `demo.sh real` runs at `ec5da67` (checked: 0.4 s). No local session has a GPS fix: every real session folder in `data/sessions` on this laptop has `origin_llh: null` except `20261110-1759-live-laptop`, which has no estimates. The sessions with GPS recorded overnight (from `20261111-0040-static-fullsuite`) are on the Pi, not here. `pnt compare` and `pnt replay --inject` are on `main` (#199); cutting GPS in software on a real session is #214 (other owner, in progress): until it lands and a session with GPS is copied here, there is no real-session panel segment.
 
 ## Fallbacks
 
@@ -125,47 +163,51 @@ Measured twice back to back on 2026-11-10 at commit `8cea8cf`, macOS 26.5.2, thi
 | --- | --- | --- |
 | Port 8050 in use | `port 8050 is in use` | `lsof -iTCP:8050`, stop it; or `PNT_DEMO_PORT=8051 deploy/demo/demo.sh stage` |
 | Page stuck on NO DATA after a switch | No reconnect after 10 s | Cmd-R. The segment keeps running; the page gets its history |
-| A segment ended before Enter | Clock shows `finished` | Cmd-R does not restart it: Enter (stage) or rerun the segment command |
+| A segment ended before Enter | Clock shows `finished` | Cmd-R does not restart it: press Enter for the next one |
+| Enter pressed too early in segment 2 | Segment 3 already loading before green-and-wrong showed | Carry on; say the line over segment 3's gap and show `jump-3-followed.png` afterwards |
 | Browser did not open | Nothing after 5 s | Open `http://127.0.0.1:8050` by hand |
-| Python or panel broken | `check` fails | Show the evidence screenshots below (open the folder in Preview, full screen) and narrate the same lines |
+| `ekf-guard` missing or `check` fails | `FAIL` lines | *If everything fails* below |
 | Venue Wi-Fi down | — | Nothing needed: the demo uses no network |
 | Laptop dies | — | Same screenshots from a teammate's laptop or the PR page |
-| Questions about real position | — | Real sessions have no GPS fix yet; say so (*Real sessions* below) |
+| Questions about real position | — | Real sessions on this laptop have no GPS fix; say so (*Real towers* above) |
 
-## Real sessions on the panel: what is missing
+## If everything fails: 60 seconds on screenshots
 
-`pnt dash data/sessions/20261110-1623-static-out-e5060-lte` today shows **NO DATA** with `Feed error: ValueError("real LTE records need the session's origin_llh")` (screenshot `real-dash-today.png`). Three things stand in the way, in order:
+Open `analysis/pr-evidence/elshoubky-docs-28-demo-guard/` in Preview (select all, Space, full screen) and step through. Say "these are screenshots of the simulation you would have seen live".
 
-1. **No origin.** Every real LTE session has `origin_llh: null` (no GPS fix), and the registry lookup (`pnt.nav.cells.attach`) needs a point to match cells around.
-2. **No estimate.** With an origin forced (Carleton), the `ekf` still gives 0 estimates on that session: it initialises from a first GNSS fix. The panel draws one frame per estimate, so it would still show nothing.
-3. **No cell view.** The panel has no list of heard cells with rate and SNR; towers appear only on the map.
-
-Smallest change that would show a real session's tracked cells: a listen-only feed in `pnt.dashboard.feed` for sessions with no GNSS records (or `--listen`), which runs no estimator and emits one frame per data second carrying the cells heard and their registered sites; `pnt dash --origin lat,lon,h` to place them (a public reference point, not the capture site); `app.js` drawing a frame with no position (it reads `f.pos` and `f.cov` unconditionally today) plus a small cells table. That touches `cli.py`, `feed.py`, `server.py` (`_point`), `app.js` and `index.html`, with tests: not small, so not done here. `deploy/demo/demo.sh real` shows the same information on the terminal today.
-
-Done here: the panel now draws front-end-shaped and real LTE cells at their registered site (it noted emitters before the lookup, so the challenge legs showed no towers and "Towers heard: —").
+| Seconds | File | Say |
+| --- | --- | --- |
+| 0–8 | `outage-1-clean.png` | "A simulated drone over Carleton, real tower sites. Green: trust it, bound 7 metres." |
+| 8–16 | `outage-2-lost.png` | "GPS lost: within five seconds, red. Don't navigate on this." |
+| 16–24 | `outage-3-bound.png` | "40 seconds without GPS: 335 m off, bound 865 m. Honest about it." |
+| 24–32 | `jump-1-flagged.png` | "A spoofer jumps GPS 300 metres: caught at the first fake fix." |
+| 32–40 | `jump-3-followed.png` | "Without our guard, half a minute later the filter follows the fake: green and 300 metres wrong." |
+| 40–50 | `guard-2-before-end.png` | "With the guard, the fake stays out: red, bound 948 m, so nobody trusts the 255 m error." |
+| 50–60 | `guard-3-readmitted.png` | "The spoofer stops, real GPS is back, green, under a metre." |
 
 ## Live segment (bonus): what it can show
 
-The 2026-11-10 run (`20261110-1759-live-laptop`) streamed 28 min over the authenticated link with 0 estimates: no GPS fix and no LTE records in the stream. Since then the HAT has its external active antenna and a PPS-locked fix (first full-suite session `20261111-0040-static-fullsuite`), so live can give estimates. Not yet run through `pnt live` on the panel.
+Unchanged since 2026-11-10 except where noted. The 2026-11-10 run (`20261110-1759-live-laptop`) streamed 28 min over the authenticated link with 0 estimates: no GPS fix and no LTE records in the stream. Since then the HAT has an external active antenna and a PPS-locked fix (first full-suite session `20261111-0040-static-fullsuite`, on the Pi), so live can give estimates. Not yet run through `pnt live` on the panel.
 
-- **The payload streams records, not IQ.** `pnt.payload.streamer` sends each `Measurement` the recorder writes plus a `meta` message once a second. The SDR's IQ goes only to `sdr_<x>.cu8` on the Pi's disk; the LTE front end runs afterwards on the laptop (`pnt frontend lte`), reading a finished capture.
-- **Origin and first fix.** Without `--origin`, `pnt live` waits for the payload's session origin (its first 3D fix) for `--wait` 60 s, then exits with `no origin from the payload stream`. Give `--origin lat,lon,h` (`demo.sh live` passes extra arguments through). Even with an origin, `ekf` gives no estimate until the first GNSS fix arrives, so the panel shows NO DATA until then.
-- **With a fix,** the panel shows a LIVE position with its HPL, the time PL and source trust. Pulling or shielding the GPS antenna has **not been rehearsed**: do not do it on stage unless it has been. In the sim proxy (GNSS + IMU only, `challenge-timing-outage`, seed 0) it gives *GPS lost* within 2 s and UNSAFE (HPL 52 m) 5 s after the loss; real timings `TBD`. A stream that stops turns the panel to NO DATA after 3 s (`STALE_S` in `app.js`; not seen live). No towers (no LTE in the stream), no truth.
-- **Live LTE would need** either the front end running on the Pi over the growing capture (it memory-maps a finished file today; Pi 4B throughput `TBD`), or IQ streamed to the laptop (1.92 MS/s × 2 bytes = 3.84 MB/s, about 31 Mbit/s per dongle, over Wi-Fi and CurveZMQ; the record streamer drops messages by design, which would break tracking). Neither exists; in our estimate neither can be made demo-grade by Thursday.
-- **Risk:** judging is likely indoors, where the HAT may get no fix at all. Treat live as a bonus shown only if `pnt live` already shows estimates before going on stage; keys and network per `deploy/pi/RUNBOOK.md` (laptop hotspot, never venue Wi-Fi).
+- **The payload streams records, not IQ.** LTE runs afterwards on the laptop (`pnt frontend lte`) from a finished capture, so live shows no towers.
+- **Origin and first fix.** Give `--origin lat,lon,h` (`demo.sh live` passes extra arguments through). `ekf` gives no estimate until the first GPS fix, so the panel shows NO DATA until then.
+- **With a fix,** the panel shows a LIVE position with its HPL, the time PL and the sources in use. Pulling or shielding the GPS antenna has **not been rehearsed**: do not do it on stage unless it has been. A stream that stops turns the panel to NO DATA after 3 s (not seen live).
+- **Risk:** judging is likely indoors, where the HAT may get no fix. Show live only if `pnt live` already shows estimates before going on stage; keys and network per `deploy/pi/RUNBOOK.md` (laptop hotspot, never venue Wi-Fi).
 
 ## Evidence
 
-Headless Google Chrome 157 at 1920×1080, panel served by `deploy/demo/demo.sh <segment>` at commit `8cea8cf`, clean tree. All simulation, estimator `ekf`, seed 0, except the last (replay of a real session). Files in `analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/`.
+Headless Google Chrome at 1920×1080, panel served by `deploy/demo/demo.sh jump` and `deploy/demo/demo.sh outage` at commit `ec5da67`, clean tree. All **simulation**, seed 0. T+ and values as on screen. Files in `analysis/pr-evidence/elshoubky-docs-28-demo-guard/`.
 
-| File | Scenario / session | Panel time | Shows |
-| --- | --- | --- | --- |
-| `outage-1-clean.png` | `challenge-drone-outage` | T+51.6 | NOMINAL, HPL 6.9 m, 9 of 22 towers heard |
-| `outage-2-lost.png` | `challenge-drone-outage` | T+66 | UNSAFE latched T+64.8, 5 s after the loss |
-| `outage-3-time-pl-alert.png` | `challenge-drone-outage` | T+142.7 | HPL 2,386 m above the 896 m error; time PL alarm T+138.9; the real Rogers sites on the map |
-| `jump-1-flagged.png` | `challenge-drone-spoof-jump` | T+152 | GPS rejected latched T+150.0 |
-| `jump-2-hpl-grows.png` | `challenge-drone-spoof-jump` | T+173.9 | UNSAFE, HPL 399 m above the 93 m error |
-| `jump-3-followed.png` | `challenge-drone-spoof-jump` | T+186.3 | NOMINAL, HPL 7.4 m, error 299.5 m: the output follows the jump (#184); alerts still listed |
-| `time-1-flagged.png` | `challenge-timing-time-spoof` | T+153 | time spoof alarm latched T+151.2 |
-| `time-2-time-pl-alert.png` | `challenge-timing-time-spoof` | T+233 | clock error below the time PL; time PL alarm T+230.4 |
-| `real-dash-today.png` | `20261110-1623-static-out-e5060-lte` (real) | — | NO DATA: no origin in a real session |
+| File | Scenario | Estimator | Panel time | Shows |
+| --- | --- | --- | --- | --- |
+| `outage-1-clean.png` | `challenge-drone-outage` | `ekf` | T+51.7 | NOMINAL, HPL 7.4 m, error 1.0 m; `lte` under *Not in use* |
+| `outage-2-lost.png` | `challenge-drone-outage` | `ekf` | T+67.6 | UNSAFE latched T+64.8, HPL 87.4 m, error 19.0 m; *GPS not in use* |
+| `outage-3-bound.png` | `challenge-drone-outage` | `ekf` | T+101.2 | UNSAFE, HPL 864.7 m above the 335.1 m error |
+| `jump-1-flagged.png` | `challenge-drone-spoof-jump` | `ekf` | T+154.3 | DEGRADED, *GPS rejected* latched T+150.0, HPL 45.4 m |
+| `jump-2-unsafe.png` | `challenge-drone-spoof-jump` | `ekf` | T+174.6 | UNSAFE, HPL 415.1 m above the 97.3 m error |
+| `jump-3-followed.png` | `challenge-drone-spoof-jump` | `ekf` | T+189.6 | NOMINAL, HPL 6.9 m, error 300.4 m: the output follows the jump; alerts cleared at T+176.7, still listed |
+| `guard-1-refused.png` | `challenge-drone-gps-return` | `ekf-guard` | T+180.0 | UNSAFE, HPL 549.2 m, error 133.0 m; GPS refused |
+| `guard-2-before-end.png` | `challenge-drone-gps-return` | `ekf-guard` | T+193.9 | UNSAFE, HPL 947.6 m above the 254.6 m error, just before the spoofer stops at T+200 |
+| `guard-3-readmitted.png` | `challenge-drone-gps-return` | `ekf-guard` | T+210.0 | NOMINAL, HPL 6.9 m, error 0.8 m: real GPS back; alerts cleared at T+199.9, still listed |
+
+The 2026-11-10 screenshots in `analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/` (commit `8cea8cf`) still show the time spoof and the real-session panel (`real-dash-today.png`: NO DATA, no origin in a real session). Their wording predates the fix in `7f6596f` (*GPS lost … towers*, *Low trust*).

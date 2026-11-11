@@ -39,7 +39,7 @@ plot path *args="":
 dash path *args="":
     {{py}} pnt dash {{path}} {{args}}
 
-# The judging demo, one segment at a time: check | outage | jump | time | stage | real | live
+# The judging demo, one segment at a time: check, outage, jump, guard, time, stage, real, live
 # (deploy/demo/RUNBOOK.md). The script runs without just: deploy/demo/demo.sh <segment>
 demo segment="stage" *args="":
     bash deploy/demo/demo.sh {{segment}} {{args}}
