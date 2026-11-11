@@ -1,6 +1,6 @@
 # Raspberry Pi 4B setup
 
-Step-by-step with the Pi in hand (day-1 test, captures, base station): [`RUNBOOK.md`](RUNBOOK.md). The day-1 test is scripted in `day1.sh`.
+Step-by-step with the Pi in hand (day-1 test, captures, base station): [`RUNBOOK.md`](RUNBOOK.md). The day-1 test is scripted in `day1.sh`. Which of its numbers size the sim's board capture faults: [`REHEARSAL.md`](REHEARSAL.md) (#53).
 
 Raspberry Pi OS Lite (64-bit). The payload Pi runs Trixie (Debian 13); see the Imager notes in [`RUNBOOK.md`](RUNBOOK.md) A1. Hostname `pnt`, user `pi`, reachable as `pi@pnt.local`.
 
