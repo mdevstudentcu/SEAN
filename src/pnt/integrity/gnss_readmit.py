@@ -1,4 +1,4 @@
-"""Re-admit GNSS that the towers keep out only because they are overconfident (#246, ADR-0048).
+"""Re-admit GNSS that the towers keep out only because they are overconfident (#246, ADR-0050).
 
 Why: the EKF's chi-square gate judges a GNSS fix against the filter's own covariance. Real LTE
 records told 1 to 5 m (their double differences wander 1 to 45 m) keep that covariance near a few
@@ -42,7 +42,7 @@ Limits (stated, not handled):
 - **It reopens the slow-spoof hole.** On sim `spoof-ramp` it re-admitted the ramp once in two runs
   for `ekf`, `ekf-imu`, `ekf-guard` and `ekf-imu-guard` (misleading epochs per run 1,441 to 2,026
   to 2,060), and on `challenge-drone-spoof-jump` once for `ekf-imu`: the towers' test and the IMU
-  velocity check did not hold a smooth spoof (ADR-0048, `analysis/readmit_attacks.py`). Opt-in
+  velocity check did not hold a smooth spoof (ADR-0050, `analysis/readmit_attacks.py`). Opt-in
   only; not fit to be a default.
 - The window and the bounds assume Gaussian errors. `wait_s` is not derived (TBC).
 """

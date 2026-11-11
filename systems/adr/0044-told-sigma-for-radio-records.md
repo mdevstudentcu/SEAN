@@ -42,7 +42,7 @@ The sim's error sizes are placeholders, two to three times what ADR-0036 measure
 
 ## Decision
 
-> ADR-0048 (Proposed) asks to change two defaults for a real capture's records only: B's σ and `arc_bias`.
+> ADR-0050 (Proposed) asks to change two defaults for a real capture's records only: B's σ and `arc_bias`.
 
 **Option 1** (accepted by the owners, 2026-11-11).
 - B is added opt-in as `ekf-measured-sigma` and `ekf-calibrated-measured-sigma` (`nav/told_sigma.py`), beside A's opt-in estimators.

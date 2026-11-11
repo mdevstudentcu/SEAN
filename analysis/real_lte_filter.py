@@ -1,4 +1,4 @@
-"""The filter changes of ADR-0048 on real LTE records (#214, #246), each alone and combined:
+"""The filter changes of ADR-0050 on real LTE records (#214, #246), each alone and combined:
 a real static session replayed with GPS cut in software, scored against the withheld fixes.
 
     python analysis/real_lte_filter.py NAME=<session>-lte ... [--configs ...] [--jobs 3]
@@ -35,7 +35,7 @@ from pnt import experiments, nav
 from pnt.integrity.gnss_readmit import GnssReadmit
 
 HERE = Path(__file__).resolve().parent
-RADIUS_M = 10_000.0  # d: cells.MAX_RANGE_KM, the lookup's own assumption (ADR-0048, TBC)
+RADIUS_M = 10_000.0  # d: cells.MAX_RANGE_KM, the lookup's own assumption (ADR-0050, TBC)
 
 MAIN = {"capture_sigma_model": None, "arc_bias": False}
 A = {"capture_sigma_model": "adr0036", "arc_bias": False}

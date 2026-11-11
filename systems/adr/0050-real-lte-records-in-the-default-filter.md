@@ -1,4 +1,4 @@
-# ADR-0048: What the EKF does with a real capture's LTE records
+# ADR-0050: What the EKF does with a real capture's LTE records
 
 - **Status:** Proposed
 - **Date:** 2026-11-11

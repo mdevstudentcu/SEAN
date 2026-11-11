@@ -1,4 +1,4 @@
-"""The EKF and real LTE records (#214, #246, ADR-0048 Proposed).
+"""The EKF and real LTE records (#214, #246, ADR-0050 Proposed).
 
 - a: a real capture's records (`meta.sample_index`) are told ADR-0036's measured sigma by
   default; the sim's front-end-shaped records keep the sigma they report.
