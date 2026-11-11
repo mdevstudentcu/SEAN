@@ -97,7 +97,9 @@ exactly as before.
   Proposed), never their reported sigma. Counted as the reported 2 m, the first two records
   pinned the dongle clock's drift so tightly that every later record of the cell was rejected
   (#147). 40 m is above every 1-10 s error measured on real static captures (up to 38 m, weak
-  cells; #173).
+  cells; #173). A real capture's record that ADR-0050 retells (`meta.sample_index`) starts from
+  its retold sigma instead, and keeps ADR-0050's bias per new arc (ADR-0039 amendment,
+  Proposed); the learner stays one per cell across its arcs. Sim records keep the 40 m prior.
 - Weak evidence is skipped or down-weighted: an innovation whose state part (S less the noise)
   exceeds the variance learned so far is not counted, and the others count with weight
   (noise / (noise + state part))^2, the precision of a variance sample relative to a pure noise
@@ -886,9 +888,7 @@ class EKF:
         model = MODELS.get(m.kind)
         if model is None:
             return  # not modelled yet
-        sigma_model = self.told_sigma_model
-        if sigma_model is None and told_sigma.from_capture(m):
-            sigma_model = self.capture_sigma_model  # a real capture's record (ADR-0050)
+        sigma_model = self._sigma_model(m)
         if sigma_model is not None:
             m = told_sigma.retold(m, sigma_model)  # a radio record's sigma from its SNR
         if m.kind == "rssi" and (self.hostile is None or not m.meta.get("hostile")):
@@ -1146,6 +1146,21 @@ class EKF:
         return self._emitter_pos[m.emitter]
 
     # --- range noise of a radio's records -------------------------------------------------------
+    def _sigma_model(self, m: Measurement) -> str | None:
+        """The `told_sigma` model for `m`: `told_sigma_model`, else `capture_sigma_model` for a
+        real capture's record (ADR-0050), else None (the reported sigma)."""
+        if self.told_sigma_model is None and told_sigma.from_capture(m):
+            return self.capture_sigma_model  # a real capture's record (ADR-0050)
+        return self.told_sigma_model
+
+    def noise_prior_variance(self, m: Measurement) -> float:
+        """The learned range noise's prior for a radio's record `m` (as retold): `noise_prior_m`
+        squared, except for a real capture's record that ADR-0050 retold, whose retold sigma
+        squared takes its place (ADR-0039 amendment, Proposed). A sim record keeps the prior."""
+        if told_sigma.from_capture(m) and self._sigma_model(m) and told_sigma.retellable(m):
+            return m.sigma[0] ** 2
+        return self.noise_prior_var
+
     def range_variance(self, m: Measurement) -> float:
         """Range noise variance of a pseudorange, white and multipath together. A record without
         `meta.rx_clock` gets its reported sigma squared, as always. A radio's record gets the
@@ -1157,7 +1172,7 @@ class EKF:
         if not self.noise_tau_ns:
             return r
         acc = self._noise.get(m.emitter, (0, 0.0, 0.0))
-        return max(r, (self.noise_prior_var + acc[2]) / (1.0 + acc[1]))  # prior: one sample
+        return max(r, (self.noise_prior_variance(m) + acc[2]) / (1.0 + acc[1]))  # prior: 1 sample
 
     def _learn_noise(self, m: Measurement, R: float) -> None:
         """Add the last innovation to its emitter's learned variance: its square less what the

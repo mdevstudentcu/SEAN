@@ -2,7 +2,9 @@
 can be far too small (#147). The opt-in estimators (ADR-0039) learn the range noise of such
 records (`meta.rx_clock`) from their innovations, with the reported sigma as a lower bound only.
 Records without `rx_clock` (the simulator's) keep their reported sigma exactly, and the default
-estimators keep every record's reported sigma.
+estimators keep every sim record's reported sigma. A real capture's record (`meta.sample_index`),
+which ADR-0050 retells, starts the learner at its retold sigma and keeps ADR-0050's bias per new
+arc (ADR-0039 amendment, Proposed).
 
 Thresholds are regression guards with the observed values in comments, not requirements.
 """
@@ -12,7 +14,7 @@ import pytest
 from msgspec.structs import replace
 
 from pnt.core.measurement import Measurement
-from pnt.nav import ESTIMATORS, ekf
+from pnt.nav import ESTIMATORS, configured, ekf, told_sigma
 
 TOWERS = np.array([[2000.0, 0, 50], [-1000, 1800, 60], [-900, -1700, 40], [300, 2500, 45]])
 OUTAGE_S = (90.0, 270.0)
@@ -221,3 +223,67 @@ def test_the_learning_estimators_are_opt_in():
     assert learned.keywords == {"noise_tau_s": ekf.CALIBRATED_NOISE_TAU_S}
     records, _ = stream()
     assert list(learned(records)) != list(ekf.run_calibrated(records))  # it does learn
+
+
+# --- a real capture's records after ADR-0050 (ADR-0039 amendment, Proposed) -------------------
+CAPTURE = {"snr_db": 10.0, "n_epochs": 200}  # 1 s of 5 ms epochs: every record told the same
+ARC_STEP = (0, 100.0, 300.0)  # tower 0's range steps 300 m at 100 s (in the outage), a new arc
+
+
+def radio_records(capture: bool):
+    """`stream()`'s radio records with an SNR and length, tower 0 re-found as a new arc with a
+    range step at `ARC_STEP`; with `capture`, each record indexes its IQ file (`sample_index`)."""
+    records, _ = stream()
+    tower, t_s, step = ARC_STEP
+    out = []
+    for k, m in enumerate(records):
+        if m.kind == "pseudorange":
+            meta = m.meta | CAPTURE | ({"sample_index": k} if capture else {})
+            value = m.value
+            if m.emitter == f"lte:{tower}":
+                meta["arc"] = int(m.t_ns >= t_s * 1e9)
+                value = (m.value[0] + (step if meta["arc"] else 0.0),)
+            m = replace(m, meta=meta, value=value)
+        out.append(m)
+    return out
+
+
+@pytest.mark.parametrize(
+    ("name", "run", "tau_s"),
+    [
+        ("ekf-learned-noise", ekf.run, ekf.NOISE_TAU_S),
+        ("ekf-calibrated-learned-noise", ekf.run_calibrated, ekf.CALIBRATED_NOISE_TAU_S),
+    ],
+)
+def test_a_real_capture_starts_the_learner_at_its_retold_sigma_and_keeps_the_arc_bias(
+    name, run, tau_s
+):
+    """On a real capture's records the learning estimator equals one that retells every record,
+    starts from the retold sigma and gives each new arc its own bias, on the same records
+    without `sample_index`. Starting from 40 m, or without the arc bias, it would differ."""
+    told = told_sigma.sigma_m(CAPTURE["snr_db"], CAPTURE["n_epochs"])  # 24.6 m
+    learned = list(ESTIMATORS[name](radio_records(capture=True)))
+    sim = radio_records(capture=False)
+
+    def explicit(**kw):
+        config = {"noise_tau_s": tau_s, "told_sigma_model": "adr0036", "arc_bias": True}
+        return list(configured(run, **(config | kw))(sim))
+
+    assert learned == explicit(noise_prior_m=told)
+    assert learned != explicit(noise_prior_m=40.0)
+    assert learned != explicit(noise_prior_m=told, arc_bias=False)
+
+
+def test_a_sim_record_keeps_the_40_m_prior_and_no_arc_bias():
+    """Without `sample_index` nothing of ADR-0050 reaches the learner: it is the pre-ADR-0050
+    learner (reported sigma, 40 m prior, no arc bias)."""
+    sim = radio_records(capture=False)
+    before = configured(ekf.run, noise_tau_s=ekf.NOISE_TAU_S, capture_sigma_model=None,
+                        arc_bias=False, noise_prior_m=40.0)  # fmt: skip
+    assert list(ESTIMATORS["ekf-learned-noise"](sim)) == list(before(sim))
+    f = learning()
+    lte_sim = next(m for m in sim if m.kind == "pseudorange")
+    assert f.noise_prior_variance(lte_sim) == 40.0**2
+    lte_capture = told_sigma.retold(replace(lte_sim, meta=lte_sim.meta | {"sample_index": 0}),
+                                    "adr0036")  # fmt: skip
+    assert f.noise_prior_variance(lte_capture) == pytest.approx(lte_capture.sigma[0] ** 2)
