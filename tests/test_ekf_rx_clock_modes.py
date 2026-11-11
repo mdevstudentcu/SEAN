@@ -81,3 +81,23 @@ def test_observed_mode_matches_off_without_a_time_source_and_on_with_one():
 def test_an_unknown_mode_is_refused():
     with pytest.raises(ValueError):
         ekf.EKF(pseudorange_receiver_clock="sometimes")
+
+
+def _outage_error(meas, outage_from=100.0, **config) -> float:
+    """Largest horizontal error after GNSS is lost."""
+    worst = 0.0
+    for e in ekf.run(meas, **config):
+        t = e.t_ns / 1e9
+        if t >= outage_from:
+            truth = np.array([100 * np.cos(0.05 * t), 100 * np.sin(0.05 * t)])
+            worst = max(worst, float(np.hypot(*(np.array(e.pos_enu[:2]) - truth))))
+    return worst
+
+
+def test_default_keeps_our_clock_drift_out_of_the_position_req01():
+    """ADR-0047: by default `ekf` models our clock in the tower ranges once GNSS time is used, so
+    a 20 ppb (6 m/s) clock in every tower reading does not drag the position in a 200 s outage
+    (#228). Left out (the old default), the position follows the drift for kilometres."""
+    meas = _run(gnss_time=True, duration=300.0)
+    assert _outage_error(meas) < 50.0  # regression guard, not a target: 12.4 m on this seed
+    assert _outage_error(meas, pseudorange_receiver_clock=False) > 500.0  # 1,796 m

@@ -164,7 +164,10 @@ def test_budget_reads_the_scenario_and_the_filter():
     assert env.rx_in_ranges and env.rx_drift == pytest.approx(5.996, rel=1e-3)
     cal, plain = ab.filter_model("ekf-calibrated", env), ab.filter_model("ekf", env)
     assert cal.rx_in_ranges and cal.calibrated and cal.pos_sigma == 100.0
-    assert not plain.rx_in_ranges and not plain.calibrated and plain.mp_sigma == 0.0
+    # ADR-0047: `ekf` puts our clock in the ranges once GNSS time is used, and this set has it
+    assert plain.rx_in_ranges and not plain.calibrated and plain.mp_sigma == 0.0
+    no_time = replace(env, gnss_time_sigma_m=None)
+    assert not ab.filter_model("ekf", no_time).rx_in_ranges
     assert ab.filter_model("ekf-imu", env).motion == "imu"
 
 
