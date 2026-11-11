@@ -1,4 +1,4 @@
-# Study leg, not part of the challenge benchmark (ADR-0037, Proposed): the UC-01 leg with carrier
+# Study leg, not part of the challenge benchmark (ADR-0040, Proposed): the UC-01 leg with carrier
 # hopping (#173), challenge-drone.yaml (ADR-0030, Proposed) with one dongle dwelling on several
 # LTE carriers in turn instead of EARFCN 2460 alone (sim/lte_front_end.py, `Hop`). The payload's
 # recorder cannot hop yet. Everything else, attack menu included, is challenge-drone's, value for
