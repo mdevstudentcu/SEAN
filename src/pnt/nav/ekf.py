@@ -1546,7 +1546,9 @@ CALIBRATED_NOISE_TAU_S = 120.0
 # absorb our 20 ppb drift and the position took the rest: on `realistic-long-outage` (#228) the
 # error was above HPL in 91 % of epochs after GPS loss (tuning seeds 1000-1049). A radio's
 # records (`meta.rx_clock`, every `challenge-drone` and `-timing` record) use their dongle's own
-# clock either way, so on those legs this switch changes nothing.
+# clock either way, so on those legs this switch changes nothing. `ekf`'s default, "observed"
+# (ADR-0047), puts the term in only once GNSS time has been used; True keeps it in from the first
+# record, also on a run without GNSS time (ADR-0046).
 HONEST: dict = {
     "noise_tau_s": NOISE_TAU_S,
     "multipath_ratio": 1.0,  # slow / white sigma of a radio's range error (TBC)
