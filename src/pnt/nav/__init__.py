@@ -69,6 +69,11 @@ ESTIMATORS = {
     # from their SNR instead of the front end's (nav/told_sigma.py)
     "ekf-measured-sigma": configured(ekf.run, told_sigma_model="adr0036"),
     "ekf-calibrated-measured-sigma": configured(ekf.run_calibrated, told_sigma_model="adr0036"),
+    # opt-in (#147, ADR-0039): learn a radio's LTE range noise from its innovations
+    "ekf-learned-noise": configured(ekf.run, noise_tau_s=ekf.NOISE_TAU_S),
+    "ekf-calibrated-learned-noise": configured(
+        ekf.run_calibrated, noise_tau_s=ekf.CALIBRATED_NOISE_TAU_S
+    ),
 }
 
 log = logging.getLogger(__name__)
