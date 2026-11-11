@@ -860,6 +860,40 @@ def sweep_table(p: dict) -> list[str]:
     return lines
 
 
+LIMITS = (
+    "## Limits and not checked",
+    "",
+    "- **Sim only.** Every LTE error size is a placeholder (`TBC`, ADR-0015). On real static "
+    "replays every LTE-aided run was worse than no LTE (PR #233, PR #240: new front-end arcs "
+    "start hundreds of metres from where the last ended), and learned noise, which `ekf-honest` "
+    "builds on, held its HPL on 94 % and 48 % of epochs there (PR #240). Nothing here shows the "
+    "bound holds on real data; `ekf-honest` was not replayed on a real session.",
+    "- **Seeds.** 1 carrier and the realistic set: held-out seeds 0–199; the timing and approach "
+    "legs and the IMU-bias mismatch case: 0–49; 6 and 13 carriers: 0–19 only (`ekf-honest` takes "
+    "10 to 40 s a run there, one multipath state per heard cell); the sweep: 0–49 (1 carrier) and "
+    "0–9 (13 carriers); `mhss`: 0–19, 1 carrier.",
+    "- **Model mismatch** ran on 1 carrier only; the truth's LTE white and multipath sigma were "
+    "scaled together, never the correlation time (the sweep moves the filter's instead).",
+    "- **IMU bias:** `ekf` and `ekf-honest` do not use the IMU (constant-velocity motion), so "
+    "the IMU-bias entry equals `outage` for them; `ekf-imu` was not run.",
+    "- **Calibrated family:** `ekf-calibrated` and `-learned-noise` were measured on 1 carrier "
+    "(tuning seeds) only; their 6- and 13-carrier runs (8 min and 1.6 GB a run) were stopped. "
+    "No fix is proposed for them.",
+    "- **PR #241** (keep a GNSS fix's horizontal when only its height fails the 3-D gate; not on "
+    "this branch) would change only epochs where GNSS is present and the barometer has drifted: "
+    "the last 60 s of the drone `outage-baro-drift` runs (GPS back at 660 s after 96 m of baro "
+    "drift; HPL ≤ 50 m on 0.7 % of epochs against 9.8 % on `outage`) and `realistic/baro-drift` "
+    "(GNSS never lost, refused once the drift exceeds the gate). It cannot change an outage "
+    "epoch.",
+    "- **Real barometer.** A BMP180 told 0.3 m read −3.4 to +77.5 m on a static receiver (PR "
+    "#241); the sim's barometer is white 0.5 m plus a 1 m bias. Not modelled here.",
+    "- **Hop entries and the sweep** were run at different commits from the 1-carrier part "
+    "(provenance lines); the estimator code is the same in all of them, except the "
+    "receiver-clock switch, which changes no drone or timing record (test) and is why the "
+    "approach leg was rerun.",
+)
+
+
 def write_summary(plans: dict, out: Path, figures: list[str], diagnosis: str) -> None:
     L: list[str] = ["# Honest bound after GPS loss (#226)", ""]
     L += [
@@ -887,7 +921,10 @@ def write_summary(plans: dict, out: Path, figures: list[str], diagnosis: str) ->
         "*HPL ≤ 50 m*: share of epochs from the fault with HPL under the alert limit (the bound "
         "usable for the 50 m alert limit, `TBC`). *Unsafe*: median seconds from GPS loss to HPL "
         "over 50 m. *p95 worst*: ADR-0034's statistic, the worst second of the across-run 95th "
-        "percentile of error over 0–300 s. *Tightness* and *p95 worst* count from GPS loss, "
+        "percentile of error over 0–300 s. *HPL bound* as PR #240 and `pnt.metrics` name it "
+        "(`hpl_bound_frac`) is 1 − *above HPL, whole run*; PR #240 reports, on the sim drone leg "
+        "(seeds 200–249, its own window), 0.67 for `ekf`, 0.95 for learned noise and 1.00 with no "
+        "LTE. *Tightness* and *p95 worst* count from GPS loss, "
         "or on the GNSS attack entries (jump, meaconing, ramp) from the attack's start.",
         "",
     ]
@@ -960,7 +997,7 @@ def write_summary(plans: dict, out: Path, figures: list[str], diagnosis: str) ->
         if p:
             L += [f"## {title}", "", _provenance(p), "", ROW_HEAD, *rows_of(p), ""]
     errs = sum(len(p["errors"]) for p in plans.values())
-    L += [f"Runs that raised: {errs}.", ""]
+    L += [f"Runs that raised: {errs}.", "", *LIMITS, ""]
     (out / "summary.md").write_text("\n".join(L))
 
 
@@ -1043,7 +1080,8 @@ def diagnosis(plans: dict) -> str:
         "|---|---|---|---|---|---|",
         *[line(d, n, c, w) for (n, c), w in zip(DIAGNOSE, what, strict=True)],
         "",
-        "| Same, 13 carriers | above HPL from loss | worst run | NEES mean | NEES > K² | "
+        "| Same, 13 carriers (first 10 seeds) | above HPL from loss | worst run | NEES mean | "
+        "NEES > K² | "
         "tightness |",
         "|---|---|---|---|---|---|",
         *[line(d13, n, c, w) for (n, c), w in zip(DIAGNOSE, what, strict=True)],
@@ -1055,11 +1093,19 @@ def diagnosis(plans: dict) -> str:
         + " (the larger axis; `challenge-drone-outage` seed 1000). Under 1 up to 10 s, up to "
         "2.2 at 60 s and above: the turns are correlated, not white. A larger q_accel helps "
         "the stretches just after loss but makes HPL larger everywhere.",
-        "   - (b) **Covariance collapse on a few accepted ranges** is case 1 (2 m believed); "
-        "with learned noise and its curvature term (ADR-0039) it is the averaging of a "
-        "correlated error, row 1.",
-        "   - (c) **Clock states:** a tower clock random walk 5 × larger changes the escape "
-        "share little (row 3).",
+        "   - (b) **Covariance collapse on a few accepted ranges** is case 1 (2 m believed). "
+        "What still escapes with the fix (3 of 50 tuning runs above 1 %: seeds 1038, 1041, "
+        "1028) escapes while the position is already 1 to 1.4 km off and new cells are first "
+        "heard (seed 1041: 7 cells at 240 s, escape 240–276 s; seed 1038: one at 218 s, escape "
+        "210–265 s): their clocks start at the wrong position and a few of their ranges pull "
+        "the covariance in, a linearisation-point problem the fix does not address. Starting "
+        "a new cell's slow state at its learned share was tried on these seeds and did not "
+        "help (0.59 %, worst 8.6 %); not adopted.",
+        "   - (c) **Clock states:** on 1 carrier a tower clock random walk 5 × larger changes "
+        "the escape share little (row 3). On 13 carriers it removes most of the (already "
+        "small) escape and the NEES stays near 4 with or without the fix: there the tower "
+        "clocks, not the slow range error, are the larger model error (10 seeds; not changed "
+        "here). On `realistic-long-outage` our own clock in the ranges is the cause (below).",
         "   - (d) **K:** K_H = 5.33 on the largest horizontal sigma. With the slow error as a "
         "state the NEES mean is near 2 and NEES > K² rare, so the covariance, not K, was wrong; "
         "no empirical inflation is used.",
