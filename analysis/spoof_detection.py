@@ -2,7 +2,7 @@
 
 One command, from a clean commit:
 
-    python analysis/spoof_detection.py --seeds 50 --mhss-seeds 5 --jobs 2
+    python analysis/spoof_detection.py --seeds 50 --mhss-seeds 5 --jobs 5
 
 writes `summary.md` (the tables) and `detection.png` to `analysis/results/spoof-detection/`
 (committed, so only from a clean tree: REQ-10), and one row per run to
@@ -19,8 +19,8 @@ Runs: `nominal`, `outage`, `spoof-ramp`, `spoof-jump` (300 m) and `time-spoof` o
 estimator pair being the unchanged estimator and the same one with `integrity.spoof_monitor`
 (`ekf` / `ekf-spoof`, `ekf-calibrated` / `ekf-calibrated-spoof`), paired on the same seeds;
 `ekf-mhss` on `--mhss-seeds`. The monitor is for the slow ramp; the jump and the time spoof are
-controls (it must not lose what the filter already catches). Jumps are studied in #176, and
-refusing a detected jump is #184.
+controls (it must not lose what the filter already catches). Jumps are studied in #176;
+refusing a detected jump is the opt-in jump guard (ADR-0038, `ekf-guard`, #191).
 
 Seeds 0 to N-1 are the reported seeds. The monitor's settings were chosen on seeds 100-109.
 """
@@ -356,7 +356,8 @@ def summary(data: dict) -> str:
         "",
         "The monitor is for the slow ramp. The 300 m jump and the time spoof are controls: the "
         "monitor must not lose what the filter already catches. Jumps (sizes, directions, what "
-        "the output does after one) are studied in #176; refusing a detected jump is #184.",
+        "the output does after one) are studied in #176; refusing a detected jump is the opt-in "
+        "jump guard (ADR-0038, `ekf-guard`, merged in #191), not run here.",
         "",
         "## Detection per attack",
         "",
