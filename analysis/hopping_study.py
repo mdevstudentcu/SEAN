@@ -272,6 +272,18 @@ def _m(x: float) -> str:
     return f"{x:,.0f}"
 
 
+def _reproduced(data: dict) -> str:
+    """Where the numbers were checked when the commit that made them is not in the repo
+    (REQ-10): a later commit and the seeds re-run at it (`reproduced` in study.json)."""
+    r = data.get("reproduced")
+    if not r:
+        return ""
+    return (
+        f" {data['commit']} is not in the repo. Reproduced at {r['commit']}: `{r['command']}` "
+        f"(seeds {r['seeds']}, every configuration and told sigma) {r['match']}."
+    )
+
+
 def summary(data: dict) -> str:
     rows, n = data["rows"], data["seeds"]
     seeds = f"seeds 0–{n - 1}"
@@ -282,7 +294,7 @@ def summary(data: dict) -> str:
         f"{data['elapsed_min']:.1f} min. Scenarios `{ONE_CARRIER}` and `{HOPPING}`, the drone "
         "leg's 600 s outage; filters unchanged. Targets (`TBC`): the mentors' "
         f"{MENTOR_M:.0f} m at {MENTOR_S} s (#158) and our T1, {T1_M:.0f} m at {T1_S} s, both "
-        "p95 horizontal error after GPS loss.",
+        "p95 horizontal error after GPS loss." + _reproduced(data),
         "",
         "## Verdict",
         "",
@@ -443,7 +455,9 @@ def plot(data: dict, out: Path) -> None:
                fontsize=7.5, frameon=False)  # fmt: skip
     fig.suptitle(
         f"Carrier hopping study, drone leg outage ({ONE_CARRIER}, {HOPPING}): "
-        f"seeds 0–{data['seeds'] - 1}, {data['commit']} (sim, every value TBC)",
+        f"seeds 0–{data['seeds'] - 1}, {data['commit']}"
+        + (f", reproduced at {data['reproduced']['commit']}" if data.get("reproduced") else "")
+        + " (sim, every value TBC)",
         fontsize=10,
         x=0.01,
         ha="left",
