@@ -17,10 +17,11 @@ The source of truth for what we are building and why. When code or another doc d
 | [`mentor-qa.md`](mentor-qa.md) | Answers from our Honeywell mentors, dated |
 | [`threat-model.md`](threat-model.md) | Attacks ranked per use case, mapped to scenarios and detections, with the gaps |
 | [`research.md`](research.md) | Summary of our research with cited references, and the novelty check against full papers |
-| [`architecture.md`](architecture.md) | D1 draft: use cases and key requirements, the architecture as built, how the sim aligns to reality, what is real vs simulated |
-| [`roadmap.md`](roadmap.md) | D3 draft: what the week showed, what fixes it, and the phases from hackathon to a product |
-| [`results.md`](results.md) | The evidence in tables, each number with its kind (sim, synthetic, registry, real) and source |
-| [`deck.md`](deck.md) | The 5-minute deck: headline, bullets, figure and speaker notes per slide, and likely judge questions |
+| [`architecture.md`](architecture.md) | D1 draft: principal uses (navigation continuity, status and confidence monitoring) with their requirements, the architecture as built, how the confidence number is computed, how the sim aligns to reality |
+| [`roadmap.md`](roadmap.md) | D3 draft: roadmap to a commercial alternative-navigation product: what the week showed, what fixes it, the phases |
+| [`results.md`](results.md) | The evidence for judges: what is real, the scoreboard on ADR-0034's statistic, what each fix buys, spoofing, what is not shown; each number with its kind and source |
+| [`deck.md`](deck.md) | The 5-minute deck: per slide the headline, content, figure and a word-for-word script, with timings |
+| [`judge-questions.md`](judge-questions.md) | The 15 hardest judge questions: a short answer to say, its source, and what not to claim |
 | [`sim-plan.md`](sim-plan.md) | What the simulation work will build, in what order, and what is still undecided |
 | [`tower-identity.md`](tower-identity.md) | Explainer: how we know which tower we hear and where it is (ISED register, EARFCN + PCI, timing not strength, clocks learned under GPS, unknown towers) |
 
