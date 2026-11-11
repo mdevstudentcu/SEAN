@@ -28,6 +28,13 @@ tower-clock-step:   # one tower's clock jumps
 long-outage:   # GPS lost for the last 300 s of the run (T1 asks for >= 300 s, systems/plan.md)
   - {type: outage, source: gnss, start_s: 60}
 capture-pi4b:   # the Pi 4B payload board's capture effects (ADR-0018, issue #53), not an attack
-  # All TBC, unsourced: placeholders until a rehearsal on the board measures them
-  # (deploy/pi/REHEARSAL.md, ADR-0015)
-  - {type: capture_faults, board: pi4b, gaps_per_min: 0.2, gap_s: 0.05, timestamp_jitter_ms: 1.0, stream_loss: 0.0}
+  # gaps_per_min, gap_s: measured, session 20261111-0040-static-fullsuite (recorded at 4d3598b,
+  # `pnt day1` on the Pi): both radios (1.92 + 2.4 MS/s, SD card) dropped samples 4 times in
+  # 599.4 s, at the same instants on both (starts within 0.5 s), so one shared gap per event:
+  # 0.40 per min. Lengths 1.2 to 8.4 s, mean 4.3 s (dropped_samples_est / gaps / rate_hz, both
+  # radios). The model draws fixed-length gaps; the real ones vary 7x (deploy/pi/REHEARSAL.md).
+  # timestamp_jitter_ms: TBC. The same session's host arrival latency above the envelope is
+  # std 81 / 59 ms, p99 312 / 121 ms (SDR A / B), but records are timed from sample counts
+  # against that envelope, so it is not the record timestamp error this term models (TBD).
+  # stream_loss: TBC, not measured (no laptop recording of the stream in that session).
+  - {type: capture_faults, board: pi4b, gaps_per_min: 0.40, gap_s: 4.3, timestamp_jitter_ms: 1.0, stream_loss: 0.0}
