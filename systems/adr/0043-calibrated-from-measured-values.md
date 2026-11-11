@@ -1,6 +1,7 @@
 # ADR-0043: A calibrated EKF sized from measured values, not from the sim it is scored on
 
-- **Status:** Proposed
+- **Status:** Accepted
+- **Decided:** 2026-11-11 by the owners
 - **Date:** 2026-11-11
 - **Deciders:** team (the owners accept or change each point below)
 - **Traces to:** REQ-02, REQ-10, ADR-0015, ADR-0022, ADR-0034, ADR-0036, #118

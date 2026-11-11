@@ -1,6 +1,7 @@
 # ADR-0041: Decide GNSS spoofing from the known sky, the satellites' power and the other cues
 
-- **Status:** Proposed
+- **Status:** Accepted
+- **Decided:** 2026-11-11 by the owners
 - **Date:** 2026-11-11
 - **Deciders:** the two owners
 - **Traces to:** REQ-02, REQ-04, ADR-0021, ADR-0031, ADR-0037 (#180, Proposed), ADR-0038, #206

@@ -1,6 +1,7 @@
 # ADR-0044: Tell radio LTE records ADR-0036's measured sigma, opt-in, beside learned noise
 
-- **Status:** Proposed
+- **Status:** Accepted
+- **Decided:** 2026-11-11 by the owners
 - **Date:** 2026-11-11
 - **Deciders:** team (the owners choose between the options below)
 - **Traces to:** REQ-01, REQ-02, ADR-0015, ADR-0034, ADR-0036, ADR-0039, #147, #156, #183, #214
@@ -41,7 +42,7 @@ The sim's error sizes are placeholders, two to three times what ADR-0036 measure
 
 ## Decision
 
-Proposed: **option 1**.
+**Option 1** (accepted by the owners, 2026-11-11).
 - B is added opt-in as `ekf-measured-sigma` and `ekf-calibrated-measured-sigma` (`nav/told_sigma.py`), beside A's opt-in estimators.
 - `arc_bias` is an EKF option with no registered estimator.
 - No default changes.

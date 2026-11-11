@@ -1,6 +1,7 @@
 # ADR-0042: Record the radios' IQ to a USB drive, not the SD card
 
-- **Status:** Proposed
+- **Status:** Accepted
+- **Decided:** 2026-11-11 by the owners
 - **Date:** 2026-11-11
 - **Deciders:** team (the owners accept or change it)
 - **Traces to:** REQ-01, REQ-09, REQ-10, RSK-05, RSK-06, ADR-0018, #88, #53
@@ -27,7 +28,7 @@ Gaps at the same instants on both radios, at low CPU and memory load, point to t
 
 ## Decision
 
-Proposed: option B, recording IQ to a USB drive on a USB 2 port. The owners accept or change this.
+Option B, recording IQ to a USB drive on a USB 2 port (accepted by the owners, 2026-11-11).
 
 ## Consequences
 
