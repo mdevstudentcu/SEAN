@@ -82,7 +82,7 @@ Registry: `pnt.nav.ESTIMATORS`.
 | Estimator | What it is |
 | --- | --- |
 | `baseline` | Deliberately simple reference filter, the control |
-| `ekf` | Position, velocity, receiver clock, one clock block per tower, an (offset, drift) block per SDR dongle; Doppler range rate |
+| `ekf` | Position, velocity, receiver clock, one clock block per tower, an (offset, drift) block per SDR dongle; our clock in the tower ranges once GNSS time is used ([ADR-0047](adr/0047-ekf-models-our-clock-in-tower-ranges.md), Accepted); Doppler range rate, though the LTE front end writes no doppler records by default since #245 |
 | `ekf-calibrated` | Tower clocks per site under a shared network-builder term, learned only while GNSS is trusted, rolled back when GNSS is flagged ([ADR-0022](adr/0022-tower-clock-model.md), Proposed) |
 | `ekf-imu` | `ekf` with IMU-driven prediction |
 | `ekf-mhss` | `ekf` with solution-separation bounds and exclusion |

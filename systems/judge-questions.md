@@ -82,10 +82,10 @@
 
 ## 12. What about timing?
 
-> Second priority, as the mentors asked. In simulation the timing receiver stays within 1.5 microseconds after ten minutes on 49 of 50 runs, and a 50 nanosecond-per-second time drag is caught in a median of 3.3 seconds. Our bound on time is cautious, not certified.
+> Second priority, as the mentors asked. In simulation the timing receiver stays within 1.5 microseconds after ten minutes on 49 of 50 runs, and a 50 nanosecond-per-second time drag is caught in a median of 3.3 seconds. Elsewhere our time bound is overconfident.
 
-- **Source:** #170 (merged, #250; T3 missed on one seed at 1.55 µs; `ekf-calibrated`'s σ bound fails on 13 seeds); RUNBOOK (time PL calls time unsafe early). Real: PPS discipline on the Pi, 769 ns standard deviation (#216, merged; ASM-04).
-- **Do not claim:** that T3 is met, or a real holdover number.
+- **Source:** #170 (merged, #250; T3 missed on one seed at 1.55 µs; `ekf-calibrated`'s σ bound fails on 13 seeds); RUNBOOK (time PL calls time unsafe early). Elsewhere: since ADR-0047 (Accepted, cost accepted by the owners) the default `ekf` has 22 to 316 time-misleading epochs per run on the realistic, worst and approach sets ([`pr-evidence/228/before-after.md`](../analysis/pr-evidence/228/before-after.md), `73c9e9b`). Real: PPS discipline on the Pi, 769 ns standard deviation (#216, merged; ASM-04).
+- **Do not claim:** that T3 is met, that the time bound is honest on every set, or a real holdover number.
 
 ## 13. What would another month buy?
 
