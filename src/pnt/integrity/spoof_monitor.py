@@ -18,7 +18,12 @@ horizontal line of sight. So:
   common term per epoch (two-way least squares). That removes every clock and the constant part
   of each site's bias: tower time never counts for or against GNSS (ADR-0024), only geometry.
 - Per site, delta_i = mean over the last `window_s` minus mean over the `window_s` ending
-  `lag_s` earlier. A site counts if heard in at least half of each window.
+  `lag_s` earlier. A site counts if heard in at least half of each window's epochs on which
+  one of its own carriers was on air (ADR-0037, amendment for carrier hopping). A carrier is on
+  air at an epoch if any reading on it (`meta.earfcn`) falls there. With one carrier, or none
+  named, that is every epoch with a reading, so the rule is the plain "half of each window".
+  A dongle hopping 13 carriers hears a site's carrier on about 1 epoch in 13; counted against
+  every epoch, no site would count and the monitor would never have an opinion (#258).
 - Across sites: delta_i = c + u_i . g + e_i, by least squares, with g the displacement of the
   GNSS position against the towers over `lag_s` (sign aside) and c what is common. The e_i are
   taken as independent across sites with one unknown variance (multipath and noise are per
@@ -31,6 +36,11 @@ horizontal line of sight. So:
   are not counted twice).
 - No opinion with fewer than `min_sites` sites in both windows: one to three towers cannot
   separate a GNSS displacement from the common clock (2 position unknowns and 1 clock).
+- On hopped carriers a site's delta rests on one or two readings per window, and the common
+  term of an epoch comes from the few sites on that carrier, so it takes part of their
+  displacement: g is biased low and the deltas of one dwell are correlated. F(2, dof) is then
+  an approximation, checked on tuning seeds (ADR-0037, amendment for carrier hopping); the
+  threshold is unchanged.
 - Sliding, not anchored: the test compares GNSS now with GNSS `lag_s` ago, so it needs no
   calibration from before the spoof and a slow ramp cannot be learned as normal. Its power is
   set by how much the towers' own errors change over `lag_s` (multipath correlated over tens of
@@ -118,33 +128,51 @@ def f_threshold(p: float, dof: int) -> float:
     return dof / 2.0 * (p ** (-2.0 / dof) - 1.0)
 
 
+def _carrier(row: tuple) -> object:
+    """The carrier a reading row was on: its sixth field, None for a row without one."""
+    return row[5] if len(row) > 5 else None
+
+
 def towers_test(
-    rows: list[tuple[int, str, float, float, float]], t_ns: int, lag_ns: int, win_ns: int
+    rows: list[tuple], t_ns: int, lag_ns: int, win_ns: int
 ) -> tuple[np.ndarray, np.ndarray, float, int] | None:
-    """One tower displacement test over `rows` (t_ns, site, residual, u_e, u_n) ending at
-    `t_ns`. Returns (g, A, s2, n): the displacement fit, its (X'X)^-1 block, the residual
-    variance of the fit and the number of sites; None with fewer than 4 sites (no variance)."""
+    """One tower displacement test over `rows` (t_ns, site, residual, u_e, u_n[, carrier])
+    ending at `t_ns`. Returns (g, A, s2, n): the displacement fit, its (X'X)^-1 block, the
+    residual variance of the fit and the number of sites; None with fewer than 4 sites (no
+    variance). A site counts if heard on at least half of each window's epochs on which one of
+    its carriers was on air (module docstring); rows without a carrier are all one carrier."""
     start = t_ns - lag_ns - win_ns
     w = [r for r in rows if start < r[0] <= t_ns]
     if not w:
         return None
     epochs = sorted({r[0] for r in w})
     sites = sorted({r[1] for r in w})
+    carriers = sorted({_carrier(r) for r in w}, key=repr)
     ei = {x: i for i, x in enumerate(epochs)}
     si = {s: i for i, s in enumerate(sites)}
+    ci = {c: i for i, c in enumerate(carriers)}
     R = np.full((len(sites), len(epochs)), np.nan)
     U = np.zeros((len(sites), 2))
     nu = np.zeros(len(sites))
+    on_air = np.zeros((len(carriers), len(epochs)), dtype=int)  # a reading on it there
+    heard_on = np.zeros((len(sites), len(carriers)), dtype=int)  # the site was heard on it
     rec_from, ref_to = t_ns - win_ns, t_ns - lag_ns
-    for x, s, r, ue, un in w:
+    for row in w:
+        x, s, r, ue, un = row[:5]
         R[si[s], ei[x]] = r
+        c = ci[_carrier(row)]
+        on_air[c, ei[x]] = 1
+        heard_on[si[s], c] = 1
         if x > rec_from:
             U[si[s]] += (ue, un)
             nu[si[s]] += 1
     ts = np.array(epochs)
     rec, ref = ts > rec_from, ts <= ref_to
     heard = ~np.isnan(R)
-    n_rec, n_ref = max(rec.sum(), 1), max(ref.sum(), 1)
+    # epochs on which one of each site's carriers was on air: with one carrier, every epoch
+    own = (heard_on @ on_air) > 0
+    n_rec = np.maximum(own[:, rec].sum(1), 1)
+    n_ref = np.maximum(own[:, ref].sum(1), 1)
     ok = (heard[:, rec].sum(1) >= n_rec / 2) & (heard[:, ref].sum(1) >= n_ref / 2) & (nu > 0)
     if ok.sum() < 4 or not rec.any() or not ref.any():
         return None
@@ -202,7 +230,8 @@ class SpoofMonitor:
 
     def _reset(self) -> None:
         self._fix: tuple[int, np.ndarray] | None = None  # latest GNSS position fix
-        self._rows: deque[tuple[int, str, float, float, float]] = deque()
+        # (t_ns, site, residual, u_e, u_n, carrier): carrier is the record's meta.earfcn
+        self._rows: deque[tuple] = deque()
         # per tower test: (t, s2, n - 3) of its recent tests, and since when it is over
         self._pools: list[deque[tuple[int, float, int]]] = [deque() for _ in self._tests]
         self._exceed: list[int | None] = [None for _ in self._tests]
@@ -244,7 +273,8 @@ class SpoofMonitor:
         if r <= 0 or h <= 0:
             return
         site = m.meta.get("site") or m.emitter
-        self._rows.append((m.t_ns, site, m.value[0] - r, d[0] / h, d[1] / h))
+        carrier = m.meta.get("earfcn")
+        self._rows.append((m.t_ns, site, m.value[0] - r, d[0] / h, d[1] / h, carrier))
 
     def _alarmed(self) -> bool:
         return bool(getattr(self.main, "spoof_alarm", False))
