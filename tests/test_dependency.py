@@ -43,3 +43,18 @@ def test_measurement_tag_uses_source_and_kind():
 def test_our_oscillator_is_independent_only_in_holdover():
     assert dep.receiver_clock_tag(gnss_excluded=True) == dep.INDEPENDENT
     assert dep.receiver_clock_tag(gnss_excluded=False) == dep.GNSS_TIMED
+
+
+def test_a_learned_tower_map_is_gnss_derived_adr0048():
+    assert dep.tag(dep.TOWER_MAP) == dep.GNSS_DERIVED
+    assert dep.TOWER_MAP not in SOURCES  # a prior, not a record: the ICD is unchanged
+
+
+def test_evidence_is_as_dependent_as_the_prior_it_uses_adr0048():
+    tower = Measurement(t_ns=0, source="lte", kind="pseudorange", value=(1.0,), sigma=(1.0,))
+    baro = Measurement(t_ns=0, source="baro", kind="altitude", value=(1.0,), sigma=(1.0,))
+    assert dep.tag_of(tower, priors=[dep.TOWER_MAP]) == dep.GNSS_DERIVED
+    assert dep.tag_of(baro, priors=[dep.TOWER_MAP]) == dep.GNSS_DERIVED
+    # Without a prior, or with an independent one, the source's own tag stands
+    assert dep.tag_of(tower, priors=[]) == dep.GNSS_TIMED
+    assert dep.tag_of(baro, priors=["imu"]) == dep.INDEPENDENT
