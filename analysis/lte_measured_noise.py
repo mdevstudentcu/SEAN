@@ -58,6 +58,10 @@ CELL_TABLE = REPO / "data/reference/lte-cells-ottawa.csv"
 TAUS_SHORT = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20]
 TAUS_LONG = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500]
 SNR_EDGES = [-14, -11, -8, -5, -2, 1, 4, 7, 10, 13, 16]
+# TBC: the white-σ fit uses only bins from here up. Below it 14 of the 15 cells measured on
+# 2026-11-10 break 19 to 105 times a minute and a fit over every bin read 0.4 to 0.6 of the
+# measured σ, so a weak cell takes its bin's measured value instead of the fit (ADR-0036).
+FIT_MIN_SNR_DB = -8.0
 MIN_TRIPLETS = 30  # fewer second differences than this: no S(τ) value
 MIN_FIT_S = 5.0  # shortest common arc for a drift fit
 # TBC: a re-found track "lands on its old timing" if within this of the extrapolation. About
@@ -573,9 +577,11 @@ def analyse(sessions: list[Sess]) -> dict:
     }
 
 
-def fit_white(bins: list[dict]) -> dict | None:
+def fit_white(bins: list[dict], snr_min_db: float = FIT_MIN_SNR_DB) -> dict | None:
     """σ² = a² + b² / snr_lin (a floor plus a CRB-like term), least squares in log σ on the robust
-    per-bin values, each bin weighted by √n."""
+    per-bin values, each bin weighted by √n. Only bins whose lower edge is at or above
+    `snr_min_db` are fitted: below it the law under-reads the measured σ."""
+    bins = [b for b in bins if b["snr_lo"] >= snr_min_db]
     if len(bins) < 3:
         return None
     from scipy.optimize import least_squares
@@ -592,6 +598,8 @@ def fit_white(bins: list[dict]) -> dict | None:
         "floor_m": float(r.x[0]),
         "snr_term_m": float(r.x[1]),
         "form": "sigma^2 = floor^2 + snr_term^2 / snr_lin, snr_lin = 10^(snr_db/10)",
+        "snr_min_db": float(snr_min_db),
+        "below": "each bin's measured white_robust_m, never the fit",
     }
 
 
@@ -655,14 +663,16 @@ def figures(sessions, res, sv, out: Path, commit: str) -> list[Path]:
     )
     f = res["fit"]
     if f:
-        xx = np.linspace(min(xs), max(xs), 100)
+        fitted = [x for x in xs if x >= f["snr_min_db"]]
+        xx = np.linspace(min(fitted), max(fitted), 100)
         ax.semilogy(
             xx,
             np.sqrt(f["floor_m"] ** 2 + f["snr_term_m"] ** 2 / 10 ** (xx / 10)),
             "-",
             color=INK,
             lw=0.8,
-            label=f"fit: √({f['floor_m']:.2f}² + {f['snr_term_m']:.2f}²/SNR)",
+            label=f"fit, SNR ≥ {f['snr_min_db']:g} dB: √({f['floor_m']:.2f}² + "
+            f"{f['snr_term_m']:.2f}²/SNR)",
         )
     ax.axhline(
         sv["told_sigma_m"],
@@ -890,7 +900,21 @@ def report(sessions, res, sv, commit) -> str:
         )
     if res["fit"]:
         f = res["fit"]
-        L += ["", f"Fit: σ² = {f['floor_m']:.2f}² + {f['snr_term_m']:.2f}² / SNR_lin (m, 10 Hz)."]
+        weak = [b for b in res["snr_bins"] if b["snr_lo"] < f["snr_min_db"]]
+        L += [
+            "",
+            f"Fit on the bins at SNR ≥ {f['snr_min_db']:g} dB only (`TBC`): σ² = "
+            f"{f['floor_m']:.2f}² + {f['snr_term_m']:.2f}² / SNR_lin (m, 10 Hz).",
+        ]
+        if weak:
+            L += [
+                "",
+                "Below it the fit is not used; each bin's measured robust σ stands: "
+                + "; ".join(
+                    f"{b['snr_lo']} to {b['snr_hi']} dB: {b['white_robust_m']:.2f} m" for b in weak
+                )
+                + ".",
+            ]
     L += [
         "",
         "## Per cell",
