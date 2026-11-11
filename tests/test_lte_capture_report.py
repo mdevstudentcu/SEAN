@@ -195,6 +195,8 @@ def test_single_cell_degrades_gracefully(runs):
     for n in ("report.md", "cells.png", "dongle_clock.png", "pair_differences.png"):
         assert (runs["out"] / n).stat().st_size > 0
     assert "## 6. What this would replace" in text and "`Config.sigma_scale` 1.5" in text
+    # one cell's spread includes the correlated part: the ratio alone does not size sigma_scale
+    assert "above 1, `Config.sigma_scale` is too low" not in text and "ADR-0036" in text
 
 
 def test_no_position_says_not_measurable(runs, tmp_path):
