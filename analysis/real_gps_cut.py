@@ -472,22 +472,28 @@ def plot(rows: list[dict], summary: dict, path: Path) -> None:
 
 
 def write_dash_session(path: str, out: Path, cut_s: float) -> None:
-    """A session for `pnt dash`: GNSS cut at `cut_s`, every GPS fix as `/truth`. Outside git."""
+    """A session for `pnt dash`: GNSS cut at `cut_s`, and `/truth` on every 0.1 s epoch from
+    the GPS fixes, interpolated between them (the panel matches truth to estimates by time, and
+    an estimate is due every 0.1 s). Outside git."""
     meas, t0, _ = load(path)
     fix_t, fix_pos = gps_fixes(meas)
     if out.exists() and any(out.iterdir()):
         raise SystemExit(f"{out} already holds data")
     out.mkdir(parents=True, exist_ok=True)
     meta = session.read_meta(path)
-    note = (
-        f"GNSS cut at {cut_s:g} s by analysis/real_gps_cut.py at {_commit()}; /truth = GPS fixes"
-    )
+    note = f"GNSS cut at {cut_s:g} s by analysis/real_gps_cut.py at {_commit()}; /truth: GPS fixes"
     session.write_meta(
         out, {**meta, "name": out.name, "notes": f"{meta.get('notes') or ''}\n{note}"}
     )
     with SessionWriter(out / session.MCAP_NAME, metadata={"injected": note}) as w:
-        for t, p in zip(fix_t, fix_pos, strict=True):
-            w.write("/truth", Truth(t_ns=int(t), pos_enu=tuple(p), vel_enu=(0.0, 0.0, 0.0)))
+        step = 100_000_000  # ns: the estimators' epoch
+        grid = np.arange(-(-int(fix_t[0]) // step) * step, int(fix_t[-1]) + 1, step)
+        x = (grid - fix_t[0]).astype(float)
+        pos = np.column_stack([np.interp(x, (fix_t - fix_t[0]).astype(float), fix_pos[:, i])
+                               for i in range(3)])  # fmt: skip
+        for t, p in zip(grid, pos, strict=True):
+            truth = Truth(t_ns=int(t), pos_enu=tuple(map(float, p)), vel_enu=(0.0, 0.0, 0.0))
+            w.write("/truth", truth)
         for m in cut_gnss(meas, t0, cut_s):
             w.write(f"/meas/{m.source}", m)
     print(f"wrote {out}")
