@@ -79,6 +79,13 @@ button.on { border-color: var(--est); color: var(--est); }
 .ln.pred { border-top-style: dashed; border-color: var(--pred); }
 .ln.err { border-color: var(--err); }
 .ln.al { border-top-style: dashed; border-color: var(--critical); }
+.conf-legend { margin-top: 8px; }
+.conf-legend .conf-head { color: var(--ink); }
+.conf-legend em { font-style: normal; }
+.ln.conf { width: 22px; border-top-width: 4px; border-radius: 2px; }
+.ln.conf.green { border-color: var(--good); }
+.ln.conf.amber { border-color: var(--warning); }
+.ln.conf.red { border-color: var(--critical); }
 
 .status { border-left: 6px solid var(--good); }
 .status-word { font-size: 28px; font-weight: 800; letter-spacing: .06em; }

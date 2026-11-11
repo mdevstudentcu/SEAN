@@ -218,6 +218,38 @@ def test_low_trust_listed_apart():
     assert s["low_trust"] == {"gnss": 0.0} and s["trusted"] == {"lte": 1.0}
 
 
+def test_confidence_colour_by_hpl_against_the_alert_limit():
+    # #207: green well within, amber near, red at or over the limit. The 0.8 split is TBC
+    # (health.CONF_AMBER_FRACTION); the test follows the constant rather than picking a target
+    al = 50.0
+    amber = health.CONF_AMBER_FRACTION * al
+    assert health.confidence(5.0, [], al) == health.CONFIDENT
+    assert health.confidence(amber - 0.01, [], al) == health.CONFIDENT
+    assert health.confidence(amber, [], al) == health.NEAR_LIMIT
+    assert health.confidence(al - 0.01, [], al) == health.NEAR_LIMIT
+    assert health.confidence(al, [], al) == health.DO_NOT_TRUST
+    assert health.confidence(10 * al, [], al) == health.DO_NOT_TRUST
+
+
+def test_confidence_red_without_a_bound_or_with_an_alarm_flag():
+    al = 50.0
+    assert health.confidence(None, [], al) == health.DO_NOT_TRUST
+    assert health.confidence(float("nan"), [], al) == health.DO_NOT_TRUST
+    for flag in ["spoof_suspected", "time_spoof_suspected", "mhss_alarm:gnss-cm"]:
+        assert health.confidence(5.0, [flag], al) == health.DO_NOT_TRUST, flag
+    # a caution or a handled fault leaves the colour to the protection level: GPS-denied
+    # flight on towers inside the limit is still green
+    for flag in ["gnss_unavailable", "gnss_excluded", "mhss_excluded:gnss-cm"]:
+        assert health.confidence(5.0, [flag], al) == health.CONFIDENT, flag
+
+
+def test_monitor_reports_confidence_against_the_panels_limit():
+    s = HealthMonitor(20.0, 1.5e-6).update(_est(0.0, hpl=17.0))
+    assert s["confidence"] == health.NEAR_LIMIT  # 17 m is near a 20 m limit
+    s = HealthMonitor(556.0, 1.5e-6).update(_est(0.0, hpl=17.0, status="unsafe"))
+    assert s["confidence"] == health.CONFIDENT  # the estimator's own limit does not colour it
+
+
 def test_time_to_alert_from_the_trend():
     t = np.arange(0.0, 10.0, 0.1)
     assert time_to_limit_s(t, 10.0 + 2.0 * t, 50.0) == pytest.approx((50.0 - 29.8) / 2.0)
@@ -271,6 +303,9 @@ def test_frames_from_sim_are_json_and_raise_the_outage(tmp_path):
     keys = {a["key"] for a in out[-1]["health"]["alerts"]}
     assert "gnss_unavailable" in keys  # latched from the outage, still shown after it ends
     assert all(f["err_h_m"] is not None for f in out)
+    # the track colour (#207) rides on every frame, judged against the panel's limit
+    assert all(f["confidence"] == health.confidence(f["hpl_m"], f["flags"], 50.0) for f in out)
+    assert feed.info(50.0, 1.5e-6)["confidence_amber_m"] == health.CONF_AMBER_FRACTION * 50.0
 
 
 def test_front_end_lte_cells_are_drawn_at_their_registered_site():
@@ -336,6 +371,7 @@ def test_hub_tells_how_long_the_feed_has_been_quiet(tmp_path):
     assert hub.quiet() == {"s": None} and "quiet" not in dict(hub.snapshot())
     feed = sim_feed(_small(tmp_path), seed=0, estimator="ekf", preflight=False)
     hub.publish("frame", next(frames(feed, HealthMonitor(50.0, 1.5e-6))))
+    assert hub.history[-1][10] == hub.latest["confidence"]  # a late page redraws the colours
     hub.latest_mono -= 5.0  # the last frame came 5 s ago
     assert dict(hub.snapshot())["quiet"]["s"] >= 5.0
 

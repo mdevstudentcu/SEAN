@@ -18,7 +18,7 @@ import numpy as np
 
 from pnt.core.frames import emitter_enu, llh_to_enu
 from pnt.core.measurement import Measurement, Truth
-from pnt.dashboard.health import HealthMonitor
+from pnt.dashboard.health import CONF_AMBER_FRACTION, HealthMonitor
 from pnt.metrics import ALERT_LIMIT_M
 from pnt.nav import cells, estimate
 
@@ -57,6 +57,7 @@ class Feed:
             "has_truth": bool(self.truth),
             "alert_limit_m": alert_limit_m,
             "time_alert_limit_s": time_alert_limit_s,
+            "confidence_amber_m": CONF_AMBER_FRACTION * alert_limit_m,  # the map legend's split
             "preflight": self.preflight,
             "notes": self.notes,
         }
@@ -228,6 +229,7 @@ def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
             "clock_bias_s": _num(est.clock_bias_s),
             "clock_sigma_s": _num(est.clock_sigma_s),
             "status": health["status"],  # against the panel's limit (health.panel_status)
+            "confidence": health["confidence"],  # track colour (health.confidence)
             "flags": list(est.flags),
             "truth": None if truth is None else [float(v) for v in truth.pos_enu],
             "truth_clock_s": None if truth is None else _num(truth.clock_bias_s),

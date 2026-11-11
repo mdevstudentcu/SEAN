@@ -28,8 +28,13 @@
       </div>
     </div>
     <div class="map-wrap"><canvas id="map"></canvas></div>
+    <div class="legend conf-legend" id="conf-legend" title="Track and current position coloured by HPL against the alert limit (thresholds TBC)">
+      <span class="conf-head">Estimate track and position, by confidence (thresholds TBC):</span>
+      <span><i class="ln conf green"></i>Confident <em id="lg-conf-green" class="muted"></em></span>
+      <span><i class="ln conf amber"></i>Near the limit <em id="lg-conf-amber" class="muted"></em></span>
+      <span><i class="ln conf red"></i>Do not trust <em id="lg-conf-red" class="muted"></em></span>
+    </div>
     <div class="legend" id="map-legend">
-      <span><i class="sw est"></i>Estimate</span>
       <span id="lg-truth"><i class="sw truth"></i>Truth</span>
       <span><i class="sw ell"></i>95 % error ellipse</span>
       <span><i class="sw hplc"></i>HPL circle</span>

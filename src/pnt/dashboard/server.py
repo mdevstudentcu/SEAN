@@ -70,6 +70,7 @@ def _point(f: dict) -> list:
     return [
         f["t_s"], f["pos"][0], f["pos"][1], truth[0], truth[1],
         f["hpl_m"], f["health"]["tpl_s"], f["status"], f["err_h_m"], clock_err,
+        f["confidence"],
     ]  # fmt: skip
 
 
