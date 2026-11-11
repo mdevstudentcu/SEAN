@@ -277,14 +277,14 @@ class EKF:
         residual_map: Mapping | None = None,  # MapParams options: learn a residual map (#95)
         tower_map=None,  # a `tower_map.TowerMap`: prior tower states from a drone (P12, #96)
         told_sigma_model: str | None = None,  # "adr0036": radio records' sigma from SNR (#147)
-        # the same for records from a real capture only, unless told_sigma_model is set (ADR-0048)
+        # the same for records from a real capture only, unless told_sigma_model is set (ADR-0050)
         capture_sigma_model: str | None = "adr0036",
         # a radio cell's new arc (meta.arc) starts a new range bias (#147); None: for a real
-        # capture's records only (ADR-0048)
+        # capture's records only (ADR-0050)
         arc_bias: bool | None = None,
-        arc_settle_s: float = 0.0,  # s: a cell's new arc told ARC_SETTLE_FACTOR x sigma (ADR-0048)
-        gnss_readmit: Callable[[], GnssReadmit] | None = None,  # GnssReadmit (#246, ADR-0048)
-        heard_cell_radius_m: float | None = None,  # m: a heard cell's coverage bound (ADR-0048)
+        arc_settle_s: float = 0.0,  # s: a cell's new arc told ARC_SETTLE_FACTOR x sigma (ADR-0050)
+        gnss_readmit: Callable[[], GnssReadmit] | None = None,  # GnssReadmit (#246, ADR-0050)
+        heard_cell_radius_m: float | None = None,  # m: a heard cell's coverage bound (ADR-0050)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -379,7 +379,7 @@ class EKF:
             if model is not None and model not in told_sigma.MODELS:
                 raise ValueError(f"{name}_sigma_model must be one of {told_sigma.MODELS} or None")
         self.told_sigma_model = told_sigma_model  # nav/told_sigma.py; None: the reported sigma
-        self.capture_sigma_model = capture_sigma_model  # records from a real capture (ADR-0048)
+        self.capture_sigma_model = capture_sigma_model  # records from a real capture (ADR-0050)
         self.arc_bias = arc_bias
         self._arc_idx: dict[str, list] = {}  # emitter -> [its arc, its arc state or None, t_ns]
         self.arc_settle_ns = int(arc_settle_s * 1e9)
@@ -517,7 +517,7 @@ class EKF:
         its own (its site clock carries it); a later one gets a constant bias state, seeded from
         `residual` with `init_emitter_sigma` and no correlation with anything, so the step is
         absorbed instead of pulling the position. `arc_bias=None` (the default) turns it on for a
-        real capture's records (`told_sigma.from_capture`, ADR-0048): after #245 a re-find still
+        real capture's records (`told_sigma.from_capture`, ADR-0050): after #245 a re-find still
         steps more than 100 m in 16 to 17 % of new arcs. Off, or for a record without `arc` or
         `rx_clock`: (None, False)."""
         arc = m.meta.get("arc")
@@ -807,7 +807,7 @@ class EKF:
             return  # not modelled yet
         sigma_model = self.told_sigma_model
         if sigma_model is None and told_sigma.from_capture(m):
-            sigma_model = self.capture_sigma_model  # a real capture's record (ADR-0048)
+            sigma_model = self.capture_sigma_model  # a real capture's record (ADR-0050)
         if sigma_model is not None:
             m = told_sigma.retold(m, sigma_model)  # a radio record's sigma from its SNR
         if m.kind == "rssi" and (self.hostile is None or not m.meta.get("hostile")):
@@ -879,7 +879,7 @@ class EKF:
 
     def _coverage_bound(self, m: Measurement) -> None:
         """A heard cell bounds where we are: within `heard_cell_radius_m` of its site,
-        horizontally (ADR-0048, opt-in). Outside it, the horizontal distance is told the radius
+        horizontally (ADR-0050, opt-in). Outside it, the horizontal distance is told the radius
         with sigma a tenth of it, at most once a second per cell; inside, nothing."""
         e = self._emitter(m)
         if e is None or m.t_ns - self._bounded.get(m.emitter, -(10**18)) < 1_000_000_000:
@@ -1205,7 +1205,7 @@ def _pseudorange(ekf: EKF, m: Measurement):
     return y, H, R, not (new or new_arc)
 
 
-ARC_SETTLE_FACTOR = 10.0  # TBC: sigma scale in a new arc's first `arc_settle_s` (ADR-0048)
+ARC_SETTLE_FACTOR = 10.0  # TBC: sigma scale in a new arc's first `arc_settle_s` (ADR-0050)
 
 
 def _doppler(ekf: EKF, m: Measurement):
@@ -1326,7 +1326,7 @@ CALIBRATED_MEASURED: dict = {
     "pseudorange_receiver_clock": True,
     # White part: the record's reported sigma, as every estimator. ADR-0036 (1) puts the measured
     # law (sigma^2 = 0.64^2 + 2.28^2 / SNR_lin at 10 Hz) in the front end's report, not here.
-    # So a real capture's records are not retold here either (ADR-0048): `told_sigma`'s
+    # So a real capture's records are not retold here either (ADR-0050): `told_sigma`'s
     # correlated part would count the multipath state below a second time
     "capture_sigma_model": None,
     # Correlated part, at rest: ADR-0036 (1), sigma_corr 10 m (middle of the 4.9 to 18 m same-eNB

@@ -1,4 +1,4 @@
-# Real LTE records in the EKF: each change alone and combined (#214, #246, ADR-0048)
+# Real LTE records in the EKF: each change alone and combined (#214, #246, ADR-0050)
 
 Evidence: **replay of two real static sessions, GPS cut in software** (`20261111-0151-static-fullsuite2`, 600 s; `20261111-0233-static-lte-1h`, 1 h), #245's front end (`ea72f6a`, records as in `lte-reacq-steps`), LTE pseudoranges only. Script `analysis/real_lte_filter.py` at the commit in `summary.json`. Truth: the withheld GPS fixes. Errors only: no position, range or bearing.
 

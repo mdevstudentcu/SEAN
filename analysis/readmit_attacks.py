@@ -1,4 +1,4 @@
-"""Does GNSS re-admission (#246, ADR-0048, `gnss_readmit`) let a spoof back in? Paired sim runs.
+"""Does GNSS re-admission (#246, ADR-0050, `gnss_readmit`) let a spoof back in? Paired sim runs.
 
     python analysis/readmit_attacks.py --seeds 0-2 --jobs 3 --out <file>.json
 
