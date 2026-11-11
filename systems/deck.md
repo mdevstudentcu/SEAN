@@ -17,7 +17,7 @@ Seven slides, 249 s, 512 words of script, 16 numbers spoken. Seconds are the wor
 | 7 | Roadmap | 24 | 51 | 1 |
 | | **Total** | **249** | **512** | **16** |
 
-Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within a metre (3); seven-tenths of a metre, eight metres (4); two metres, thirteen carriers, ninety-five percent, fifty, a hundred and thirty-two metres, five minutes, twenty-five (5); fifty-nine (6); a hundred and seventy dollars (7).
+Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within two metres (3); seven-tenths of a metre, eight metres (4); two metres, thirteen carriers, ninety-five percent, fifty, a hundred and thirty-two metres, five minutes, twenty-five (5); fifty-nine (6); a hundred and seventy dollars (7).
 
 ---
 
@@ -61,7 +61,7 @@ Fallback: the script no longer says the laptop "fuses everything": today the def
 **Figure:** the live panel. If the laptop fails: the nine screenshots in the guard demo evidence folder, with the runbook's 60-second screenshot path.
 
 **Script (156 words, 80 s)**, cued by the panel's T+ clock and segment, as in the runbook:
-> *[Segment 1, T+0, green]* A simulated drone flying a loop over Carleton. The triangles are the real Rogers tower sites from the government registry. Green means: trust this position. *[T+62, amber]* GPS is gone. *[T+65, red]* Within five seconds the panel turns red: do not navigate on this position. *[T+65–105]* The error grows, but the bound, the blue line, stays above it on this run. *[Enter; NO DATA gap]* Now a spoofer: fake GPS that puts us three hundred metres east. *[Segment 2, T+150, amber]* Caught at the very first fake fix: GPS rejected. *[T+177, green]* But watch. Half a minute later this plain filter lets the fake GPS back in: green, a tight bound, and that far wrong. *[Enter; NO DATA gap; point at `ekf-guard` on the top bar]* Same flight, same attack, now with our jump guard. *[Segment 3, T+150]* Caught again. *[T+155–200, red]* This time the fake GPS stays out. The error grows, but the bound grows faster and the panel stays red. The panel never goes green on the fake position. *[T+200, green]* The spoofer stops, real GPS comes straight back, and we are green and within a metre.
+> *[Segment 1, T+0, green]* A simulated drone flying a loop over Carleton. The triangles are the real Rogers tower sites from the government registry. Green means: trust this position. *[T+62, amber]* GPS is gone. *[T+65, red]* Within five seconds the panel turns red: do not navigate on this position. *[T+65–105]* The error grows, but the bound, the blue line, stays above it on this run. *[Enter; NO DATA gap]* Now a spoofer: fake GPS that puts us three hundred metres east. *[Segment 2, T+150, amber]* Caught at the very first fake fix: GPS rejected. *[T+177, green]* But watch. Half a minute later this plain filter lets the fake GPS back in: green, a tight bound, and that far wrong. *[Enter; NO DATA gap; point at `ekf-guard` on the top bar]* Same flight, same attack, now with our jump guard. *[Segment 3, T+150]* Caught again. *[T+155–200, red]* This time the fake GPS stays out. The error grows, but the bound grows faster and the panel stays red. The panel never goes green on the fake position. *[T+200, green]* The spoofer stops, real GPS comes straight back, and we are green and within two metres.
 
 If Enter comes too early in segment 2, carry on and show `jump-3-followed.png` afterwards (runbook *Fallbacks*). The guard is opt-in, not our default: say so if asked.
 
