@@ -1,6 +1,6 @@
 # LTE pseudorange error measured on real static captures (#173)
 
-`analysis/lte_measured_noise.py` at `c1bbc39`. Evidence: **real sessions**, static, one RTL-SDR, no GPS fix (no position truth; NTP, not PPS, time). Precision only.
+`analysis/lte_measured_noise.py` at `fdb8fde`. Evidence: **real sessions**, static, one RTL-SDR, no GPS fix (no position truth; NTP, not PPS, time). Precision only.
 
 | Session | Recorded at | Front end at | IQ length (s) | LTE record span (s) | Cells |
 |---|---|---|---|---|---|
@@ -16,11 +16,9 @@
 | 20261110-1623-static-out-e5145-lte | `4d3598b` | `92e6bac` | 59.53 | 59.3 | 4 |
 | 20261110-1623-static-out-e5205-lte | `4d3598b` | `92e6bac` | 59.53 | 59.4 | 3 |
 | 20261110-1623-static-out-e5255-lte | `4d3598b` | `92e6bac` | 59.53 | 59.4 | 2 |
-| 20261110-1759-static-out-long-e5060-partial979s-lte | `4d3598b` | `92e6bac` | 979.07 | 978.9 | 3 |
+| 20261110-1759-static-out-long-e5060-lte | `4d3598b` | `0276028` | 1799.65 | 1799.5 | 3 |
 | 20261110-lte-outside-5145-lte | `4d3598b` | `92e6bac` | 29.49 | 29.4 | 3 |
 | 20261110-lte-outside-5255-lte | `4d3598b` | `92e6bac` | 29.49 | 29.3 | 2 |
-
-**20261110-1759-static-out-long-e5060-partial979s-lte is a PARTIAL capture:** the front end ran on the prefix of the recording that was copied off the Pi, with a sidecar derived from the recorder's (how: NOTES.md beside this file). Numbers from it cover the prefix only.
 
 Sim placeholders from `src/pnt/sim/scenarios/sets/challenge-drone.yaml` and `sim/lte_front_end.py` `Dongle`.
 
@@ -28,18 +26,18 @@ Sim placeholders from `src/pnt/sim/scenarios/sets/challenge-drone.yaml` and `sim
 
 | SNR bin (dB) | n | White σ robust (m) | White σ RMS (m) | Reported σ median (m) | Robust / reported |
 |---|---|---|---|---|---|
-| -14 to -11 | 1192 | 23.33 | 34.06 | 31.35 | 0.74 |
-| -11 to -8 | 1056 | 11.76 | 19.77 | 17.56 | 0.67 |
-| -8 to -5 | 2792 | 5.76 | 6.06 | 8.95 | 0.64 |
-| -5 to -2 | 9002 | 3.40 | 3.59 | 5.83 | 0.58 |
-| -2 to 1 | 12025 | 2.41 | 2.56 | 4.24 | 0.57 |
-| 1 to 4 | 2051 | 1.73 | 2.12 | 3.18 | 0.54 |
-| 4 to 7 | 1734 | 1.72 | 2.56 | 2.33 | 0.74 |
+| -14 to -11 | 1898 | 24.74 | 35.47 | 31.56 | 0.78 |
+| -11 to -8 | 1493 | 12.38 | 20.46 | 18.48 | 0.67 |
+| -8 to -5 | 3699 | 5.75 | 6.51 | 9.06 | 0.64 |
+| -5 to -2 | 13398 | 3.48 | 3.96 | 5.91 | 0.59 |
+| -2 to 1 | 20615 | 2.36 | 2.97 | 4.19 | 0.56 |
+| 1 to 4 | 4774 | 1.75 | 2.58 | 3.14 | 0.56 |
+| 4 to 7 | 1745 | 1.71 | 2.55 | 2.33 | 0.74 |
 | 7 to 10 | 1667 | 1.33 | 1.80 | 1.56 | 0.85 |
 | 10 to 13 | 760 | 1.00 | 1.26 | 1.17 | 0.85 |
 | 13 to 16 | 1002 | 0.63 | 1.30 | 1.34 | 0.47 |
 
-Fit: σ² = 0.56² + 2.48² / SNR_lin (m, 10 Hz).
+Fit: σ² = 0.51² + 2.46² / SNR_lin (m, 10 Hz).
 
 ## Per cell
 
@@ -76,9 +74,9 @@ Fit: σ² = 0.56² + 2.48² / SNR_lin (m, 10 Hz).
 | 20261110-1623-static-out-e5205-lte | lte:5205:330 | 202754 | 64% | 13 | 33 | 5.7 | 2.25 | 2.18 | 10.19 | — | — | 111.97 | -11.5 | — | — | 32.2 | 0.2 |
 | 20261110-1623-static-out-e5255-lte | lte:5255:175 | 219076 | 100% | 3 | 3 | 8.8 | 1.46 | 1.41 | 8.29 | 10.91 | — | 97.98 | 16.0 | — | — | 2.0 | — |
 | 20261110-1623-static-out-e5255-lte | lte:5255:347 | 219076 | 99% | 3 | 3 | 7.1 | 2.98 | 1.89 | 15.00 | 17.85 | — | 98.89 | 16.6 | -0 | -0.00 | 2.0 | 0.2 |
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:4 | 102790 | 99% | 116 | 118 | -0.1 | 3.84 | 2.24 | 2.60 | 6.25 | — | 123.34 | -60.7 | — | — | 7.2 | 0.1 |
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:204 | TBD | 74% | 348 | 657 | -1.8 | 5.57 | 3.18 | 4.84 | 17.32 | — | 110.04 | -492.2 | -234 | -1.17 | 40.2 | 0.2 |
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:492 | 102790 | 73% | 24 | 123 | -3.2 | 5.83 | 3.28 | 3.99 | 11.72 | 9.25 | 126.55 | -2.6 | 46 | 0.23 | 7.5 | 0.3 |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:4 | 102790 | 93% | 227 | 315 | -0.3 | 3.97 | 2.25 | 3.07 | 16.00 | — | 118.61 | 21.7 | — | — | 10.5 | 0.2 |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:204 | TBD | 73% | 510 | 1174 | -2.2 | 6.48 | 3.49 | 7.78 | 18.23 | — | 103.06 | -405.7 | -229 | -1.15 | 39.1 | 0.2 |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:492 | 102790 | 76% | 39 | 524 | -2.5 | 5.25 | 2.90 | 4.06 | 10.14 | 114.24 | 102.77 | -66.3 | -40 | -0.20 | 17.4 | 0.2 |
 | 20261110-lte-outside-5145-lte | lte:5145:175 | 219076 | 42% | 13 | 25 | 13.2 | 2.57 | 1.57 | — | — | — | — | — | 596 | 2.98 | 48.8 | 0.1 |
 | 20261110-lte-outside-5145-lte | lte:5145:188 | 219003 | 42% | 15 | 29 | 14.1 | 3.28 | 2.35 | 16.22 | — | — | 80.64 | 222.8 | 12 | 0.06 | 57.0 | 0.1 |
 | 20261110-lte-outside-5145-lte | lte:5145:189 | 219003 | 98% | 3 | 7 | 14.4 | 1.78 | 1.43 | 9.37 | 8.75 | — | 65.73 | -24.8 | — | — | 12.2 | 0.1 |
@@ -114,9 +112,9 @@ Fit: σ² = 0.56² + 2.48² / SNR_lin (m, 10 Hz).
 | 20261110-1623-static-out-e5205-lte | lte:5205:330 − lte:5205:20 | other eNB | 104 | -10.4 | 7.10 | — | — | — | — ± — | — | — | — |
 | 20261110-1623-static-out-e5205-lte | lte:5205:330 − lte:5205:32 | TBD | 121 | -9.1 | 8.64 | 15.01 | — | — | -1.632 ± 2.670 | -5.44 | -265.1 | 1 |
 | 20261110-1623-static-out-e5255-lte | lte:5255:347 − lte:5255:175 | same eNB | 592 | 7.1 | 2.78 | 18.06 | 16.27 | — | 0.555 ± 1.462 | 1.85 | 0.5 | 3 |
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:204 − lte:5060:4 | TBD | 7142 | -1.8 | 4.27 | 6.81 | — | — | -1.198 ± 0.790 | -4.00 | 318.3 | 17 |
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:492 − lte:5060:4 | same eNB | 7061 | -3.2 | 4.07 | 4.59 | 6.67 | — | -0.012 ± 0.195 | -0.04 | -63.2 | 59 |
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:492 − lte:5060:204 | TBD | 5593 | -3.3 | 5.03 | 8.36 | — | — | 1.745 ± 0.914 | 5.82 | -444.1 | 10 |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:204 − lte:5060:4 | TBD | 12069 | -2.2 | 4.59 | 9.39 | — | — | -1.352 ± 0.880 | -4.51 | 312.3 | 29 |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:492 − lte:5060:4 | same eNB | 13166 | -2.5 | 3.80 | 4.86 | 23.25 | — | -0.175 ± 0.155 | -0.58 | 54.2 | 79 |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:492 − lte:5060:204 | TBD | 10318 | -2.5 | 5.16 | 9.88 | — | — | 0.883 ± 0.862 | 2.95 | -433.2 | 22 |
 | 20261110-lte-outside-5145-lte | lte:5145:188 − lte:5145:175 | other eNB | 76 | 13.2 | — | — | — | — | — ± — | — | — | — |
 | 20261110-lte-outside-5145-lte | lte:5145:189 − lte:5145:175 | other eNB | 123 | 13.2 | 2.49 | — | — | — | — ± — | — | — | — |
 | 20261110-lte-outside-5145-lte | lte:5145:189 − lte:5145:188 | same eNB | 122 | 14.1 | 2.70 | 17.85 | — | — | -16.289 ± 3.239 | -54.33 | 15.8 | 1 |
@@ -126,10 +124,10 @@ Tracked (of IQ): 10 Hz records × 0.1 s over the IQ length on disk (samples / sa
 
 ## Track breaks
 
-- re-found on its old arc: 153 breaks, landing within 30 m of the extrapolation in 39%; median |jump| 41 m, 90th percentile 412 m
-- new arc: 609 breaks, landing within 30 m of the extrapolation in 73%; median |jump| 10 m, 90th percentile 799 m
-- re-found on its old arc, SNR ≥ 0 dB both sides: 12 breaks, landing within 30 m of the extrapolation in 92%; median |jump| 11 m, 90th percentile 27 m
-- new arc, SNR ≥ 0 dB both sides: 86 breaks, landing within 30 m of the extrapolation in 90%; median |jump| 5 m, 90th percentile 30 m
+- re-found on its old arc: 279 breaks, landing within 30 m of the extrapolation in 38%; median |jump| 42 m, 90th percentile 378 m
+- new arc: 817 breaks, landing within 30 m of the extrapolation in 71%; median |jump| 11 m, 90th percentile 729 m
+- re-found on its old arc, SNR ≥ 0 dB both sides: 14 breaks, landing within 30 m of the extrapolation in 93%; median |jump| 10 m, 90th percentile 27 m
+- new arc, SNR ≥ 0 dB both sides: 113 breaks, landing within 30 m of the extrapolation in 91%; median |jump| 5 m, 90th percentile 28 m
 
 ## Allan deviation of one cell's timing (dongle + tower), long sessions
 
@@ -137,7 +135,7 @@ Tracked (of IQ): 10 Hz records × 0.1 s over the IQ length on disk (samples / sa
 
 | Session | Cell | τ 0.1 s | τ 0.2 s | τ 0.5 s | τ 1 s | τ 2 s | τ 5 s | τ 10 s | τ 20 s | τ 50 s | τ 100 s | τ 200 s | τ 500 s |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:492 | 1.9e-07 | 9.7e-08 | 4.1e-08 | 2.3e-08 | 1.4e-08 | 1.0e-08 | 6.8e-09 | 3.6e-09 | 2.9e-09 | 5.3e-10 | — | — |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:492 | 1.7e-07 | 8.9e-08 | 4.0e-08 | 2.3e-08 | 1.6e-08 | 1.1e-08 | 5.9e-09 | 5.2e-09 | 4.3e-09 | 6.6e-09 | — | — |
 | sim | dongle clock (TBC) | 6.3e-09 | 4.5e-09 | 2.8e-09 | 2.0e-09 | 1.4e-09 | 9.2e-10 | 7.0e-10 | 6.2e-10 | 7.4e-10 | 9.8e-10 | 1.4e-09 | 2.2e-09 |
 
 ## Carrier frequency stability, long sessions (no arc needed)
@@ -146,12 +144,12 @@ Overlapping Allan deviation σ_y(τ) of y = −CFO / fc (1 s medians; robust MAD
 
 | Session | Cell or pair | τ 1 s | τ 2 s | τ 5 s | τ 10 s | τ 20 s | τ 50 s | τ 100 s | τ 200 s |
 |---|---|---|---|---|---|---|---|---|---|
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:4 | 1.3e-09 | 1.7e-09 | 2.6e-09 | 2.9e-09 | 3.7e-09 | 5.8e-09 | 1.1e-08 | 5.2e-09 |
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:204 | 2.9e-09 | 4.6e-09 | 5.5e-09 | 7.7e-09 | 1.8e-08 | 1.0e-07 | 1.1e-08 | — |
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:492 | 1.8e-09 | 2.3e-09 | 3.4e-09 | 3.5e-09 | 3.2e-09 | 2.2e-09 | 2.7e-10 | — |
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:204 − lte:5060:4 | 3.7e-09 | 5.5e-09 | 6.9e-09 | 7.9e-09 | 2.8e-08 | 1.2e-07 | 1.9e-08 | — |
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:492 − lte:5060:4 | 2.3e-09 | 3.1e-09 | 4.1e-09 | 4.2e-09 | 4.0e-09 | 4.6e-09 | — | — |
-| 20261110-1759-static-out-long-e5060-partial979s-lte | lte:5060:492 − lte:5060:204 | 3.8e-09 | 5.1e-09 | 6.4e-09 | 5.4e-09 | 8.8e-09 | 7.5e-08 | — | — |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:4 | 2.3e-09 | 2.9e-09 | 3.7e-09 | 4.0e-09 | 4.9e-09 | 8.1e-09 | 9.9e-09 | 6.3e-09 |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:204 | 5.1e-09 | 8.6e-09 | 1.1e-08 | 1.4e-08 | 2.5e-08 | 9.2e-08 | — | — |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:492 | 2.6e-09 | 2.8e-09 | 3.6e-09 | 3.9e-09 | 3.9e-09 | 5.2e-09 | 1.1e-08 | 8.5e-09 |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:204 − lte:5060:4 | 6.7e-09 | 9.1e-09 | 1.2e-08 | 1.5e-08 | 3.9e-08 | 9.4e-08 | — | — |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:492 − lte:5060:4 | 3.8e-09 | 4.4e-09 | 5.5e-09 | 5.7e-09 | 5.6e-09 | 4.7e-09 | 4.7e-09 | — |
+| 20261110-1759-static-out-long-e5060-lte | lte:5060:492 − lte:5060:204 | 7.0e-09 | 9.6e-09 | 1.2e-08 | 1.2e-08 | 2.0e-08 | 4.0e-08 | — | — |
 | sim | sim dongle clock (TBC) | 2.0e-09 | 1.4e-09 | 9.2e-10 | 7.0e-10 | 6.2e-10 | 7.4e-10 | 9.8e-10 | 1.4e-09 |
 | sim | sim two sites (TBC) | 9.4e-10 | 6.7e-10 | 4.2e-10 | 3.0e-10 | 2.1e-10 | 1.3e-10 | 9.5e-11 | 6.8e-11 |
 
