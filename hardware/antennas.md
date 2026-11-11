@@ -170,7 +170,7 @@ Compare each DIY antenna against the bundle's stock antenna, **same spot, same c
 
 Notes:
 
-- **Gain:** start around 30–40 dB on the NESDR. The FlightStick already has an amplifier, so start lower.
+- **Gain:** start around 30–40 dB on the NESDR. The FlightStick already has an amplifier: record it at a fixed 38.6 dB (`TBC`), never at auto gain, which clipped 2.1–2.3 % of its samples (`deploy/pi/RUNBOOK.md` H).
 - **FM overload check (VOR):** at 114.6 MHz, step the gain down by 10 dB. If the noise floor drops by more than about 10 dB, or spurious signals vanish, strong FM from Camp Fortune is overloading the dongle. Run at the lower gain and note it as a known limitation.
 - **Software:** `rtl-sdr` and readsb come from the Pi's apt repos (`deploy/pi/setup.sh`; readsb with the owner's approval of 2026-11-10, service disabled, decoding recorded IQ files only). LTE-Cell-Scanner and SDR++ are third-party downloads: per AGENTS.md they need a human owner's go-ahead before anyone installs them.
 - **Record it:** these runs are part of the RF survey. Log them as sessions so the numbers feed the Sim validity table (ADR-0015, `systems/verification.md`).
