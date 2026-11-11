@@ -1,6 +1,6 @@
 # P12 with a spoofed drone (#96)
 
-p12-drone-map-handoff and its spoofed-drone variants, ekf-calibrated user, 20 seeds (sim), seeds 0-19, commit 100b2f4. `python analysis/p12_spoofed_map.py --runs 20 --jobs 3 --out analysis/results/p12-spoofed-map`.
+p12-drone-map-handoff and its spoofed-drone variants, ekf-calibrated user, 20 seeds (sim), seeds 0-19, commit 60f3eb1. `python analysis/p12_spoofed_map.py --runs 20 --jobs 3 --out analysis/results/p12-spoofed-map`.
 
 ## Does the drone flag its own GNSS during the build?
 
@@ -16,10 +16,12 @@ Cues on the spoofed circuits before the spoof started: 0.
 
 ## What the map does to the ground user
 
+The default export (ADR-0048) is the honest map and the `guarded build + refusal` rows: built with the jump guard, withheld if the drone raised a cue.
+
 | ground user's case | T1 stat 0-120 s (m) | T1 stat 0-300 s (m) | worst seed p95 0-300 s (m) | HPL >= error, 0-300 s | unsafe, 0-300 s | misleading | hazardous | map withheld |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | no aid | 277.7 | 617.8 | 1003.5 (seed 3) | 0.989 | 0.984 | 0 | 0 | - |
-| honest map | 290.5 | 416.0 | 415.7 (seed 14) | 1.000 | 0.984 | 0 | 0 | - |
+| honest map | 290.5 | 416.0 | 415.7 (seed 14) | 1.000 | 0.984 | 0 | 0 | 0/20 |
 | ramp-spoofed map | 635.2 | 751.0 | 853.9 (seed 0) | 0.873 | 0.984 | 0 | 0 | - |
 | ramp-spoofed map, guarded build | 635.2 | 751.0 | 853.9 (seed 0) | 0.873 | 0.984 | 0 | 0 | - |
 | ramp-spoofed map, guarded build + refusal | 635.2 | 751.0 | 853.9 (seed 0) | 0.873 | 0.984 | 0 | 0 | 0/20 |
