@@ -59,7 +59,7 @@ A key is replaced with `pnt keys gen --role <role> --force`, then K2 again for t
 
 5. With the [keys](#keys-once-per-host) set up: `bash deploy/pi/day1.sh 10` (10 min; SDR A at 875 MHz, SDR B at 1090 MHz at 2.4 MS/s). If `rtl_test` showed the ADS-B stick as index 0: `DEV_A=1 DEV_B=0 bash deploy/pi/day1.sh 10`. If libzmq has no CURVE (A4), run it on a private link with `RECORD_ARGS=--insecure` and note that in #88: the stream cost then excludes encryption.
 6. While it records, read the USB current off the DPS-150 and type it in when asked.
-7. Good output: `data/sessions/<date>-static-day1.day1.md` with every row filled, and `<date>-static-day1.pps.json` with `"rate_hz": 1.0` and `"pps_selected": true`. The thresholds are `TBD` (ADR-0018): post the table in #88 as it is, with the session name.
+7. Good output: `data/sessions/<date>-static-day1.day1.md` with every row filled, and `<date>-static-day1.pps.json` with `"rate_hz": 1.0` and `"pps_selected": true`. The thresholds are `TBD` (ADR-0018): post the table in #88 as it is, with the session name. Results so far: [`DAY1-RESULTS.md`](DAY1-RESULTS.md).
 
 ## C. Day-1 LTE capture (for the LTE front end)
 
