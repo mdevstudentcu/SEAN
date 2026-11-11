@@ -18,7 +18,7 @@ Use cases: [`use-cases.md`](use-cases.md) (UC-01 drone, UC-02 approach, UC-03 ti
 | **Status and confidence monitoring**: tell the operator whether to trust position and time, and why | REQ-02, REQ-04, REQ-05 | T4 (jump target Accepted, ADR-0034 *Amendment 2026-11-11*; ramps; ≤ 1 false alarm/h), T5 (HPL bounds ≥ 99.9 % of epochs) | Sim: jumps detected in 1.1 s and refused by the opt-in guard; time ramp detected; false-alarm rate met; T5 missed |
 | All | REQ-07 receive-only, REQ-08 privacy, REQ-09 platform-agnostic, REQ-10 reproducible | — | REQ-07, REQ-08 by design and inspection (`tests/test_hard_rules.py`) |
 
-**Towers are meant to be primary (REQ-06); today they are not.** The front end reports only the fast part of its range noise, so on the real-shaped `challenge` legs the filter's gate rejects nearly every tower reading, so LTE contributes almost nothing (the guard demo's panel lists it as not in use). After GPS loss the default filter flies on the barometer and dead reckoning. Learning each tower's noise (ADR-0039, Proposed, opt-in) is the fix in review; [`results.md`](results.md) (c).
+**Towers are meant to be primary (REQ-06); today they are not.** The front end reports only the fast part of its range noise, so on the real-shaped `challenge` legs the filter's gate rejects nearly every tower reading, so LTE contributes almost nothing (the guard demo's panel lists it as not in use). After GPS loss the default filter flies on the barometer and dead reckoning. Learning each tower's noise (ADR-0039, proposed in draft PR #156, not on `main`; opt-in) is the fix in review; telling the filter ADR-0036's measured σ (`ekf-measured-sigma`, ADR-0044, Accepted, opt-in) is merged; [`results.md`](results.md) (c).
 
 **The bound holds under our model, not always.** It held throughout the demo except where the plain filter followed a spoof, and on some simulated flights the error escapes it (T5 missed). We call it a bound under our model, not a certified protection level.
 
@@ -93,7 +93,7 @@ Registry: `pnt.nav.ESTIMATORS`.
 | `ekf-map` | `ekf` with a residual map: each tower's error per 25 m cell, learned while GPS is trusted, frozen whenever it is not (P11, [ADR-0032](adr/0032-residual-map.md) Accepted as opt-in only, #95) |
 | `ekf-measured-sigma`, `ekf-calibrated-measured-sigma` | `ekf` and `ekf-calibrated` that tell a radio's LTE records ADR-0036's measured sigma from their SNR instead of the front end's ([ADR-0044](adr/0044-told-sigma-for-radio-records.md), Accepted, #147; opt-in) |
 
-Also opt-in: the tower spoof monitor (`ekf-spoof`, ADR-0037) and carrier hopping in the sim (ADR-0040), both merged through #250; learned LTE range noise (ADR-0039) is in review (#156). All three ADRs are Proposed.
+Also opt-in: the tower spoof monitor (`ekf-spoof`, ADR-0037) and carrier hopping in the sim (ADR-0040), both merged through #250; learned LTE range noise (ADR-0039) is in review in draft PR #156. ADR-0037 and ADR-0040 are Proposed; ADR-0039 exists only on #156's branch.
 
 ## Integrity layer
 

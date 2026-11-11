@@ -53,7 +53,7 @@ From [`hardware/bom.md`](../hardware/bom.md) (CAD before tax, Amazon.ca, 2026-11
 
 | Finding | Fix | State |
 | --- | --- | --- |
-| The radio reports only its fast noise; the filter rejects the towers | Learn each tower's noise; split white and slow error, sized from captures (ADR-0036, ADR-0039, both Proposed) | In review, opt-in; better on the drone leg, not yet on the timing leg |
+| The radio reports only its fast noise; the filter rejects the towers | Learn each tower's noise; split white and slow error, sized from captures (ADR-0036, Proposed; ADR-0039, proposed in draft PR #156); tell the filter the measured σ (ADR-0044, Accepted, opt-in `ekf-measured-sigma`) | In review, opt-in; better on the drone leg, not yet on the timing leg |
 | One frequency hears 1 to 4 cells, often sectors of one site | Hop frequencies with one radio (ADR-0040, Proposed); coherent integration (merged) | Simulation and synthetic only |
 | A detected jump was followed | Refuse it until GPS steps back (ADR-0038, Proposed) | Merged, opt-in; default-on waits on the manoeuvre follow-up |
 | Deciding whether GPS is spoofed, from signal power and the known sky, is the mentors' first ask | One spoofed-or-not output from the sky and signal power (ADR-0041, Accepted); tower monitor for slow drags (ADR-0037, Proposed) | Sky decision merged (#239), advisory; the tower monitor is opt-in and needs 5 or more sites heard continuously |
