@@ -23,6 +23,7 @@ import importlib.util
 import inspect
 import json
 import math
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -78,7 +79,7 @@ def run_one(script: str, path: str, estimator: str, lte: str, cut_s: float) -> d
     out = _cut_module().run_one(path, estimator, lte, cut_s)
     fam, fix = NAMES[estimator]
     keep = ("n_fixes", "p95_120s_m", "p95_300s_m", "err_60s_m", "err_300s_m", "max_m",
-            "hpl_bound", "misleading", "pre_p95_m", "n_lte")  # fmt: skip
+            "hpl_bound", "misleading", "pre_p95_m", "pre_gnss_excluded", "n_lte")  # fmt: skip
     return {"family": fam, "fix": "no LTE" if lte == "none" else fix, "lte": lte,
             "cut_s": cut_s} | {k: out[k] for k in keep}  # fmt: skip
 
@@ -99,6 +100,8 @@ def aggregate(rows: list[dict]) -> list[dict]:
         for f in ("p95_120s_m", "p95_300s_m", "err_60s_m", "err_300s_m", "max_m"):
             s[f + "_median"] = _med([r[f] for r in rs])
             s[f + "_worst"] = float(np.nanmax([r[f] for r in rs]))
+        pre = [r.get("pre_gnss_excluded", math.nan) for r in rs]
+        s["pre_gnss_excluded_mean"] = float(np.nanmean(pre)) if any(x == x for x in pre) else None
         if rs[0]["hpl_bound"] == rs[0]["hpl_bound"]:
             s["hpl_bound"] = sum(r["hpl_bound"] * r["n_fixes"] for r in rs) / n
             s["misleading"] = int(sum(r["misleading"] for r in rs))
@@ -130,7 +133,13 @@ def main(argv=None) -> None:
                      "n_fixes": h["n_fixes"], "hpl_bound": math.nan}
                     | {k: h[k] for k in ("p95_120s_m", "p95_300s_m", "err_60s_m",
                                          "err_300s_m", "max_m")})  # fmt: skip
+    import pnt
+
+    src = Path(pnt.__file__).resolve().parents[1]
+    src_commit = subprocess.run(["git", "-C", str(src), "describe", "--always", "--dirty"],
+                                capture_output=True, text=True).stdout.strip()  # fmt: skip
     meta = {"session": Path(a.session).name, "cut_script": cut._commit(), "cuts_s": a.cuts,
+            "src_commit": src_commit,
             "kind": "replay of a real static session, GPS cut in software"}  # fmt: skip
     a.out.mkdir(parents=True, exist_ok=True)
     (a.out / "real.json").write_text(json.dumps({"meta": meta, "aggregate": aggregate(rows),
