@@ -870,8 +870,9 @@ def report(sessions, res, sv, commit) -> str:
             L += [
                 "",
                 f"**{s.name} is a PARTIAL capture:** the front end ran on the prefix of "
-                "the recording that was copied off the Pi, with the recorder's sidecar trimmed to "
-                "that prefix. Numbers from it cover the prefix only.",
+                "the recording that was copied off the Pi, with a sidecar derived from the "
+                "recorder's (how: NOTES.md beside this file). Numbers from it cover the prefix "
+                "only.",
             ]
     L += ["", f"Sim placeholders from `{sv['scenario']}` and `sim/lte_front_end.py` `Dongle`.", ""]
     L += [
