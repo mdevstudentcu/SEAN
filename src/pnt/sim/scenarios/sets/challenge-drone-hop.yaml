@@ -9,7 +9,7 @@
 #   frequency or bandwidth, so it stays out until a capture confirms it. 2535 is filed by TELUS
 #   (5 MHz) and Bell (10 MHz, one site); it is one carrier here, with both licensees' sectors.
 # - Dwell (TBC): 1 s per carrier, so records come at the drone leg's 1 Hz. Unsourced; the
-#   accuracy budget (analysis/accuracy_budget.py) compares 0.5 and 2 s.
+#   hopping study (analysis/hopping_study.py) compares 0.5 and 2 s.
 # - Dead time after each retune (TBC): 0.15 s. The front end skips `settle_s` (20 ms) after a
 #   retune and needs one `acq_ms` search window (80 ms) before it tracks (frontends/lte/tracker.py
 #   Config); 50 ms is allowed on top for the RTL-SDR's retune over USB, which is tens of ms and

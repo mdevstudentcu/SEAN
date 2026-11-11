@@ -1,4 +1,6 @@
-"""Accuracy budget for UC-01 (#173): error 120 s and 300 s after GPS loss against masts heard.
+"""Carrier hopping study for UC-01 (#173): error 120 s and 300 s after GPS loss against masts
+heard. A sensitivity sweep over what one dongle hears, not the per-term accuracy budget
+(`analysis/accuracy_budget.py`, #178). The hop leg and its TBC values: ADR-0037 (Proposed).
 
 The drone leg's `outage` entry, with what the dongle hears varied and everything else as
 committed (sim, every value TBC):
@@ -17,8 +19,8 @@ Heard: distinct masts (registered eNBs within SAME_SITE_M are one mast) and cell
 and per 10 s window of the outage, after the cell lookup (`pnt.nav.cells.attach`). Per run the
 median, min and max over epochs; across seeds the median of medians, the min and the max.
 
-    python analysis/accuracy_budget.py --seeds 20 --jobs 3
-    python analysis/accuracy_budget.py --redraw   # summary and figure from budget.json
+    python analysis/hopping_study.py --seeds 20 --jobs 3
+    python analysis/hopping_study.py --redraw   # summary and figure from study.json
 """
 
 from __future__ import annotations
@@ -41,7 +43,7 @@ from pnt.nav import cells, estimate
 from pnt.sim import lte_front_end
 from pnt.sim.scenario import REFERENCE_DIR, SAME_SITE_M, T0_NS, generate, load
 
-OUT = Path(__file__).parent / "results" / "accuracy-budget"
+OUT = Path(__file__).parent / "results" / "hopping-study"
 ONE_CARRIER = "challenge-drone-outage"
 HOPPING = "challenge-drone-hop-outage"
 ESTIMATORS = ("ekf", "ekf-calibrated")
@@ -111,7 +113,7 @@ def masts() -> dict[str, int]:
 
 
 def configs() -> list[dict]:
-    """Every point of the budget, in table order."""
+    """Every point of the study, in table order."""
     scan, dwell = hop_set(), load(HOPPING)["sources"]["lte"]["hop"]["dwell_s"]
     out = [
         {"key": "one-carrier", "label": "1 carrier, today's leg (2460)", "family": "reference"},
@@ -274,7 +276,7 @@ def summary(data: dict) -> str:
     rows, n = data["rows"], data["seeds"]
     seeds = f"seeds 0–{n - 1}"
     lines = [
-        "# Accuracy budget: error after GPS loss against masts heard (#173)",
+        "# Carrier hopping study: error after GPS loss against masts heard (#173)",
         "",
         f"Sim, every value `TBC`. `{data['command']}` at {data['commit']}, {seeds} (paired), "
         f"{data['elapsed_min']:.1f} min. Scenarios `{ONE_CARRIER}` and `{HOPPING}`, the drone "
@@ -440,7 +442,7 @@ def plot(data: dict, out: Path) -> None:
     fig.legend(handles=handles, loc="upper left", bbox_to_anchor=(0.005, 0.93), ncol=4,
                fontsize=7.5, frameon=False)  # fmt: skip
     fig.suptitle(
-        f"Accuracy budget, drone leg outage ({ONE_CARRIER}, {HOPPING}): "
+        f"Carrier hopping study, drone leg outage ({ONE_CARRIER}, {HOPPING}): "
         f"seeds 0–{data['seeds'] - 1}, {data['commit']} (sim, every value TBC)",
         fontsize=10,
         x=0.01,
@@ -457,10 +459,10 @@ def main(argv=None) -> None:
     p.add_argument("--seeds", type=int, default=20)
     p.add_argument("--jobs", type=int, default=1)
     p.add_argument("--out", type=Path, default=OUT)
-    p.add_argument("--redraw", action="store_true", help="from budget.json, without running")
+    p.add_argument("--redraw", action="store_true", help="from study.json, without running")
     args = p.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=True)
-    path = args.out / "budget.json"
+    path = args.out / "study.json"
     if args.redraw:
         data = json.loads(path.read_text())
     else:
@@ -469,8 +471,7 @@ def main(argv=None) -> None:
         t0 = time.perf_counter()
         runs = _map(run_one, tasks, args.jobs)
         data = {
-            "command": f"python analysis/accuracy_budget.py --seeds {args.seeds} "
-            f"--jobs {args.jobs}",
+            "command": f"python analysis/hopping_study.py --seeds {args.seeds} --jobs {args.jobs}",
             "commit": _commit(),
             "seeds": args.seeds,
             "elapsed_min": (time.perf_counter() - t0) / 60,
