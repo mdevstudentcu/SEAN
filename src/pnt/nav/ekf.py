@@ -155,7 +155,7 @@ With it, a fix that jumps away from both the GNSS stream's own track and the fil
 steers the position, is refused, with the fixes after it, until the stream steps back. Until it
 latches it changes nothing, so a run without such a jump is unchanged.
 
-Residual map (`residual_map`, off by default, #95, ADR-0032 Proposed): each emitter's
+Residual map (`residual_map`, off by default, #95, ADR-0032, opt-in only): each emitter's
 pseudorange error per place, learned from accepted innovations while GNSS is trusted and
 subtracted from later readings in the same grid cell, with its variance added to the noise
 (`nav/residual_map.py`). Off, the output is exactly as before.
