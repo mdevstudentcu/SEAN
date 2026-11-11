@@ -81,3 +81,40 @@ def test_vor_summary_counts_idents_and_skips_bad_lines():
     assert s["idents"] == {"YOW": 1}
     assert s["snr9960_max"] == 12.0
     assert s["freq_mhz"] == [114.6]
+
+
+scan = _load("lte_scan_table")
+
+_ROWS = [
+    {"earfcn": "2460", "pci": "244", "enb_id": "30066", "licensee": "R", "location": "A",
+     "lat": "45.40", "lon": "-75.70", "dist_km": "1.5"},
+    {"earfcn": "2460", "pci": "244", "enb_id": "30066", "licensee": "R", "location": "A",
+     "lat": "45.40", "lon": "-75.70", "dist_km": "1.5"},
+    {"earfcn": "2460", "pci": "7", "enb_id": "1", "licensee": "R", "location": "B",
+     "lat": "45.30", "lon": "-75.70", "dist_km": "9.0"},
+    {"earfcn": "2460", "pci": "7", "enb_id": "2", "licensee": "R", "location": "C",
+     "lat": "45.39", "lon": "-75.69", "dist_km": "0.5"},
+]  # fmt: skip
+
+
+def test_scan_lookup_one_enb_with_two_sectors_is_unique():
+    m = scan.lookup(_ROWS, 2460, 244)
+    assert m["status"] == "unique"
+    assert [(e["enb_id"], e["sectors"], e["distance_km"]) for e in m["enbs"]] == [(30066, 2, None)]
+
+
+def test_scan_lookup_two_enbs_is_a_collision_and_unknown_is_not_in_table():
+    assert scan.lookup(_ROWS, 2460, 7)["status"] == "collision"
+    assert scan.lookup(_ROWS, 2460, 8) == {"status": "not in table", "enbs": []}
+
+
+def test_scan_lookup_gives_distance_only_with_a_receiver_position():
+    m = scan.lookup(_ROWS, 2460, 244, receiver_llh=(45.40, -75.70, 70.0))
+    assert m["enbs"][0]["distance_km"] == pytest.approx(0.0, abs=1e-6)
+    md = scan.table_md(
+        [{"session": "s", "earfcn": 2460, "capture_s": 1.0, "cells": [
+            {"earfcn": 2460, "pci": 244, "tracked_s": 1.0, "snr_db": 10.0, "cfo_ppm": None,
+             "arcs": 1}]}],
+        _ROWS, None, "abc1234",
+    )  # fmt: skip
+    assert "position unknown" in md and "abc1234" in md
