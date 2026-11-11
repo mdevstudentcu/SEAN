@@ -1,10 +1,11 @@
 """Tables and figure for #147's told-sigma comparison, from the JSON that
 `analysis/told_sigma_147.py` (sim) and `analysis/told_sigma_147_real.py` (real replay) write.
 
-    python analysis/told_sigma_147_report.py <dir with summary-*.json [real.json]> --out <dir>
+    python analysis/told_sigma_147_report.py <dir with summary-*.json [real-*.json]> --out <dir>
 
-Writes `tables.md` (pasted into `summary.md`, which adds what the numbers can and cannot show)
-and `t1_curves.png`. Reads only summaries: no records, positions or ranges.
+Writes `tables.md` (pasted into `summary.md`, which adds what the numbers can and cannot show;
+not committed)
+and `t1_curves.png`, `real_replay.png`. Reads only summaries: no records, positions or ranges.
 """
 
 from __future__ import annotations
@@ -101,16 +102,18 @@ def real_table(doc: dict) -> list[str]:
         "HPL bound pooled over every withheld fix.",
         "",
         "| Filter | Variant | LTE records | p95 0–120 s | p95 0–300 s | error at 60 s "
-        "| error at 300 s | HPL ≥ error | error > HPL (fixes) |",
-        "|---|---|---|---|---|---|---|---|---|",
+        "| error at 300 s | HPL ≥ error | error > HPL (fixes) | before cut: GNSS excluded |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in doc["aggregate"]:
         b = f"{r['hpl_bound']:.0%}" if "hpl_bound" in r else "—"
         mis = f"{r['misleading']} / {r['fixes']}" if "misleading" in r else "—"
         cells = [f"{_m(r[f + '_median'])} ({_m(r[f + '_worst'])})"
                  for f in ("p95_120s_m", "p95_300s_m", "err_60s_m", "err_300s_m")]  # fmt: skip
+        ex = r.get("pre_gnss_excluded_mean")
+        ex = "—" if ex is None else f"{ex:.0%}"
         lines.append(f"| {r['family']} | {r['fix']} | {r['lte']} | {' | '.join(cells)} | "
-                     f"{b} | {mis} |")  # fmt: skip
+                     f"{b} | {mis} | {ex} |")  # fmt: skip
     return [*lines, ""]
 
 
@@ -161,6 +164,54 @@ def plot(summaries: list[dict], path: Path) -> None:
     plt.close(fig)
 
 
+def plot_real(docs: list[dict], path: Path) -> None:
+    """Real replays, pseudoranges only: each variant's 0–300 s p95 after the cut (median and
+    worst cut) with its HPL bound rate; a row per session, a column per filter."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fams = list(dict.fromkeys(r["family"] for d in docs for r in d["aggregate"]
+                              if r["family"] != "hold"))  # fmt: skip
+    fig, axes = plt.subplots(len(docs), len(fams), figsize=(5.8 * len(fams), 4.4 * len(docs)),
+                             sharey=True, squeeze=False)  # fmt: skip
+    for row, doc in enumerate(docs):
+        rows = [r for r in doc["aggregate"] if r["lte"] in ("told-pr", "none")]
+        for ax, fam in zip(axes[row], fams, strict=True):
+            rs = [r for r in rows if r["family"] == fam]
+            x = list(range(len(rs)))
+            med = [max(r["p95_300s_m_median"], 0.1) for r in rs]
+            worst = [max(r["p95_300s_m_worst"], 0.1) for r in rs]
+            ax.vlines(x, med, worst, color="0.6", lw=1.5)
+            ax.scatter(x, med, s=40, color="#2a78d6", zorder=3, label="median cut")
+            ax.scatter(x, worst, s=60, marker="_", color="0.2", zorder=3, label="worst cut")
+            for k, r in zip(x, rs, strict=True):
+                if "hpl_bound" in r:
+                    ax.text(k, worst[k] * 1.8, f"{r['hpl_bound']:.0%}", ha="center", fontsize=7,
+                            color="0.3")  # fmt: skip
+            ax.axhline(T1_M, color="0.5", lw=0.8)
+            ax.text(-0.4, T1_M * 1.15, "T1 25 m (TBC)", ha="left", fontsize=7, color="0.35")
+            ax.set_xticks(x, [r["fix"] for r in rs], rotation=40, ha="right", fontsize=8)
+            ax.set_yscale("log")
+            ax.set_ylim(0.1, 3e5)
+            ax.set_title(f"{doc['meta']['session']}, {fam}", fontsize=9)
+            ax.grid(True, axis="y", which="major", color="0.9", lw=0.6)
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+        axes[row, 0].set_ylabel("p95 horizontal error,\n0–300 s after the cut (m)")
+    axes[0, 0].legend(fontsize=7, frameon=False, loc="upper left")
+    m = docs[0]["meta"]
+    fig.suptitle(
+        "#147, real static sessions (replay, GPS cut in software at 5 times each), LTE "
+        f"pseudoranges only, src {m.get('src_commit', '?')}; label: HPL ≥ error, all fixes",
+        fontsize=9,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    fig.savefig(path, dpi=120)
+    plt.close(fig)
+
+
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("src", type=Path)
@@ -168,11 +219,15 @@ def main(argv=None) -> None:
     a = ap.parse_args(argv)
     sims = [json.loads(p.read_text()) for p in sorted(a.src.glob("summary-*.json"), reverse=True)]
     lines = sim_tables(sims)
-    if (a.src / "real.json").exists():
-        lines += real_table(json.loads((a.src / "real.json").read_text()))
+    reals = [json.loads(p.read_text()) for p in sorted(a.src.glob("real*.json"))]
+    for doc in reals:
+        lines += real_table(doc)
     a.out.mkdir(parents=True, exist_ok=True)
     (a.out / "tables.md").write_text("\n".join(lines))
-    plot(sims, a.out / "t1_curves.png")
+    if sims:
+        plot(sims, a.out / "t1_curves.png")
+    if reals:
+        plot_real(reals, a.out / "real_replay.png")
     print("\n".join(lines))
 
 
