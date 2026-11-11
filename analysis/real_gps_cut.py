@@ -32,14 +32,23 @@ the share of withheld fixes with HPL >= error, and how many have error > HPL; an
 while GNSS is fed, the p95 error and the share of epochs flagged `gnss_excluded`. `hold` is the
 last fix before the cut held: the error a receiver that never moves gets for free.
 
-Writes summary.json, summary.md and error_after_cut.png into `--out`. With `--dash-out`, also
-writes a session for `pnt dash` (outside git: it holds the session's origin): the records with
-GNSS cut at `--dash-cut`, and every GPS fix as `/truth`, so the panel can draw error against HPL.
+`--rows EST:VARIANT ...` runs only those pairs instead of every estimator with every variant
+(`--rows filters` is `FILTER_ROWS`, #256: no LTE, then `ekf` and each opt-in LTE filter on the
+front end's pseudoranges as told). Each run also counts the filter's LTE updates, before and after
+the cut: accepted through the gate, accepted unchecked (a cell's first record or a new arc, which
+the filter takes without a gate), and rejected by the gate.
+
+Writes summary.json, summary.md and error_after_cut.png into `--out` (with `--rows`, one line per
+row instead: error_by_row.png), and each run's error and HPL curves to `--runs-out` (git-ignored).
+With `--dash-out`, also writes a session for `pnt dash` (outside git: it holds the session's
+origin): the records with GNSS cut at `--dash-cut`, and every GPS fix as `/truth`, so the panel
+can draw error against HPL.
 """
 
 from __future__ import annotations
 
 import argparse
+import contextlib
 import functools
 import json
 import math
@@ -53,6 +62,7 @@ from pnt import experiments, nav
 from pnt.core.measurement import Measurement, Truth
 from pnt.io import session
 from pnt.io.mcap_log import SessionWriter, read_session
+from pnt.nav import ekf as ekf_module
 from pnt.sim import attacks
 
 CUTS_S = (100.0, 150.0, 200.0, 250.0, 300.0)
@@ -65,6 +75,16 @@ AT_ON_S, AT_NEAREST_S = 0.05, 0.5
 SLICES_S = (60.0, 120.0, 300.0)  # p95 over [cut, cut + s), as metrics.OUTAGE_SLICES_S
 ESTIMATORS = ("ekf", "ekf-imu", "ekf-calibrated")
 VARIANTS = ("none", "told", "told-pr", "adr36", "adr36-cut8")
+# #256: the opt-in LTE filters against no LTE and the default, all fed the same records:
+# pseudoranges with the front end's told sigma (each filter re-sizes the sigma its own way)
+FILTER_ROWS = (
+    ("ekf", "none"),
+    ("ekf", "told-pr"),
+    ("ekf-measured-sigma", "told-pr"),  # ADR-0044: ADR-0036's sigma from the record's SNR
+    ("ekf-learned-noise", "told-pr"),  # ADR-0039 (Proposed): noise learned from innovations
+    ("ekf-honest", "told-pr"),  # ADR-0046 (Proposed): learned noise + slow error state + clock
+)
+LTE_COUNTS = ("accepted", "unchecked", "rejected")
 SETTLE_S = 30.0  # s of start-up left out of the before-cut statistics
 T1_M, T1_S = 25.0, 300.0  # ADR-0034 T1 (TBC): 95 % <= 25 m for >= 300 s
 FALLBACK_M, FALLBACK_S = 50.0, 120.0  # ADR-0034's fallback (mentors): <= 50 m for >= 120 s
@@ -166,6 +186,7 @@ def score_cut(
     out["max_m"] = float(err.max()) if err.size else float("nan")
     out["hpl_bound"] = float(np.mean(hpl >= err)) if err.size else float("nan")
     out["misleading"] = int(np.sum(err > hpl))
+    out["above_hpl"] = float(np.mean(err > hpl)) if err.size else float("nan")
     return out
 
 
@@ -175,8 +196,31 @@ def hold_last_fix(fix_t: np.ndarray, fix_pos: np.ndarray, cut_ns: int) -> dict:
     est_t = fix_t[fix_t >= cut_ns]
     est_pos = np.repeat(fix_pos[last : last + 1], len(est_t), axis=0)
     out = score_cut(est_t, est_pos, np.full(len(est_t), np.nan), fix_t, fix_pos, cut_ns)
-    out["hpl_bound"], out["misleading"] = float("nan"), None
+    out["hpl_bound"], out["misleading"], out["above_hpl"] = float("nan"), None, float("nan")
     return out
+
+
+@contextlib.contextmanager
+def count_lte_updates(cut_ns: int):
+    """Count the EKF's LTE updates while the block runs, split at `cut_ns`: {"before" | "after":
+    {"accepted", "unchecked", "rejected"}}. "unchecked" is an update made without the gate (a
+    cell's first record, or the first of a new arc). Wraps `EKF._update` for the block only and
+    changes no result; every estimator here is that EKF with options."""
+    counts = {side: dict.fromkeys(LTE_COUNTS, 0) for side in ("before", "after")}
+    update = ekf_module.EKF._update
+
+    def counted(self, key, t_ns, y, H, R, gate=True):
+        used = update(self, key, t_ns, y, H, R, gate)
+        if key == "lte":
+            what = "rejected" if not used else "accepted" if gate else "unchecked"
+            counts["after" if t_ns >= cut_ns else "before"][what] += 1
+        return used
+
+    ekf_module.EKF._update = counted
+    try:
+        yield counts
+    finally:
+        ekf_module.EKF._update = update
 
 
 @functools.lru_cache(maxsize=1)
@@ -193,7 +237,8 @@ def run_one(path: str, estimator: str, variant: str, cut_s: float) -> dict:
     fix_t, fix_pos = gps_fixes(meas)
     cut_ns = t0 + round(cut_s * 1e9)
     fed = lte_variant(cut_gnss(meas, t0, cut_s), variant)
-    est = list(nav.estimate(estimator, fed, origin_llh=origin))
+    with count_lte_updates(cut_ns) as lte_updates:
+        est = list(nav.estimate(estimator, fed, origin_llh=origin))
     est_t = np.array([e.t_ns for e in est], dtype=np.int64)
     est_pos = np.array([e.pos_enu for e in est], dtype=float)
     est_hpl = np.array([e.hpl_m for e in est], dtype=float)
@@ -208,6 +253,7 @@ def run_one(path: str, estimator: str, variant: str, cut_s: float) -> dict:
     settled = [e for e in est if t0 + SETTLE_S * 1e9 <= e.t_ns < cut_ns]
     out["pre_gnss_excluded"] = float(np.mean(["gnss_excluded" in e.flags for e in settled]))
     out["n_lte"] = sum(m.source == "lte" for m in fed)
+    out["lte_updates"] = lte_updates
     return out
 
 
@@ -300,6 +346,12 @@ def aggregate(rows: list[dict]) -> dict:
             a["misleading"] = int(sum(r["misleading"] for r in rs))
             a["fixes"] = int(err.size)
             a["pre_gnss_excluded"] = float(np.mean([r["pre_gnss_excluded"] for r in rs]))
+            a["above_hpl"] = float(np.mean(err > hpl))
+            a["hpl_held"] = a["misleading"] == 0  # HPL >= error on every withheld fix
+            a["lte_updates"] = {
+                side: {k: int(sum(r["lte_updates"][side][k] for r in rs)) for k in LTE_COUNTS}
+                for side in ("before", "after")
+            }
         # ADR-0034 over the runs; with a handful of runs the 95th percentile is the worst
         a["t1_met"] = bool(a[f"p95_{T1_S:g}s_m"]["worst"] <= T1_M)
         a["fallback_met"] = bool(a[f"p95_{FALLBACK_S:g}s_m"]["worst"] <= FALLBACK_M)
@@ -370,6 +422,33 @@ def markdown(summary: dict) -> str:
         est, var = key.split("|")
         yes = {True: "met", False: "missed"}
         lines.append(f"| {est} | {var} | {yes[a['t1_met']]} | {yes[a['fallback_met']]} |")
+    lines += [
+        "",
+        "## LTE updates and HPL, per row",
+        "",
+        "Error at 120 and 300 s after the cut: median over the cuts (worst run). Error > HPL: "
+        "share of the withheld fixes over every cut. LTE updates after the cut, summed over the "
+        "cuts: accepted through the gate / taken unchecked (a cell's first record or a new arc) / "
+        "rejected by the gate.",
+        "",
+        "| Estimator | LTE | 120 s | 300 s | Error > HPL | HPL held | LTE after the cut: "
+        "accepted / unchecked / rejected |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for key, a in s["aggregate"].items():
+        if "lte_updates" not in a:
+            continue
+        est, var = key.split("|")
+        cells = [
+            f"{_fmt(a[f'err_{t:g}s_m']['median'])} ({_fmt(a[f'err_{t:g}s_m']['worst'])})"
+            for t in (120.0, 300.0)
+        ]
+        u = a["lte_updates"]["after"]
+        counts = " / ".join(f"{u[k]:,}" for k in LTE_COUNTS)
+        held = "yes" if a["hpl_held"] else "no"
+        lines.append(
+            f"| {est} | {var} | {' | '.join(cells)} | {a['above_hpl']:.1%} | {held} | {counts} |"
+        )
     lines += [
         "",
         "## HPL at the same instants",
@@ -481,6 +560,73 @@ def plot(rows: list[dict], summary: dict, path: Path) -> None:
     plt.close(fig)
 
 
+# one colour per row of FILTER_ROWS, in order (reference categorical palette, dataviz skill)
+ROW_COLORS = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#8a5cd1", "#d1456b", "#5f6b7a")
+
+
+def plot_rows(rows: list[dict], summary: dict, path: Path) -> None:
+    """One line per (estimator, variant) row: median error over the cuts against time after the
+    cut, log y, with the 50 m fallback line."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    grid = np.arange(0.0, summary["horizon_s"] + 1.0, 1.0)
+    fig, ax = plt.subplots(figsize=(7.5, 4.6))
+    keys = [k for k in summary["aggregate"] if not k.startswith("hold|")]
+    for n, key in enumerate(keys):
+        est, var = key.split("|")
+        rs = [r for r in rows if r["estimator"] == est and r["variant"] == var]
+        ys = [
+            np.interp(grid, r["after_s"], r["err_m"], left=np.nan, right=np.nan)
+            for r in rs
+            if len(r["after_s"])
+        ]
+        if not ys:
+            continue
+        label = "no LTE" if var == "none" else f"{est} ({var})"
+        ax.plot(grid, np.nanmedian(ys, axis=0), color=ROW_COLORS[n % len(ROW_COLORS)], lw=2,
+                label=label)  # fmt: skip
+    hold = [r for r in rows if r["estimator"] == "hold"]
+    if hold:
+        ys = [np.interp(grid, r["after_s"], r["err_m"], left=np.nan, right=np.nan) for r in hold]
+        ax.plot(grid, np.nanmedian(ys, axis=0), color="0.35", lw=1, ls=":", label="hold last fix")
+    ax.axhline(FALLBACK_M, color="0.4", lw=0.9, ls="--")
+    ax.text(grid[-1], FALLBACK_M * 1.12, "50 m", ha="right", va="bottom", fontsize=8)
+    ax.set_yscale("log")
+    ax.set_ylim(0.1, 1e5)
+    ax.set_xlabel("s after GPS cut")
+    ax.set_ylabel("horizontal error (m)")
+    ax.grid(True, which="major", color="0.9", lw=0.6)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
+    ax.legend(loc="lower right", fontsize=7, frameon=False)
+    ax.set_title(
+        f"Error after a software GPS cut, real session {summary['session']} (replay): front end "
+        f"{summary['frontend_commit']}, analysis {summary['commit']}; median of "
+        f"{len(summary['cuts_s'])} cuts",
+        fontsize=8,
+    )
+    fig.tight_layout()
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
+
+
+def parse_rows(specs: list[str]) -> list[tuple[str, str]]:
+    """`--rows` values: "filters" (FILTER_ROWS) or "EST:VARIANT" pairs, in the order given."""
+    out: list[tuple[str, str]] = []
+    for spec in specs:
+        if spec == "filters":
+            out += FILTER_ROWS
+            continue
+        est, sep, var = spec.partition(":")
+        if not sep or est not in nav.ESTIMATORS or var not in VARIANTS:
+            raise SystemExit(f"--rows wants filters or EST:VARIANT, not {spec!r}")
+        out.append((est, var))
+    return out
+
+
 def write_dash_session(path: str, out: Path, cut_s: float) -> None:
     """A session for `pnt dash`: GNSS cut at `cut_s`, and `/truth` on every 0.1 s epoch from
     the GPS fixes, interpolated between them (the panel matches truth to estimates by time, and
@@ -515,6 +661,8 @@ def main(argv=None) -> None:
     ap.add_argument("--cuts", type=float, nargs="+", default=list(CUTS_S), help="s")
     ap.add_argument("--estimators", nargs="+", default=list(ESTIMATORS))
     ap.add_argument("--variants", nargs="+", default=list(VARIANTS))
+    ap.add_argument("--rows", nargs="+", help="filters, or EST:VARIANT pairs (instead of all)")
+    ap.add_argument("--runs-out", help="folder for runs.json, each run's curves (git-ignored)")
     ap.add_argument("--jobs", type=int, default=1, help="worker processes (<= 3 on this laptop)")
     ap.add_argument("--out", help="folder for summary.json, summary.md, error_after_cut.png")
     ap.add_argument("--dash-out", help="also write a session for `pnt dash` here (not in git)")
@@ -529,7 +677,12 @@ def main(argv=None) -> None:
     fix_t, fix_pos = gps_fixes(meas)
     if args.cuts and max(args.cuts) + HORIZON_S > (fix_t[-1] - t0) / 1e9 + 0.5:
         raise SystemExit(f"a cut leaves less than {HORIZON_S:g} s of withheld fixes")
-    tasks = [(path, e, v, c) for e in args.estimators for v in args.variants for c in args.cuts]
+    pairs = (
+        parse_rows(args.rows)
+        if args.rows
+        else [(e, v) for e in args.estimators for v in args.variants]
+    )
+    tasks = [(path, e, v, c) for e, v in pairs for c in args.cuts]
     rows = experiments._map(run_one, tasks, args.jobs)
     for c in args.cuts:
         h = hold_last_fix(fix_t, fix_pos, t0 + round(c * 1e9))
@@ -542,8 +695,9 @@ def main(argv=None) -> None:
         "kind": "replay of a real session, GPS cut in software",
         "cuts_s": list(args.cuts),
         "horizon_s": HORIZON_S,
-        "estimators": list(args.estimators),
-        "variants": list(args.variants),
+        "estimators": list(dict.fromkeys(e for e, _ in pairs)),
+        "variants": list(dict.fromkeys(v for _, v in pairs)),
+        "rows": [f"{e}|{v}" for e, v in pairs],
         "gps_scatter": gps_scatter(fix_pos),
         "arc_steps": arc_steps(meas),
         "lte_records_fed": {
@@ -558,7 +712,14 @@ def main(argv=None) -> None:
     out.mkdir(parents=True, exist_ok=True)
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     (out / "summary.md").write_text(markdown(summary))
-    plot(rows, summary, out / "error_after_cut.png")
+    if args.rows:
+        plot_rows(rows, summary, out / "error_by_row.png")
+    else:
+        plot(rows, summary, out / "error_after_cut.png")
+    if args.runs_out:
+        runs_out = Path(args.runs_out)
+        runs_out.mkdir(parents=True, exist_ok=True)
+        (runs_out / "runs.json").write_text(json.dumps(rows) + "\n")
     print(markdown(summary))
     print(f"wrote {out}")
 
