@@ -20,6 +20,7 @@ from collections.abc import Callable, Iterable, Iterator
 from functools import partial
 
 from pnt.core.measurement import Estimate, Measurement
+from pnt.integrity.jump_guard import JumpGuard
 from pnt.integrity.mhss import MHSS
 from pnt.nav import base_rover, baseline, cells, ekf
 
@@ -46,6 +47,11 @@ ESTIMATORS = {
     # Stage 2 (#12): the same filters with IMU-driven prediction (nav/imu.py)
     "ekf-imu": configured(ekf.run, motion="imu"),
     "ekf-base-imu": configured(base_rover.run, motion="imu"),
+    # Opt-in jump guard (#184, ADR-0038 Proposed): the same filters, refusing a detected GNSS
+    # position jump until it is undone
+    "ekf-guard": configured(ekf.run, jump_guard=JumpGuard),
+    "ekf-imu-guard": configured(ekf.run, motion="imu", jump_guard=JumpGuard),
+    "ekf-calibrated-guard": configured(ekf.run_calibrated, jump_guard=JumpGuard),
 }
 
 log = logging.getLogger(__name__)

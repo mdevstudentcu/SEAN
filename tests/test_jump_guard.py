@@ -8,14 +8,17 @@ import numpy as np
 import pytest
 
 from pnt.integrity.jump_guard import JumpGuard
-from pnt.nav import ESTIMATORS, configured, ekf
+from pnt.nav import ESTIMATORS, ekf
 from pnt.sim.scenario import T0_NS, generate, load
 
 JUMP_M = 300.0
 START_S = 150.0  # spoof-jump.yaml
 
 
-def _run(spec, estimator=ekf.run, seed=0):
+GUARD = ESTIMATORS["ekf-guard"]  # opt-in (ADR-0038); `ekf` itself runs without the guard
+
+
+def _run(spec, estimator=GUARD, seed=0):
     run = generate(spec, seed=seed)
     est = list(estimator(run.measurements, origin_llh=spec.get("origin_llh")))
     truth = {g.t_ns: g for g in run.truth}
@@ -46,7 +49,7 @@ def _at(t, x, s):
 
 def test_detected_jump_is_not_followed_req04():
     spec = _jump()
-    off = configured(ekf.run, jump_guard=None)  # the code path main runs
+    off = ekf.run  # the default: no guard, the code path main runs
     _, t, err_main, _ = _run(spec, off)
     _, t, err, used = _run(spec)
     after = t >= START_S + 30
@@ -92,12 +95,21 @@ def test_held_offset_is_refused_however_long_the_spoofer_waits():
     assert set(verdicts[9:]) == {"refuse"}
 
 
+def test_the_guard_is_opt_in():
+    assert ekf.EKF().jump is None
+    assert ESTIMATORS["ekf"] is ekf.run  # the default estimators are unchanged
+    for name in ("ekf-guard", "ekf-imu-guard", "ekf-calibrated-guard"):
+        assert ESTIMATORS[name].keywords["jump_guard"] is JumpGuard
+    assert ESTIMATORS["ekf-imu-guard"].keywords["motion"] == "imu"
+    assert ESTIMATORS["ekf-calibrated-guard"].func is ekf.run_calibrated
+
+
 @pytest.mark.parametrize("estimator", ["ekf", "ekf-calibrated", "ekf-imu"])
 def test_clean_runs_are_unchanged(estimator):
     spec = load("nominal")
     run = generate(spec, seed=0)
-    fn = ESTIMATORS[estimator]
-    off = configured(fn, jump_guard=None)
+    fn = ESTIMATORS[f"{estimator}-guard"]
+    off = ESTIMATORS[estimator]
     a = [msgspec.structs.astuple(e) for e in fn(run.measurements, origin_llh=spec["origin_llh"])]
     b = [msgspec.structs.astuple(e) for e in off(run.measurements, origin_llh=spec["origin_llh"])]
     assert repr(a) == repr(b)

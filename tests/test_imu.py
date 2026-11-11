@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from pnt.core.measurement import Measurement
+from pnt.integrity.jump_guard import JumpGuard
 from pnt.nav import ESTIMATORS, base_rover, ekf, estimate
 from pnt.nav.imu import MPU6050, rotation, rotations, wahba
 from pnt.sim import sensors, trajectory
@@ -324,12 +325,10 @@ def test_heading_sigma_bounds_the_error_with_gnss_spoofed_during_alignment_issue
     spoof, traj, gnss_sigma
 ):
     """On the hard turn and on the gentle UC-01 circuit, where heading is barely observable in
-    one window (sigma tens of degrees). Seeds 0-2: every one aligns. For the jump the jump
-    guard (#184) is off: it refuses the jump, and the filter then never aligns (checked below),
-    so the alignment's own bound is tested on what it would see without the guard."""
-    config = {"jump_guard": None} if spoof.startswith("jump") else {}
+    one window (sigma tens of degrees). Seeds 0-2: every one aligns. Without the opt-in jump
+    guard (#184): with it the jump is refused and the filter never aligns (checked below)."""
     for seed in range(3):
-        err, sigma = heading_at_alignment(traj, seed, gnss_sigma, spoof=SPOOFS[spoof], **config)
+        err, sigma = heading_at_alignment(traj, seed, gnss_sigma, spoof=SPOOFS[spoof])
         assert abs(err) <= 3.0 * sigma, seed
 
 
@@ -339,7 +338,8 @@ def test_heading_sigma_bounds_the_error_with_gnss_spoofed_during_alignment_issue
 def test_a_gnss_jump_during_alignment_is_refused_not_aligned_on_issue_184(traj, gnss_sigma):
     for seed in range(3):
         spoof = SPOOFS["jump 30 m at 4 s"]
-        assert heading_at_alignment(traj, seed, gnss_sigma, spoof=spoof) is None, seed
+        guarded = heading_at_alignment(traj, seed, gnss_sigma, spoof=spoof, jump_guard=JumpGuard)
+        assert guarded is None, seed
 
 
 def test_worse_grade_spec_scales_every_term():
