@@ -345,9 +345,14 @@ DIAGNOSE = (
 )
 
 
+DIAGNOSE_13C_SEEDS = 10  # ekf-honest takes 40-70 s a run on 13 carriers
+
+
 def plan_diagnose(seeds: list[int]) -> list[tuple]:
-    return [(f"drone/{e}/{n}c", s, (name,), cfg) for e in ("outage",) for n in (1, 13)
-            for name, cfg in DIAGNOSE for s in seeds]  # fmt: skip
+    one = [("drone/outage/1c", s, (n,), c) for n, c in DIAGNOSE for s in seeds]
+    hop = [("drone/outage/13c", s, (n,), c) for n, c in DIAGNOSE
+           for s in seeds[:DIAGNOSE_13C_SEEDS]]  # fmt: skip
+    return one + hop
 
 
 def truth_dynamics(scenario: str = "challenge-drone-outage", seed: int = 1000) -> dict:
