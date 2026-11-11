@@ -297,6 +297,7 @@ class EKF:
         range_sigma_floor_m: float = 0.0,  # m: least range sigma of a radio's record; 0: off (TBC)
         noise_prior_m: float = 40.0,  # m: a radio cell's range sigma before learning (TBC)
         told_sigma_model: str | None = None,  # "adr0036": radio records' sigma from SNR (#147)
+        arc_bias: bool = False,  # a radio cell's new arc (meta.arc) starts a new range bias (#147)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -389,6 +390,8 @@ class EKF:
         if told_sigma_model is not None and told_sigma_model not in told_sigma.MODELS:
             raise ValueError(f"told_sigma_model must be one of {told_sigma.MODELS} or None")
         self.told_sigma_model = told_sigma_model  # nav/told_sigma.py; None: the reported sigma
+        self.arc_bias = arc_bias
+        self._arc_idx: dict[str, list] = {}  # emitter -> [its arc, its arc state or None, t_ns]
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -507,6 +510,34 @@ class EKF:
                 self._augment(skey, residual - self.x[idx[0]], self.init_residual_sigma)
         idx.append(self.clock_idx[skey])
         return idx, new
+
+    def arc_state(self, m: Measurement, residual: float) -> tuple[int | None, bool]:
+        """With `arc_bias`, the range bias state of a radio record's arc (`meta.arc`), and whether
+        this record starts a new arc of a cell already seen. A front end that loses a cell and
+        finds it again starts a new arc, and its range may step by hundreds of metres there (#214:
+        90 of 103 new arcs at SNR >= -8 dB, median 874 m). The cell's first arc needs no state of
+        its own (its site clock carries it); a later one gets a constant bias state, seeded from
+        `residual` with `init_emitter_sigma` and no correlation with anything, so the step is
+        absorbed instead of pulling the position. Off, or for a record without `arc` or
+        `rx_clock`: (None, False)."""
+        arc = m.meta.get("arc")
+        if not self.arc_bias or arc is None or "rx_clock" not in m.meta:
+            return None, False
+        rec = self._arc_idx.get(m.emitter)
+        if rec is None:
+            self._arc_idx[m.emitter] = [arc, None, m.t_ns]
+            return None, False
+        if rec[0] == arc:
+            return rec[1], False
+        i = rec[1]
+        if i is None:
+            i = self._append_states([residual], [self.init_emitter_sigma])
+        else:  # reuse the cell's arc state: a new, independent bias
+            self.x[i] = residual
+            self.P[i, :] = self.P[:, i] = 0.0
+            self.P[i, i] = self.init_emitter_sigma**2
+        rec[:] = [arc, i, m.t_ns]
+        return i, True
 
     def gnss_trusted(self) -> bool:
         """GNSS position accepted recently, and neither GNSS position nor time rejected since."""
@@ -688,7 +719,13 @@ class EKF:
         for i in self.bearing_bias_idx.values():
             if i >= c + k:
                 P[i, i] = BEARING_BIAS_SIGMA_RAD**2
+        now = self.x.copy()
         self.x[old] = F @ xc
+        for _, i, t_arc in self._arc_idx.values():  # an arc begun after the snapshot: as new
+            if i is not None and (i >= c + k or t_arc > t_s):
+                self.x[i] = now[i]
+                P[i, :] = P[:, i] = 0.0
+                P[i, i] = self.init_emitter_sigma**2
         self.P = (P + P.T) / 2
         self.rollbacks.append((alarm_ns, t_s))
         self._learned = False
@@ -1103,6 +1140,9 @@ def _pseudorange(ekf: EKF, m: Measurement):
         rx += float(h_pos @ err)
         h = u - err @ (np.eye(3) - np.outer(u, u))[:2] / r  # the line of sight turns
     idx, new = ekf.clock_offsets(m.emitter, m.value[0] - r - rx)
+    arc, new_arc = ekf.arc_state(m, m.value[0] - r - rx - float(np.sum(ekf.x[idx])))
+    if arc is not None:
+        idx = [*idx, arc]
     H = _row(ekf)
     H[0, POS] = h
     if use_rx:
@@ -1117,9 +1157,9 @@ def _pseudorange(ekf: EKF, m: Measurement):
     ekf._curvature = 0.0
     if "rx_clock" in m.meta and ekf.noise_tau_ns:
         ekf._curvature = ekf.range_curvature(u, r, None if pos is None else pos[0])
-        if not new and ekf._curvature > ekf.range_variance(m):
+        if not (new or new_arc) and ekf._curvature > ekf.range_variance(m):
             return None  # not linear enough to use: the second-order term exceeds the noise
-    return y, H, np.array([[R + ekf._curvature]]), not new
+    return y, H, np.array([[R + ekf._curvature]]), not (new or new_arc)
 
 
 def _doppler(ekf: EKF, m: Measurement):
