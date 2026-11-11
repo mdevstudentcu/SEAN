@@ -300,9 +300,10 @@ def plan_stress(seeds: list[int]) -> list[tuple]:
     for leg in ("timing", "approach"):
         for entry in ("outage", "nominal"):
             tasks += [(f"{leg}/{entry}", s, FIX, None) for s in seeds[:50]]
+    # On 1 carrier only: `ekf-honest` takes 10 to 40 s a run on 6 and 13 carriers (one multipath
+    # state per heard cell), so the hopped entries run on fewer seeds (`--part plain:6c` etc.)
     for k in (0.5, 2.0):
-        for n in CARRIERS:
-            tasks += [(f"drone/outage/{n}c/lte*{k:g}", s, FIX, None) for s in seeds]
+        tasks += [(f"drone/outage/1c/lte*{k:g}", s, FIX, None) for s in seeds]
         tasks += [(f"drone/outage-imu-bias/1c/lte*{k:g}", s, FIX, None) for s in seeds[:50]]
     return tasks
 
@@ -390,7 +391,8 @@ def _clean(commit: str) -> bool:
 
 def run_plan(plan: str, seeds: list[int], jobs: int, host: str, out: Path, part: str = "") -> Path:
     """Run a plan, or the part of it named `part`: `plain` or `calibrated` (estimator family),
-    optionally with `:hop` or `:1c` (scenario carriers), so one plan can be split over hosts."""
+    optionally with `:hop`, `:1c`, `:6c` or `:13c` (scenario carriers; `1c` includes the other
+    legs), so one plan can be split over hosts and seed counts."""
     tasks = PLANS[plan](seeds)
     if part:
         fam, _, car = part.partition(":")
@@ -398,7 +400,8 @@ def run_plan(plan: str, seeds: list[int], jobs: int, host: str, out: Path, part:
         for key, seed, names, cfg in tasks:
             names = tuple(n for n in names if ("calibrated" in n) == (fam == "calibrated"))
             hop = "/6c" in key or "/13c" in key
-            if names and (not car or (car == "hop") == hop):
+            match = {"hop": hop, "1c": not hop, "6c": "/6c" in key, "13c": "/13c" in key}
+            if names and (not car or match[car]):
                 keep.append((key, seed, names, cfg))
         tasks = keep
     # Longest first: 13-carrier calibrated runs take the most time
@@ -475,7 +478,9 @@ def cell(runs: list[dict]) -> dict:
         "false_alarms_per_h": float(np.mean([r["false_alarms_per_h"] for r in runs])),
         "run_s": float(np.mean([r["run_s"] for r in runs])),
     }
-    loss = runs[0]["loss_s"]
+    # From GPS loss, else from the attack's start (a held jump refused by the guard is a GPS loss
+    # in all but name; a ramp or meaconing keeps GNSS)
+    loss = runs[0]["loss_s"] if runs[0]["loss_s"] is not None else runs[0]["start_s"]
     if loss is not None:
         a = int(round(loss))
         e = np.array([r["err_s"][a : a + TIGHT_WINDOW_S + 1] for r in runs], float)
@@ -496,13 +501,10 @@ def cell(runs: list[dict]) -> dict:
                         for r in runs
                     ]
                 )
-            ),  # fmt: skip
+            )
+            if runs[0]["loss_s"] is not None
+            else math.nan,  # no GPS loss: time to unsafe is not defined
         )
-    start = runs[0]["start_s"]
-    if start is not None and loss is None:  # a jump or ramp: p95 curve from the attack's start
-        a = int(round(start))
-        e = np.array([r["err_s"][a:] for r in runs], float)
-        out["p95_worst"] = float(np.nanmax(np.nanpercentile(e, 95, axis=0)))
     return out
 
 
@@ -574,7 +576,11 @@ def row(key: str, label: str, c: dict) -> str:
             f"({c['hazardous_runs']}) | {_num(c['nees_mean_win'], '.1f')} | "
             f"{_num(c.get('tightness', math.nan))} | {_pct(c['under_al_win'], 1)} | "
             f"{_num(c.get('p95_worst', math.nan), ',.0f')}{at} | "
-            f"{_num(c.get('unsafe_median_s', math.nan), '.1f')} |")  # fmt: skip
+            f"{_unsafe(c.get('unsafe_median_s', math.nan))} |")  # fmt: skip
+
+
+def _unsafe(x: float) -> str:
+    return "never" if x == math.inf else _num(x, ".1f")
 
 
 def label_of(name: str, cfg: str) -> str:
@@ -700,13 +706,14 @@ def figure(p: dict, out: Path, tail: str) -> str | None:
             color = "#b2182b" if st["above"] > ESCAPE_POOLED else "#1a1a1a"
             ax.text(0.04, 0.96, f"{100 * st['above']:.1f} %", transform=ax.transAxes, va="top",
                     fontsize=40, weight="bold", color=color, zorder=3)  # fmt: skip
-            ax.text(0.04, 0.80, "of epochs: error above HPL", transform=ax.transAxes, va="top",
-                    fontsize=15, zorder=3)  # fmt: skip
+            ax.text(0.04, 0.80, f"of all epochs: error above HPL\n({name}; from the fault: "
+                    f"{100 * st['above_win']:.1f} %)", transform=ax.transAxes, va="top",
+                    fontsize=13, zorder=3)  # fmt: skip
             ax.text(0.97, 0.03, f"worst run {100 * st['worst_run']:.1f} % above\n"
                     f"hazardous epochs {st['hazardous']:,}", transform=ax.transAxes, ha="right",
                     va="bottom", fontsize=14, color="#333333", zorder=3)  # fmt: skip
             if r == 0:
-                ax.set_title(("before: " if c == 0 else "after: ") + name, fontsize=20,
+                ax.set_title(("before: default" if c == 0 else "after: the fix"), fontsize=20,
                              weight="bold", color="#2a78d6" if c == 0 else "#1b7837")  # fmt: skip
             if c == 0:
                 ax.set_ylabel("true horizontal error (m)", fontsize=16)
@@ -734,9 +741,10 @@ def figure(p: dict, out: Path, tail: str) -> str | None:
     fig.suptitle(f"Does the protection level bound the true error? Drone leg, {n} runs each,\n"
                  f"every 0.1 s epoch of each 720 s run · {tail}",
                  fontsize=18, y=0.985)  # fmt: skip
-    fig.text(0.01, 0.005, f"{KIND} · analysis/honest_bound.py; numbers in summary.md · darker "
-             "blue: more epochs · ekf-honest: learned LTE noise with its slow part as a state "
-             "(ADR-0041)", fontsize=11, color="#555555")  # fmt: skip
+    fig.text(0.01, 0.005, f"{KIND} · analysis/honest_bound.py; numbers in summary.md\n"
+             "darker blue: more epochs · ekf-honest: learned LTE noise with its slow part as a "
+             "state (ADR-0041); -guard: with the jump guard (ADR-0038)", fontsize=11,
+             color="#555555")  # fmt: skip
     fig.subplots_adjust(left=0.15, right=0.98, top=0.88, bottom=0.07, wspace=0.06, hspace=0.12)
     name = "bound_before_after.png"
     _save_png(fig, out / name)
@@ -808,9 +816,8 @@ def write_summary(plans: dict, out: Path, figures: list[str], diagnosis: str) ->
         "*HPL ≤ 50 m*: share of epochs from the fault with HPL under the alert limit (the bound "
         "usable for the 50 m alert limit, `TBC`). *Unsafe*: median seconds from GPS loss to HPL "
         "over 50 m. *p95 worst*: ADR-0034's statistic, the worst second of the across-run 95th "
-        "percentile of error (from GPS loss over 0–300 s; from the attack's start to the "
-        "run's end "
-        "on jump and ramp entries).",
+        "percentile of error over 0–300 s. *Tightness* and *p95 worst* count from GPS loss, "
+        "or on the GNSS attack entries (jump, meaconing, ramp) from the attack's start.",
         "",
     ]
     if figures:
