@@ -80,7 +80,9 @@ attacks:
     - {type: spoof_jump, source: gnss, start_s: 150, offset_enu_m: [300, 0, 0]}
   # The same jump, ended at 200 s: does honest GPS come back once the spoofer stops? The shared
   # menu's `gps-return` (PX4 test: gnssJumpDetectionDRMode), on this leg. Shown in the judging
-  # demo with the opt-in jump guard (ADR-0038, deploy/demo/RUNBOOK.md).
+  # demo with the opt-in jump guard (ADR-0038, deploy/demo/RUNBOOK.md). `challenge-drone-hop`
+  # extends this set, so it gains `challenge-drone-hop-gps-return` too, and whole-set sweeps
+  # (`pnt results`, analysis/challenge_baseline.py) gain both entries.
   gps-return:
     - {type: spoof_jump, source: gnss, start_s: 150, end_s: 200, offset_enu_m: [300, 0, 0]}
   time-spoof:   # T4: 50 ns/s time ramp
