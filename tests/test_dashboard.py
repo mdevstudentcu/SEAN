@@ -213,6 +213,13 @@ def test_nominal_headline_makes_no_claim_about_the_towers():
     assert "All sources" not in s["headline"] and "GPS in use" in s["headline"]
 
 
+def test_gps_lost_sentence_names_no_source_it_may_not_be_using():
+    # On the challenge legs the towers are out of use most of the time, and the flag is raised
+    # while a spoofed GPS is being rejected too: the sentence must not say "towers" or only "lost"
+    sev, text = describe("gnss_unavailable")
+    assert sev == "caution" and "towers" not in text and "rejected" in text
+
+
 def test_low_trust_listed_apart():
     s = HealthMonitor(50.0, 1.5e-6).update(_est(0.0, trust={"gnss": 0.0, "lte": 1.0}))
     assert s["low_trust"] == {"gnss": 0.0} and s["trusted"] == {"lte": 1.0}

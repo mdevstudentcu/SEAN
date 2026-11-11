@@ -12,7 +12,9 @@ Reads only `Estimate` (ICD-measurement), so it works the same on sim, replay and
   horizontal radius from the estimate's own covariance, and HPL is the integrity bound.
 - Predicted time-to-alert: the protection level's trend over the last `TREND_S`, a least-squares
   line, extrapolated to the alert limit. "Not on this trend" when it is flat or shrinking.
-- Low-trust sources: sources whose `trust` is under `LOW_TRUST`, listed apart from the rest.
+- Low-trust sources: sources whose `trust` is under `LOW_TRUST`, listed apart from the rest. The
+  panel calls them "not in use": the estimators on main set trust to 1 for a source used within
+  their timeout and 0 otherwise.
 """
 
 from __future__ import annotations
@@ -38,7 +40,8 @@ _RANK = {CAUTION: 0, WARNING: 1, ALARM: 2}
 FLAGS: dict[str, tuple[str, str]] = {
     "gnss_unavailable": (
         CAUTION,
-        "GPS lost: no GNSS position used recently. Navigating on towers and barometer.",
+        "GPS not in use: no GPS position accepted recently (signal lost, or rejected). "
+        "Navigating on the sources listed as in use.",
     ),
     "gnss_excluded": (
         WARNING,
