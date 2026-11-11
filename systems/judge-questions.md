@@ -1,12 +1,11 @@
 # Judge questions
 
-- **Status:** Draft, 2026-11-11 (#28), against `main` at `c21e047`. For the presenter of [`deck.md`](deck.md).
-- **Use:** the 15 hardest questions a navigation engineer is likely to ask. Each answer is at most 45 words and can be said as written. Numbers are simulation unless the answer says real; sources are in [`results.md`](results.md).
+- **Use:** for the presenter of [`deck.md`](deck.md): the 18 hardest questions a navigation engineer is likely to ask. Each answer is at most 45 words and can be said as written. Numbers are simulation unless the answer says real; sources are in [`results.md`](results.md).
 - **If you don't know:** say "I don't have that number; it is in our results file" and move on. Never estimate a number on stage.
 
 ## 1. Your own target is 25 m for five minutes. Why do you miss it?
 
-> Mostly the radio's noise. Our front end reports only the fast noise, so the filter over-trusted the towers and LTE made position worse than none. In simulation, learning each tower's noise cut the median five-minute error from 4,034 to 982 metres. Still far from 25.
+> Mostly the radio's noise. Our front end reports only the fast noise, so the filter rejects nearly every tower reading, and LTE made position worse than none. In simulation, learning each tower's noise cut the median five-minute error from 4,034 to 982 metres. Still far from 25.
 
 - **Source:** #137, #147 (LTE worse than none); #156 (open, draft, opt-in; per-run p95, seeds 0–49); ADR-0039 (Proposed). On the easy synthetic route the budget meets 25 m (#178).
 - **Do not claim:** that any fix meets T1 or the 50 m fallback; that #156 is merged or on by default.
@@ -39,12 +38,12 @@
 - **Source:** real, ADR-0036 and [`lte-measured-noise/`](../analysis/results/lte-measured-noise/summary.md) (white σ 0.63 m at 13–16 dB, 24.7 m at −14 to −11 dB; correlated S(1 s) median 8.3 m). [`research.md`](research.md) §2: no published real-tower LTE TOA scatter from an RTL-SDR was found.
 - **Do not claim:** an accuracy (no truth), or that it works while moving.
 
-## 6. How is your confidence number computed, and at what integrity risk?
+## 6. Your 5.33-sigma bound: how is it computed, and at what integrity risk?
 
-> In the basic filter, 5.33 times the largest horizontal standard deviation: a risk of one in ten million per epoch if errors are Gaussian. The monitor version uses solution separation with fault priors per tower, network and GPS. Risk and priors are proposed, not measured.
+> It is 5.33 times our filter's largest horizontal standard deviation: a bound under our model, one in ten million per epoch only if errors are Gaussian and the covariance honest. On some simulated flights it is not honest, and the error escapes the bound.
 
 - **Source:** `integrity/protection.py` (`K_H` 5.33); `integrity/mhss.py` (`phmi` 1e-7, priors 1e-3 / 1e-4 / 1e-4 / 1e-3, all `TBC`); [`verification.md`](verification.md) *Integrity monitor*. T5 is missed: `ekf` has hazardous epochs on 7 of 50 seeds of the drone outage (#170).
-- **Do not claim:** that the bound always holds, or a certified integrity risk.
+- **Do not claim:** that the bound always holds, or a certified integrity risk. Call it "a bound under our model", not a protection level in the certified sense. Where it held: through the demo's outage and guarded jump (seed 0); where it failed: the unguarded jump, and 7 of 50 seeds of the drone outage.
 
 ## 7. What happens when the spoofer is subtle, a slow ramp?
 
@@ -76,10 +75,10 @@
 
 ## 11. What is new compared with Kassas and colleagues?
 
-> Kassas's group published tower-clock grouping and solution separation with towers. We found no published work that adds a GPS fault shared with tower time, treats towers as adversaries, or bounds time held by towers. That is our reading, not proof.
+> Two things we found no published work doing: tagging every source by its GPS dependence, so towers may contradict GPS time but never confirm it; and a GPS fault hypothesis that includes the towers' borrowed time. And we measured the slow error our radio hides.
 
-- **Source:** [`research.md`](research.md) *Novelty check* (P1–P5); IEEE Xplore and ION were not searched in full text.
-- **Do not claim:** "first". Do not claim the tower-time refutation of GPS time is built: it is planned.
+- **Source:** [ADR-0024](adr/0024-gnss-dependency-tags.md) (dependency tags); [`research.md`](research.md) *Novelty check* (P2, P5; Jia, Khalife & Kassas 2023 already group tower clocks and run solution separation); slow error, ADR-0036. IEEE Xplore and ION were not searched in full text.
+- **Do not claim:** "first". Do not claim the tower-time refutation of GPS time is built: it is planned. Do not claim measuring the slow error is new: say we measured it.
 
 ## 12. What about timing?
 
@@ -108,3 +107,28 @@
 
 - **Source:** ADR-0036 (Proposed; the *Sim validity* row is not yet moved); `pnt compare` sim against real (#199: 49.2 m white against 21.3 m smooth); #183 (front-end faults).
 - **Do not claim:** that the simulator is validated, or that the measured model is adopted.
+
+## 16. Your panel says LTE is not in use. Did the towers contribute anything to the position I just watched?
+
+> Very little: records report only fast noise, so the filter rejects nearly every tower reading; on one simulated run, all but 9 of 5,383 before the spoof. After GPS loss it flies on barometer and dead reckoning. Learning tower noise is the fix in review.
+
+- **Source:** #180 description (one seed, `challenge` drone leg: 5,374 of 5,383 tower readings rejected before the spoof); #147; guard demo runbook (draft PR #220: Sources lists `lte` under *Not in use*). Fix: #156, ADR-0039 (Proposed, opt-in).
+- **Do not claim:** that the demo's position after GPS loss came from towers; a percentage of epochs (no committed count).
+
+## 17. Is the 8 m slow error multipath, or your dongle's oscillator?
+
+> Not the dongle, nor the tower clock. The slow error remains in differences between two sectors of one site on one frequency, where dongle and shared site clock cancel. That leaves multipath at a static antenna or our tracking loop; which, we have not determined.
+
+- **Source:** real, ADR-0036 *Context* (same-eNB sector pairs, which share a clock, still show S(1 s) of 4.9 to 18 m; "so it is not a clock"); [`lte-measured-noise/summary.md`](../analysis/results/lte-measured-noise/summary.md), *Pairs on one carrier (dongle cancels)*.
+- **Do not claim:** that it is multipath: the tracker's loop is not ruled out. A static capture cannot size multipath in motion.
+
+## 18. Who buys this, and at what altitude does it work, given tower antenna downtilt?
+
+> First user: an operator of inspection or delivery drones on an urban corridor below 120 metres. Altitude is an assumption: we recorded on the ground only, and how tower antennas tilted toward the street affect reception at altitude is not measured.
+
+- **Source:** UC-01, [`use-cases.md`](use-cases.md); [`roadmap.md`](roadmap.md) *Operating envelope*; real captures on the ground or 0.5 m up (#210). Simulated flights at 40 to 45 m.
+- **Do not claim:** a buyer who has expressed interest, a price for the product, or a working altitude.
+
+---
+
+*Status: 2026-11-11, against `main` at `c21e047`.*
