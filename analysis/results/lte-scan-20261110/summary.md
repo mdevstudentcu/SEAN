@@ -1,6 +1,6 @@
 # LTE scan, 2026-11-10 captures (#87)
 
-`python analysis/lte_scan_table.py <captures> --out <dir>` at `136d6cc`, LTE front end on each `sdr_a.cu8`, cells looked up in `data/reference/lte-cells-ottawa.csv`. Real sessions; no GNSS fix in them, so the receiver position is unknown and no distance from it is given. A `unique` match is a hypothesis: eNBs beyond the table's 10 km can reuse a PCI.
+`python analysis/lte_scan_table.py <captures> --out <dir>` at `d812776`, LTE front end on each `sdr_a.cu8`, cells looked up in `data/reference/lte-cells-ottawa.csv`. Real sessions; no GNSS fix in them, so the receiver position is unknown and no distance from it is given. A `unique` match is a hypothesis: eNBs beyond the table's 10 km can reuse a PCI.
 
 | Session | EARFCN | PCI | Tracked (s) | SNR (dB) | CFO (ppm) | Arcs | Table | eNB (sectors on this PCI) | Licensee | Location | km from Carleton | km from receiver |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|

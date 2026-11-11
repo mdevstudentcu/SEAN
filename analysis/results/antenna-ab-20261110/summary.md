@@ -1,6 +1,6 @@
 # LTE antenna A/B, 2026-11-10 (#200)
 
-`python analysis/antenna_ab_table.py <runs> --out <dir>` at `e5c56a3`: the LTE front end on each run's `sdr_a.cu8`. Real sessions, statistics only. SNR is the front end's tracking estimate (dB per resource element). The detection threshold is -12.9 dB on this scale; the estimate averages only epochs above it, so `floor` (within 3 dB of it, a display mark) means the cell was marginal and its true SNR may be lower.
+`python analysis/antenna_ab_table.py <runs> --out <dir>` at `0a8cca3`: the LTE front end on each run's `sdr_a.cu8`. Real sessions, statistics only. SNR is the front end's tracking estimate (dB per resource element). The detection threshold is -12.9 dB on this scale; the estimate averages only epochs above it, so `floor` (within 3 dB of it, a display mark) means the cell was marginal and its true SNR may be lower.
 
 ## Per run
 

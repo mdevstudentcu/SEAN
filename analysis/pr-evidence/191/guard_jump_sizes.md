@@ -1,4 +1,4 @@
-# GNSS jumps of 20 m to 500 km, with and without the jump guard (9ac2aee, sim)
+# GNSS jumps of 20 m to 500 km, with and without the jump guard (5a7a1c9, sim)
 
 Seeds 0..19 per row. Command: `python analysis/guard_jump_sizes.py --seeds 20 --jobs N --out DIR`. Jump at 150 s, held to the end. Detect: an alarm flag held 1 s (`pnt.metrics`); alert: any alert after the jump; HMI: error over the 50 m alert limit (TBC) while HPL is within it.
 

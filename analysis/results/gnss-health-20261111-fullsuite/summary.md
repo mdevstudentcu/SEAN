@@ -1,6 +1,6 @@
 # gnss_health on 20261111-0040-static-fullsuite-gnss (#22, ADR-0031)
 
-`python analysis/gnss_health_real.py` at `c1a76d3` on the `gnss_health` records that `pnt frontend gnss` derived from the session's gpsd SKY reports. Real session, GPS HAT (MediaTek, C/N0 from NMEA GSV), statistics only. Indicator parameters (ADR-0031, all `TBC`): open-sky reference 40 dB-Hz, loss level 25 dB-Hz, top 4 satellites.
+`python analysis/gnss_health_real.py` at `51cd950` on the `gnss_health` records that `pnt frontend gnss` derived from the session's gpsd SKY reports. Real session, GPS HAT (MediaTek, C/N0 from NMEA GSV), statistics only. Indicator parameters (ADR-0031, all `TBC`): open-sky reference 40 dB-Hz, loss level 25 dB-Hz, top 4 satellites.
 
 120 records over 595.0 s; 0 without a fix (HDOP 99); indicator above 0 in 0.0 % of records.
 

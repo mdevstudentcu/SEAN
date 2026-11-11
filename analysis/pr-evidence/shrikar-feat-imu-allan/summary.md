@@ -1,6 +1,6 @@
 # IMU Allan deviation: 20261110-0306-static-bench-overnight
 
-Session `20261110-0306-static-bench-overnight` (recorded at commit `25ce8ba`), analysed at commit `c434876-dirty`. Hardware: ['host', 'mpu6050']. Window from 1800 s to 18000 s of the session.
+Session `20261110-0306-static-bench-overnight` (recorded at commit `7763667`), analysed at commit `7ed2c65-dirty`. Hardware: ['host', 'mpu6050']. Window from 1800 s to 18000 s of the session.
 
 1620000 samples over 16200 s at 100.0 Hz; 1 intervals > 1.5x nominal, longest 0.018 s.
 

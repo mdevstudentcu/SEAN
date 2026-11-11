@@ -98,7 +98,7 @@ Over 50 seeds the jump is flagged in 1.1 s on 50 of 50 (#180's evidence on the c
 ### 4. Real towers (≈ 15 s): `deploy/demo/demo.sh real`
 
 ```
-session 20261110-1623-static-out-e5060-lte (commit 9fcf016, real capture, 3 cells over 59 s)
+session 20261110-1623-static-out-e5060-lte (commit 4c8b0ab, real capture, 3 cells over 59 s)
 cell            records  per s  SNR dB  sigma m  registry
 lte:5060:204        600   10.1    -1.0      4.3  not matched (unknown)
 lte:5060:4          595   10.0    -3.2      5.4  eNB 102790, Vidéotron, <site>
@@ -117,7 +117,7 @@ Say: "This is a real 60 s capture with an RTL-SDR dongle (a NESDR SMArt v5): thr
 | Stage sequence (Enter at +32, +24, +28 s) | 86.8 and 86.9 |
 | Real towers | 0.3 to print, ~15 to talk |
 
-Measured twice back to back on 2026-11-10 at commit `0cfbb81`, macOS 26.5.2, this laptop, Python caches warm, with two other Python jobs at 100 % CPU. Event times agreed within 0.5 s between runs. A just-booted laptop's first Python start is slower (`TBD`, not measured): hence the warm-up in the pre-flight.
+Measured twice back to back on 2026-11-10 at commit `8cea8cf`, macOS 26.5.2, this laptop, Python caches warm, with two other Python jobs at 100 % CPU. Event times agreed within 0.5 s between runs. A just-booted laptop's first Python start is slower (`TBD`, not measured): hence the warm-up in the pre-flight.
 
 ## Fallbacks
 
@@ -156,7 +156,7 @@ The 2026-11-10 run (`20261110-1759-live-laptop`) streamed 28 min over the authen
 
 ## Evidence
 
-Headless Google Chrome 157 at 1920×1080, panel served by `deploy/demo/demo.sh <segment>` at commit `0cfbb81`, clean tree. All simulation, estimator `ekf`, seed 0, except the last (replay of a real session). Files in `analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/`.
+Headless Google Chrome 157 at 1920×1080, panel served by `deploy/demo/demo.sh <segment>` at commit `8cea8cf`, clean tree. All simulation, estimator `ekf`, seed 0, except the last (replay of a real session). Files in `analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/`.
 
 | File | Scenario / session | Panel time | Shows |
 | --- | --- | --- | --- |

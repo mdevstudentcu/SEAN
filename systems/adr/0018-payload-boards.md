@@ -46,7 +46,7 @@ The payload recorder is the **Raspberry Pi 4B** (recorder and streamer, ADR-0002
   - The recorder's health log already writes `mem_avail_mb` once a second; its minimum during the two-SDR recording is the number to check. `pnt day1` reports it as *Min available memory (MB)*; its threshold is `TBD` with the others.
   - Running the estimator or the dashboard on the Pi is not planned (ADR-0002); 1 GB would make that harder.
 - **RAM (amended 2026-11-10):** the payload Pi is now a different Pi 4 Model B (Rev 1.5) with 4 GB (3789 MB total in `free -m`; source `TBC`). Honeywell's 1 GB Pi 4B is the spare. The decision is unchanged. The memory checks above still apply, because the spare may fly if the payload Pi fails.
-  - Bench session `20261110-0301-static-bench` (commit `25ce8ba`, IMU only, no SDR): *Min available memory* 3577 MB, CPU 0.3 % mean, 43.8 °C max, no throttling. The two-SDR figure is still `TBD` (day-1 test).
+  - Bench session `20261110-0301-static-bench` (commit `7763667`, IMU only, no SDR): *Min available memory* 3577 MB, CPU 0.3 % mean, 43.8 °C max, no throttling. The two-SDR figure is still `TBD` (day-1 test).
 - **Power and heat:**
   - The 4B draws more and throttles when hot, so it needs a heatsink or fan in the payload box and a 5 V 3 A supply.
   - The USB current for two SDRs (plus the Zero, if used) is measured with the DPS-150 (`TBC`).
