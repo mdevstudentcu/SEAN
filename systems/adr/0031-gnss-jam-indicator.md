@@ -26,7 +26,7 @@ Option B: `S` is the mean C/N0 of the 4 strongest satellites, a missing one coun
 
 ## Consequences
 
-- `pnt.frontends.gnss` computes it from the `gnss_sky` events the payload already records, and `pnt frontend gnss <session>` writes `gnss_health` into a derived session. The payload is unchanged.
+- `pnt.frontends.gnss` computes it from the `gnss_sky` events the payload already records, and `pnt frontend gnss <session>` writes `gnss_health` into a derived session. The payload only adds `listed` to each `gnss_sky` event: whether gpsd sent a satellite list, so an empty sky can be told from a report without one.
 - `ref`, `low` and `k` are `TBC` until a static open-sky session with the GPS HAT sets `ref` (the median of `S`) and shows where satellites drop out (`low`). They are command-line options until then.
 - The indicator says "GNSS signal degraded", not "jammed": indoors or under trees it rises too. Integrity must treat it as a cue, not as proof of an attack.
 - It does not see spoofing. A spoof cue from C/N0 (too high, too uniform) would be a separate decision.
