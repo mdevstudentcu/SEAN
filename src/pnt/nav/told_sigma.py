@@ -84,10 +84,15 @@ def retold(m: Measurement, model: str) -> Measurement:
     and length the model needs; otherwise `m` unchanged."""
     if model not in MODELS:
         raise ValueError(f"told_sigma_model must be one of {MODELS}, not {model!r}")
+    if not retellable(m):
+        return m
+    return replace(m, sigma=(sigma_m(float(m.meta["snr_db"]), int(m.meta["n_epochs"])),))
+
+
+def retellable(m: Measurement) -> bool:
+    """Whether `retold` gives `m` a new sigma: a pseudorange from a real front end (or the sim's
+    imitation of one) with the SNR and length the model needs."""
     meta = m.meta
     if m.kind != "pseudorange" or "rx_clock" not in meta:
-        return m
-    snr, n = meta.get("snr_db"), meta.get("n_epochs")
-    if snr is None or not n:
-        return m
-    return replace(m, sigma=(sigma_m(float(snr), int(n)),))
+        return False
+    return meta.get("snr_db") is not None and bool(meta.get("n_epochs"))

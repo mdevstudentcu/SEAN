@@ -116,3 +116,29 @@ Learning stays opt-in until all of these hold, then the owners decide:
 
 Reopen when real sessions give radio innovations with position truth: they size the prior and
 say whether learning or a captured model (E) holds.
+
+## Amendment: real-capture records after ADR-0050 (Proposed, 2026-11-11)
+
+ADR-0050 (Accepted) makes the default EKF retell a real capture's LTE records (`meta.sample_index`)
+to ADR-0036's σ and give each new arc its own range bias. Both act where this learner lives
+(`EKF._pseudorange`), so the owners choose how the two combine. Proposed (owner decision, to be
+confirmed by the other owner in PR #156): **keep both.**
+
+1. **Sim records** (no `sample_index`): the opt-in estimators behave exactly as before
+   ADR-0050 (40 m prior, reported σ, no arc bias). Hashes identical before and after the rebase
+   (PR #156).
+2. **A real capture's records that ADR-0050 retells:** the learner starts from the record's
+   retold σ in place of the 40 m prior (still one sample, `EKF.noise_prior_variance`), and the
+   record keeps ADR-0050's bias per new arc. The learner stays one per cell across its arcs; a
+   fresh learner per arc is not done. A record ADR-0050 cannot retell (no SNR or length) keeps
+   the 40 m prior.
+3. **Defaults:** every default estimator behaves exactly as on `main` (ADR-0050).
+
+Because the record's σ is already the learner's lower bound (*Decision*), the retold σ is also
+its floor. A 10 Hz record of 20 epochs (the size ADR-0036 fits) is retold 77 to 92 m, above
+the 40 m prior, so on such records the learner can only raise the σ above ADR-0050's. The
+alternative, the retold σ as a floor only with the 40 m prior kept, gives the same σ until a
+cell's learned variance exceeds the retold one, and a slightly lower one after (the prior is one
+sample of 40 m instead of 77 m or more). It is not implemented. Neither is checked on real
+sessions with this learner: reopen with ADR-0050's real-session runs
+(`analysis/real_lte_filter.py`).
