@@ -37,6 +37,7 @@ Signals of opportunity have no integrity support message and no published fault 
 - Error overbounds that hold in the tails, including time-correlated errors, for the Kalman-filter bank.
 - A per-builder timing-source survey: which networks are GNSS-disciplined, with what holdover class.
 - Map the fault hypotheses onto a fault tree a safety assessor recognises.
+- Tower error model in the default filter (#77). Since ADR-0047 (our clock in the tower ranges once GNSS time is used), the default `ekf` keeps position after GPS loss but its clock is overconfident: 22 to 316 time-misleading epochs per run on the realistic, worst and approach sets (REQ-03), accepted by the owners on 2026-11-11. `ekf-calibrated`, which models the towers' multipath and correlation, has none. Bring that model into the default, then rerun the time-integrity rows.
 
 ### 3. Product hardware
 
