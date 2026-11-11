@@ -483,6 +483,7 @@ def cmd_dash(args) -> None:
         args.estimator,
         preflight=not args.no_preflight,
         alert_limit_m=args.alert_limit,
+        hide_origin=args.hide_origin,
     )
     _serve_dash(feed, args)
 
@@ -935,6 +936,11 @@ def main(argv=None) -> None:
     s = sub.add_parser("dash", help="replay a session on the operator panel (browser)")
     s.add_argument("session", help="session folder or .mcap file")
     s.add_argument("--estimator", choices=sorted(ESTIMATORS), default="ekf")
+    s.add_argument(
+        "--hide-origin",
+        action="store_true",
+        help="keep the session origin and the towers off the panel (a real capture's location)",
+    )
     add_dash(s)
     s.set_defaults(fn=cmd_dash)
 

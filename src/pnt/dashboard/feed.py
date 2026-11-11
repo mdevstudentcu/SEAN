@@ -43,6 +43,10 @@ class Feed:
     preflight: dict | None = None  # {"t_s": [...], "hpl_m": [...]} from pnt.integrity.preflight
     pace: bool = True  # False for live: the data arrive in real time already
     notes: list[str] = field(default_factory=list)
+    # Opt-in (#264): keep what locates the capture off the page and out of the stream: the
+    # session origin and the towers (a registered site drawn in ENU locates the origin). The
+    # estimator still gets the origin. The track stays: ENU metres about the origin, relative.
+    hide_origin: bool = False
 
     def info(self, alert_limit_m: float, time_alert_limit_s: float) -> dict:
         """The static part of the panel: sent once to every browser that connects."""
@@ -53,7 +57,7 @@ class Feed:
             "name": self.name,
             "kind": self.kind,
             "estimator": self.estimator,
-            "origin_llh": self.origin_llh,
+            "origin_llh": None if self.hide_origin else self.origin_llh,
             "reference_enu": ref,
             "has_truth": bool(self.truth),
             "alert_limit_m": alert_limit_m,
@@ -65,10 +69,15 @@ class Feed:
 
 
 def replay_feed(
-    path, estimator: str = "ekf", preflight: bool = True, alert_limit_m: float = ALERT_LIMIT_M
+    path,
+    estimator: str = "ekf",
+    preflight: bool = True,
+    alert_limit_m: float = ALERT_LIMIT_M,
+    hide_origin: bool = False,
 ) -> Feed:
     """A recorded session (folder or .mcap). Truth if it has a `/truth` topic. A simulated
-    session also gets its scenario's pre-flight prediction (`pnt.integrity.preflight`)."""
+    session also gets its scenario's pre-flight prediction (`pnt.integrity.preflight`).
+    `hide_origin`: see `Feed.hide_origin`."""
     from pnt.io import session
     from pnt.io.mcap_log import read_session
     from pnt.sources.replay import ReplaySource
@@ -84,6 +93,7 @@ def replay_feed(
         origin_llh=meta.get("origin_llh"),
         reference=meta.get("reference"),
         truth=truth or None,
+        hide_origin=hide_origin,
     )
     if preflight and meta.get("scenario"):
         seed = int(meta.get("seed") or 0)
@@ -229,6 +239,9 @@ def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
             err = float(np.hypot(*np.subtract(est.pos_enu, truth.pos_enu)[:2]))
         new, watch.new = watch.new, []
         watch.pos_enu = est.pos_enu
+        heard = sorted(e for e, t in watch.last.items() if est.t_ns - t <= heard_ns)
+        if feed.hide_origin:
+            new, heard = [], []
         yield {
             "t_s": health["t_s"],
             "pos": [float(v) for v in est.pos_enu],
@@ -245,7 +258,7 @@ def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
             "truth_clock_s": None if truth is None else _num(truth.clock_bias_s),
             "err_h_m": err,
             "health": {k: _num(v) if isinstance(v, float) else v for k, v in health.items()},
-            "heard": sorted(e for e, t in watch.last.items() if est.t_ns - t <= heard_ns),
+            "heard": heard,
             "new_emitters": new,
             "spoof": spoof.decide(est.t_ns, est.flags).to_dict(),
         }

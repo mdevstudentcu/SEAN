@@ -389,7 +389,9 @@ function renderSide() {
   bar.style.background = f.hpl_m > h.rnp_m ? C.critical : f.hpl_m > 0.8 * h.rnp_m ? C.warning : C.good;
   $("tta-h").textContent = ftta(h.tta_hpl_s);
   $("err-row").style.display = S.info && S.info.has_truth ? "" : "none";
-  $("err").textContent = f.err_h_m == null ? "—" : `${f.err_h_m.toFixed(1)} m (sim truth)`;
+  // a replay's /truth need not be a simulation's (#264: a real session's withheld GPS fixes)
+  const truthOf = S.info && S.info.kind === "sim" ? "sim truth" : "the session's truth";
+  $("err").textContent = f.err_h_m == null ? "—" : `${f.err_h_m.toFixed(1)} m (${truthOf})`;
   $("clk").textContent = fns(f.clock_sigma_s);
   $("tpl").textContent = fns(h.tpl_s);
   $("tal").textContent = fns(h.time_alert_limit_s);
