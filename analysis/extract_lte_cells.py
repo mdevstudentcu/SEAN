@@ -169,6 +169,23 @@ def main(path):
     rows = sorted(cells.values(), key=lambda x: (x[0], x[1], float(x[-1])))
     write(REF / "lte-cells-ottawa.csv", CELL_COLUMNS, rows)
 
+    scan = scan_list(rows)
+    write(REF / "lte-scan-list-ottawa.csv", SCAN_COLUMNS, scan)
+
+    collide = defaultdict(set)
+    for c in rows:
+        collide[(c[0], c[1])].add(c[9])  # (earfcn, pci) -> eNBs
+    shared = sum(1 for v in collide.values() if len(v) > 1)
+    print(f"{len(rows)} cells, {len(scan)} carriers; {shared} of {len(collide)} (EARFCN, PCI)")
+    print("pairs are used by more than one eNB within", RADIUS_KM, "km")
+
+
+def scan_list(rows):
+    """The scan list (SCAN_COLUMNS) from cell rows in CELL_COLUMNS order: one row per downlink
+    carrier (EARFCN, band, frequency, bandwidth, licensee, flags), with its number of sites (a
+    site is a filed lat/lon), cells, sites within NEAR_KM and nearest site. Sorted by sites
+    within NEAR_KM, then sites, then EARFCN. Rows read back from `lte-cells-ottawa.csv` give
+    the committed `lte-scan-list-ottawa.csv`."""
     carriers = defaultdict(lambda: {"sites": set(), "near": set(), "cells": 0, "km": 1e9})
     for c in rows:
         k = (c[0], c[2], c[3], c[4], c[5], c[18])
@@ -182,15 +199,8 @@ def main(path):
         [*k[:5], len(v["sites"]), v["cells"], len(v["near"]), f"{v['km']:.2f}", k[5]]
         for k, v in carriers.items()
     ]
-    scan.sort(key=lambda x: (-x[7], -x[5], x[0]))
-    write(REF / "lte-scan-list-ottawa.csv", SCAN_COLUMNS, scan)
-
-    collide = defaultdict(set)
-    for c in rows:
-        collide[(c[0], c[1])].add(c[9])  # (earfcn, pci) -> eNBs
-    shared = sum(1 for v in collide.values() if len(v) > 1)
-    print(f"{len(rows)} cells, {len(scan)} carriers; {shared} of {len(collide)} (EARFCN, PCI)")
-    print("pairs are used by more than one eNB within", RADIUS_KM, "km")
+    scan.sort(key=lambda x: (-x[7], -x[5], int(x[0])))
+    return scan
 
 
 def write(out, columns, rows):
