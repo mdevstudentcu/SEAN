@@ -13,7 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
-from pnt import experiments
+from pnt import compare, experiments
 from pnt.core.measurement import Measurement
 from pnt.core.time import s_to_ns
 from pnt.integrity import taxonomy
@@ -182,16 +182,64 @@ def _replay_spec(path: str) -> dict:
         return {"faults": []}
 
 
+def _inject_spec(name: str) -> dict:
+    """A bundled scenario by name, or a scenario YAML file the user named, for its faults."""
+    return load(name) if Path(name).suffix in (".yaml", ".yml") else load_named(name)
+
+
+def _write_injected(args, meas: list[Measurement], truth: list, meta: dict) -> None:
+    """Save a session with faults injected (ADR-0015) as a new session folder."""
+    out = Path(args.out)
+    if _holds_data(out):
+        raise SystemExit(f"{out} already holds data; choose another --out")
+    out.mkdir(parents=True)
+    note = (
+        f"faults from {args.inject} (seed {args.seed}) injected into "
+        f"{session.session_name(args.path)} at {_commit()}; fault times count from its first "
+        "measurement"
+    )
+    session.write_meta(out, {
+        **{k: meta.get(k) for k in session.META_KEYS},
+        "name": out.name, "scenario": None, "seed": args.seed, "commit": _commit(),
+        "notes": f"{meta.get('notes') or ''}\n{note}".strip(),
+    })  # fmt: skip
+    with SessionWriter(out / session.MCAP_NAME, metadata={"injected": note}) as w:
+        for t in truth:
+            w.write("/truth", t)
+        for m in meas:
+            w.write(f"/meas/{m.source}", m)
+    print(f"wrote {out}")
+
+
 def cmd_replay(args) -> None:
     mcap = session.mcap_path(args.path)
-    meas = (r for _, r in read_session(mcap, topics=["/meas/"]) if isinstance(r, Measurement))
     meta = session.read_meta(args.path)
     origin, reference = meta.get("origin_llh"), meta.get("reference")
-    estimates = list(estimate(args.estimator, meas, origin_llh=origin, reference=reference))
     truth = [r for _, r in read_session(mcap, topics=["/truth"])]
+    if args.inject:
+        spec = _inject_spec(args.inject)
+        meas, t0, events = compare.inject(args.path, spec.get("faults", []), seed=args.seed)
+        print(f"injected the faults of {spec['name']} (seed {args.seed}): {len(meas)} records")
+        for t, text in events:
+            print(f"  event @ {(t - t0) / 1e9:6.1f} s: {text}")
+        if args.out:
+            _write_injected(args, meas, truth, meta)
+    else:
+        if args.out:
+            raise SystemExit("replay: --out saves an injected session; it needs --inject")
+        spec, t0 = _replay_spec(args.path), T0_NS
+        meas = (r for _, r in read_session(mcap, topics=["/meas/"]) if isinstance(r, Measurement))
+    estimates = list(estimate(args.estimator, meas, origin_llh=origin, reference=reference))
     print(f"replayed {args.path}: {len(estimates)} estimates")
     if truth:
-        print(_fmt(score(estimates, truth, _replay_spec(args.path), T0_NS).as_dict()))
+        print(_fmt(score(estimates, truth, spec, t0).as_dict()))
+
+
+def cmd_compare(args) -> None:
+    print(compare.table(args.simulated, args.real, args.source, args.first_s))
+    if args.out:
+        out = compare.plot(args.simulated, args.real, args.source, args.out, args.first_s)
+        print(f"wrote {out}")
 
 
 def cmd_viz(args) -> None:
@@ -820,8 +868,23 @@ def main(argv=None) -> None:
 
     s = sub.add_parser("replay", help="re-run the estimator over a recorded MCAP")
     s.add_argument("path")
+    s.add_argument(
+        "--inject",
+        help="apply this scenario's faults to the recording (ADR-0015): a bundled scenario name "
+        "or a .yaml file; fault times count from the recording's first measurement",
+    )
+    s.add_argument("--seed", type=int, default=0, help="for random faults with --inject")
+    s.add_argument("--out", help="with --inject: also save the injected session to this folder")
     add_estimator(s)
     s.set_defaults(fn=cmd_replay)
+
+    s = sub.add_parser("compare", help="compare a simulated session with a real one (ADR-0015)")
+    s.add_argument("simulated", help="session folder or .mcap file")
+    s.add_argument("real", help="session folder or .mcap file")
+    s.add_argument("--source", default="lte", help="lte, gnss or baro")
+    s.add_argument("--first-s", type=float, help="compare only each session's first seconds")
+    s.add_argument("--out", help="also save both residual distributions as a figure")
+    s.set_defaults(fn=cmd_compare)
 
     s = sub.add_parser("viz", help="write a companion file that Foxglove can draw on a map")
     s.add_argument("session", help="session folder or .mcap file")

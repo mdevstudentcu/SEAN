@@ -345,6 +345,8 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
         else:
             raise ValueError(f"unknown model {model!r} for source {source!r}")
 
+    if "replay_streams" in spec:
+        meas = _replay_streams(meas, **spec["replay_streams"])
     ctx = attacks.Context(
         t0_ns=T0_NS,
         origin_llh=spec.get("origin_llh"),
@@ -638,3 +640,27 @@ def _clock(spec: dict | None, t: np.ndarray, rng) -> np.ndarray:
     dt = np.diff(t, prepend=t[0])
     walk = np.cumsum(rng.normal(0.0, spec.get("rw_ns", 0.0) * 1e-9 * np.sqrt(dt)))
     return spec.get("offset_s", 0.0) + spec.get("drift_ppb", 0.0) * 1e-9 * t + walk
+
+
+def _replay_streams(meas: list[Measurement], session: str, sources: list[str]):
+    """Replace simulated sources with a recording's (ADR-0015), shifted to start at T0_NS.
+
+    Replaying the same real sensor stream in two runs removes it as a source of difference.
+    `session` is a session folder or MCAP file; its `/meas/<source>` records replace the sim's.
+    """
+    import msgspec
+
+    from pnt.io import session as session_io
+    from pnt.io.mcap_log import read_session
+
+    topics = [f"/meas/{s}" for s in sources]
+    recorded = [
+        r
+        for _, r in read_session(session_io.mcap_path(session), topics=topics)
+        if isinstance(r, Measurement) and r.source in sources
+    ]
+    if not recorded:
+        raise ValueError(f"{session} has none of the streams {sources}")
+    shift = T0_NS - min(m.t_ns for m in recorded)
+    kept = [m for m in meas if m.source not in sources]
+    return kept + [msgspec.structs.replace(m, t_ns=m.t_ns + shift) for m in recorded]
