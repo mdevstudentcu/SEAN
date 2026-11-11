@@ -131,4 +131,4 @@
 
 ---
 
-*Status: 2026-11-11, against `main` at `c21e047`.*
+*Status: 2026-11-11, against `main` at `c21e047`; brought up to `c97e09a` (#245, ADR-0041, ADR-0047).*

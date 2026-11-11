@@ -1,6 +1,6 @@
 # Results
 
-- **Status:** Draft, 2026-11-11 (#28), against `main` at `c21e047`; PR states and placeholders brought up to `main` at `8892fca`. Collected from committed results and PR descriptions; nothing was re-run for this file.
+- **Status:** Draft, 2026-11-11 (#28), against `main` at `c21e047`; PR states, placeholders and the numbers that #245 and ADR-0047 moved brought up to `main` at `c97e09a`. Collected from committed results and PR descriptions; nothing was re-run for this file.
 - **Kinds.** **Real**: a recorded session. **Sim**: committed scenarios whose models are `placeholder` except where [`verification.md`](verification.md) *Sim validity* says `measured`; never real-world accuracy. **Synthetic**: generated baseband through the real front end. **Registry**: the ISED tower table, no radio.
 - **Open PRs.** A number from an open PR is that PR's evidence, not reviewed or merged. It is marked *open*.
 - **Commits** are on `main` (or, for an open PR, on its branch). Where the source names a pre-rebase hash that is not on `origin`, its twin on `main` (same commit subject) is given instead.
