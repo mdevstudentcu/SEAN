@@ -1,0 +1,147 @@
+"""`analysis/real_gps_cut.py` (#214). Synthetic records only; no session in git."""
+
+import importlib.util
+import math
+import sys
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+from pnt.core.measurement import Measurement
+from pnt.io import session
+from pnt.io.mcap_log import SessionWriter
+
+_PATH = Path(__file__).parents[1] / "analysis" / "real_gps_cut.py"
+_spec = importlib.util.spec_from_file_location("real_gps_cut", _PATH)
+rgc = importlib.util.module_from_spec(_spec)
+sys.modules["real_gps_cut"] = rgc
+_spec.loader.exec_module(rgc)
+
+T0 = 1_400_000_000_000_000_000
+S = 1_000_000_000
+
+
+def _fix(t_s: float, east: float = 0.0) -> Measurement:
+    return Measurement(
+        t_ns=T0 + round(t_s * S),
+        source="gnss",
+        kind="position_enu",
+        value=(east, 0.0, 0.0),
+        sigma=(2.0, 2.0, 3.0),
+    )
+
+
+def _lte(t_s: float, kind: str, snr: float, sigma: float = 20.0) -> Measurement:
+    return Measurement(
+        t_ns=T0 + round(t_s * S),
+        source="lte",
+        kind=kind,
+        value=(1000.0,),
+        sigma=(sigma,),
+        emitter="lte:2460:92",
+        meta={"snr_db": snr, "rx_clock": "sdr_a"},
+    )
+
+
+def test_adr36_sigma_follows_the_fit_and_the_bins():
+    # the fit at SNR >= -8 dB: sqrt(0.64^2 + 2.28^2 / SNR_lin)
+    assert rgc.adr36_sigma(10.0) == pytest.approx(math.sqrt(0.64**2 + 2.28**2 / 10))
+    assert rgc.adr36_sigma(-8.0) == pytest.approx(math.sqrt(0.64**2 + 2.28**2 / 10**-0.8))
+    # the measured bins below the fit, and nothing below -14 dB (TBD in ADR-0036)
+    assert rgc.adr36_sigma(-8.01) == 12.4
+    assert rgc.adr36_sigma(-11.0) == 12.4
+    assert rgc.adr36_sigma(-11.01) == 24.7
+    assert rgc.adr36_sigma(-14.0) == 24.7
+    assert rgc.adr36_sigma(-14.01) is None
+
+
+def test_lte_variants_keep_or_resize_only_lte_records():
+    gnss = _fix(0.0)
+    strong_pr, weak_pr = _lte(1, "pseudorange", 5.0), _lte(2, "pseudorange", -10.0)
+    lost_pr, dop = _lte(3, "pseudorange", -20.0), _lte(4, "doppler", 5.0, 0.01)
+    meas = [gnss, strong_pr, weak_pr, lost_pr, dop]
+    assert rgc.lte_variant(meas, "none") == [gnss]
+    assert rgc.lte_variant(meas, "told") == meas
+    assert rgc.lte_variant(meas, "told-pr") == [gnss, strong_pr, weak_pr, lost_pr]
+    adr36 = rgc.lte_variant(meas, "adr36")
+    assert [m.t_ns for m in adr36] == [gnss.t_ns, strong_pr.t_ns, weak_pr.t_ns]
+    assert adr36[0] is gnss
+    assert adr36[1].sigma == (pytest.approx(rgc.adr36_sigma(5.0)),)
+    assert adr36[2].sigma == (12.4,)
+    assert adr36[1].value == strong_pr.value and adr36[1].meta == strong_pr.meta
+    cut8 = rgc.lte_variant(meas, "adr36-cut8")
+    assert [m.t_ns for m in cut8] == [gnss.t_ns, strong_pr.t_ns]
+    with pytest.raises(ValueError):
+        rgc.lte_variant(meas, "made-up")
+
+
+def test_cut_removes_gnss_from_the_cut_on_and_nothing_else():
+    meas = [_fix(t) for t in range(10)] + [_lte(t + 0.5, "pseudorange", 0.0) for t in range(10)]
+    meas.sort(key=lambda m: m.t_ns)
+    out = rgc.cut_gnss(meas, T0, 5.0)
+    gnss_t = [(m.t_ns - T0) / S for m in out if m.source == "gnss"]
+    assert gnss_t == [0, 1, 2, 3, 4]
+    assert [m for m in out if m.source == "lte"] == [m for m in meas if m.source == "lte"]
+
+
+def test_score_cut_reads_errors_bound_and_slices():
+    cut = T0 + 10 * S
+    fix_t = T0 + np.arange(0, 400) * S
+    fix_pos = np.zeros((400, 3))
+    est_t = T0 + np.arange(0, 4000) * (S // 10)
+    after = (est_t - cut) / S
+    est_pos = np.zeros((4000, 3))
+    est_pos[:, 0] = np.clip(after, 0, None)  # 1 m of error per second after the cut
+    est_hpl = np.full(4000, 100.0)  # bounds the first 100 s only
+    out = rgc.score_cut(est_t, est_pos, est_hpl, fix_t, fix_pos, cut, horizon_s=300.0)
+    assert out["n_fixes"] == 301
+    assert out["err_30s_m"] == pytest.approx(30.0)
+    assert out["err_300s_m"] == pytest.approx(300.0)
+    assert out["p95_60s_m"] == pytest.approx(np.percentile(np.arange(60), 95))
+    assert out["max_m"] == pytest.approx(300.0)
+    assert out["hpl_bound"] == pytest.approx(101 / 301)
+    assert out["misleading"] == 200
+
+
+def test_hold_last_fix_scores_the_last_fix_before_the_cut():
+    fix_t = T0 + np.arange(0, 400) * S
+    fix_pos = np.zeros((400, 3))
+    fix_pos[:, 0] = np.arange(400) * 0.01  # a slow walk of 1 cm/s
+    out = rgc.hold_last_fix(fix_t, fix_pos, T0 + 50 * S)
+    assert out["err_30s_m"] == pytest.approx(0.31)  # fix 80 against fix 49
+    assert math.isnan(out["hpl_bound"])
+
+
+def _session(tmp_path: Path) -> Path:
+    """400 s static: GNSS 1 Hz and baro 10 Hz. From 60 s the fixes sit 100 m east, so a filter
+    that never saw them is 100 m from them."""
+    out = tmp_path / "static-lte"
+    out.mkdir()
+    session.write_meta(out, {"name": out.name, "commit": "test"})
+    with SessionWriter(out / session.MCAP_NAME) as w:
+        for t in range(400):
+            w.write("/meas/gnss", _fix(t, 100.0 if t >= 60 else 0.0))
+            for k in range(10):
+                baro = Measurement(
+                    t_ns=T0 + t * S + k * S // 10 + 1,
+                    source="baro",
+                    kind="altitude",
+                    value=(0.0,),
+                    sigma=(0.3,),
+                )
+                w.write("/meas/baro", baro)
+    return out
+
+
+def test_run_one_scores_against_the_withheld_fixes(tmp_path):
+    path = _session(tmp_path)
+    rgc.load.cache_clear()
+    row = rgc.run_one(str(path), "ekf", "none", 60.0)
+    assert row["n_fixes"] == 301
+    # the filter holds where the fed fixes were; the withheld ones are 100 m away
+    for s in rgc.AT_S:
+        assert row[f"err_{s:g}s_m"] == pytest.approx(100.0, abs=1.0)
+    assert row["pre_p95_m"] < 1.0
+    assert row["n_lte"] == 0
+    rgc.load.cache_clear()
