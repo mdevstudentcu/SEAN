@@ -91,14 +91,14 @@
 
 > Moving captures with independent truth, so the error model covers motion; the fixes run together on the agreed statistic; and real frequency hopping. We have not estimated durations, and we will not promise 25 metres.
 
-- **Source:** [`roadmap.md`](roadmap.md) phases 0–1; #218. Realistic multipath alone exceeds 25 m in the budget (#178).
+- **Source:** [`roadmap.md`](roadmap.md) *Three milestones*, M1; #218. Realistic multipath alone exceeds 25 m in the budget (#178).
 - **Do not claim:** a date or a target we expect to meet.
 
 ## 14. What is the certification path?
 
 > No performance standard exists for this kind of navigation; RTCA SC-159 covers GNSS equipment. Drones under a specific-operation risk assessment look shorter than crewed aircraft. First we need fault statistics from many hours of data. Route and regulator are to be decided with experts.
 
-- **Source:** [`research.md`](research.md) §3 item 6; [`roadmap.md`](roadmap.md) phase 5.
+- **Source:** [`research.md`](research.md) §3 item 6; [`roadmap.md`](roadmap.md) *Certification*.
 - **Do not claim:** a certification plan agreed with anyone, or a design assurance level.
 
 ## 15. What did the simulation get wrong, compared with the captures?

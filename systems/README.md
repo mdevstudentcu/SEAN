@@ -18,7 +18,7 @@ The source of truth for what we are building and why. When code or another doc d
 | [`threat-model.md`](threat-model.md) | Attacks ranked per use case, mapped to scenarios and detections, with the gaps |
 | [`research.md`](research.md) | Summary of our research with cited references, and the novelty check against full papers |
 | [`architecture.md`](architecture.md) | D1 draft: principal uses (navigation continuity, status and confidence monitoring) with their requirements, the architecture as built, how the confidence number is computed, how the sim aligns to reality |
-| [`roadmap.md`](roadmap.md) | D3 draft: roadmap to a commercial alternative-navigation product: what the week showed, what fixes it, the phases |
+| [`roadmap.md`](roadmap.md) | D3 draft: roadmap to a commercial alternative-navigation product: what the week showed, what fixes it, three milestones |
 | [`results.md`](results.md) | The evidence for judges: what is real, the scoreboard on ADR-0034's statistic, what each fix buys, spoofing, what is not shown; each number with its kind and source |
 | [`deck.md`](deck.md) | The 5-minute deck: per slide the headline, content, figure and a word-for-word script, with timings |
 | [`judge-questions.md`](judge-questions.md) | The 18 hardest judge questions: a short answer to say, its source, and what not to claim |

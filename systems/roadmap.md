@@ -70,6 +70,8 @@ Durations are proposals, `TBC`; none is committed.
 | **M2. Earn the integrity case** | Many hours of tower data: fault rates per site, per network and per association type; tail overbounds including the slow error; a per-network timing-source survey | Fault priors and the integrity risk derived from data instead of `TBC`; the hypotheses as a fault tree an assessor recognises | 9 months, `TBC` |
 | **M3. Product receiver with a first operator** | A coherent multi-channel receive-only receiver (several frequencies at once, tower identity from SIB1); a better oscillator and IMU; size, weight, power and cost measured | A trial with a first drone operator under a specific-operation risk assessment, with the layer feeding their navigation | 12 months, `TBC` |
 
+## Open work items
+
 - Tower error model in the default filter (#77). Since ADR-0047 (our clock in the tower ranges once GNSS time is used), the default `ekf` keeps position after GPS loss but its clock is overconfident: 22 to 316 time-misleading epochs per run on the realistic, worst and approach sets (REQ-03), accepted by the owners on 2026-11-11. `ekf-calibrated`, which models the towers' multipath and correlation, has none. Bring that model into the default, then rerun the time-integrity rows.
 - **Drone as a mobile reference station (P12, #96):**
   - *On `main`, sim only (option A):* a tower-map hand-off. A drone with trusted GPS learns the tower clocks, and a GPS-less ground user starts its filter from them (`nav/tower_map.py`, `p12-drone-map-handoff`, `analysis/p12_map_handoff.py`). There is no ICD change: the map never enters a session.
