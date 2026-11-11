@@ -81,8 +81,8 @@ SEP_FLOOR_M = 0.1  # floor on a separation's sigma, as mhss.SEP_FLOOR_M (regress
 class Params:
     towers: bool = True
     imu: bool = False
-    # Tower displacement tests (all TBC): (lag_s, window_s) pairs, each run every second. A short
-    # lag catches a step within its window; a long lag lets a slow ramp build up against the
+    # Tower displacement tests (all TBC, ADR-0037): (lag_s, window_s) pairs, run each second. A
+    # short lag catches a step within its window; a long lag lets a slow ramp build up against the
     # towers' own error. Picked on tuning seeds 100-109 of the many-tower drone case: lags of
     # (30, 60, 120, 240) s with windows of (10, 20) s, alone; (120, 20) had the shortest median
     # time to alert on the ramp with no false alarm, and (30, 10) is the shortest lag tried, for
