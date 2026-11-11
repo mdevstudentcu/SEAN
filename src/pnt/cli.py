@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import multiprocessing
 import os
 import re
 import subprocess
@@ -150,6 +151,17 @@ def _eval_runs(scenario: str, seeds: list[int], estimator: str) -> list:
     return results
 
 
+def _worker_pool(jobs: int) -> ProcessPoolExecutor:
+    """Monte Carlo workers with one BLAS thread each, unless the caller's environment says
+    otherwise (#255, ADR-0054): the filter's matrices are small, and every worker starting a BLAS
+    thread per core makes them slower. BLAS reads the setting when numpy loads, so the workers
+    come from a forkserver started with it, not forked from this process, whose BLAS has its
+    threads already."""
+    for var in ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"):
+        os.environ.setdefault(var, "1")
+    return ProcessPoolExecutor(jobs, mp_context=multiprocessing.get_context("forkserver"))
+
+
 def _eval(scenario: str, runs: int, estimator: str, jobs: int = 1) -> dict:
     """Monte Carlo over seeds 0..runs-1. With `jobs` > 1 the seeds run in that many processes.
     Each seed is independent and the results keep seed order, so the summary is identical to a
@@ -158,7 +170,7 @@ def _eval(scenario: str, runs: int, estimator: str, jobs: int = 1) -> dict:
     jobs = max(1, min(jobs, runs))
     if jobs == 1:
         return summarize(_eval_runs(scenario, seeds, estimator))
-    with ProcessPoolExecutor(jobs) as pool:
+    with _worker_pool(jobs) as pool:
         parts = pool.map(_eval_runs, [scenario] * runs, [[s] for s in seeds], [estimator] * runs)
         return summarize([r for part in parts for r in part])
 
