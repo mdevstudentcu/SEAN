@@ -1,0 +1,130 @@
+{
+  "commit": "136d6cc",
+  "occupied_db": 6.0,
+  "sites": {
+    "20261110-1302-survey-outside": {
+      "files": [
+        "power.csv"
+      ],
+      "passes": 6,
+      "floor_db": -20.314999999999998,
+      "span_mhz": [
+        24.0,
+        1765.999581
+      ],
+      "bins": 19937
+    }
+  },
+  "bands": {
+    "20261110-1302-survey-outside": [
+      {
+        "name": "FM broadcast",
+        "lo_mhz": 88.0,
+        "hi_mhz": 108.0,
+        "bins": 229,
+        "median_above_floor_db": 18.735,
+        "peak_above_floor_db": 40.33,
+        "occupied_frac": 0.9956331877729258
+      },
+      {
+        "name": "VOR/ILS localizer",
+        "lo_mhz": 108.0,
+        "hi_mhz": 118.0,
+        "bins": 114,
+        "median_above_floor_db": 2.2849999999999984,
+        "peak_above_floor_db": 19.29,
+        "occupied_frac": 0.10526315789473684
+      },
+      {
+        "name": "LTE B71 (600)",
+        "lo_mhz": 617.0,
+        "hi_mhz": 652.0,
+        "bins": 401,
+        "median_above_floor_db": 22.999999999999996,
+        "peak_above_floor_db": 27.68,
+        "occupied_frac": 1.0
+      },
+      {
+        "name": "LTE B12/17 (700 A-C)",
+        "lo_mhz": 729.0,
+        "hi_mhz": 746.0,
+        "bins": 194,
+        "median_above_floor_db": 18.667499999999997,
+        "peak_above_floor_db": 22.93,
+        "occupied_frac": 0.9484536082474226
+      },
+      {
+        "name": "LTE B13 (700 C)",
+        "lo_mhz": 746.0,
+        "hi_mhz": 756.0,
+        "bins": 115,
+        "median_above_floor_db": 14.259999999999998,
+        "peak_above_floor_db": 16.775,
+        "occupied_frac": 0.9043478260869565
+      },
+      {
+        "name": "LTE B14 (700 D)",
+        "lo_mhz": 758.0,
+        "hi_mhz": 768.0,
+        "bins": 114,
+        "median_above_floor_db": 1.3099999999999987,
+        "peak_above_floor_db": 5.349999999999998,
+        "occupied_frac": 0.0
+      },
+      {
+        "name": "LTE B5 (850)",
+        "lo_mhz": 869.0,
+        "hi_mhz": 894.0,
+        "bins": 286,
+        "median_above_floor_db": 18.799999999999997,
+        "peak_above_floor_db": 24.044999999999998,
+        "occupied_frac": 0.9405594405594405
+      },
+      {
+        "name": "DME/TACAN",
+        "lo_mhz": 962.0,
+        "hi_mhz": 1213.0,
+        "bins": 2873,
+        "median_above_floor_db": -2.335000000000001,
+        "peak_above_floor_db": 25.169999999999998,
+        "occupied_frac": 0.014966933518969718
+      },
+      {
+        "name": "ADS-B 1090ES",
+        "lo_mhz": 1089.0,
+        "hi_mhz": 1091.0,
+        "bins": 23,
+        "median_above_floor_db": -0.5700000000000003,
+        "peak_above_floor_db": 0.254999999999999,
+        "occupied_frac": 0.0
+      },
+      {
+        "name": "GPS L1",
+        "lo_mhz": 1574.4,
+        "hi_mhz": 1576.4,
+        "bins": 23,
+        "median_above_floor_db": -6.985000000000003,
+        "peak_above_floor_db": -6.18,
+        "occupied_frac": 0.0
+      },
+      {
+        "name": "GLONASS L1",
+        "lo_mhz": 1598.0,
+        "hi_mhz": 1606.0,
+        "bins": 91,
+        "median_above_floor_db": -6.200000000000003,
+        "peak_above_floor_db": -4.770000000000003,
+        "occupied_frac": 0.0
+      },
+      {
+        "name": "Iridium",
+        "lo_mhz": 1616.0,
+        "hi_mhz": 1626.5,
+        "bins": 120,
+        "median_above_floor_db": -6.9300000000000015,
+        "peak_above_floor_db": -6.265000000000001,
+        "occupied_frac": 0.0
+      }
+    ]
+  }
+}

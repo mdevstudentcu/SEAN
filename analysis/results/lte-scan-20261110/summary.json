@@ -1,0 +1,179 @@
+{
+  "commit": "136d6cc",
+  "scans": [
+    {
+      "session": "20261110-1305-lte-outside",
+      "earfcn": 2460,
+      "capture_s": 59.528533333333336,
+      "cells": [
+        {
+          "earfcn": 2460,
+          "pci": 244,
+          "tracked_s": 48.93,
+          "snr_db": 14.769134861307855,
+          "cfo_ppm": -0.29957345251899914,
+          "arcs": 1,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 30066,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "ALBION & HEATHRINGTON",
+                "sectors": 1,
+                "carleton_km": 3.82,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 2460,
+          "pci": 268,
+          "tracked_s": 0.0,
+          "snr_db": -11.982094272856544,
+          "cfo_ppm": null,
+          "arcs": 2,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 30111,
+                "licensee": "Rogers Communications Canada Inc.",
+                "location": "OTTAWA AIRPORT PKWY",
+                "sectors": 1,
+                "carleton_km": 4.95,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "session": "20261110-lte-outside-2535",
+      "earfcn": 2535,
+      "capture_s": 29.4912,
+      "cells": []
+    },
+    {
+      "session": "20261110-lte-outside-5145",
+      "earfcn": 5145,
+      "capture_s": 29.4912,
+      "cells": [
+        {
+          "earfcn": 5145,
+          "pci": 188,
+          "tracked_s": 8.975,
+          "snr_db": -11.166932605346197,
+          "cfo_ppm": -0.16525239566203878,
+          "arcs": 15,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 219003,
+                "licensee": "TELUS Communications Inc.",
+                "location": "1245 WALKLEY RD",
+                "sectors": 1,
+                "carleton_km": 3.22,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 5145,
+          "pci": 189,
+          "tracked_s": 27.77,
+          "snr_db": 12.548457950527123,
+          "cfo_ppm": -0.19078768012209638,
+          "arcs": 3,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 219003,
+                "licensee": "TELUS Communications Inc.",
+                "location": "1245 WALKLEY RD",
+                "sectors": 1,
+                "carleton_km": 3.22,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 5145,
+          "pci": 175,
+          "tracked_s": 12.0,
+          "snr_db": 12.776965843765698,
+          "cfo_ppm": 0.523438586798983,
+          "arcs": 15,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 219076,
+                "licensee": "TELUS Communications Inc.",
+                "location": "1501 BANK ST",
+                "sectors": 1,
+                "carleton_km": 2.2,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "session": "20261110-lte-outside-5255",
+      "earfcn": 5255,
+      "capture_s": 29.4912,
+      "cells": [
+        {
+          "earfcn": 5255,
+          "pci": 175,
+          "tracked_s": 29.03,
+          "snr_db": 12.867599926836693,
+          "cfo_ppm": -0.2582213004519966,
+          "arcs": 1,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 219076,
+                "licensee": "TELUS Communications Inc.",
+                "location": "1501 BANK ST",
+                "sectors": 1,
+                "carleton_km": 2.2,
+                "distance_km": null
+              }
+            ]
+          }
+        },
+        {
+          "earfcn": 5255,
+          "pci": 188,
+          "tracked_s": 19.28,
+          "snr_db": 13.96707401568503,
+          "cfo_ppm": -0.2693405967280053,
+          "arcs": 3,
+          "table": {
+            "status": "unique",
+            "enbs": [
+              {
+                "enb_id": 219003,
+                "licensee": "TELUS Communications Inc.",
+                "location": "1245 WALKLEY RD",
+                "sectors": 1,
+                "carleton_km": 3.22,
+                "distance_km": null
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
