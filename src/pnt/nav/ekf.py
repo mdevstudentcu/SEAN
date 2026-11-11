@@ -81,18 +81,22 @@ the innovations, and the reported sigma is only a lower bound:
   pinned the dongle clock's drift so tightly that every later record of the cell was rejected
   (#147). 40 m is above every 1-10 s error measured on real static captures (up to 38 m, weak
   cells; #173).
-- Weak evidence is skipped: an innovation whose state part (S less the noise) exceeds the
-  variance learned so far says little about the noise. Counted, its large negative sample drove
-  the learned variance down to the reported sigma whenever a state was uncertain (a new clock,
-  a nonlinear geometry), and the filter then believed the next records to 2 m (#147).
+- Weak evidence is skipped or down-weighted: an innovation whose state part (S less the noise)
+  exceeds the variance learned so far is not counted, and the others count with weight
+  (noise / (noise + state part))^2, the precision of a variance sample relative to a pure noise
+  sample. Counted at full weight, one large negative sample drove the learned variance down to
+  the reported sigma whenever a state was uncertain (a new clock, a nonlinear geometry), and the
+  filter then believed the next records to 2 m (#147).
 - Without trusted GNSS the learned variance may grow but never shrink: the position is then
   not known independently, so an innovation small only because the filter agrees with itself
   is no evidence that the noise is small.
 - Curvature (radio records only): a range is linear in position only while the position and
   told-tower uncertainty across the line of sight, sigma_perp, is small against the range r.
-  The second-order term, variance sigma_perp^4 / (2 r^2), is added to R. Near a tower with a
-  drifted position estimate, its absence let a few records of one site collapse the stated
-  position sigma to a few metres while the error was hundreds (#147, hazardous epochs).
+  The second-order term, variance sigma_perp^4 / (2 r^2), is added to R, and a record whose
+  term exceeds the learned noise is not used at all: the linear update would then claim far
+  more than the range says. Near a tower with a drifted position estimate, a few records of one
+  site collapsed the stated position sigma to a few metres while the error was hundreds (#147,
+  hazardous epochs).
 - Where the model has a multipath state (`multipath_ratio` > 0) the learned variance is split
   between it and the white noise in the model's own ratio, so a correlated error is not taken as
   white. Its own uncertainty is added back to the innovation, so the split doesn't feed on itself.
@@ -914,8 +918,9 @@ class EKF:
         """Add the last innovation to its emitter's learned variance: its square less what the
         state uncertainty explains. `R` is the white noise and curvature the update used; the
         multipath state's variance before the update is range noise too. Exponentially weighted,
-        memory `noise_tau_s`. Skipped when the state part exceeds the variance learned so far;
-        without trusted GNSS, kept only if it does not lower the variance (module docstring)."""
+        memory `noise_tau_s`, each sample weighted by its precision relative to a pure noise
+        sample. Skipped when the state part exceeds the variance learned so far; without trusted
+        GNSS, kept only if it does not lower the variance (module docstring)."""
         y, S, _ = self._last_innov
         before = self.range_variance(m)
         state = float(S[0, 0]) - R - self._mp_var
@@ -925,7 +930,8 @@ class EKF:
         acc = self._noise.setdefault(m.emitter, [m.t_ns, 0.0, 0.0])
         old = list(acc)
         decay = np.exp(-(m.t_ns - acc[0]) / self.noise_tau_ns)
-        acc[:] = [m.t_ns, acc[1] * decay + 1.0, acc[2] * decay + excess]
+        w = (before / (before + max(state, 0.0) + self._curvature)) ** 2  # its precision
+        acc[:] = [m.t_ns, acc[1] * decay + w, acc[2] * decay + w * excess]
         if not self.gnss_trusted() and self.range_variance(m) < before:
             acc[:] = old  # may grow, never shrink, without an independent position
 
@@ -1099,6 +1105,8 @@ def _pseudorange(ekf: EKF, m: Measurement):
     ekf._curvature = 0.0
     if "rx_clock" in m.meta and ekf.noise_tau_ns:
         ekf._curvature = ekf.range_curvature(u, r, None if pos is None else pos[0])
+        if not new and ekf._curvature > ekf.range_variance(m):
+            return None  # not linear enough to use: the second-order term exceeds the noise
     return y, H, np.array([[R + ekf._curvature]]), not new
 
 
