@@ -27,7 +27,8 @@ Commands are in `deploy/demo/demo.sh`; `just demo <segment>` runs the same scrip
 
 - [ ] Power connected; sleep and screen saver off; notifications off (Focus mode).
 - [ ] Close other heavy jobs (Monte Carlo, IDEs): the panel needs one free core.
-- [ ] Projector at 1920×1080 if possible. Browser full screen (Ctrl-Cmd-F), zoom 100 %.
+- [ ] Projector at 1920×1080, browser full screen (Ctrl-Cmd-F), zoom 100 %. The two charts and the Sources card need it: in a 1451×722 window they are below the fold.
+- [ ] Keep the terminal off the projector during the panel segments. With a browser connected, each segment switch prints `ERROR: Cancel 1 running task(s), timeout graceful shutdown exceeded` there. It is harmless (the server closing the open stream).
 - [ ] `deploy/demo/demo.sh check` → `pre-flight passed`. This also warms the Python caches.
 - [ ] Warm-up: `deploy/demo/demo.sh outage`, wait for the panel, Ctrl-C.
 - [ ] Open `analysis/pr-evidence/elshoubky-docs-28-demo-guard/` in Finder, ready for *If everything fails*.
@@ -96,7 +97,7 @@ NO DATA for 3–6 s again; the top bar now says `challenge-drone-gps-return (see
 | 53–68 s (T+0–150) | Green **NOMINAL**, HPL about 7 m | (Keep talking over the clean part; it is the same as before.) |
 | 68 s (T+150.0) | Amber **DEGRADED**, *GPS rejected* | "Caught at the first fake fix, as before." |
 | 69–73 s (T+154.8–199.9) | Red **UNSAFE** throughout. T+180.0: HPL 549 m, error 133 m. T+193.9: HPL 948 m, error 255 m | "This time the fake GPS stays out. We are flying on the barometer and our last known speed and heading, so the error grows, but the bound grows faster and the panel stays red. Nobody is told a wrong position is safe." |
-| 73 s (T+200.0) | **Green NOMINAL**: real GPS back, HPL 13.5 m then 6.9 m, error 1.7 m then under 1 m. The three alerts stay listed, *cleared at T+199.9 s* | "The spoofer stops, real GPS comes straight back, and we are green and within a metre again." |
+| 73 s (T+200.0) | **Green NOMINAL**: real GPS back, HPL 13.5 m then 6.9 m, error 1.7 m, then between 0.1 and 3.6 m to T+220 (median 1.5 m). The three alerts stay listed, *cleared at T+199.9 s* | "The spoofer stops, real GPS comes straight back, and we are green and within a few metres again." |
 
 On this run the HPL is above the true error at every epoch from T+10 to T+212 (and in segment 1 to T+105); in segment 2 it is below it from T+176.8, which is the failure shown.
 
@@ -108,9 +109,9 @@ Segment 2: "A spoofer moves GPS 300 metres. Caught at the first fake fix: red. B
 
 #### If a judge asks about the jump
 
-- *How big a jump?* This one is 300 m; ADR-0038 tests 20 m to 500 km (below). A jump under about 25 m may not be caught, and is then followed (ADR-0038: seed 17 missed a 25 m jump).
+- *How big a jump?* This one is 300 m; ADR-0038 tests 20 m to 500 km (below). The target is 20 m or more, flagged within 2 s in at least 95 % of runs (ADR-0034; the 20 m is `TBC`). In the sim a 20 m jump on the UC-01 route was detected in 20 of 20 runs with the guard (`ekf` 19 of 20), and a 25 m jump on the challenge legs was missed on 1 of 50 seeds (seed 17). A jump too small to latch is followed as before (ADR-0038 *Consequences*).
 - *Why is the guard not on by default?* It can keep honest GPS out after a hard manoeuvre when GPS is the only position source (ADR-0038: 5 of 46 manoeuvre cases at 1 Hz GPS). Making it the default waits on that follow-up.
-- *Why does the error grow to 255 m with the guard?* With GPS refused, the challenge leg has little else: tower readings are in use on about 1 % of epochs here (Sources shows `lte` under *Not in use*; #147). The guard trades accuracy for honesty: wrong but flagged red, instead of wrong and green.
+- *Why does the error grow to 255 m with the guard?* With GPS refused, the challenge leg has little else: the filter rejects nearly every tower reading (one seed: 5,374 of 5,383 before the spoof, #180; Sources shows `lte` under *Not in use*; #147). The guard trades accuracy for honesty: wrong but flagged red, instead of wrong and green.
 - *Can you tell it is a spoof and not just bad GPS?* The panel says GPS *disagrees with the rest of the solution*. Telling a spoof from a fault by signal power or satellite geometry, as the mentor suggested, is not in this demo.
 
 ### Timing
@@ -183,7 +184,7 @@ Open `analysis/pr-evidence/elshoubky-docs-28-demo-guard/` in Preview (select all
 | 24–32 | `jump-1-flagged.png` | "A spoofer jumps GPS 300 metres: caught at the first fake fix." |
 | 32–40 | `jump-3-followed.png` | "Without our guard, half a minute later the filter follows the fake: green and 300 metres wrong." |
 | 40–50 | `guard-2-before-end.png` | "With the guard, the fake stays out: red, bound 948 m, so nobody trusts the 255 m error." |
-| 50–60 | `guard-3-readmitted.png` | "The spoofer stops, real GPS is back, green, under a metre." |
+| 50–60 | `guard-3-readmitted.png` | "The spoofer stops, real GPS is back, green, within a few metres." |
 
 ## Live segment (bonus): what it can show
 
