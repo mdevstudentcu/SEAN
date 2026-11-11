@@ -15,7 +15,7 @@ import pytest
 
 from pnt.core.measurement import Estimate
 from pnt.dashboard import health
-from pnt.dashboard.feed import frames, live_feed, paced, sim_feed
+from pnt.dashboard.feed import Feed, frames, live_feed, paced, sim_feed
 from pnt.dashboard.health import HealthMonitor, describe, time_to_limit_s
 
 SRC = Path(__file__).resolve().parents[1] / "src" / "pnt"
@@ -271,6 +271,33 @@ def test_frames_from_sim_are_json_and_raise_the_outage(tmp_path):
     keys = {a["key"] for a in out[-1]["health"]["alerts"]}
     assert "gnss_unavailable" in keys  # latched from the outage, still shown after it ends
     assert all(f["err_h_m"] is not None for f in out)
+
+
+def test_front_end_lte_cells_are_drawn_at_their_registered_site():
+    # Front-end-shaped records (as real captures are) name a cell and carry no position: the
+    # panel places them through the registry lookup, as the estimator does, and the estimates
+    # are the same as without the panel
+    from pnt.core.frames import llh_to_enu
+    from pnt.nav import estimate
+    from pnt.nav.cells import CellTable
+    from pnt.sim.scenario import generate, load
+
+    spec = {**load("challenge-drone-nominal"), "duration_s": 20.0}
+    run = generate(spec, seed=0)
+    origin = spec["origin_llh"]
+    feed = Feed("front-end", "sim", run.measurements, "ekf", origin_llh=origin)
+    out = list(frames(feed, HealthMonitor(50.0, 1.5e-6)))
+    drawn = {e["id"]: e for f in out for e in f["new_emitters"]}
+    assert drawn and all(re.fullmatch(r"lte:2460:\d+", k) for k in drawn)
+    assert set().union(*(f["heard"] for f in out)) <= set(drawn)
+    table = CellTable.load()
+    for em in drawn.values():
+        _, earfcn, pci = em["id"].split(":")
+        _, cell = table.associate(int(earfcn), int(pci), origin)
+        e, n, _ = llh_to_enu([cell.lat, cell.lon, origin[2]], origin)
+        assert (em["e"], em["n"]) == pytest.approx((e, n), abs=0.5)
+    alone = list(estimate("ekf", run.measurements, origin_llh=origin))
+    assert np.allclose([f["pos"] for f in out], [a.pos_enu for a in alone])
 
 
 def test_live_stream_gives_the_panel_what_the_sim_does(tmp_path):
