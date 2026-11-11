@@ -48,4 +48,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0044](0044-told-sigma-for-radio-records.md) | Tell radio LTE records ADR-0036's measured sigma, opt-in, beside learned noise (opt-in: `*-measured-sigma` estimators; `arc_bias` option) | Accepted |
 | [0047](0047-ekf-models-our-clock-in-tower-ranges.md) | `ekf` models our receiver clock in the tower ranges once GNSS time is used, and scenarios put the payload clock in their towers | Accepted (option D) |
 | [0048](0048-p12-map-export-policy.md) | A drone's tower map (P12) is built with the jump guard, withheld if the build was flagged, and GNSS-derived | Accepted |
-| [0050](0050-real-lte-records-in-the-default-filter.md) | A real capture's LTE records get ADR-0036's σ and a bias per new arc by default; GNSS re-admission, a settling σ and a heard-cell bound opt-in | Proposed |
+| [0050](0050-real-lte-records-in-the-default-filter.md) | A real capture's LTE records get ADR-0036's σ and a bias per new arc by default; GNSS re-admission, a settling σ and a heard-cell bound opt-in | Accepted |
