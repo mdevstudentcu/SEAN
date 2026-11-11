@@ -614,7 +614,9 @@ class EKF:
         """The calibration gate: GNSS trusted for `calib_gate_s` and the checks agree."""
         votes = [check(self) for check in self.calib_checks]
         self._note_trouble(False in votes)
-        if not self.gnss_trusted():
+        # A rejected GNSS height (ADR-0045) leaves the vertical on the barometer, so
+        # `baro_agrees` would confirm GNSS by construction: no calibration then
+        if not self.gnss_trusted() or self.gnss_alt_excluded:
             self._trusted_since = None
             return False
         if self._trusted_since is None:

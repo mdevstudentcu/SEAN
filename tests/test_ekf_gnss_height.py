@@ -107,3 +107,19 @@ def test_a_horizontal_offset_is_not_let_in_by_the_height_fallback():
                           sigma=GNSS_SIGMA))  # fmt: skip
     e = f.estimate()
     assert "gnss_excluded" in e.flags and "gnss_alt_excluded" not in e.flags
+
+
+def test_a_rejected_height_keeps_the_calibration_gate_shut():
+    # With GNSS height rejected the vertical follows the barometer, so `baro_agrees` confirms
+    # by construction: no independent evidence for GNSS (ADR-0024). Same as when GNSS was
+    # rejected whole before ADR-0045.
+    from pnt.nav.ekf import CALIBRATED, EKF
+
+    f = EKF(**CALIBRATED)
+    late = []
+    for m in static_session(wander):
+        f.process(m)
+        if m.source == "gnss" and m.t_ns >= 40 * NS:
+            late.append((f.gnss_alt_excluded, f.calibrating))
+    assert late and all(alt for alt, _ in late)  # the set-up holds
+    assert not any(cal for _, cal in late)
