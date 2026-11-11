@@ -93,11 +93,11 @@ Registry: `pnt.nav.ESTIMATORS`.
 | `ekf-guard`, `ekf-imu-guard`, `ekf-calibrated-guard` | The GNSS jump guard, opt-in: a detected jump is refused until the GNSS stream steps back by it ([ADR-0038](adr/0038-refuse-detected-gnss-jump.md), Proposed) |
 | `ekf-calibrated-measured` | `ekf` with `ekf-calibrated`'s model, every value measured on real sessions or the filter's default, none from a sim set ([ADR-0043](adr/0043-calibrated-from-measured-values.md), Accepted, #118; opt-in) |
 | `ekf-map` | `ekf` with a residual map: each tower's error per 25 m cell, learned while GPS is trusted, frozen whenever it is not (P11, [ADR-0032](adr/0032-residual-map.md) Accepted as opt-in only, #95) |
-| `ekf-learned-noise`, `ekf-calibrated-learned-noise` | In review, not on `main` (PR #156, open; ADR-0039 there): learn each LTE cell's range noise from its residuals instead of trusting the reported σ; opt-in |
+| `ekf-learned-noise`, `ekf-calibrated-learned-noise` | `ekf` and `ekf-calibrated` that learn a radio's LTE range noise from its innovations, from a prior ([ADR-0039](adr/0039-learned-lte-range-noise.md), Proposed, #147; opt-in) |
 | `ekf-honest`, `ekf-honest-guard` | In review, not on `main` (draft PR #251; ADR-0046 there): learned noise plus the slow part of each emitter's range error as a filter state, so the HPL bounds the error after GPS loss; `-guard` adds the jump guard; opt-in |
 | `ekf-measured-sigma`, `ekf-calibrated-measured-sigma` | `ekf` and `ekf-calibrated` that tell a radio's LTE records ADR-0036's measured sigma from their SNR instead of the front end's ([ADR-0044](adr/0044-told-sigma-for-radio-records.md), Accepted, #147; opt-in) |
 
-Also opt-in: the tower spoof monitor (`ekf-spoof`, `ekf-imu-spoof`, `ekf-calibrated-spoof`, ADR-0037) and carrier hopping in the sim (ADR-0040), both merged through #250; learned LTE range noise (ADR-0039) is in review in PR #156 (open). In review too: the tower monitor's hop rule, which counts a site against the epochs its own carriers were on air (PR #263, open; ADR-0037 amendment there). ADR-0037 and ADR-0040 are Proposed; ADR-0039 exists only on #156's branch.
+Also opt-in: the tower spoof monitor (`ekf-spoof`, `ekf-imu-spoof`, `ekf-calibrated-spoof`, ADR-0037) and carrier hopping in the sim (ADR-0040), both merged through #250. In review: the tower monitor's hop rule, which counts a site against the epochs its own carriers were on air (PR #263, open; ADR-0037 amendment there). ADR-0037 and ADR-0040 are Proposed.
 
 ## Integrity layer
 
