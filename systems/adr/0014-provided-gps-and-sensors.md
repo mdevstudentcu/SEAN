@@ -29,4 +29,4 @@ Use the GPS HAT on the payload Pi (NMEA on `/dev/serial0`, PPS on GPIO4, read by
   - The sim's `BMP280` noise parameters are datasheet or literature placeholders (`TBC`) for the wrong part. A static session with the BMP180 replaces them with `measured` values (ADR-0015).
   - Using the BMP180 is not a new decision: it is the provided barometer this ADR chose. Buying a BMP280 or BME280 instead would be one.
 - Reopen if the lab has a u-blox M8T or ZED-F9P (raw measurements, RTK truth), or if MPU6050 noise limits REQ-01.
-- The NEO-6M is still worth buying for the ground reference station, which gets the provided spare Pi.
+- The NEO-6M is still worth buying for the ground reference station, which gets the provided spare Pi. (2026-11-10: not bought; the reference station stays in sim, ADR-0020, *Amendment 2026-11-10*.)
