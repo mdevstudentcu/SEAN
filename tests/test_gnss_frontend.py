@@ -198,3 +198,14 @@ def test_events_recorded_before_listed_existed_need_a_satellite():
     assert not gnss.has_skyview({"n_seen": 0, "hdop": 1.0})
     assert not gnss.has_skyview({"n_seen": 0, "hdop": None})  # empty or missing: can't tell
     assert gnss.has_skyview({"listed": True, "n_seen": 0, "hdop": None})
+
+
+def test_sky_event_keeps_the_receivers_elevation_and_azimuth():
+    # #206: the receiver's own sky, for the sky-map spoof check; absent values are left out
+    msg = {"class": "SKY", "satellites": [
+        {"PRN": 5, "ss": 41.0, "used": True, "el": 62.0, "az": 135.0},
+        {"PRN": 70, "ss": 30.0, "used": False},
+    ]}  # fmt: skip
+    ev = gpsd.sky_event(msg)
+    assert ev["el"] == {"5": 62.0} and ev["az"] == {"5": 135.0}
+    assert ev["snr"] == {"5": 41.0, "70": 30.0}  # unchanged
