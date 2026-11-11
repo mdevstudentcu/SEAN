@@ -1,12 +1,11 @@
 {
  "meta": {
-  "commit": "550f2cc",
+  "commit": "3f3a93a",
   "seeds": 20,
   "jobs": 3,
   "minutes": 34.1,
   "runtime_median_s": 2.0,
-  "runtime_max_s": 13.2,
-  "recited_from": "9f0625d"
+  "runtime_max_s": 13.2
  },
  "rows": [
   {

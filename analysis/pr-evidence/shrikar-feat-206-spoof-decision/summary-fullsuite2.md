@@ -1,6 +1,6 @@
 # Spoof decision from the GPS sky (#206, ADR-0041)
 
-`python analysis/spoof_sky.py --session data/sessions/20261111-0151-static-fullsuite2 --runs 1` at affe33f. Almanac `tle-gps-20261111.txt`. Skyview stale after 15 s.
+`python analysis/spoof_sky.py --session data/sessions/20261111-0151-static-fullsuite2 --runs 1` at ac478bb. Almanac `tle-gps-20261111.txt`. Skyview stale after 15 s.
 
 A second real session, recorded after the thresholds were set from the first (an independent check of the real-sky side). Real-session sections only: the script's sim section at `--runs 1` is left out; the sim at 20 seeds is in `summary.md`.
 

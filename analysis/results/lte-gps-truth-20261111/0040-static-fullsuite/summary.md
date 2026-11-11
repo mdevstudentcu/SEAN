@@ -1,4 +1,4 @@
-Session `20261111-0040-static-fullsuite-lte`, analysed at `7a87adc`. Receiver truth: mean of 600 GNSS fixes (position withheld for privacy). Capture on disk 582.3 s. SNR cut -8 dB (`TBC`, ADR-0036). eNB by the committed table only: a hypothesis.
+Session `20261111-0040-static-fullsuite-lte`, analysed at `f2804b0`. Receiver truth: mean of 600 GNSS fixes (position withheld for privacy). Capture on disk 582.3 s. SNR cut -8 dB (`TBC`, ADR-0036). eNB by the committed table only: a hypothesis.
 
 | Cell | eNB (table) | Lookup | Tracked | Tracked ≥ -8 dB | Arcs | SNR median (dB) | Told σ median (m) | Told σ < -8 dB (m) | White σ ≥ -8 dB (m) | ADR-0036 white (m) | S(1 s) ≥ -8 dB (m) | S(1 s) < -8 dB (m) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|

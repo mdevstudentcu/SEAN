@@ -1,6 +1,6 @@
 # Estimator output against main (#206)
 
-Sim, seed 0. SHA-256 (first 16 hex) of every Estimate each registered estimator gives (11), and of the sim's measurement stream. Branch at `887eab7`, `origin/main` at `0a788b2` (its base; `c21e047`, main when this was written, changes nothing under `src/`). Script: a copy of `~/.cache/pnt-work/spoof-scratch/hashcheck.py` that also hashes each estimate with `gnss_jump_latched` removed from its flags (not committed).
+Sim, seed 0. SHA-256 (first 16 hex) of every Estimate each registered estimator gives (11), and of the sim's measurement stream. Branch at the change that is `add6399` on `main`, against `origin/main` at `0a788b2` (its base then; `c21e047`, main when this was written, changes nothing under `src/`). Script: a copy of `~/.cache/pnt-work/spoof-scratch/hashcheck.py` that also hashes each estimate with `gnss_jump_latched` removed from its flags (not committed).
 
 | Scenario | Measurements | Estimators identical | Estimators that differ |
 | --- | --- | --- | --- |

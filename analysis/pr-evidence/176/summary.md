@@ -1,4 +1,4 @@
-# Location-jump study (f561d53, sim)
+# Location-jump study (54dd146, sim)
 
 Seeds 0..15 per row; seed k jumps towards 45° x (k mod 8). Jump at t = 150 s, held to the end of the 360 s run. Command: `python analysis/jump_study.py --runs 16 --jobs N --out DIR`. Environments: `realistic-uc01` is `realistic-nominal` (realistic set) flown on `uc01-drone-circuit`'s route; `uc01` is `uc01-drone-circuit` as committed. Faults removed from both first. Jumps of 20 m to 500 km, with and without the jump guard: `analysis/guard_jump_sizes.py` (ADR-0038).
 
