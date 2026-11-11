@@ -2,7 +2,7 @@
 
 The "before" table (#150, package 5 of #126). **sim, every value TBC (ADR-0015, ADR-0030 Proposed).** It becomes the presented result only once ADR-0030 is accepted.
 
-- **Commit:** `927f25f`
+- **Commit:** `c847079`
 - **Seeds:** 0–49 (`ekf-mhss`: 0–19)
 - **Command:** `python analysis/challenge_baseline.py --seeds 50 --jobs 6`
 - **Runtime:** 54.0 min wall, 6 worker(s)
@@ -296,7 +296,7 @@ Means over seeds unless marked; *worst* is the worst seed. Slices count from GPS
 ![t4_detection.png](t4_detection.png)
 ![t5_bound.png](t5_bound.png)
 
-*t5_bound.png*: the drone leg's true horizontal error against HPL at every 0.1 s epoch of each whole run (the epochs T5 scores). Above the diagonal the error escaped the bound. Per panel: the share of all epochs above it (pooled over runs); the worst run's share with HPL ≥ error (the *HPL bound worst* column above); hazardous epochs (summed, the *hazardous* column). Computed at `d0e2af3` (`python analysis/challenge_baseline.py --bound --jobs 3`, the runs' metrics checked equal to `runs.json`); every table and the other figures are from `927f25f`.
+*t5_bound.png*: the drone leg's true horizontal error against HPL at every 0.1 s epoch of each whole run (the epochs T5 scores). Above the diagonal the error escaped the bound. Per panel: the share of all epochs above it (pooled over runs); the worst run's share with HPL ≥ error (the *HPL bound worst* column above); hazardous epochs (summed, the *hazardous* column). Computed at `27904c5` (`python analysis/challenge_baseline.py --bound --jobs 3`, the runs' metrics checked equal to `runs.json`); every table and the other figures are from `c847079`.
 
 | Entry | Estimator | runs | epochs above HPL | worst run bounded | hazardous |
 |---|---|---|---|---|---|
@@ -312,4 +312,4 @@ Means over seeds unless marked; *worst* is the worst seed. Slices count from GPS
 
 ## Reproduce
 
-From commit `927f25f`, a clean tree: `python analysis/challenge_baseline.py --seeds 50 --jobs 6`. The per-run data (`runs.json`: metrics, and each run's error at every second after GPS loss) goes to the git-ignored `analysis/results/runs/challenge-baseline/`; it is not committed. `--redraw` rewrites this file and the figures from it without running.
+From commit `c847079`, a clean tree: `python analysis/challenge_baseline.py --seeds 50 --jobs 6`. The per-run data (`runs.json`: metrics, and each run's error at every second after GPS loss) goes to the git-ignored `analysis/results/runs/challenge-baseline/`; it is not committed. `--redraw` rewrites this file and the figures from it without running.

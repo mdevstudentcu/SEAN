@@ -26,7 +26,7 @@ Option B, opt-in as `ekf-map` (`residual_map=` on the EKF): per emitter and 25 m
 
 The map stays opt-in. Issue #95's guardrail says ray tracing or ML may only lower a tower's weight and never enter the protection-level maths; subtracting a learned per-cell mean goes beyond lowering a weight. The owners accept that only for `ekf-map`, never for a default estimator, until real data shows a repeatable per-place error above the noise (*Guardrail* below).
 
-Shrinkage is part of the decision because without it the map made `gps-outage` (no place error) worse: fault-window p95 19.9 m → 22.2 m over 50 paired runs (`pnt eval gps-outage --runs 50`, sim, seeds 0-49; `ekf` at d17e2b5, `ekf-map` at 7d6dfa7, the map before shrinkage). With shrinkage (d17e2b5) it is 19.9 m, and `residual-map` goes from 38.7 m (`ekf`) to 36.7 m, against 34.7 m without shrinkage.
+Shrinkage is part of the decision because without it the map made `gps-outage` (no place error) worse: fault-window p95 19.9 m → 22.2 m over 50 paired runs (`pnt eval gps-outage --runs 50`, sim, seeds 0-49; `ekf` at 6b4a23e, `ekf-map` at 5f59e37, the map before shrinkage). With shrinkage (6b4a23e) it is 19.9 m, and `residual-map` goes from 38.7 m (`ekf`) to 36.7 m, against 34.7 m without shrinkage.
 
 ## Guardrail
 

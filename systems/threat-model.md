@@ -26,7 +26,7 @@ Everything here is defensive. Attacks exist only as software fault injection in 
 Our Honeywell mentors' answer on which attacks to start with (2026-11-10): "I would begin with location jumps". Asked how big real jumps are, they said most are in the range of hundreds (of kilometres, not metres). Two sim studies cover the sizes, both on the `uc01-drone-circuit` route with the `realistic` set's error model (`realistic-uc01`) and as committed (`uc01`, synthetic towers), a jump at 150 s held to the end of the 360 s run, eight directions. Every model is `placeholder` in `verification.md`.
 
 - Jumps of 20 m to 500 km, `ekf` and `ekf-imu` with and without the opt-in jump guard: `analysis/guard_jump_sizes.py`, 20 seeds, numbers in ADR-0038 (*Jump size*).
-- Jumps of 5 to 20 m, and a small jump that then drifts, for `ekf`, `ekf-calibrated`, `ekf-imu`, `ekf-mhss` and `ekf-guard`: `analysis/jump_study.py`, 16 seeds at `f561d53` ([`summary.md`](../analysis/pr-evidence/176/summary.md)).
+- Jumps of 5 to 20 m, and a small jump that then drifts, for `ekf`, `ekf-calibrated`, `ekf-imu`, `ekf-mhss` and `ekf-guard`: `analysis/jump_study.py`, 16 seeds at `54dd146` ([`summary.md`](../analysis/pr-evidence/176/summary.md)).
 
 What they show:
 

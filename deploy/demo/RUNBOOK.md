@@ -4,8 +4,8 @@ The live part of the pitch: 60–90 s on the operator panel, then 15 s of real t
 
 **What the demo claims, and nothing more:**
 
-- The panel tells the operator, within seconds, when the position or the time can no longer be trusted. On this run (seed 0) the bound holds (protection level above the true error) through a GPS loss. Not on every run: over 50 seeds, `ekf` on `challenge-drone-outage` has hazardous epochs on 7 of 50 seeds (#170, unmerged).
-- A location jump is flagged and latched about a second after onset (1.1 s on 50 of 50 seeds, #180, unmerged). A time spoof is flagged 1.2 s after onset on this run; over 50 seeds the median is 3.3 s and the worst 4.1 s (#170 at `ff5ee58`, unmerged).
+- The panel tells the operator, within seconds, when the position or the time can no longer be trusted. On this run (seed 0) the bound holds (protection level above the true error) through a GPS loss. Not on every run: over 50 seeds, `ekf` on `challenge-drone-outage` has hazardous epochs on 7 of 50 seeds (#170).
+- A location jump is flagged and latched about a second after onset (1.1 s on 50 of 50 seeds, #180). A time spoof is flagged 1.2 s after onset on this run; over 50 seeds the median is 3.3 s and the worst 4.1 s (#170 at `e7bd988`).
 - The towers on the map are the real registered sites around Carleton, and we track real cells from real captures. Each cell heard is *consistent with* a registered site: the match is made around Carleton, not around the receiver, so it is a hypothesis, not an identification.
 
 **What it does not claim:** that we meet the position target without GPS (we don't: 321 m error 40 s into the outage below), or that a detected jump is refused (the demo runs plain `ekf`, whose output follows it; the opt-in `ekf-guard` that refuses it is not shown; see the jump segment).
@@ -93,7 +93,7 @@ Press Enter when T+ passes ~190.
 
 Press Enter to stop when T+ passes 232.
 
-Over 50 seeds the jump is flagged in 1.1 s on 50 of 50 (#180's evidence on the challenge legs), and the time spoof in a median 3.3 s, worst 4.1 s (#170 at `ff5ee58`, `ekf`, timing leg). On `challenge-drone-outage`, `ekf` has hazardous epochs on 7 of 50 seeds (#170). Both PRs are unmerged: cite the merged commit once they land. These were not re-run for this runbook: quote them with their source, and never present this one seed as a statistic.
+Over 50 seeds the jump is flagged in 1.1 s on 50 of 50 (#180's evidence on the challenge legs), and the time spoof in a median 3.3 s, worst 4.1 s (#170 at `e7bd988`, `ekf`, timing leg). On `challenge-drone-outage`, `ekf` has hazardous epochs on 7 of 50 seeds (#170). These were not re-run for this runbook: quote them with their source, and never present this one seed as a statistic.
 
 ### 4. Real towers (≈ 15 s): `deploy/demo/demo.sh real`
 

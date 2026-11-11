@@ -9,10 +9,10 @@ Fixes for an optimistic reported σ, compared on the same records. Each is run f
 - **default:** the reported σ, 2 m in the sim.
 - **no LTE:** a reference.
 
-**Where the numbers come from.** Local branch `cmp147` is #156 rebased onto `main` `c21e047` (branch `fix156`) plus this branch's commits.
-- Sim: `src/` at `01154f5`.
-- Real replays: `src/` at `3e00f60` (`01154f5` plus `arc_bias`), through #214's `analysis/real_gps_cut.py` at `8e7a216` (not yet on `main`).
-- The defaults, B and arc reproduce from this branch alone; A needs #156's code as well.
+**Where the numbers come from.** Branch `shrikar/cmp/147-comparison` on `origin` is #156 rebased onto `main` `c21e047` plus #147's commits. #156 is not on `main`, so these trees are not either.
+- Sim: `src/` at `01154f5`. Its #147 commits are on `main`, the last as `aca3a83`.
+- Real replays: `src/` at `3e00f60`, the branch head: `01154f5` plus `arc_bias`, which is `fa6bd4f` on `main` less one line for #156's curvature term. The cut is #214's `analysis/real_gps_cut.py` at `ad45c1c`.
+- The defaults, B and arc need only #147's commits, now on `main`; A needs #156's code as well.
 - On both trees every default estimator hashes the same as on `main` (PR text).
 - `analysis/told_sigma_147_report.py` draws the figures and `tables.md` from the JSON beside them.
 
@@ -99,7 +99,7 @@ python analysis/told_sigma_147_report.py <dir> --out analysis/results/told-sigma
 | drone, spoof jump | ekf-calibrated | B+A | 104,480 (20) | 104,480 (20) | 0.0 |
 | drone, spoof jump | ekf-calibrated | no LTE | 108,596 (20) | 108,596 (20) | 0.0 |
 
-### Real replay: `20261111-0040-static-fullsuite-lte`, GPS cut in software at 99, 149, 199, 249, 299 s (#214's script at `8e7a216`)
+### Real replay: `20261111-0040-static-fullsuite-lte`, GPS cut in software at 99, 149, 199, 249, 299 s (#214's script at `ad45c1c`)
 
 Errors against the withheld GPS fixes; median over the cuts, worst cut in brackets (m). HPL bound pooled over every withheld fix.
 
@@ -125,7 +125,7 @@ Errors against the withheld GPS fixes; median over the cuts, worst cut in bracke
 | ekf-calibrated | no LTE | none | 0.9 (1.7) | 1.4 (3.1) | 0.2 (0.6) | 1.7 (3.2) | 100% | 0 / 1505 | 0% |
 | hold | last fix | - | 1.1 (1.6) | 1.2 (1.7) | 0.2 (1.2) | 1.0 (1.6) | — | — | — |
 
-### Real replay: `20261111-0151-static-fullsuite2-lte`, GPS cut in software at 100, 150, 200, 250, 300 s (#214's script at `8e7a216`)
+### Real replay: `20261111-0151-static-fullsuite2-lte`, GPS cut in software at 100, 150, 200, 250, 300 s (#214's script at `ad45c1c`)
 
 Errors against the withheld GPS fixes; median over the cuts, worst cut in brackets (m). HPL bound pooled over every withheld fix.
 

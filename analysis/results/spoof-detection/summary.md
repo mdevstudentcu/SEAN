@@ -1,6 +1,6 @@
 # Spoof detection, before and after the tower monitor (#173)
 
-Sim, every value `TBC`. Commit 2057521, `python analysis/spoof_detection.py --seeds 50 --mhss-seeds 5 --jobs 5`, 60.2 min on Linux, AMD Ryzen 7 8845HS w/ Radeon 780M Graphics, Python 3.12.13. Seeds 0–49 (`ekf-mhss` 0–4); the monitor's settings were chosen on seeds 100–109, never on these.
+Sim, every value `TBC`. Commit 217f2d3, `python analysis/spoof_detection.py --seeds 50 --mhss-seeds 5 --jobs 5`, 60.2 min on Linux, AMD Ryzen 7 8845HS w/ Radeon 780M Graphics, Python 3.12.13. Seeds 0–49 (`ekf-mhss` 0–4); the monitor's settings were chosen on seeds 100–109, never on these.
 
 `-spoof` = the same estimator with `integrity.spoof_monitor` (opt-in). `drone` is the `challenge-drone` leg as committed (1 to 3 cells heard); `drone-many` the same spec with every sector within 3 km heard; `realistic` the `realistic` set. Detection is `pnt.metrics` (any of `gnss_excluded`, `spoof_suspected`, `time_spoof_suspected` held 1 s); false alarms per hour are on `nominal` and `outage` runs.
 

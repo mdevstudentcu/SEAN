@@ -4,8 +4,8 @@ Evidence: **real sessions**, static, outdoors, payload Pi 4B, two 10 min capture
 
 | Folder | Session | Recorded at | IQ | Antenna | Use |
 | --- | --- | --- | --- | --- | --- |
-| [`0151-static-fullsuite2/`](0151-static-fullsuite2/summary.md) | `20261111-0151-static-fullsuite2` | `c007627` (on `origin/shrikar/feat/readsb-setup`) | 599.4 s, no recorder gap (USB drive) | taped upright | **main numbers** |
-| [`0040-static-fullsuite/`](0040-static-fullsuite/summary.md) | `20261111-0040-static-fullsuite` | `4d3598b` (its change is on `main` as `ee20817`) | 582.3 s, 4 recorder gaps (SD card) | found on its side about 50 min after the recording; when it fell is unknown | second session |
+| [`0151-static-fullsuite2/`](0151-static-fullsuite2/summary.md) | `20261111-0151-static-fullsuite2` | the change that is `8c4e856` on `main` | 599.4 s, no recorder gap (USB drive) | taped upright | **main numbers** |
+| [`0040-static-fullsuite/`](0040-static-fullsuite/summary.md) | `20261111-0040-static-fullsuite` | the change that is `ee20817` on `main` | 582.3 s, 4 recorder gaps (SD card) | found on its side about 50 min after the recording; when it fell is unknown | second session |
 
 ## Commands
 
@@ -16,7 +16,7 @@ python analysis/lte_gps_truth.py <out>/<session>-lte --raw $s \
     --out analysis/results/lte-gps-truth-20261111/<folder> --plot .../<folder>/pairs.png
 ```
 
-The front end ran at `b437a3b` (0040) and `ed199fe` (0151). The analysis ran at `7a87adc` for both. No file under `src/` differs from `origin/main` `83bbb97` at any of them.
+Each session's `meta.yaml` names the branch commit it had then. The front end ran at the changes that are `c4cc026` (0040) and `5af8d5a` (0151) on `main`, and the analysis at the one that is `f2804b0`, for both. At each run `src/` was identical to `main` `83bbb97`. On `main` they sit above `3d82fa0`, which adds coherent LTE options to the front end, off by default.
 
 - Truth is the mean of the session's GNSS fixes (600 and 601).
 - Tower positions come from `data/reference/lte-cells-ottawa.csv` through `pnt.nav.cells`. Every heard cell matched one registered eNB: a table hypothesis, not a confirmed identity.
