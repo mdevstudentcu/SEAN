@@ -70,7 +70,7 @@ Do not add an abstraction before a second implementation exists.
 
 Without uv or just, run the same commands through `.venv` and say so in the PR. If you edit anything after `just qa`, run it again.
 
-Not automated yet: the requirement-named tests, the `Source` contract test and checks for the hard rules in `AGENTS.md`. A ticked checklist does not prove that anything ran.
+`tests/test_source_contract.py` runs the same `Source` contract on sim, replay and live, and `tests/test_hard_rules.py` checks the `AGENTS.md` hard rules a machine can: receive-only (REQ-07), no communication content and BSSIDs hashed at capture (REQ-08), no raw session data or confidential deck in git, same seed same run (REQ-10). Their scans know fixed API lists, so they back up code inspection and do not replace it. Not automated yet: requirement-named tests for the other requirements and the remaining hard rules. A ticked checklist does not prove that anything ran.
 
 ## PR descriptions
 
