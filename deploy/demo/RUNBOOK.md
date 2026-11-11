@@ -1,6 +1,6 @@
 # Demo runbook: the 5-minute judging demo
 
-Written for a presenter who did not build this. The live part is about 75 s on the operator panel (three short simulations, one after the other), then 15 s of real towers on the terminal. Everything runs on the laptop alone, from committed scenarios at seed 0: no Pi, no network, no recorded file to lose. The same seed gives the same screen on every run, so the numbers below are what you will see.
+Written for a presenter who did not build this. The live part is about 90 s on the operator panel (four short simulations, one after the other), then 15 s of real towers on the terminal. Everything runs on the laptop alone, from committed scenarios at seed 0: no Pi, no network, no recorded file to lose. The same seed gives the same screen on every run, so the numbers below are what you will see.
 
 Commands are in `deploy/demo/demo.sh`; `just demo <segment>` runs the same script.
 
@@ -11,6 +11,7 @@ Commands are in `deploy/demo/demo.sh`; `just demo <segment>` runs the same scrip
 - The panel tells the operator, within seconds, when the position can no longer be trusted, and shows it as a colour: green NOMINAL, amber DEGRADED, red UNSAFE.
 - A 300 m GPS location jump is caught at the first jumped fix (this run: T+150.0, the jump's start).
 - **Without the jump guard** (`ekf`) the filter takes the fake GPS back 27 s later and shows green while 300 m wrong. **With the jump guard** (`ekf-guard`, opt-in on `main`, ADR-0038 *Proposed*) the fake GPS stays refused, the panel stays red with a growing bound, and real GPS is taken back as soon as the spoofer stops.
+- **In a simulation study** (one radio hopping 13 LTE carriers, ADR-0040, and LTE range noise learned by the filter, ADR-0039; neither is on the payload) the towers hold the position to tens of metres where today's setup is hundreds of metres off, at the same moment of the same outage. The panel still says UNSAFE there, because the bound is over the 50 m alert limit.
 - The towers on the map are the real registered Rogers sites around Carleton, and we track real LTE cells from a real capture (`demo.sh real`).
 
 **What it does not claim:** that we meet the position target without GPS (we don't: the error is hundreds of metres after a minute without GPS, below); that the guard is our default (it is opt-in: ADR-0038 keeps it off until the manoeuvre follow-up is done); that one seed is a statistic. 50-seed figures are under *Numbers you may quote*, with their source.
@@ -42,9 +43,10 @@ Commands are in `deploy/demo/demo.sh`; `just demo <segment>` runs the same scrip
 
 | Segment | Command | What it runs |
 | --- | --- | --- |
-| Pre-flight | `deploy/demo/demo.sh check` | Python and panel imports, `lsof`, port 8050 free, the four scenarios load and their estimators exist, the two real sessions are there (`realcut`'s only matters for that segment) |
-| **Stage sequence** | `deploy/demo/demo.sh stage` | GPS lost → jump without guard → jump with guard, on port 8050; **Enter** moves on, the page reconnects by itself, the last Enter stops |
+| Pre-flight | `deploy/demo/demo.sh check` | Python and panel imports, `lsof`, port 8050 free, the five scenarios load and their estimators exist, the two real sessions are there (`realcut`'s only matters for that segment) |
+| **Stage sequence** | `deploy/demo/demo.sh stage` | GPS lost → towers study → jump without guard → jump with guard, on port 8050; **Enter** moves on, the page reconnects by itself, the last Enter stops |
 | GPS lost | `deploy/demo/demo.sh outage` | `challenge-drone-outage`, seed 0, `ekf`, ×5 |
+| Towers study | `deploy/demo/demo.sh towers` | GPS lost (as `outage`); Enter; then `challenge-drone-hop-outage`, seed 0, `ekf-learned-noise`, ×5, with the *simulation study* line on the panel |
 | Location jump | `deploy/demo/demo.sh jump` | `challenge-drone-spoof-jump`, seed 0, `ekf`, ×10; Enter; then `challenge-drone-gps-return`, seed 0, `ekf-guard`, ×10 |
 | Jump with guard only | `deploy/demo/demo.sh guard` | the second half of `jump` alone |
 | Time spoof (Q&A only) | `deploy/demo/demo.sh time` | `challenge-timing-time-spoof`, seed 0, `ekf`, ×10 |
@@ -56,11 +58,13 @@ Without the repo's `.venv`, set `PNT_PY=/path/to/python`. Real sessions live out
 
 Ctrl-C stops any segment and frees the port. Each switch may print `ERROR: Cancel 1 running task(s), timeout graceful shutdown exceeded`: that is the server closing the open stream, not a fault.
 
-**Why the time spoof is not in the stage sequence:** the mentor asked us to focus on location before timing, and three location segments fill the 90 s. Run `demo.sh time` only if a judge asks about timing (*Time spoof* below).
+**Why the time spoof is not in the stage sequence:** the mentor asked us to focus on location before timing, and four location segments fill the 90 s. Run `demo.sh time` only if a judge asks about timing (*Time spoof* below).
 
 ## The stage sequence, second by second
 
 **Wall** is seconds after pressing Enter on `deploy/demo/demo.sh stage`, from the timed runs below (±3 s). **T+** is the panel's own clock, top right: move on by watching T+, not a stopwatch. All values: simulation, seed 0, commit `9aed72b`.
+
+Segment 1b was added after the Wall columns of segments 2 and 3 were measured: in today's sequence each of their Wall times is about 22 s later (the jump now starts at wall 46 s, not 24 s) (*Timing* below). T+ values are unchanged.
 
 Where to look: the big coloured word top right (NOMINAL / DEGRADED / UNSAFE); **HPL** under it (our bound on the error) and **Error against truth** (the real error, known only because this is a simulation); the **HPL chart** bottom left (blue: HPL, green: true error, red dashed: the 50 m alert limit); **What is wrong now** and **Alerts** on the right.
 
@@ -75,6 +79,38 @@ Where to look: the big coloured word top right (NOMINAL / DEGRADED / UNSAFE); **
 | 16–24 s (T+65–105) | HPL chart: blue above green. About T+100: HPL 865 m, error 335 m | "Honest number: 40 seconds without GPS we are over 300 metres off. What matters is that the bound, the blue line, stays above the real error on this run." |
 
 **Press Enter when T+ passes 105.**
+
+### 1b. Towers holding, a simulation study (wall 23–46 s): `challenge-drone-hop-outage`, seed 0, `ekf-learned-noise`, ×5
+
+The same GPS loss as segment 1, on a setup the payload does not have: one radio hopping 13 LTE carriers (ADR-0040, a study leg) and LTE range noise the filter learns from the towers' own readings (ADR-0039, opt-in, PR #156 not merged). A line under the top bar says so for the whole segment: *Simulation study: 13 LTE carriers hopped, learned tower range noise (opt-in). Our payload cannot hop yet: it listens to one carrier.* (`--banner`). This segment has no pre-flight prediction line (`--no-preflight`: predicting it for 13 carriers adds about 4 s to the switch), so its HPL chart's time axis runs only to now.
+
+NO DATA for 2–7 s; talk over the gap: "Same flight, same GPS loss. This one is a simulation study, and the line at the top says so: one radio hopping across thirteen LTE carriers instead of listening to one, and a filter that learns how far off each tower's readings are. Our payload cannot hop yet."
+
+| Wall | Panel | Say |
+| --- | --- | --- |
+| 25–37 s (T+0–60) | Green **NOMINAL**, HPL about 7 m; the study line under the top bar; Sources: `lte` under *In use* | (Finish the gap line over the clean part.) |
+| 37 s (T+61.8) | Amber **DEGRADED**: *GPS not in use* | "GPS is gone, as before." |
+| 38 s (T+65.0) | Red **UNSAFE**, alert latched *since T+65.0 s* | — |
+| 38–46 s (T+65–105) | Red **UNSAFE** throughout. *Error against truth* moves between 10 and 58 m (T+70: 28.5 m, T+90: 42.4 m, T+104.7: 39.2 m, T+105.3: 17.9 m); HPL 75–160 m (T+104.7: 140.3 m, T+105.3: 108.7 m); `lte 1.00` under *In use*; the HPL chart's green line stays under the blue | "Now the towers carry us. At this moment in the last run we were nearly 400 metres off; here, tens of metres. It is still red, and rightly: our bound is over 100 metres, above the 50-metre alert limit, so the panel still says do not navigate on this. Much better, not yet good enough." |
+
+**Press Enter when T+ passes 105.**
+
+On this run the HPL is above the true error at every epoch from T+60 to T+120. Over the first 45 s without GPS the error stays under 60 m, against 380–390 m at the same T+ in segment 1 (HPL about 980 m there). The map's Follow view is zoomed to the drone here, so no tower triangles are in it; *Area* shows them.
+
+#### The towers segment if short of time
+
+Skip it (press Enter as soon as it loads) and say only: "In a simulation study, with thirteen carriers and learned tower noise, which our payload cannot do yet, the position held to tens of metres instead of hundreds. Still flagged unsafe."
+
+#### If a judge asks about the towers
+
+- *Is this what the payload does?* No. The recorder listens to one carrier (EARFCN 2460) and cannot hop yet (ADR-0040); learned noise is opt-in and not merged (ADR-0039, PR #156). No hopped capture exists, and the learned-noise settings were tuned on simulated seeds.
+- *How good is it over many runs?* "Across 50 simulated runs, at every second of the first five minutes without GPS, 95 % of the runs were within 132 metres. With today's setup that figure is 12.5 kilometres, and 2.9 kilometres with no towers at all. Neither our 25-metre nor the 50-metre fallback target is met." That is a 95th percentile across runs at each second (*Numbers you may quote*); never say "95 % of flights stay within 132 m".
+- *Why is today's setup worse than no towers?* One carrier, and a front end that reports a 2 m range noise where the simulated truth is about 50 m: the filter believes bad ranges (#147). Learned noise is the fix for that; hopping adds towers.
+- *Is seed 0 picked to look good?* No: every segment uses seed 0. Where Enter is pressed (45 s after the loss) seed 0 is mid-pack among 50 runs: rank 23 of 50 for the study (39.7 m, median 44.7 m), 24 of 50 for today's setup (381 m, median 385 m). Left running, it turns unflattering for the study: at 300 s after the loss it is the worst of the 50 (117 m, median 50 m). Seed 4 is typical for the study at 60, 120 and 300 s.
+
+#### If the towers segment fails
+
+`check` FAILs on `challenge-drone-hop-outage` or `ekf-learned-noise`, or the panel does not load: press Enter for the jump and say the *short of time* line above. Afterwards show `towers-3-same-time.png` next to `outage-late.png` from `analysis/pr-evidence/elshoubky-feat-266-towers-demo/`.
 
 ### 2. Location jump, without the guard (wall 24–48 s): `challenge-drone-spoof-jump`, seed 0, `ekf`, ×10
 
@@ -120,11 +156,15 @@ Segment 2: "A spoofer moves GPS 300 metres. Caught at the first fake fix: red. B
 | Part | Seconds |
 | --- | --- |
 | Pre-flight `check` | 0.7 |
-| Stage sequence (Enter at T+105, T+188, T+212) | **72.9** and **75.9** |
+| Stage sequence (Enter at T+105, T+105, T+188, T+212) | **90.5** and **90.4** |
+| of which the towers study (Enter to Enter) | 22.8 and 22.7 |
+| Stage sequence before the towers study (Enter at T+105, T+188, T+212) | 72.9 and 75.9 |
 | Real towers | 0.4 to print, ~15 to talk |
 | Real GPS cut (optional, Ctrl-C at T+115) | about 41 (first frame 2.3–3.5 s after Enter) |
 
 Measured twice back to back on 2026-11-11 at `ec5da67`, a local commit never pushed, so not reproducible from the repository (the same change before its rebase onto `main` `8892fca`, now `9aed72b`; after the rebase only `demo.sh check`, `demo.sh real` and the two jump segments' outcomes were re-checked, not the timings), clean tree, macOS, this laptop, each run a fresh `demo.sh stage` (Python caches warm, not a rebooted laptop), load average 7.8 from two other jobs. Enter was pressed by a script reading the panel clock, not by hand, and no browser was open: a browser reconnects 0–3 s after each switch, which delays what is visible but not the sequence. The segment switch took 3.1–5.3 s. Event times on the panel clock agreed exactly between runs. A just-booted laptop's first Python start is slower (`TBD`, not measured): hence the warm-up. Re-time the stage sequence at the commit that will be shown (`TBD`).
+
+With the towers study: measured twice back to back on 2026-11-11 at commit `66b4bd8`, clean tree, the same way (script on the panel clock, no browser), load average 2.4 and 1.4. Event times on the panel clock agreed exactly between runs, and with two earlier runs of the same code at load 5–7.6 (stage 96.8 and 94.2 s, towers study 25.0 and 23.8 s). The switch into the towers study took 1.7–1.8 s; with a headless Chrome on the page, the study was on screen 4.2 s after Enter (screenshot run). An earlier screenshot run at load average about 7 took 7.3 s.
 
 ## Numbers you may quote
 
@@ -136,6 +176,7 @@ Only these, with their source. Never present the seed-0 run above as a statistic
 | Runs with hazardous epochs (error over 50 m while HPL under it), held 300 m jump, drone leg | `ekf` 49/50 seeds, mean 5,244 epochs per run; with the guard 3/50 seeds, mean 3 per run | same; ADR-0038 *Options* |
 | Jump ended (at 300 s in the study, not 200 s as on stage): real GPS taken back | `ekf` 48/50 seeds, median 18.8 s after the end; with the guard 50/50, median 0.1 s | same, *Jump ended at 300 s* |
 | Jump sizes 20 m to 500 km on the UC-01 route (realistic set, not the challenge leg): detected 1.1 s after the jump in every run but one 20 m jump; runs with hazardous epochs at 300 m | `ekf` 19/20, `ekf-guard` 0/20 | ADR-0038 *Consequences* (sim, seeds 0–19, `analysis/guard_jump_sizes.py` at `5a7a1c9`) |
+| Drone leg, GPS lost: the 95th percentile of error across 50 runs at each second, worst second of the first 300 s | no LTE 2,909 m; today's setup (`ekf`, 1 carrier) 12,507 m; study (`ekf-learned-noise`, 13 hopped carriers) 132 m. The 25 m / 300 s and 50 m / 120 s targets are not met | `analysis/results/stacked-fixes/summary.md`, draft PR #247 (sim, seeds 0–49, branch `elshoubky/feat/218-stacked-fixes` at `31aaca1`). Hopping is a study leg (ADR-0040), learned noise opt-in (ADR-0039) |
 | Cost of the guard: median error on the drone leg after refusing | 115 m at +30 s, 1.2 km at +120 s, flagged unsafe | ADR-0038 *Consequences* |
 
 `ekf` on `challenge-drone-outage` over 50 seeds has hazardous epochs on some seeds (#170): do not say the panel never tells less than the truth.
@@ -204,6 +245,7 @@ Holding the last fix before the cut does as well or better on this stationary re
 | Enter pressed too early in segment 2 | Segment 3 already loading before green-and-wrong showed | Carry on; say the line over segment 3's gap and show `jump-3-followed.png` afterwards |
 | Browser did not open | Nothing after 5 s | Open `http://127.0.0.1:8050` by hand |
 | `ekf-guard` missing or `check` fails | `FAIL` lines | *If everything fails* below |
+| Towers study fails (`check` FAIL on `challenge-drone-hop-outage` / `ekf-learned-noise`, or no panel) | — | *If the towers segment fails* (segment 1b) |
 | Venue Wi-Fi down | — | Nothing needed: the demo uses no network |
 | Laptop dies | — | Same screenshots from a teammate's laptop or the PR page |
 | Questions about real position | — | One real session has a GPS fix and is shown only as metres about its first fix (*Real GPS cut*); never show its coordinates |
@@ -258,3 +300,12 @@ Real GPS cut (#264): headless Google Chrome at 1920×1080, panel served by `depl
 | `realcut-2-cut.png` | T+36.8 | DEGRADED, *GPS not in use* since T+36.0, HPL 44.0 m, error 0.2 m; `gnss` not in use |
 | `realcut-3-unsafe.png` | T+40.6 | UNSAFE since T+37.4, HPL 91.4 m, error 0.2 m |
 | `realcut-4-bound.png` | T+100.6 | UNSAFE, HPL 1,784 m above the 2.3 m error against the withheld fixes |
+
+Towers study (#266): headless Google Chrome at 1920×1080, panel served by `deploy/demo/demo.sh towers` at commit `66b4bd8`, clean tree. **Simulation**, seed 0. Files in `analysis/pr-evidence/elshoubky-feat-266-towers-demo/`.
+
+| File | Scenario | Estimator | Panel time | Shows |
+| --- | --- | --- | --- | --- |
+| `outage-late.png` | `challenge-drone-outage` | `ekf` | T+105.3 | Today's setup: UNSAFE, HPL 991.5 m, error 385.6 m; `lte` under *Not in use* |
+| `towers-1-banner.png` | `challenge-drone-hop-outage` | `ekf-learned-noise` | T+30.6 | The study line under the top bar; NOMINAL, HPL 6.9 m, error 0.8 m; `lte` in use |
+| `towers-2-holding.png` | `challenge-drone-hop-outage` | `ekf-learned-noise` | T+80.6 | UNSAFE, HPL 74.6 m above the 38.6 m error; `lte` in use |
+| `towers-3-same-time.png` | `challenge-drone-hop-outage` | `ekf-learned-noise` | T+105.3 | Same T+ as `outage-late.png`: UNSAFE, HPL 108.7 m above the 17.9 m error; `lte` in use |
