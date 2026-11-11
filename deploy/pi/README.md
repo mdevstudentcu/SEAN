@@ -5,7 +5,7 @@ Step-by-step with the Pi in hand (day-1 test, captures, base station): [`RUNBOOK
 Raspberry Pi OS Lite (64-bit). The payload Pi runs Trixie (Debian 13); see the Imager notes in [`RUNBOOK.md`](RUNBOOK.md) A1. Hostname `pnt`, user `pi`, reachable as `pi@pnt.local`.
 
 What `setup.sh` does (idempotent; `just pi-deploy` runs it after copying the files git tracks):
-1. Installs `chrony`, `pps-tools`, `gpsd`, `rtl-sdr`, `python3-venv`, `mavlink-router` (if packaged), and `readsb` from Debian (3.14.1630 on the payload Pi, 2026-11-10) with its service **disabled**. readsb only decodes recorded ADS-B IQ files (`--device-type ifile`). Whether Debian's build can open an RTL-SDR is `TBC`, so the disabled service is what keeps it off the dongles.
+1. Installs `chrony`, `pps-tools`, `gpsd`, `rtl-sdr`, `python3-venv`, `mavlink-router` (if packaged), and `readsb` from Debian (3.14.1630 on the payload Pi, 2026-11-10) with its service **disabled**. This build has **no RTL-SDR support** (`--device-type rtlsdr` -> "SDR type 'rtlsdr' not recognized; supported: modesbeast, gnshulc, ifile, none", payload Pi, 2026-11-11), so it cannot decode live from a dongle: it only decodes recorded ADS-B IQ files (`--device-type ifile --iformat UC8`).
 2. Enables I2C for the IMU and barometer (ADR-0018). Sets up the **Adafruit Ultimate GPS HAT** (ADR-0014): UART on `/dev/serial0` without a login console, PPS overlay on GPIO4 (`dtoverlay=pps-gpio,gpiopin=4`), gpsd reading both. Blacklists the DVB driver so RTL-SDRs are free.
 3. Installs `chrony.conf` (GPS NMEA + PPS refclocks).
 4. Creates `~/pnt/.venv` with the `payload` extra.

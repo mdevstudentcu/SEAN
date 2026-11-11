@@ -116,7 +116,7 @@ A key is replaced with `pnt keys gen --role <role> --force`, then K2 again for t
 The Pi records raw IQ; the decoders run on the file afterwards. `setup.sh` installs readsb (owner's approval, 2026-11-10); Voracious is not installed by it.
 
 16. ADS-B, record: `.venv/bin/pnt record --platform static --place <site> --duration 60 --sdr a:1090e6:rate=2.4e6:dev=0 --notes "ADS-B IQ, <antenna, where>"` (as `rf_survey.sh` does). At 2 bytes per sample, 60 s at 2.4 MS/s is 288 MB.
-17. ADS-B, decode on the Pi with **readsb**, installed by `setup.sh` from Debian (package `3.14.1630+git20240609.adc080d-1` on the payload Pi, 2026-11-10). Its service stays **disabled** (`systemctl is-enabled readsb` → `disabled`): nothing listens on the radio at boot. It reads the capture as a file:
+17. ADS-B, decode on the Pi with **readsb**, installed by `setup.sh` from Debian (package `3.14.1630+git20240609.adc080d-1` on the payload Pi, 2026-11-10). Its service stays **disabled** (`systemctl is-enabled readsb` → `disabled`): nothing listens on the radio at boot. This build has no RTL-SDR support (supported device types: `modesbeast`, `gnshulc`, `ifile`, `none`), so it cannot decode live; it reads the capture as a file:
 
     ```bash
     s=data/sessions/<session>

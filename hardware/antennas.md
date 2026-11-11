@@ -164,7 +164,7 @@ Compare each DIY antenna against the bundle's stock antenna, **same spot, same c
 
 | Antenna | Tool | What to compare | Pass |
 | --- | --- | --- | --- |
-| A: ADS-B | readsb / dump1090 on SDR A | Messages per minute, number of aircraft, most distant aircraft | DIY ≥ stock on all three |
+| A: ADS-B | readsb on a recorded SDR A capture (`deploy/pi/RUNBOOK.md` H; Debian's readsb cannot decode live) | Messages per minute, number of aircraft, most distant aircraft | DIY ≥ stock on all three |
 | B: LTE | `CellSearch` (LTE-Cell-Scanner) on SDR B over the band you built for | Number of cells detected, RX power per cell | DIY ≥ stock |
 | C: VOR | SDR++ (or `rtl_power`) at 114.6 MHz | Carrier height above the noise floor (SNR, dB); the Morse ident **YOW** (`-.-- --- .--`) audible in AM | Clear carrier and audible ident |
 

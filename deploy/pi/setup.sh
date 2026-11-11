@@ -7,7 +7,7 @@ sudo apt-get update -qq
 sudo apt-get install -y -qq chrony pps-tools gpsd gpsd-clients rtl-sdr python3-venv i2c-tools
 sudo apt-get install -y -qq mavlink-router 2>/dev/null || echo "mavlink-router not packaged: build from source (TODO)"
 # readsb (Debian package) decodes recorded ADS-B IQ offline only: `--device-type ifile` (RUNBOOK).
-# Its service stays disabled so it never opens a dongle at boot (whether Debian's build can is TBC).
+# This build has no RTL-SDR support (no live decoding); its service stays disabled all the same.
 sudo apt-get install -y -qq readsb
 if systemctl cat readsb.service >/dev/null 2>&1; then
   sudo systemctl disable --now readsb.service
