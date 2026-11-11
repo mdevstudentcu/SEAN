@@ -37,6 +37,10 @@ VERIFICATION = REPO / "systems" / "verification.md"
 
 
 def _commit() -> str:
+    """The commit outputs name (REQ-10). `PNT_COMMIT` overrides it: `just results` checks the tree
+    is clean, then sets it, so its second step is not marked dirty by the first step's output."""
+    if os.environ.get("PNT_COMMIT"):
+        return os.environ["PNT_COMMIT"]
     try:
         return (
             subprocess.run(
