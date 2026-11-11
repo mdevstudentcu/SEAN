@@ -33,7 +33,7 @@ _RANK = {CAUTION: 0, WARNING: 1, ALARM: 2}
 # Every flag raised on main (grep `flags.append` in src/pnt/nav and src/pnt/integrity):
 #   ekf / baseline: gnss_unavailable, gnss_excluded, time_spoof_suspected, spoof_suspected (#102)
 #   ekf-guard and the other `-guard` estimators (ADR-0038): gnss_jump_latched (#206)
-#   ekf: gnss_alt_excluded (#227, ADR-0042)
+#   ekf: gnss_alt_excluded (#227, ADR-0045)
 #   ekf-base (#107): base_excluded, tower_fault:<emitter>:<jump m> (in `describe`)
 #   ekf-mhss (#108): mhss_alarm:<hypothesis>, mhss_excluded:<hypothesis> (in `describe`)
 FLAGS: dict[str, tuple[str, str]] = {

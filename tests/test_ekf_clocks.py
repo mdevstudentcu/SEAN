@@ -354,7 +354,7 @@ def test_the_independent_model_ignores_the_calibration_settings():
 
 def test_the_independent_model_matches_main():
     # Values from origin/main (3949f4c) on this fixture: the default model is unchanged. Updated
-    # for ADR-0042 (#227): one fix (24.8 s, 3-D NIS 17.0 from a -8.3 m height innovation,
+    # for ADR-0045 (#227): one fix (24.8 s, 3-D NIS 17.0 from a -8.3 m height innovation,
     # horizontal NIS 0.0) is now used for its horizontal part instead of rejected whole
     meas, _ = _drifting_towers()
     est = list(ekf.run(meas))

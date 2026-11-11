@@ -1,4 +1,4 @@
-"""GNSS height against a wandering barometer (#227, ADR-0042 Proposed).
+"""GNSS height against a wandering barometer (#227, ADR-0045 Proposed).
 
 Synthetic version of the real static session of #224: GNSS at 1 Hz with gpsd-sized sigmas, a
 barometer told 0.3 m at 10 Hz that wanders tens of metres. No real data is committed."""
