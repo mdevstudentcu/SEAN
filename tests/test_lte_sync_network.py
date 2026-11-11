@@ -8,8 +8,10 @@ requirements.
 """
 
 import numpy as np
+import pytest
 
 from pnt.frontends.lte import capture, process_file, synth
+from pnt.frontends.lte import signals as sig
 
 FS, FC, PPM = 1.92e6, 875e6, 0.4
 T0 = 1_446_000_000_000_000_000
@@ -20,6 +22,19 @@ def write(tmp, towers, dur, snr, seed=1):
     x = synth.synthesize(towers, dur, fs=FS, fc=FC, clock_ppm=PPM, snr_db=snr, seed=seed)
     meta = {"sample_rate_hz": FS, "center_freq_hz": FC, "t_ns": T0}
     return capture.write_capture(tmp / "c.cu8", capture.complex_to_cu8(x), meta)
+
+
+def epoch_errors_m(result, tower):
+    """Tracked frame boundary minus truth (m) for every epoch of `tower`'s cell."""
+    L = sig.half_frame_length(FS)
+    b0 = tower.boundary_sample(0, FS, PPM)
+    out = []
+    for cell in result.cells:
+        if cell.pci == tower.pci:
+            for e in cell.epochs:
+                c = cell.n0 + e.k * L + e.theta_meas
+                out.append(c - tower.boundary_sample(round((c - b0) / L) / 2, FS, PPM))
+    return np.array(out) * synth.C / FS
 
 
 def test_carrier_offset_is_the_dongles_when_a_co_timed_cell_shares_the_pss_root(tmp_path):
@@ -39,3 +54,25 @@ def test_carrier_offset_is_the_dongles_when_a_co_timed_cell_shares_the_pss_root(
     for m in r.measurements:
         if m.kind == "doppler":
             assert abs(m.meta["cfo_hz"] - truth) < 20.0
+
+
+@pytest.mark.parametrize("appears_s", [0.0, 0.6], ids=["from the start", "after 0.6 s"])
+def test_cell_3_us_behind_one_on_its_pss_root_keeps_its_own_timing_and_arc(tmp_path, appears_s):
+    # PCI 268 sits 3.2 µs (6 samples) behind PCI 244, both N_ID2 1, 4 dB down: as on the
+    # 20261110-1305 capture. 244's PSS in 268's delay window looked like an earlier path of
+    # 268, so before #183 the first-path check moved 268 onto 244: 960 m early here, and a new
+    # arc when 244 shows up after 268 has settled (in the real capture 268 never settled and
+    # was tracked 0 s).
+    strong = synth.Tower(pci=244, delay_s=DELAY)
+    weak = synth.Tower(pci=268, delay_s=DELAY + 3.2e-6, power_db=-4.0, phase=1.0)
+    x = synth.synthesize([strong, weak], 2.0, fs=FS, fc=FC, clock_ppm=PPM, snr_db=15.0, seed=1)
+    if appears_s:  # 268 alone first, same noise and clock
+        alone = synth.synthesize([weak], 2.0, fs=FS, fc=FC, clock_ppm=PPM, snr_db=15.0, seed=1)
+        at = round(appears_s * FS)
+        x = np.r_[alone[:at], x[at:]]
+    meta = {"sample_rate_hz": FS, "center_freq_hz": FC, "t_ns": T0}
+    r = process_file(capture.write_capture(tmp_path / "c.cu8", capture.complex_to_cu8(x), meta))
+    err = epoch_errors_m(r, weak)
+    assert err.size > 200  # > 1 s of 5 ms epochs
+    assert np.max(np.abs(err)) < 150  # regression guard: on its own path, not 960 m off
+    assert [c.arc for c in r.cells if c.pci == 268] == [0]
