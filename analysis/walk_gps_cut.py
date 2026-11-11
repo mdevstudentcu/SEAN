@@ -21,7 +21,7 @@ Cuts (seconds after the first measurement, as `pnt replay --inject` counts them)
 record from the cut on is removed with `pnt.sim.attacks`' `outage` (software fault injection,
 ADR-0015). Picked from the times where the receiver has had >= `PRE_S` s of good fixes just
 before, is moving (speed from the fixes >= `MOVING_MPS`, TBC) at the cut and for >= `MIN_MOVING`
-of the `PRE_S` s before and the `HORIZON_S` s after it, and has truth at `HORIZON_S` s;
+of the `WALK_BEFORE_S` s before and the `HORIZON_S` s after it, and has truth at `HORIZON_S` s;
 `--cuts N` of them spread evenly at least `MIN_SPACING_S` apart. `--cut-at` gives the times
 instead (any session, static included).
 
@@ -62,6 +62,7 @@ SESSIONS = REPO / "data" / "sessions"
 HORIZON_S = 300.0  # s scored after each cut (T1's 300 s, ADR-0034)
 AT_S = (60.0, 120.0, 300.0)  # s after the cut: errors reported at these instants
 PRE_S = 60.0  # s of good GPS needed just before a cut
+WALK_BEFORE_S = 120.0  # TBC: s of walking before a cut (the sim walk's IMU aligned 114 s in)
 SETTLE_S = 30.0  # s of start-up left out of the before-cut statistics
 HDOP_MAX = 2.0  # TBC: a good fix's HDOP
 MIN_SATS = 6  # TBC: satellites used in a good fix
@@ -175,6 +176,7 @@ def select_cuts(
     n: int = N_CUTS,
     horizon_s: float = HORIZON_S,
     pre_s: float = PRE_S,
+    walk_before_s: float = WALK_BEFORE_S,
     moving_mps: float = MOVING_MPS,
     min_moving: float = MIN_MOVING,
     min_spacing_s: float = MIN_SPACING_S,
@@ -185,7 +187,7 @@ def select_cuts(
         return []
     v = speeds(fix_t, fix_pos)
     moving = np.nan_to_num(v, nan=0.0) >= moving_mps
-    pre, hor = round(pre_s * 1e9), round(horizon_s * 1e9)
+    pre, hor, walk = round(pre_s * 1e9), round(horizon_s * 1e9), round(walk_before_s * 1e9)
     # continuous truth: index of the first fix of the run each fix belongs to
     seg = np.cumsum(np.r_[0, np.diff(fix_t) > round(MAX_GAP_S * 1e9)])
     run_start = fix_t[np.searchsorted(seg, seg)]  # first fix of each fix's unbroken run
@@ -200,7 +202,7 @@ def select_cuts(
         if moving_at(fix_t, moving, T + grid).mean() < min_moving:
             continue
         # moving before it too: the filter has a walking velocity and the IMU a chance to align
-        if moving_at(fix_t, moving, T - grid[grid <= pre]).mean() < min_moving:
+        if moving_at(fix_t, moving, T - grid[grid <= walk]).mean() < min_moving:
             continue
         cand.append(T)
     if not cand:
@@ -676,7 +678,7 @@ def main(argv=None) -> None:
         cuts = select_cuts(tr["t"], tr["pos"], d["t0"], args.cuts)
         mode = (
             f"picked in the moving part: >= {PRE_S:g} s of good GPS before, moving at the cut "
-            f"and >= {MIN_MOVING:.0%} of the {PRE_S:g} s before and the window"
+            f"and >= {MIN_MOVING:.0%} of the {WALK_BEFORE_S:g} s before and the window"
         )
     if not cuts:
         raise SystemExit(
