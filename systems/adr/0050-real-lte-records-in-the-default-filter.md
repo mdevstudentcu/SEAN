@@ -18,7 +18,7 @@ ADR-0044 kept every default on the reported σ until a moving session decides. T
 
 ## What each change bought
 
-Real static sessions `20261111-0151-static-fullsuite2` (600 s) and `20261111-0233-static-lte-1h`, #245's records (front end `ea72f6a`), `ekf`. Each change alone on `main`'s `ekf`, then on top of (a). Five cut times per session; median (worst) horizontal error in m 300 s after the cut. Script [`analysis/real_lte_filter.py`](../../analysis/real_lte_filter.py), results in [`analysis/results/real-lte-filter`](../../analysis/results/real-lte-filter/NOTES.md).
+Real static sessions `20261111-0151-static-fullsuite2` (600 s) and `20261111-0233-static-lte-1h`, #245's records (front end `9e7728a`), `ekf`. Each change alone on `main`'s `ekf`, then on top of (a). Five cut times per session; median (worst) horizontal error in m 300 s after the cut. Script [`analysis/real_lte_filter.py`](../../analysis/real_lte_filter.py), results in [`analysis/results/real-lte-filter`](../../analysis/results/real-lte-filter/NOTES.md).
 
 | | 0151, 300 s | 0233, 300 s | HPL ≥ error (0151 / 0233) | GNSS excluded before the cut |
 |---|---|---|---|---|
