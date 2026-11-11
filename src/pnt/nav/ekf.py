@@ -1530,6 +1530,23 @@ CALIBRATED: dict = {
 NOISE_TAU_S = 60.0
 CALIBRATED_NOISE_TAU_S = 120.0
 
+# Honest bound after GPS loss (#226; opt-in, ADR-0041 Proposed): `ekf-learned-noise` with the
+# slow part of a radio's range error carried as a Gauss-Markov state per emitter (the tower error
+# model's multipath states, `tower_states`), not taken as white noise. The learned variance is
+# split between the state and the white noise in `multipath_ratio`'s ratio (`range_noise`).
+# Treated as white, an error correlated over tau_s is averaged down as if each 1 Hz record were
+# independent, and the stated covariance shrinks far below the error once GPS is lost (#226
+# diagnosis: mean horizontal NEES 8.1 against 2 for an honest filter, tuning seeds 1000-1011).
+# Values: the form and sizes the challenge sets state for the LTE error (multipath sigma equal to
+# the white noise sigma, 50 m and 50 m; correlation time 30 s; the realistic set's placeholders,
+# as `CALIBRATED` takes them), not fitted to any run. Both TBC until real captures size them
+# (ADR-0036).
+HONEST: dict = {
+    "noise_tau_s": NOISE_TAU_S,
+    "multipath_ratio": 1.0,  # slow / white sigma of a radio's range error (TBC)
+    "multipath_tau_s": 30.0,  # s: its correlation time (TBC)
+}
+
 
 def run_calibrated(
     measurements: Iterable[Measurement], epoch_ns: int = 100_000_000, origin_llh=None, **config
