@@ -112,7 +112,7 @@
 
 > Very little: records report only fast noise, so the filter rejects nearly every tower reading; on one simulated run, all but 9 of 5,383 before the spoof. After GPS loss it flies on barometer and dead reckoning. Learning tower noise is the fix in review.
 
-- **Source:** #180 description (one seed, `challenge` drone leg: 5,374 of 5,383 tower readings rejected before the spoof); #147; guard demo runbook (draft PR #220: Sources lists `lte` under *Not in use*). Fix: #156, ADR-0039 (proposed in #156, not on `main`; opt-in).
+- **Source:** #180 description (one seed, `challenge` drone leg: 5,374 of 5,383 tower readings rejected before the spoof); #147; guard demo runbook (PR #220, open: Sources lists `lte` under *Not in use*). Fix: #156, ADR-0039 (proposed in #156, not on `main`; opt-in).
 - **Do not claim:** that the demo's position after GPS loss came from towers; a percentage of epochs (no committed count).
 
 ## 17. Is the 8 m slow error multipath, or your dongle's oscillator?
