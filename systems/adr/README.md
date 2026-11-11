@@ -42,6 +42,7 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0037](0037-tower-spoof-monitor.md) | A tower displacement monitor checks the GNSS position against the towers, opt-in | Proposed |
 | [0038](0038-refuse-detected-gnss-jump.md) | Refuse a detected GNSS position jump until the jump is undone (opt-in: `*-guard` estimators) | Proposed |
 | [0040](0040-lte-carrier-hopping.md) | LTE carrier hopping with one dongle is a modelled option and a study leg, not part of the benchmark | Proposed |
+| [0041](0041-spoof-decision-from-the-sky.md) | Decide GNSS spoofing from the known sky, the satellites' power and the other cues (advisory) | Proposed |
 | [0042](0042-record-iq-to-usb-drive.md) | Record the radios' IQ to a USB drive, not the SD card | Proposed |
 | [0043](0043-calibrated-from-measured-values.md) | A calibrated EKF sized from measured values, not from the sim it is scored on (opt-in: `ekf-calibrated-measured`) | Proposed |
 | [0044](0044-told-sigma-for-radio-records.md) | Tell radio LTE records ADR-0036's measured sigma, opt-in, beside learned noise (opt-in: `*-measured-sigma` estimators; `arc_bias` option) | Proposed |
