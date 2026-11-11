@@ -54,6 +54,10 @@ TAXONOMY: dict[str, FaultClass] = {
     # or exclude its hypothesis, not to raise a GNSS alarm, so no alarm is expected
     "hostile_power": FaultClass("hostile emitter", (POSITION,), "none", expect_alert=False),
     "hostile_moves": FaultClass("hostile emitter", (POSITION,), "none", expect_alert=False),
+    # A spoofer's sky (#206, ADR-0041): it changes only the per-PRN C/N0 the advisory spoof
+    # decision reads, never a fix, so no estimator alarm is expected from it alone. TBC (owners
+    # confirm). In `spoof-jump-sky` it comes with a spoof_jump, which does expect one
+    "fake_sky": FaultClass("sky spoof (advisory check)", (), "none", expect_alert=False),
     # TBC (owners confirm): the payload board's own capture effects (issue #53), not an attack. At
     # the sizes a working board shows, an alarm would be a false alarm, like gps_low_sats
     "capture_faults": FaultClass(
