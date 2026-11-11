@@ -79,3 +79,22 @@ def test_file_times_come_from_the_capture_clock():
     t0_gps = 1_478_000_000_000_000_000
     r = run(file_t0=(1_794_321_000.0, t0_gps))
     assert r.measurements[0].t_ns == t0_gps + 3 * 10**9
+
+
+def test_a_real_station_is_resolved_from_the_navaids_table():
+    """YOW (114.6 MHz) from data/reference/navaids.csv, by ident and by frequency alone."""
+    (yow,) = [s for s in vor.load_stations() if s.ident == "YOW"]
+    assert yow.freq_mhz == pytest.approx(114.6)
+    assert yow.magvar_deg == -14.0  # the slaved variation its radials use, not today's -13.4
+    radial = (true_bearing_deg(yow) - yow.magvar_deg) % 360  # what YOW radiates toward Carleton
+    lines = [
+        json.dumps({"timestamp": 1794321000.0, "radial_deg": radial, "frequency_mhz": 114.6, **x})
+        for x in ({"ident": "YOW"}, {})
+    ]
+    r = vor.process(lines)  # no stations passed: the table is the default
+    assert r.unmatched == 0 and len(r.measurements) == 2
+    for m in r.measurements:
+        validate(m)
+        assert m.emitter == "vor:YOW"
+        assert m.meta["emitter_llh"] == [yow.lat, yow.lon, yow.h]
+        assert math.degrees(m.value[0]) == pytest.approx(true_bearing_deg(yow), abs=1e-9)
