@@ -47,3 +47,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0043](0043-calibrated-from-measured-values.md) | A calibrated EKF sized from measured values, not from the sim it is scored on (opt-in: `ekf-calibrated-measured`) | Accepted |
 | [0044](0044-told-sigma-for-radio-records.md) | Tell radio LTE records ADR-0036's measured sigma, opt-in, beside learned noise (opt-in: `*-measured-sigma` estimators; `arc_bias` option) | Accepted |
 | [0047](0047-ekf-models-our-clock-in-tower-ranges.md) | `ekf` models our receiver clock in the tower ranges once GNSS time is used, and scenarios put the payload clock in their towers | Accepted (option D) |
+| [0048](0048-p12-map-export-policy.md) | A drone's tower map (P12) is built with the jump guard, withheld if the build was flagged, and GNSS-derived | Accepted |
