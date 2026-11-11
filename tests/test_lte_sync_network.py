@@ -101,5 +101,5 @@ def test_faded_cell_does_not_walk_onto_its_neighbours_sync_signals(tmp_path):
     r = process_file(capture.write_capture(tmp_path / "c.cu8", z, meta))
     err = epoch_errors_m(r, cell)
     assert err.size > 300  # tracked through the fade
-    assert np.max(np.abs(err)) < 100  # regression guard: 30 m seen; the walk reached 2 km
+    assert np.max(np.abs(err)) < 100  # regression guard: 58 m seen; the walk reached 2 km
     assert [c.arc for c in r.cells if c.pci == 8] == [0]
