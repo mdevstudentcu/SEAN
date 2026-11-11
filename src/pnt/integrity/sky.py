@@ -1,5 +1,5 @@
 """Is GNSS spoofed? One decision from the known sky, the satellites' power and the other cues
-(#206, ADR-0041, Proposed). Advisory: it never changes an estimate.
+(#206, ADR-0041). Advisory: it never changes an estimate.
 
 The mentors (2026-11-10 call) asked for a function that decides spoofed or not from the power we
 can read and from the known sky: a satellite received that cannot be visible means spoofing.

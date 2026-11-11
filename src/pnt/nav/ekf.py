@@ -1227,7 +1227,7 @@ def run_calibrated(
     return run(measurements, epoch_ns, origin_llh, **{**CALIBRATED, **config})
 
 
-# `ekf-calibrated-measured` (#118, ADR-0043 Proposed): the calibrated model of `CALIBRATED`, but
+# `ekf-calibrated-measured` (#118, ADR-0043): the calibrated model of `CALIBRATED`, but
 # no value is taken from a sim set. Each is measured on real sessions (ADR-0036) or is the
 # filter's own default, which no scenario was generated from. Every value is TBC; TBD where the
 # data gives no value. Our clock (`h0`, `h_2`) and the tower clock noise (`tower_h0`,

@@ -572,8 +572,9 @@ def verdict_rows(data: dict) -> list[tuple[str, str, str, dict, str]]:
             )
         )
     # T4, location jumps (the mentors' first attack): the held 300 m jump and meaconing on each
-    # leg. No jump target yet (plan.md T4: `TBD`), so not scored; the cells show detection and
-    # whether the output then misleads (hazardous epochs), default filters beside the guard.
+    # leg. This table does not score T4's jump target (ADR-0034, amendment 2026-11-11) yet; the
+    # cells show detection and whether the output then misleads (hazardous epochs), default
+    # filters beside the guard.
     for leg in data["legs"]:
         for entry in JUMP_ENTRIES:
             if not has(leg, entry):
@@ -590,7 +591,7 @@ def verdict_rows(data: dict) -> list[tuple[str, str, str, dict, str]]:
                     "seeds detected, median delay; hazardous epochs per run, runs with any; "
                     "fault-window p95 mean",
                     cells,
-                    "**not scored**: jump target `TBD` (plan.md T4)"
+                    "**not scored** here: jump target in ADR-0034's amendment of 2026-11-11"
                     if entry == "spoof-jump"
                     else "**not scored**: no T4 target for meaconing",
                 )
@@ -783,12 +784,13 @@ def write_summary(
         "",
         "## Verdict per target",
         "",
-        "Targets from `systems/plan.md` and ADR-0034 (T1 Accepted, its value `TBC`; T3 to T5 "
-        "Proposed). T3 is **met** by an estimator only if every seed meets it, T4 detection "
-        "likewise, false alarms on the pooled rate. Cells read *mean / worst* over seeds; *of* "
-        "counts seeds (or runs) meeting the target. An estimator that ran fewer seeds or entries "
-        "than the row covers (`ekf-mhss`, the guard estimators) does not score it: where only "
-        "such an estimator meets the target the row reads *partial / not scored*.",
+        "Targets from `systems/plan.md` and ADR-0034 (T1 Accepted, its value `TBC`; T4's jump "
+        "target Accepted; T3, T5 and T4's ramp targets Proposed). T3 is **met** by an estimator "
+        "only if every seed meets it, T4 detection likewise, false alarms on the pooled rate. "
+        "Cells read *mean / worst* over seeds; *of* counts seeds (or runs) meeting the target. "
+        "An estimator that ran fewer seeds or entries than the row covers (`ekf-mhss`, the guard "
+        "estimators) does not score it: where only such an estimator meets the target the row "
+        "reads *partial / not scored*.",
         "",
         "**T1 statistic** (ADR-0034's amendment of 2026-11-10, adf24d7 on `main`): at each "
         "second after GPS loss, the 95th percentile of the horizontal error across the runs; "
