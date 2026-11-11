@@ -1,6 +1,6 @@
 {
  "session": "20261111-0040-static-fullsuite",
- "commit": "bcdf900",
+ "commit": "8882a1d",
  "gnss": {
   "fixes": 600,
   "rate_hz": 1.0,
@@ -40,8 +40,7 @@
   "drift_m_per_min": -0.006891070621754789,
   "drift_over_span_m": -0.06887618578413451,
   "wander_10s_means_sigma_m": 0.2221429324995015,
-  "sim_noise_m": 0.3,
-  "sim_drift_m": 1.0,
-  "sim_drift_tau_s": 600.0
+  "sim_noise_m": 0.5,
+  "sim_bias_sigma_m": 1.0
  }
 }

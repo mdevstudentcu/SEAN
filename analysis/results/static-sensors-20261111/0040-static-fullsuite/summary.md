@@ -1,4 +1,4 @@
-Session `20261111-0040-static-fullsuite`, analysed at `bcdf900`. Deviations about the session mean only.
+Session `20261111-0040-static-fullsuite`, analysed at `8882a1d`. Deviations about the session mean only.
 
 **GNSS:** 600 fixes at 1.00 Hz over 599 s; horizontal RMS 0.73 m.
 
@@ -10,6 +10,6 @@ Session `20261111-0040-static-fullsuite`, analysed at `bcdf900`. Deviations abou
 
 **Barometer:** 5998 samples at 10.00 Hz over 600 s.
 
-| White σ (m) | σ (m) | Drift (m/min) | Drift over span (m) | σ of 10 s means about the line (m) | Sim noise (m) | Sim drift σ (m), τ (s) |
+| White σ (m) | σ (m) | Drift (m/min) | Drift over span (m) | σ of 10 s means about the line (m) | Sim white σ (m) | Sim constant bias σ (m) |
 |---|---|---|---|---|---|---|
-| 0.276 | 0.378 | -0.007 | -0.07 | 0.222 | 0.30 | 1.0, 600 |
+| 0.276 | 0.378 | -0.007 | -0.07 | 0.222 | 0.50 | 1.0 |
