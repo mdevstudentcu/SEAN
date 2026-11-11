@@ -6,6 +6,11 @@ copied in. Prints a markdown report and writes it, with figures, to `--out`.
 
     python analysis/lte_capture_report.py data/sessions/<s>-lte [--out DIR] [--position lat,lon,h]
     python analysis/lte_capture_report.py data/sessions/<scan>-e*-lte --out <dir>   # a scan
+    python analysis/lte_capture_report.py <dir>/<s>-lte --original data/sessions/<s>
+
+Availability is tracked time over the capture length, `samples / sample_rate_hz` from the
+original session's sidecar (`<dongle>.json`), found beside `<s>-lte` or given by `--original`
+(once per session, in order). Without it, availability is reported as not measurable.
 
 Sections: 1 cells tracked, 2 identity against the cell table, 3 reported against observed σ,
 4 dongle clock, 5 tower timing, 6 the `TBC` values each number would replace.
@@ -24,6 +29,7 @@ cell's residual therefore bounds its noise from above; the difference of two cel
 from __future__ import annotations
 
 import argparse
+import json
 import math
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -90,8 +96,10 @@ class Session:
     name: str
     commit_fe: str  # the commit that ran the front end (the -lte folder's meta.yaml)
     commit_rec: str  # the commit that recorded the original session
-    span_s: float
+    span_s: float  # first to last LTE record, plus one output period
     cells: list[Cell]
+    capture_s: dict[str, float] = field(default_factory=dict)  # per dongle, from its sidecar
+    capture_from: str = "TBD (original session not found)"
     simulated: bool = False
     position: tuple[float, float, float] | None = None
     position_from: str = "none"
@@ -101,16 +109,51 @@ class Session:
 # --- loading --------------------------------------------------------------------------------
 
 
-def _original_commit(path: Path) -> str:
-    """The recording's commit, from the original session beside `<s>-lte`, if it is there."""
-    if path.is_dir() and path.name.endswith("-lte"):
+def _original_dir(path: Path, original: str | Path | None) -> Path | None:
+    """The original session: `original` if given, else the folder beside `<s>-lte`."""
+    if original is not None:
+        orig = Path(original)
+        if not orig.is_dir():
+            raise SystemExit(f"{orig}: no such original session")
+        return orig
+    if path.name.endswith("-lte"):
         orig = path.with_name(path.name[: -len("-lte")])
-        if (orig / session.META_NAME).exists():
-            return str(session.read_meta(orig).get("commit") or "TBD")
-    return "TBD (original session not beside this one)"
+        if orig.is_dir():
+            return orig
+    return None
 
 
-def load(path: str | Path, position: tuple[float, float, float] | None) -> Session:
+def _original_commit(orig: Path | None) -> str:
+    """The recording's commit, from the original session's meta.yaml."""
+    if orig is not None and (orig / session.META_NAME).exists():
+        return str(session.read_meta(orig).get("commit") or "TBD")
+    return "TBD (original session not found)"
+
+
+def capture_lengths(orig: Path | None) -> dict[str, float]:
+    """Capture length (s) per dongle: `samples / sample_rate_hz` from each IQ sidecar.
+    A sidecar without `samples` falls back to the `.cu8` size (two bytes per sample)."""
+    out: dict[str, float] = {}
+    for js in sorted(orig.glob("*.json")) if orig is not None else []:
+        try:
+            meta = json.loads(js.read_text())
+        except (OSError, ValueError):
+            continue
+        if not isinstance(meta, dict) or not meta.get("sample_rate_hz"):
+            continue
+        n = meta.get("samples")
+        if n is None and js.with_suffix(".cu8").exists():
+            n = js.with_suffix(".cu8").stat().st_size // 2
+        if n:
+            out[str(meta.get("dongle") or js.stem)] = int(n) / float(meta["sample_rate_hz"])
+    return out
+
+
+def load(
+    path: str | Path,
+    position: tuple[float, float, float] | None,
+    original: str | Path | None = None,
+) -> Session:
     path = Path(path)
     if not path.exists():
         raise SystemExit(f"{path}: no such session (pass the `<session>-lte` folder)")
@@ -154,14 +197,20 @@ def load(path: str | Path, position: tuple[float, float, float] | None) -> Sessi
                 tracked_s=sum(m.meta.get("n_epochs", 20) for m in ms) * 0.005,
             )
         )
+    orig = _original_dir(path, original)
+    capture = capture_lengths(orig)
     s = Session(
         path=path,
         name=session.session_name(path),
         commit_fe=str(meta.get("commit") or "TBD"),
-        commit_rec=_original_commit(path),
+        commit_rec=_original_commit(orig),
         span_s=(t1 - t0) / 1e9 + Config().output_period_s,
         cells=out,
         simulated=bool(meta.get("simulated", False)),
+        capture_s=capture,
+        capture_from="TBD (original session not found)"
+        if orig is None
+        else "TBD (no IQ sidecar in the original session)",
     )
     origin = meta.get("origin_llh")
     if position is not None:
@@ -293,7 +342,11 @@ def analyse(sessions: list[Session]) -> dict:
                         "level_db": snr - top,
                         "arcs": int(np.unique(c.arc).size),
                         "tracked_s": c.tracked_s,
-                        "avail": min(c.tracked_s / s.span_s, 1.0),
+                        "avail": (
+                            min(c.tracked_s / s.capture_s[c.rx_clock], 1.0)
+                            if c.rx_clock in s.capture_s
+                            else None
+                        ),
                         "cfo_hz": float(np.median(c.cfo_hz)),
                         "cfo_ppm": float(np.median(c.cfo_hz)) / c.fc_hz * 1e6,
                         "n_carrier": len(cs),
@@ -402,8 +455,11 @@ def report(sessions: list[Session], res: dict, commit: str) -> str:
         "names its session; recording and front-end commits per session:"
     )
     add("")
-    add("| Session | Evidence | Recorded at | Front end at | Span (s) | Position used |")
-    add("|---|---|---|---|---|---|")
+    add(
+        "| Session | Evidence | Recorded at | Front end at | Record span (s) | Capture (s) | "
+        "Position used |"
+    )
+    add("|---|---|---|---|---|---|---|")
     for s in sessions:
         pos = (
             f"{s.position[0]:.6f}, {s.position[1]:.6f}, {s.position[2]:.1f} ({s.position_from})"
@@ -411,10 +467,16 @@ def report(sessions: list[Session], res: dict, commit: str) -> str:
             else "none"
         )
         kind = "simulated" if s.simulated else "real session"
-        add(f"| {s.name} | {kind} | `{s.commit_rec}` | `{s.commit_fe}` | {s.span_s:.1f} | {pos} |")
+        cap = ", ".join(f"{d} {v:.2f}" for d, v in s.capture_s.items()) or s.capture_from
+        add(
+            f"| {s.name} | {kind} | `{s.commit_rec}` | `{s.commit_fe}` | {s.span_s:.1f} | {cap} | "
+            f"{pos} |"
+        )
     add("")
     add(
-        "Evidence: from each session's meta.yaml `simulated`. "
+        "Record span: first to last LTE record. Capture: `samples / sample_rate_hz` from the "
+        "original session's IQ sidecar, per dongle. Evidence: from each session's meta.yaml "
+        "`simulated`. "
         "All tolerances marked `TBC` are proposals, not requirements."
     )
 
@@ -423,14 +485,15 @@ def report(sessions: list[Session], res: dict, commit: str) -> str:
     add("## 1. Cells tracked (question 1)")
     add("")
     add(
-        "| Session | Cell | Tracked (s) | Of span | Arcs | SNR (dB) | Re strongest (dB) | "
+        "| Session | Cell | Tracked (s) | Of capture | Arcs | SNR (dB) | Re strongest (dB) | "
         "CFO (Hz) | CFO (ppm) |"
     )
     add("|---|---|---|---|---|---|---|---|---|")
     for r in res["cells"]:
         flag = " (beyond the floor)" if r["level_db"] < NEAR_FAR_DB else ""
+        avail = "not measurable (no capture length)" if r["avail"] is None else f"{r['avail']:.0%}"
         add(
-            f"| {r['session']} | {r['cell'].label} | {r['tracked_s']:.1f} | {r['avail']:.0%} | "
+            f"| {r['session']} | {r['cell'].label} | {r['tracked_s']:.1f} | {avail} | "
             f"{r['arcs']} | {r['snr_db']:.1f} | {r['level_db']:.1f}{flag} | "
             f"{r['cfo_hz']:.1f} | {r['cfo_ppm']:+.3f} |"
         )
@@ -731,12 +794,21 @@ def replacements(sessions: list[Session], res: dict) -> list[list[str]]:
         ]
     )
     if cells:
-        av = min(cells, key=lambda r: r["avail"])
+        known = [r for r in cells if r["avail"] is not None]
+        if known:
+            av = min(known, key=lambda r: r["avail"])
+            got_avail = (
+                f"median {np.median([r['avail'] for r in known]):.0%}, lowest "
+                f"{av['avail']:.0%} ({av['cell'].label}, {av['session']})"
+            )
+            if len(known) < len(cells):
+                got_avail += f"; {len(cells) - len(known)} cell(s) without a capture length"
+        else:
+            got_avail = f"{NOT}: no capture length (original session's sidecar not found)"
         rows.append(
             [
-                "Fraction of the span each cell was tracked",
-                f"median {np.median([r['avail'] for r in cells]):.0%}, lowest "
-                f"{av['avail']:.0%} ({av['cell'].label})",
+                "Fraction of the capture each cell was tracked",
+                got_avail,
                 every,
                 "`dropout.availability` 0.75",
                 yml,
@@ -968,8 +1040,11 @@ def figures(sessions: list[Session], res: dict, out: Path, commit: str) -> list[
 # --- main -----------------------------------------------------------------------------------
 
 
-def run(paths, out: Path | None, position=None, make_figures: bool = True) -> str:
-    sessions = [load(p, position) for p in paths]
+def run(paths, out: Path | None, position=None, make_figures: bool = True, originals=None) -> str:
+    originals = list(originals or [None] * len(paths))
+    if len(originals) != len(paths):
+        raise SystemExit(f"--original given {len(originals)} times for {len(paths)} session(s)")
+    sessions = [load(p, position, o) for p, o in zip(paths, originals, strict=True)]
     table, names = celltab.CellTable.load(), _site_names()
     for s in sessions:
         identify(s, table, names)
@@ -995,6 +1070,12 @@ def main(argv=None) -> None:
         "(default: <first session>-report beside it; never commit raw data)",
     )
     p.add_argument("--position", help="receiver lat,lon,h (default: mean GNSS fix, else origin)")
+    p.add_argument(
+        "--original",
+        action="append",
+        help="original session folder (with the IQ sidecar), once per session in order "
+        "(default: <session> beside <session>-lte)",
+    )
     p.add_argument("--no-figures", action="store_true")
     a = p.parse_args(argv)
     pos = None
@@ -1004,7 +1085,7 @@ def main(argv=None) -> None:
             raise SystemExit(f"--position wants lat,lon,h: {a.position!r}")
     first = Path(a.sessions[0])
     out = Path(a.out) if a.out else first.with_name(f"{first.name}-report")
-    print(run(a.sessions, out, pos, not a.no_figures))
+    print(run(a.sessions, out, pos, not a.no_figures, a.original))
 
 
 if __name__ == "__main__":
