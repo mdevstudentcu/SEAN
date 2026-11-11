@@ -1,0 +1,40 @@
+# Dry run for the handheld walk (#214, analysis/walk_gps_cut.py): a person walking a loop with the
+# payload, LTE records shaped as the front end writes them. Synthetic route, not the real walk.
+# Not a bundled scenario (it lives outside src/pnt/sim/scenarios/, so `pnt results` and the
+# REQ-10 runs do not pick it up): run it by path, `pnt sim analysis/scenarios/handheld-walk.yaml`.
+# - Route: a 500 m x 400 m street-grid loop (1.8 km) at 1.4 m/s (walking pace, TBC), 1.5 m above
+#   ground, `vehicle: ground` (no bank). Waypoints move from t = 0: there is no static start.
+# - GNSS at 1 Hz, as the GPS HAT's fixes; no faults (the GPS cuts are made by the analysis).
+# - Every other value is challenge-drone's (sets/challenge-drone.yaml), all TBC (ADR-0015).
+description: Handheld walk, 1.8 km loop at 1.4 m/s, LTE front-end records on EARFCN 2460 (dry run).
+duration_s: 1440
+dt_s: 0.1
+origin_llh: [45.3876, -75.6960, 70.0]   # Carleton campus (session ENU origin), as the sim sets
+trajectory:
+  type: waypoints
+  vehicle: ground
+  closed: true
+  speed_mps: 1.4
+  corner_radius_m: 5
+  points: [[0, 0, 1.5], [500, 0, 1.5], [500, 400, 1.5], [0, 400, 1.5]]
+clock: {drift_ppb: 20, rw_ns: 2.0}
+sources:
+  gnss: {rate_hz: 1, sigma_m: 2.5, time_sigma_ns: 20, health: true}
+  baro: {rate_hz: 10, sigma_m: 0.5}
+  imu: {rate_hz: 100}
+  lte:
+    model: pseudorange
+    record_shape: front_end
+    rate_hz: 1
+    cells_from: {file: lte-cells-ottawa.csv, earfcn: 2460}
+    hearing: {model: link_budget}
+    dongle: {}
+    sigma_m: 50.0
+    told_sigma_m: 2.0
+    multipath: {sigma_m: 50.0, tau_s: 30.0}
+    dropout: {availability: 0.75, block_s: 30.0}
+    told_position_sigma_m: 100.0
+tower_clocks:
+  builder: {drift_mps: 0.0354, drift_rw_mps: 2.7e-4}
+  site: {offset_m: 1000.0, drift_mps: 0.0354, offset_rw_m: 0.2, drift_rw_mps: 2.7e-4}
+faults: []
