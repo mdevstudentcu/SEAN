@@ -6,7 +6,7 @@ import copy
 import numpy as np
 import pytest
 
-from pnt.nav import ESTIMATORS, ekf
+from pnt.nav import ESTIMATORS, ekf, estimate
 from pnt.nav.residual_map import MapParams, ResidualMap
 from pnt.sim import models
 from pnt.sim.scenario import T0_NS, generate, load
@@ -105,3 +105,18 @@ def test_learns_only_while_gnss_is_trusted():
 
 def test_registered():
     assert "ekf-map" in ESTIMATORS
+
+
+def test_the_map_changes_the_filter_only_through_its_corrections(monkeypatch):
+    """`ekf-map` on a place-dependent error: its corrections reach the filter's output, and with
+    the map's corrections forced to zero the output is `ekf`'s, epoch for epoch."""
+    spec = copy.deepcopy(load("residual-map"))
+    spec["duration_s"] = 200  # one learning lap, then 80 s of the outage
+    run = generate(spec, 1)
+    plain = list(estimate("ekf", run.measurements, origin_llh=spec["origin_llh"]))
+    mapped = list(estimate("ekf-map", run.measurements, origin_llh=spec["origin_llh"]))
+    assert len(plain) == len(mapped)
+    assert any(a.pos_enu != b.pos_enu for a, b in zip(plain, mapped, strict=True))
+    monkeypatch.setattr(ResidualMap, "correction", lambda self, emitter, pos, sigma: (0.0, 0.0))
+    off = list(estimate("ekf-map", run.measurements, origin_llh=spec["origin_llh"]))
+    assert off == plain
