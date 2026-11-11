@@ -6,6 +6,7 @@ The "before" table (#150, package 5 of #126). **sim, every value TBC (ADR-0015, 
 - **Seeds:** 0–49 (`ekf-mhss`: 0–19)
 - **Command:** `python analysis/challenge_baseline.py --seeds 50 --jobs 6`
 - **Runtime:** 54.0 min wall, 6 worker(s)
+- **Stale since ADR-0047 (2026-11-11):** every approach-leg row of an EKF built on `nav/ekf.py` (`ekf`, `ekf-imu`, `ekf-mhss`, the `-guard` filters) is from before those filters modelled our clock in the tower ranges. Rerun before quoting them. The drone and timing legs (front-end records with their own dongle clock), `baseline` and the `ekf-calibrated` and `ekf-base` rows are unaffected. The new `ekf` approach `outage` figure is in `analysis/pr-evidence/228/before-after.md`.
 - **Approach leg: synthetic geometry** (ADR-0030 point 3). Its towers are a synthetic ring, all ahead of the aircraft; its T1 slice does not measure LTE (in effect IMU and barometer dead reckoning).
 
 **What was cut:**
