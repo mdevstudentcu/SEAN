@@ -4,7 +4,7 @@ Evidence: **real sessions**, static, payload Pi, one NESDR SMArt v5, recorded at
 
 ## Commands
 
-Analysis at `fdb8fde`. Front end at `92e6bac` for the 60 s and 30 s sessions and at `0276028` for the 1,800 s one; no file under `src/` differs between the three.
+Analysis at `fdb8fde`. Front end at `92e6bac` for the 60 s and 30 s sessions and at `0276028` for the 1,800 s one; no file under `src/` differs between the three. Those are the hashes before this branch was rebased onto `main`; no branch holds them once the rebased branch is pushed. After the rebase the same script is at `e168b51` and the same front end at `e58e51a` and `b2c1952` (`git diff` against the old hashes is empty for `analysis/lte_measured_noise.py`, `src/pnt/frontends/lte`, `src/pnt/io`, `src/pnt/core`, `src/pnt/sim/lte_front_end.py`, `challenge-drone.yaml` and `lte-cells-ottawa.csv`; `main` changed other `src/` files, the CLI among them). Re-run at the rebased head `38d6fc3` on the three sessions on the laptop (`20261110-1305-lte-outside`, `20261110-lte-outside-5145`, `-5255`), their 13 rows in `summary.md` (3 session, 6 cell, 4 pair) came out identical but for the front-end commit. The other 12 sessions are on the Pi only: **regenerate everything at the merged commit** with the commands below, so that `summary.md` names a commit on `main`.
 
 ```bash
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1
@@ -18,6 +18,21 @@ python analysis/lte_measured_noise.py <out>/*-lte --raw-root data/sessions
 ```
 
 Every session uses the recorder's own `sdr_a.json`. Carriers with no cell found (nothing written): 2535 (both spots and the first spot), 5035, 5085, 68611.
+
+## The white-σ fit: SNR ≥ −8 dB only
+
+`summary.md`, `summary.json` and `white_vs_snr.png` still show the first fit, over every SNR bin: σ² = 0.51² + 2.46² / SNR_lin. Below −8 dB it read 7.8 m against the measured 12.4 m (−11 to −8 dB) and 9.5 m against 24.7 m (−14 to −11 dB), so the script now fits only the bins at or above `FIT_MIN_SNR_DB` (−8 dB, `TBC`; from `1701951`) and keeps each weaker bin's measured σ. The per-bin values the fit uses (`snr_median_db`, `white_robust_m`, `n`) are in `summary.json`, so the same `fit_white` gives the new fit without the sessions: σ² = 0.64² + 2.28² / SNR_lin (m, 10 Hz), within 0.79 to 1.23 of each fitted bin. The same call on every bin returns 0.507 and 2.460, the committed fit, so the rounded JSON values do not move it at this precision.
+
+```bash
+PYTHONPATH=src python -c "
+import importlib.util, json, sys
+s = importlib.util.spec_from_file_location('lmn', 'analysis/lte_measured_noise.py')
+m = importlib.util.module_from_spec(s); sys.modules['lmn'] = m; s.loader.exec_module(m)
+b = json.load(open('analysis/results/lte-measured-noise/summary.json'))['snr_bins']
+print(m.fit_white(b), m.fit_white(b, snr_min_db=-1e9))"
+```
+
+A regeneration (above) replaces the three files with the −8 dB fit.
 
 ## Buffer stamps and the 1,800 s capture
 
