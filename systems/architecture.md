@@ -116,7 +116,7 @@ Design: [`verification.md`](verification.md) *Integrity monitor: solution separa
 
 **Where it stops** ([`results.md`](results.md) (b), (d)):
 - A detected jump is followed by default; only the opt-in guard refuses it, at the cost of dead reckoning afterwards.
-- A slow position ramp is not detected on `main`; the opt-in tower monitor catches it where at least 5 sites are heard continuously, in minutes, not 30 s; on hopped carriers it does not (draft PR #254; follow-up issue #258, open, no fix yet).
+- A slow position ramp is not detected on `main`; the opt-in tower monitor catches it where at least 5 sites are heard continuously, in minutes, not 30 s; on hopped carriers it does not with the committed site rule (draft PR #254); a hop rule in open PR #263 (#258) catches it on 50 of 50 seeds in the sim, median 127 s.
 - MHSS is safe but unavailable with the `realistic` error sizes: the filter's tower model is not honest for that sim.
 - `ekf-calibrated` can stay confident on a wrong tower table.
 - Two faults in different groups at once, and a wide-area time spoof that also captures tower timing, are not covered by design.
