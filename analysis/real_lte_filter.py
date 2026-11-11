@@ -9,11 +9,12 @@ the runs it is compared with (`lte-reacq-steps`): 100 to 300 s by 50 s on a sess
 1,000 s, 600 to 3,000 s by 600 s on a longer one. Each run stops 301 s after its cut: nothing
 after that is scored. Errors, HPL and flags only: no position, range or bearing is written.
 
-Configurations (`CONFIGS`), all `ekf` (`ekf-imu` where named), on top of `MAIN` = main's `ekf`
+Configurations (`CONFIGS`), all `ekf`, on top of `MAIN` = main's `ekf`
 (the front end's own sigma for a real capture's records):
 - a: ADR-0036's sigma for a real capture's records (`capture_sigma_model`, the new default)
 - b: GNSS re-admission when the towers are unfit to refute it (`gnss_readmit`)
-- c: a new arc starts a new range bias (`arc_bias`)
+- c: a new arc starts a new range bias (`arc_bias`); c2: a new arc's first 5 s are told 10 x
+  sigma (`arc_settle_s`)
 - d: a heard cell bounds the position to `heard_cell_radius_m` of its site
 """
 
@@ -38,6 +39,7 @@ MAIN = {"capture_sigma_model": None}
 A = {"capture_sigma_model": "adr0036"}
 B = {"gnss_readmit": GnssReadmit}
 C = {"arc_bias": True}
+C2 = {"arc_settle_s": 5.0}  # TBC: the first 5 s of a new arc told 10 x sigma
 D = {"heard_cell_radius_m": RADIUS_M}
 CONFIGS = {
     "no LTE": ("ekf", {}, "none"),
@@ -45,14 +47,13 @@ CONFIGS = {
     "a": ("ekf", A, "told-pr"),
     "b": ("ekf", {**MAIN, **B}, "told-pr"),
     "c": ("ekf", {**MAIN, **C}, "told-pr"),
+    "c2": ("ekf", {**MAIN, **C2}, "told-pr"),
     "d": ("ekf", {**MAIN, **D}, "told-pr"),
     "a+b": ("ekf", {**A, **B}, "told-pr"),
     "a+c": ("ekf", {**A, **C}, "told-pr"),
+    "a+c2": ("ekf", {**A, **C2}, "told-pr"),
     "a+d": ("ekf", {**A, **D}, "told-pr"),
     "a+b+c+d": ("ekf", {**A, **B, **C, **D}, "told-pr"),
-    "imu main": ("ekf-imu", MAIN, "told-pr"),
-    "imu a": ("ekf-imu", A, "told-pr"),
-    "imu a+b+c+d": ("ekf-imu", {**A, **B, **C, **D}, "told-pr"),
 }
 KEEP = ("err_60s_m", "err_300s_m", "p95_300s_m", "max_m", "hpl_bound", "misleading",
         "n_fixes", "pre_gnss_excluded", "pre_p95_m")  # fmt: skip
