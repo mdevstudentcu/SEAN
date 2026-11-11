@@ -349,6 +349,30 @@ def test_front_end_lte_cells_are_drawn_at_their_registered_site():
     assert np.allclose([f["pos"] for f in out], [a.pos_enu for a in alone])
 
 
+def test_replay_with_hide_origin_keeps_the_location_out_of_the_stream(tmp_path, capsys):
+    # #264: a real capture's origin and tower sites locate it. `pnt dash --hide-origin` leaves
+    # them out of everything the page receives; the estimates and the relative track stay
+    from pnt.cli import main
+    from pnt.dashboard.feed import replay_feed
+
+    out = tmp_path / "session"
+    main(["sim", _small(tmp_path), "--out", str(out)])
+    capsys.readouterr()
+    shown = replay_feed(out, preflight=False)
+    hidden = replay_feed(out, preflight=False, hide_origin=True)
+    a = list(frames(shown, HealthMonitor(50.0, 1.5e-6)))
+    b = list(frames(hidden, HealthMonitor(50.0, 1.5e-6)))
+    assert shown.info(50.0, 1.5e-6)["origin_llh"] == [45.3876, -75.696, 70.0]
+    assert any(f["new_emitters"] for f in a) and any(f["heard"] for f in a)
+    info = hidden.info(50.0, 1.5e-6)
+    assert info["origin_llh"] is None
+    assert all(not f["new_emitters"] and not f["heard"] for f in b)
+    assert [f["pos"] for f in b] == [f["pos"] for f in a]
+    assert [f["status"] for f in b] == [f["status"] for f in a]
+    stream = json.dumps([info, b], allow_nan=False)
+    assert "45.38" not in stream and "-75.69" not in stream
+
+
 def test_frames_carry_the_spoof_decision(tmp_path):
     # #206, ADR-0041: no sky in a frame says unknown; a sky says not spoofed, then a faked sky
     # (every satellite at one power) is named on the panel
