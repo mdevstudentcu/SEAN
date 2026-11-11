@@ -463,6 +463,7 @@ def test_planted_confidential_file_is_flagged(path, data):
 # minutes; `test_req10_runs_cover_every_fault_type` fails when a new fault type needs adding here.
 REQ10_SET_RUNS = (
     "easy-baro-drift",  # 0.1 s
+    "easy-capture-pi4b",  # 0.1 s, board capture faults (#198)
     "easy-gps-low-sats",  # 0.1 s
     "easy-gps-no-fix",  # 0.1 s
     "easy-tower-clock-step",  # 0.1 s
