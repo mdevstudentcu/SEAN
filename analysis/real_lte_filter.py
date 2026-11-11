@@ -9,13 +9,16 @@ the runs it is compared with (`lte-reacq-steps`): 100 to 300 s by 50 s on a sess
 1,000 s, 600 to 3,000 s by 600 s on a longer one. Each run stops 301 s after its cut: nothing
 after that is scored. Errors, HPL and flags only: no position, range or bearing is written.
 
-Configurations (`CONFIGS`), all `ekf`, on top of `MAIN` = main's `ekf`
-(the front end's own sigma for a real capture's records):
-- a: ADR-0036's sigma for a real capture's records (`capture_sigma_model`, the new default)
-- b: GNSS re-admission when the towers are unfit to refute it (`gnss_readmit`)
-- c: a new arc starts a new range bias (`arc_bias`); c2: a new arc's first 5 s are told 10 x
-  sigma (`arc_settle_s`)
-- d: a heard cell bounds the position to `heard_cell_radius_m` of its site
+Configurations (`CONFIGS`), all `ekf`, each change on top of `MAIN` = main's `ekf` (the front
+end's own sigma, no arc bias), alone and combined; `default` is this branch's `ekf` as registered:
+- a: ADR-0036's sigma for a real capture's records (`capture_sigma_model`; default on here)
+- b: GNSS re-admission when the towers are unfit to refute it (`gnss_readmit`; opt-in)
+- c: a new arc starts a new range bias (`arc_bias`; default on here for a real capture);
+  c2: instead, a new arc's first 5 s are told 10 x sigma (`arc_settle_s`; opt-in)
+- d: a heard cell bounds the position to `heard_cell_radius_m` of its site (opt-in)
+
+`ekf-imu` is not run: on a static receiver its IMU never aligns (heading comes from motion), so it
+runs the constant-velocity model and its output is `ekf`'s (checked on 0151, cut 200 s).
 """
 
 from __future__ import annotations
@@ -35,8 +38,8 @@ from pnt.nav import ekf
 HERE = Path(__file__).resolve().parent
 RADIUS_M = 10_000.0  # d: cells.MAX_RANGE_KM, the lookup's own assumption (ADR-0048, TBC)
 
-MAIN = {"capture_sigma_model": None}
-A = {"capture_sigma_model": "adr0036"}
+MAIN = {"capture_sigma_model": None, "arc_bias": False}
+A = {"capture_sigma_model": "adr0036", "arc_bias": False}
 B = {"gnss_readmit": GnssReadmit}
 C = {"arc_bias": True}
 C2 = {"arc_settle_s": 5.0}  # TBC: the first 5 s of a new arc told 10 x sigma
@@ -53,7 +56,8 @@ CONFIGS = {
     "a+c": ("ekf", {**A, **C}, "told-pr"),
     "a+c2": ("ekf", {**A, **C2}, "told-pr"),
     "a+d": ("ekf", {**A, **D}, "told-pr"),
-    "a+b+c+d": ("ekf", {**A, **B, **C, **D}, "told-pr"),
+    "default": ("ekf", {}, "told-pr"),
+    "default+b+d": ("ekf", {**B, **D}, "told-pr"),
 }
 KEEP = ("err_60s_m", "err_300s_m", "p95_300s_m", "max_m", "hpl_bound", "misleading",
         "n_fixes", "pre_gnss_excluded", "pre_p95_m")  # fmt: skip
