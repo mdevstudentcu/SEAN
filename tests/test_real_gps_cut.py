@@ -145,3 +145,23 @@ def test_run_one_scores_against_the_withheld_fixes(tmp_path):
     assert row["pre_p95_m"] < 1.0
     assert row["n_lte"] == 0
     rgc.load.cache_clear()
+
+
+def test_arc_steps_take_off_the_drift_and_split_at_minus_8_db():
+    def pr(t_s, value, arc, snr):
+        m = _lte(t_s, "pseudorange", snr)
+        meta = {**m.meta, "arc": arc, "ambiguity_m": 2997924.58}
+        return Measurement(**{**{f: getattr(m, f) for f in m.__struct_fields__}, "meta": meta,
+                              "value": (value,)})  # fmt: skip
+
+    rate = 100.0  # m/s: dongle against tower
+    recs = [pr(t / 10, 5000.0 + rate * t / 10, 0, 5.0) for t in range(10)]
+    recs.append(pr(1.2, 5000.0 + rate * 1.2 - 1500.0, 1, 0.0))  # a new arc 1.5 km short
+    recs += [pr(1.3 + t / 10, 3500.0 + rate * (1.3 + t / 10), 1, 0.0) for t in range(5)]
+    recs.append(pr(2.0, 3500.0 + rate * 2.0 + 5.0, 2, -10.0))  # a new arc 5 m off, weak
+    recs.append(pr(9.0, 0.0, 3, 0.0))  # after a 7 s gap: not judged
+    out = rgc.arc_steps(recs)
+    assert out["above"]["arcs"] == 1 and out["above"]["over_100m"] == 1
+    assert out["above"]["median_jump_m"] == pytest.approx(1500.0, abs=1.0)
+    assert out["below"]["arcs"] == 1 and out["below"]["over_100m"] == 0
+    assert math.isnan(out["below"]["median_jump_m"])
