@@ -4,8 +4,9 @@ of the three `challenge` legs (ADR-0030, Proposed), as the "before" table that f
     python analysis/challenge_baseline.py --seeds 50 --jobs 3
 
 Writes to `--out` (default `analysis/results/challenge-baseline/`):
-- summary.md: the verdict per target (T1 to T5, systems/plan.md, all TBC), then the full table
-  of leg x entry x estimator, with the commit, seeds, command and runtime
+- summary.md: the verdict per target (T1 to T5, systems/plan.md, all TBC; T1 also against
+  ADR-0034's fallback), then the full table of leg x entry x estimator, with the commit,
+  seeds, command and runtime. The committed results are written only from a clean tree.
 - runs.json: the per-run metrics behind it (a subset of `pnt.metrics.RunMetrics`, 6 significant
   digits), so the summary and figures can be redrawn without re-running (`--redraw`) and an
   interrupted run can carry on (`--resume`, same commit only)
@@ -71,6 +72,8 @@ MHSS_SEEDS = 20
 
 # Targets, systems/plan.md (all TBC until the mentors answer Q1 to Q3)
 T1_M = 25.0  # 95 % horizontal error over the first 300 s after GPS loss
+# ADR-0034 (open PR #158): the mentors' figure, T1's declared fallback
+T1_FALLBACK_M = 50.0  # horizontal error over the first 120 s after GPS loss
 T2_AL_M = 556.0  # RNP 0.3 alert limit, terminal phase: no RunMetrics field scores it
 T3_US = 1.5  # time error after 10 min without GPS
 T3_SIGMA = 0.68  # reported 1-sigma bounds the time error in this share of epochs
@@ -232,39 +235,66 @@ def verdict_rows(data: dict) -> list[tuple[str, str, str, dict, str]]:
     def has(leg, entry):
         return leg in data["legs"] and entry in data["entries"][leg]
 
-    def verdict(oks: list[bool | None], partial: frozenset = frozenset()) -> str:
-        """`partial`: estimators that ran only some of the entries the row covers."""
+    def cut(leg, row_entries) -> dict:
+        """{estimator: why} for `ekf-mhss` when it ran fewer seeds or entries than the row."""
+        if SLOW not in ests:
+            return {}
+        ran = [e for e in row_entries if e in data["mhss_entries"]]
+        why = []
+        if len(ran) < len(row_entries):
+            why.append(f"{len(ran)} of {len(row_entries)} entries")
+        if data["mhss_seeds"] < data["seeds"]:
+            why.append(f"{seeds_text(data['mhss_seeds'])}, not {data['seeds']}")
+        return {SLOW: ", ".join(why)} if why else {}
+
+    def verdict(oks: list[bool | None], partial: dict | None = None) -> str:
+        """`partial`: {estimator: why} for estimators that ran only some of the entries or seeds
+        the row covers. Meeting the target there does not score it: such a row reads
+        *partial / not scored* for them."""
+        partial = partial or {}
         run = [o for o in oks if o is not None]
         if not run:
             return "not run"
-        met = [
-            f"`{e}`" + (" (on its entries only)" if e in partial else "")
-            for e, o in zip(ests, oks, strict=True)
-            if o
-        ]
-        return "**met** by " + ", ".join(met) if met else "**not met**"
+        met = [e for e, o in zip(ests, oks, strict=True) if o and e not in partial]
+        part = [e for e, o in zip(ests, oks, strict=True) if o and e in partial]
+        tail = "; ".join(f"`{e}` meets it on a partial run ({partial[e]})" for e in part)
+        if met:
+            return "**met** by " + ", ".join(f"`{e}`" for e in met) + (f"; {tail}" if tail else "")
+        if part:
+            return f"**partial / not scored**: {tail}"
+        return "**not met**"
 
-    # T1: drone leg, outage entry
+    # T1 (ours) and ADR-0034's fallback (the mentors' figure): drone leg, outage entry. The
+    # statistic is each run's own p95 over the slice, and every seed must pass. The p95 across
+    # seeds of those per-run values is shown too: ADR-0034 is to settle which one T1 means.
     if has("drone", "outage"):
         scn = "challenge-drone-outage"
-        cells, oks = {}, []
-        for e in ests:
-            v = values(data, scn, e, "outage_h_p95_300s_m")
-            if not v.size:
-                cells[e], oks = "not run", [*oks, None]
-                continue
-            n = int(np.sum(v <= T1_M))
-            cells[e] = f"{fmt_m(_nanmean(v))} / {fmt_m(_nanmax(v))} m; {n} of {v.size}"
-            oks.append(n == v.size)
-        rows.append(
-            (
-                "T1",
-                "drone, `outage`",
-                f"300 s p95 mean / worst; seeds ≤ {T1_M:g} m",
-                cells,
-                verdict(oks),
+        for target, field, limit_m, slice_s in (
+            ("T1", "outage_h_p95_300s_m", T1_M, 300),
+            ("T1 fallback (ADR-0034, #158)", "outage_h_p95_120s_m", T1_FALLBACK_M, 120),
+        ):
+            cells, oks = {}, []
+            for e in ests:
+                v = values(data, scn, e, field)
+                if not v.size:
+                    cells[e], oks = "not run", [*oks, None]
+                    continue
+                n = int(np.sum(v <= limit_m))
+                across = float(np.nanpercentile(v, 95)) if not np.all(np.isnan(v)) else math.nan
+                cells[e] = (
+                    f"{fmt_m(_nanmean(v))} / {fmt_m(_nanmax(v))} m; {n} of {v.size}; "
+                    f"across seeds {fmt_m(across)} m"
+                )
+                oks.append(n == v.size)
+            rows.append(
+                (
+                    target,
+                    "drone, `outage`",
+                    f"{slice_s} s p95 mean / worst; seeds ≤ {limit_m:g} m; p95 across seeds",
+                    cells,
+                    verdict(oks, cut("drone", ["outage"])),
+                )
             )
-        )
     # T2: approach leg, not scored
     if has("approach", "outage"):
         scn = "challenge-approach-outage"
@@ -307,7 +337,7 @@ def verdict_rows(data: dict) -> list[tuple[str, str, str, dict, str]]:
                 f"600 s error mean / worst; σ bound mean / worst; seeds with ≤ {T3_US:g} µs "
                 f"and ≥ {100 * T3_SIGMA:g} %",
                 cells,
-                verdict(oks),
+                verdict(oks, cut("timing", ["outage"])),
             )
         )
     # T4: spoof ramp (drone), time spoof (timing), false alarms on nominal (each leg)
@@ -334,7 +364,7 @@ def verdict_rows(data: dict) -> list[tuple[str, str, str, dict, str]]:
                 f"{leg}, `{entry}`",
                 f"{what}: seeds detected ≤ {window:g} s; median delay of those detected",
                 cells,
-                verdict(oks),
+                verdict(oks, cut(leg, [entry])),
             )
         )
     for leg in data["legs"]:
@@ -357,12 +387,13 @@ def verdict_rows(data: dict) -> list[tuple[str, str, str, dict, str]]:
                 f"{LEG_LABEL[leg]}, `nominal`",
                 f"false alarms per hour, pooled; worst run (target ≤ {T4_FA_PER_H:g} /h)",
                 cells,
-                verdict(oks),
+                verdict(oks, cut(leg, ["nominal"])),
             )
         )
     # T5: every entry of each leg
     for leg in data["legs"]:
-        cells, oks, partial = {}, [], set()
+        cells, oks = {}, []
+        partial = cut(leg, data["entries"][leg])
         for e in ests:
             fracs, haz, nrun = [], 0, 0
             for entry in data["entries"][leg]:
@@ -377,10 +408,8 @@ def verdict_rows(data: dict) -> list[tuple[str, str, str, dict, str]]:
                 continue
             f = np.array(fracs)
             n = int(np.sum(f >= T5_HPL))
-            if e == SLOW and set(data["entries"][leg]) - set(data["mhss_entries"]):
-                partial.add(e)
             cells[e] = f"worst {fmt_pct(_nanmin(f))}; {n} of {nrun} runs; {haz:,} hazardous" + (
-                " (its entries only)" if e in partial else ""
+                f" ({partial[e]})" if e in partial else ""
             )
             oks.append(n == nrun and haz == 0)
         rows.append(
@@ -390,7 +419,7 @@ def verdict_rows(data: dict) -> list[tuple[str, str, str, dict, str]]:
                 f"HPL bound, worst run; runs ≥ {100 * T5_HPL:g} %; hazardous epochs on fault "
                 "entries (sum)",
                 cells,
-                verdict(oks, frozenset(partial)),
+                verdict(oks, partial),
             )
         )
     return rows
@@ -484,7 +513,12 @@ def write_summary(data: dict, out: Path, figures: list[str]) -> Path:
         f'The "before" table (#150, package 5 of #126). **{KIND}.** It becomes the presented '
         "result only once ADR-0030 is accepted.",
         "",
-        f"- **Commit:** `{data['commit']}`",
+        f"- **Commit:** `{data['commit']}`"
+        + (
+            ""
+            if _clean(data["commit"])
+            else " (**not a clean commit**: these numbers are not reproducible, REQ-10)"
+        ),
         f"- **Seeds:** {seeds_text(data['seeds'])[6:]} (`ekf-mhss`: "
         f"{seeds_text(data['mhss_seeds'])[6:]})"
         if SLOW in data["estimators"]
@@ -509,7 +543,16 @@ def write_summary(data: dict, out: Path, figures: list[str]) -> Path:
         "",
         "Targets from `systems/plan.md`, all `TBC`. A target is **met** by an estimator only if "
         "every seed meets it (false alarms: the pooled rate). Cells read *mean / worst* over "
-        "seeds; *of* counts seeds (or runs) meeting the target.",
+        "seeds; *of* counts seeds (or runs) meeting the target. An estimator that ran fewer "
+        "seeds or entries than the row covers (`ekf-mhss`) does not score it: where it alone "
+        "meets the target the row reads *partial / not scored*.",
+        "",
+        "**T1 statistic:** each run's own 95th percentile of horizontal error over the slice "
+        "after GPS loss, and every seed must pass. *Across seeds* gives the 95th percentile of "
+        "those per-run values over the seeds, for comparison. ADR-0034 (open PR #158) is to "
+        "settle which of the two T1 means; until then the verdict uses the first. The "
+        "*T1 fallback* row is ADR-0034's declared fallback, the mentors' figure (≤ "
+        f"{T1_FALLBACK_M:g} m for 120 s), scored the same way.",
         "",
         "| Target | Leg, entry | Measure | " + " | ".join(f"`{e}`" for e in ests) + " | Verdict |",
         "|---" * (4 + len(ests)) + "|",
@@ -773,6 +816,12 @@ def write_figures(data: dict, out: Path) -> list[str]:
 # ---------------------------------------------------------------- main
 
 
+def _clean(commit: str) -> bool:
+    """True for the hash of a clean tree: `_commit()` gives `<hash>-dirty` for a tree with
+    uncommitted changes to tracked files, and a word when there is no git."""
+    return len(commit) >= 7 and all(c in "0123456789abcdef" for c in commit)
+
+
 def _save(data: dict, path: Path) -> None:
     path.write_text(json.dumps(data, separators=(",", ":"), allow_nan=False))
 
@@ -805,6 +854,12 @@ def main(argv=None) -> None:
     out.mkdir(parents=True, exist_ok=True)
     json_path = out / "runs.json"
     commit = _commit()
+    # REQ-10: the committed results name a commit they can be regenerated from
+    if not args.redraw and out.resolve() == OUT.resolve() and not _clean(commit):
+        raise SystemExit(
+            f"tree is {commit}: commit first, the committed results must name a clean commit "
+            "(or write elsewhere with --out)"
+        )
 
     if args.redraw:
         data = json.loads(json_path.read_text())
