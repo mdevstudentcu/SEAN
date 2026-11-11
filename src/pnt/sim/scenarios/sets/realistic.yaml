@@ -5,7 +5,7 @@
 # default; `ekf-calibrated` has it on). Once GPS is lost they accept most tower readings (73 % on
 # `realistic-long-outage`), and the position moves with our clock's drift (20 ppb, 6 m/s) while
 # the covariance shrinks: T1 p95 2.4 km, HPL bound 2.7 % on the worst run. Results here measure
-# that gap, not how hard the environment is (#228, ADR-0045 Proposed, rx_clock_in_towers.py).
+# that gap, not how hard the environment is (#228, ADR-0046 Proposed, rx_clock_in_towers.py).
 description: Best current estimate of real conditions for a low-cost receiver.
 duration_s: 360
 dt_s: 0.1
