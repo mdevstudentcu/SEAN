@@ -146,7 +146,7 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 | GY-NEO6MV2 NEO-6M GPS for the reference station (ASIN B0CTG63TYF, $14.39, checked 2026-11-09); ATGM336H alternative | The reference station stays in sim (ADR-0020, *Amendment 2026-11-10*) |
 | Airspy Mini | Budget |
 | Flamingo FM band-stop filter ($46) | Skipped; VOR is 16.8 km away. Revisit only if the RF survey shows FM overload |
-| LoRa HAT 915 MHz (HON, **in hand** 2026-11-10) | A 22 dBm transmitter ~20–40 MHz above the 850 MHz LTE downlink would desensitize the unfiltered SDRs; Canadian certification unconfirmed; the payload is receive-only (REQ-07); no link is needed, since the laptop does the navigation (ADR-0002) |
+| LoRa HAT 915 MHz (HON, **in hand** 2026-11-10) | A 22 dBm transmitter ~20 MHz above the 850 MHz LTE downlink would desensitize the unfiltered SDRs; Canadian certification unconfirmed; the payload is receive-only (REQ-07); no link is needed, since the laptop does the navigation (ADR-0002) |
 | VL53L1X ToF (HON, in hand) | Optional indoor height truth only; drone already has the MTF-01 rangefinder |
 | L-band patch antenna (Iridium) | LEO layer is simulated (ADR-0013, mentor Q5) |
 | DIY antennas (ADS-B and LTE ground planes, VOR dipole), SMA pigtails, copper wire, PCB plates | Nobody free to build them this week; antennas are bought (section 3). [`antennas.md`](antennas.md) is the fallback |
