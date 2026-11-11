@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import combinations
@@ -114,7 +115,8 @@ def load(path: Path, raw_root: Path | None) -> Sess:
     name = session.session_name(path)
     rec = "TBD"
     if raw_root is not None:
-        orig = raw_root / name.removesuffix("-lte")
+        # `<session>-partial<N>s-lte`: the front end ran on a prefix of the capture
+        orig = raw_root / re.sub(r"-partial\d+s$", "", name.removesuffix("-lte"))
         if (orig / session.META_NAME).exists():
             rec = str(session.read_meta(orig).get("commit") or "TBD")
     cells = []
@@ -508,7 +510,11 @@ def figures(sessions, res, sv, out: Path, commit: str) -> list[Path]:
     import matplotlib.pyplot as plt
 
     names = sorted({s.name for s in sessions})
-    tag = f"{len(names)} real static sessions 2026-11-10 (summary.md), analysed at {commit}"
+    part = [n for n in names if "-partial" in n]
+    tag = f"{len(names)} real static sessions 2026-11-10 (summary.md)"
+    if part:
+        tag += f"; {len(part)} of them a PARTIAL capture (prefix only, {', '.join(part)})"
+    tag += f"; analysed at {commit}"
     written = []
 
     def finish(fig, name, what):
@@ -583,7 +589,7 @@ def figures(sessions, res, sv, out: Path, commit: str) -> list[Path]:
             ms=3,
             lw=1,
             color=PALETTE[i % 7],
-            label=f"{r['cell']} {r['session'][9:22]}",
+            label=f"{r['cell']} {short(r['session'])}",
         )
     pr = [r for r in res["pairs"] if r["S_arc"] and r["snr_min_db"] > -8]
     for i, r in enumerate(sorted(pr, key=lambda r: -len(r["S_arc"]))[:7]):
@@ -595,7 +601,7 @@ def figures(sessions, res, sv, out: Path, commit: str) -> list[Path]:
             ms=3,
             lw=1,
             color=PALETTE[i % 7],
-            label=f"{r['b'][4:]}−{r['a'][4:]} ({r['relation']}) {r['session'][9:22]}",
+            label=f"{r['b'][4:]}−{r['a'][4:]} ({r['relation']}) {short(r['session'])}",
         )
     for ax, keys in (
         (axs[0], ["one cell, all terms", "dongle clock", "multipath, one cell"]),
@@ -629,7 +635,7 @@ def figures(sessions, res, sv, out: Path, commit: str) -> list[Path]:
     ax.set_yticks(
         range(len(rows)),
         [
-            f"{r['b'][4:]}−{r['a'][4:]} {r['session'][9:22]} "
+            f"{r['b'][4:]}−{r['a'][4:]} {short(r['session'])} "
             f"({r['relation']}, {r['snr_min_db']:.0f} dB)"
             for r in rows
         ],
@@ -689,6 +695,14 @@ def figures(sessions, res, sv, out: Path, commit: str) -> list[Path]:
     return written
 
 
+def short(name: str) -> str:
+    """A session's time and spot for a legend; a partial capture says so."""
+    s = name.removeprefix("20261110-").removesuffix("-lte")
+    m = re.search(r"-partial(\d+)s$", s)
+    s = re.sub(r"-partial\d+s$", "", s)[:13]
+    return s + (f" PARTIAL {m.group(1)} s" if m else "")
+
+
 def _f(x, fmt=".2f"):
     return "—" if x is None else format(x, fmt)
 
@@ -707,6 +721,16 @@ def report(sessions, res, sv, commit) -> str:
         L.append(
             f"| {s.name} | `{s.commit_rec}` | `{s.commit_fe}` | {s.span_s:.1f} | {len(s.cells)} |"
         )
+    for s in sessions:
+        if "-partial" in s.name:
+            L += [
+                "",
+                f"**{s.name} is a PARTIAL capture:** the front end ran on the prefix of "
+                "the recording that was copied off the Pi, with a sidecar rebuilt from "
+                "`meta.yaml` and the other sessions' sidecars (rate and centre frequency). Its "
+                "absolute start time is `TBD` and it has no buffer stamps, so dropped samples "
+                "were not detected (`TBD`).",
+            ]
     L += ["", f"Sim placeholders from `{sv['scenario']}` and `sim/lte_front_end.py` `Dongle`.", ""]
     L += [
         "## White noise against SNR (10 Hz records, pooled)",
