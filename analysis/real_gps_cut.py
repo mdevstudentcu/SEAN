@@ -270,7 +270,8 @@ def markdown(summary: dict) -> str:
         "# Real GPS cut: error after GPS loss on a real session (#214)",
         "",
         f"Evidence: **replay of a real session, GPS cut in software** (ADR-0015). Session "
-        f"`{s['session']}` (front end and analysis at `{s['commit']}`). Static receiver, "
+        f"`{s['session']}` (front end at `{s['frontend_commit']}`, analysis at `{s['commit']}`). "
+        "Static receiver, "
         "outdoors, on the ground; one site; LTE on one carrier (EARFCN 2460), few weak cells. "
         f"Runs: one per cut time ({', '.join(f'{c:g}' for c in s['cuts_s'])} s after the first "
         f"measurement), each scored for {s['horizon_s']:g} s after its cut. The runs share the "
@@ -431,6 +432,7 @@ def main(argv=None) -> None:
     summary = {
         "session": session.session_name(path),
         "commit": _commit(),
+        "frontend_commit": session.read_meta(path).get("commit"),
         "kind": "replay of a real session, GPS cut in software",
         "cuts_s": list(args.cuts),
         "horizon_s": HORIZON_S,
