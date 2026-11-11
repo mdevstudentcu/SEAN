@@ -181,6 +181,7 @@ import numpy as np
 
 from pnt.core.frames import emitter_enu
 from pnt.core.measurement import Estimate, Measurement
+from pnt.integrity.gnss_readmit import GnssReadmit
 from pnt.integrity.jump_guard import JumpGuard
 from pnt.integrity.protection import hpl, vpl
 from pnt.nav import told_sigma
@@ -276,7 +277,11 @@ class EKF:
         residual_map: Mapping | None = None,  # MapParams options: learn a residual map (#95)
         tower_map=None,  # a `tower_map.TowerMap`: prior tower states from a drone (P12, #96)
         told_sigma_model: str | None = None,  # "adr0036": radio records' sigma from SNR (#147)
+        # the same for records from a real capture only, unless told_sigma_model is set (ADR-0048)
+        capture_sigma_model: str | None = "adr0036",
         arc_bias: bool = False,  # a radio cell's new arc (meta.arc) starts a new range bias (#147)
+        gnss_readmit: Callable[[], GnssReadmit] | None = None,  # GnssReadmit (#246, ADR-0048)
+        heard_cell_radius_m: float | None = None,  # m: a heard cell's coverage bound (ADR-0048)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -367,11 +372,16 @@ class EKF:
         self.bearing_bias_idx: dict[str, int] = {}  # station -> its constant bearing bias state
         self.jump = jump_guard() if jump_guard is not None else None  # #184, integrity/jump_guard
         self.tower_map = tower_map  # added at the first fix (`_init`), see nav/tower_map.py
-        if told_sigma_model is not None and told_sigma_model not in told_sigma.MODELS:
-            raise ValueError(f"told_sigma_model must be one of {told_sigma.MODELS} or None")
+        for name, model in (("told", told_sigma_model), ("capture", capture_sigma_model)):
+            if model is not None and model not in told_sigma.MODELS:
+                raise ValueError(f"{name}_sigma_model must be one of {told_sigma.MODELS} or None")
         self.told_sigma_model = told_sigma_model  # nav/told_sigma.py; None: the reported sigma
+        self.capture_sigma_model = capture_sigma_model  # records from a real capture (ADR-0048)
         self.arc_bias = arc_bias
         self._arc_idx: dict[str, list] = {}  # emitter -> [its arc, its arc state or None, t_ns]
+        self.readmit = gnss_readmit() if gnss_readmit is not None else None
+        self.heard_cell_radius_m = heard_cell_radius_m
+        self._bounded: dict[str, int] = {}  # emitter -> last time its coverage bound was applied
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -775,8 +785,11 @@ class EKF:
         model = MODELS.get(m.kind)
         if model is None:
             return  # not modelled yet
-        if self.told_sigma_model is not None:
-            m = told_sigma.retold(m, self.told_sigma_model)  # a radio record's sigma from its SNR
+        sigma_model = self.told_sigma_model
+        if sigma_model is None and told_sigma.from_capture(m):
+            sigma_model = self.capture_sigma_model  # a real capture's record (ADR-0048)
+        if sigma_model is not None:
+            m = told_sigma.retold(m, sigma_model)  # a radio record's sigma from its SNR
         if m.kind == "rssi" and (self.hostile is None or not m.meta.get("hostile")):
             return  # only a hostile beacon's power is modelled, and only when asked for
         self.predict(m.t_ns)
@@ -798,11 +811,22 @@ class EKF:
         verdict = "gate"  # or, for a GNSS position jump (#184): "refuse" or "readmit"
         if key == "gnss" and self.jump is not None:
             verdict = self.jump.verdict(self, m.t_ns, y, H, R)
+        watch = self.readmit is not None and m.kind == "position_enu" and key == "gnss"
+        if watch:
+            self.readmit.observe(self, m.t_ns, y, H, R)
         if verdict == "refuse":  # a detected jump not yet undone: as a gate rejection
             used = False
             self.last_rejected[key] = m.t_ns
         else:  # "readmit": GNSS is back on its own pre-jump track, so the gate is skipped
             used = self._update(key, m.t_ns, y, H, R, gate and verdict == "gate")
+        readmit = self.readmit.decide(self, m.t_ns, used) if watch and verdict == "gate" else None
+        if readmit is not None:  # towers unfit to refute GNSS kept it out (#246)
+            if readmit == "reset":
+                self.reset_for_gnss()
+                y, H, R, _ = model(self, m)
+            used = self._update(key, m.t_ns, y, H, R, gate=False)
+        if self.readmit is not None and m.kind == "pseudorange" and gate:
+            self.readmit.tower(m.t_ns, *self._last_nis)
         if mapped and used and gate and self.gnss_trusted():
             self.rmap.learn(m.emitter, at, float(y) + corr)  # before the map's correction
         if self.calibrated:
@@ -813,6 +837,44 @@ class EKF:
                 self._spoof_test(m, used)
             if self.rollback_ns is not None:
                 self._watch_alarm()
+        if self.heard_cell_radius_m is not None and m.kind == "pseudorange":
+            self._coverage_bound(m)
+
+    def reset_for_gnss(self) -> None:
+        """Before a GNSS fix that `GnssReadmit` re-admits: position, velocity, every tower clock
+        block, our radios' clocks and the arc states go back to their first-sight priors, means
+        kept and cross terms zeroed, so the fix is taken as at start-up and the towers re-learn
+        their clocks against it. Other states (IMU, multipath, told position) keep theirs."""
+        P = self.P
+        wide = self.init_emitter_sigma**2  # the position prior: the fix decides it
+        reset = [(i, wide) for i in range(3)] + [(i, self.init_vel_sigma**2) for i in range(3, 6)]
+        for key, i in self.clock_idx.items():
+            reset += [(i + k, s**2) for k, s in enumerate(self._clock_prior[key][: self.width])]
+        for i in self.rx_idx.values():
+            reset += [(i, self.rx_prior[0] ** 2), (i + 1, self.rx_prior[1] ** 2)]
+        reset += [(rec[1], self.init_emitter_sigma**2) for rec in self._arc_idx.values() if rec[1]]
+        for i, var in reset:
+            P[i, :] = P[:, i] = 0.0
+            P[i, i] = var
+
+    def _coverage_bound(self, m: Measurement) -> None:
+        """A heard cell bounds where we are: within `heard_cell_radius_m` of its site,
+        horizontally (ADR-0048, opt-in). Outside it, the horizontal distance is told the radius
+        with sigma a tenth of it, at most once a second per cell; inside, nothing."""
+        e = self._emitter(m)
+        if e is None or m.t_ns - self._bounded.get(m.emitter, -(10**18)) < 1_000_000_000:
+            return
+        d = self.x[:2] - e[:2]
+        r = float(np.hypot(*d))
+        radius = self.heard_cell_radius_m
+        if r <= radius:
+            return
+        H = _row(self)
+        H[0, :2] = d / r
+        self._bounded[m.emitter] = m.t_ns
+        key = f"bound:{m.emitter}"
+        self._update(key, m.t_ns, radius - r, H, np.array([[(radius / 10) ** 2]]), gate=False)
+        del self.last_used[key]  # a constraint, not a source: no trust or health entry
 
     # --- spoof detector (calibrated model, #83) ------------------------------------------------
     def _spoof_test(self, m: Measurement, used: bool) -> None:
@@ -1237,7 +1299,10 @@ CALIBRATED_MEASURED: dict = {
     "clock_model": "calibrated",
     "pseudorange_receiver_clock": True,
     # White part: the record's reported sigma, as every estimator. ADR-0036 (1) puts the measured
-    # law (sigma^2 = 0.64^2 + 2.28^2 / SNR_lin at 10 Hz) in the front end's report, not here
+    # law (sigma^2 = 0.64^2 + 2.28^2 / SNR_lin at 10 Hz) in the front end's report, not here.
+    # So a real capture's records are not retold here either (ADR-0048): `told_sigma`'s
+    # correlated part would count the multipath state below a second time
+    "capture_sigma_model": None,
     # Correlated part, at rest: ADR-0036 (1), sigma_corr 10 m (middle of the 4.9 to 18 m same-eNB
     # S(1 s), 20261110 static sessions) and tau_corr 3 s (S(tau) levels off between 1 and 10 s).
     # TBC: a moving capture with GPS may show it larger (ADR-0036 (4))

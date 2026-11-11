@@ -25,6 +25,12 @@ and `sim/lte_front_end.py` write them) with the sum of two parts. Every value is
 
 A 1 Hz record is told 24.6 m for a strong cell, 25.8 m at -14 to -11 dB and 29.1 m below -14 dB:
 the correlated part dominates once ten 10 Hz records are averaged.
+
+Records from a real capture (`from_capture`: `meta.sample_index`, the record's place in its IQ
+file, which `pnt.frontends.lte` writes and `sim/lte_front_end.py` leaves out) get this model by
+default in the EKF (`capture_sigma_model`, ADR-0048 Proposed): the front end's own sigma (1 to 5 m
+at high SNR) against double differences that wander 1 to 45 m kept GNSS out of the filter on
+real sessions (#246). The sim's records keep their reported sigma unless `told_sigma_model` asks.
 """
 
 from __future__ import annotations
@@ -65,6 +71,12 @@ def corr_sigma_m(n_epochs: int) -> float:
 def sigma_m(snr_db: float, n_epochs: int) -> float:
     """The range sigma (m) the model tells the filter: both parts together."""
     return math.hypot(white_sigma_m(snr_db, n_epochs), corr_sigma_m(n_epochs))
+
+
+def from_capture(m: Measurement) -> bool:
+    """Whether `m` came from a front end run on a real capture: it indexes its IQ file
+    (`meta.sample_index`). The sim's front-end-shaped records have no file to index."""
+    return "sample_index" in m.meta
 
 
 def retold(m: Measurement, model: str) -> Measurement:
