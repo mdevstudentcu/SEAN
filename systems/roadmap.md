@@ -56,9 +56,9 @@ From [`hardware/bom.md`](../hardware/bom.md) (CAD before tax, Amazon.ca, 2026-11
 | The radio reports only its fast noise; the filter rejects the towers | Learn each tower's noise; split white and slow error, sized from captures (ADR-0036, ADR-0039, both Proposed) | In review, opt-in; better on the drone leg, not yet on the timing leg |
 | One frequency hears 1 to 4 cells, often sectors of one site | Hop frequencies with one radio (ADR-0040, Proposed); coherent integration (merged) | Simulation and synthetic only |
 | A detected jump was followed | Refuse it until GPS steps back (ADR-0038, Proposed) | Merged, opt-in; default-on waits on the manoeuvre follow-up |
-| Deciding whether GPS is spoofed, from signal power and the known sky, is the mentors' first ask | One spoofed-or-not output (`TBD`); tower monitor for slow drags (ADR-0037, Proposed) | Separate cues exist; no sky-map check yet |
-| The bound is honest only where the model is | An honest tower model; a mapper for unregistered cells; a confidence heat map on the track (`TBD`) | Open |
-| Real captures break front-end assumptions (aliased carriers, cells dropping often) | Flag aliased Doppler; treat a re-found cell as a new track (ADR-0036) | Open |
+| Deciding whether GPS is spoofed, from signal power and the known sky, is the mentors' first ask | One spoofed-or-not output from the sky and signal power (ADR-0041, Accepted); tower monitor for slow drags (ADR-0037, Proposed) | Sky decision merged (#239), advisory; the tower monitor is opt-in and needs 5 or more sites heard continuously |
+| The bound is honest only where the model is | An honest tower model; a mapper for unregistered cells; a confidence heat map on the track (built, #235) | Heat map built; tower model and mapper open |
+| Real captures break front-end assumptions (aliased carriers, cells dropping often) | Doppler records off by default; first-path check and re-find fixed (#245, ADR-0036 *Amendment 2026-11-11 (owners)*) | Merged; 16 to 17 % of re-finds still step over 100 m, and 4 of 40 tracks sit on a carrier alias |
 
 ## Three milestones
 
@@ -88,4 +88,4 @@ Durations are proposals, `TBC`; none is committed.
 
 ---
 
-*Status: 2026-11-11, against `main` at `c21e047`. Open items behind the `TBD`s: combined fixes (#218), real GPS cut (#214), spoof decision (#206), tower count (#208), heat map (#207). Sources per row: [`results.md`](results.md).*
+*Status: 2026-11-11, against `main` at `c21e047`; brought up to `c97e09a` (#245, ADR-0047, ADR-0048). Still open: combined fixes (#218, draft PR #247). Merged since: real GPS cut (#214, #233), spoof decision (#206, #239), tower count (#208, #232), heat map (#207, #235). Sources per row: [`results.md`](results.md).*
