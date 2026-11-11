@@ -7,7 +7,7 @@
 
 > Mostly the radio's noise. Our front end reports only fast noise, so the filter rejects nearly every tower reading; LTE made position worse than none. In simulation, learning each tower's noise cut the median five-minute error from 4,034 to 982 metres. Still far from 25.
 
-- **Source:** #137, #147 (LTE worse than none); #156 (open, draft, opt-in; per-run p95, seeds 0–49); ADR-0039 (Proposed). On the easy synthetic route the budget meets 25 m (#178).
+- **Source:** #137, #147 (LTE worse than none); #156 (open, draft, opt-in; per-run p95, seeds 0–49); ADR-0039 (proposed in #156, not on `main`). On the easy synthetic route the budget meets 25 m (#178).
 - **Do not claim:** that any fix meets T1 or the 50 m fallback; that #156 is merged or on by default.
 
 ## 2. Is any of it real?
@@ -112,7 +112,7 @@
 
 > Very little: records report only fast noise, so the filter rejects nearly every tower reading; on one simulated run, all but 9 of 5,383 before the spoof. After GPS loss it flies on barometer and dead reckoning. Learning tower noise is the fix in review.
 
-- **Source:** #180 description (one seed, `challenge` drone leg: 5,374 of 5,383 tower readings rejected before the spoof); #147; guard demo runbook (draft PR #220: Sources lists `lte` under *Not in use*). Fix: #156, ADR-0039 (Proposed, opt-in).
+- **Source:** #180 description (one seed, `challenge` drone leg: 5,374 of 5,383 tower readings rejected before the spoof); #147; guard demo runbook (draft PR #220: Sources lists `lte` under *Not in use*). Fix: #156, ADR-0039 (proposed in #156, not on `main`; opt-in).
 - **Do not claim:** that the demo's position after GPS loss came from towers; a percentage of epochs (no committed count).
 
 ## 17. Is the 8 m slow error multipath, or your dongle's oscillator?
