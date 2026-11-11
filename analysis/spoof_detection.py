@@ -262,12 +262,57 @@ def _s(x) -> str:
     return "–" if x is None or (isinstance(x, float) and math.isnan(x)) else f"{x:,.1f}"
 
 
+def _set(x) -> bool:
+    return x is not None and not (isinstance(x, float) and math.isnan(x))
+
+
+def lost_detections(runs) -> list[str]:
+    """For each attack run where the unchanged estimator counts a detection and the same one
+    with the monitor does not (the monitor must not lose what the filter catches), what
+    happened: explained when both alarms were already on at the attack's start, otherwise
+    printed as a defect (#189). The reverse, the monitor adding a detection, is its purpose."""
+    notes = []
+    key = {(r["case"], r["estimator"], r["seed"]): r for r in runs}
+    for base, mon in PAIRS:
+        for (case, est, seed), b in sorted(key.items()):
+            m = key.get((case, mon, seed))
+            if est != base or m is None or "attack_start_s" not in b:
+                continue
+            if math.isnan(b["detect_delay_s"]) or not math.isnan(m["detect_delay_s"]):
+                continue
+            leg, entry = case.split(":")
+            if not (_set(b.get("alarm_since_s")) and _set(m.get("alarm_since_s"))):
+                notes.append(
+                    f"- **{leg} {entry} seed {seed}: `{mon}` misses an attack `{base}` detects, "
+                    "with no alarm on before it. Not explained here: a defect to investigate.**"
+                )
+                continue
+            text = (
+                f"- {leg} {entry} seed {seed}: the alarm was on from {_s(b['alarm_since_s'])} s "
+                f"in `{base}` and from {_s(m['alarm_since_s'])} s in `{mon}`, before the attack "
+                f"at {_s(b['attack_start_s'])} s, so neither flags the attack at onset. "
+                f"`{base}`'s alarm cleared {_s(b.get('alarm_clear_s'))} s after the attack "
+                f"began and started again: that restart is its {_s(b['detect_delay_s'])} s "
+                "detection."
+            )
+            if not _set(m.get("alarm_clear_s")):
+                text += f" `{mon}`'s alarm never cleared"
+                if _set(m.get("suspected_s")):
+                    text += (
+                        f" (it raised `spoof_suspected` {_s(m['suspected_s'])} s after the attack "
+                        "began, which keeps GNSS position excluded)"
+                    )
+                text += ", so it had nothing to restart: no detection was lost."
+            notes.append(text)
+    return notes
+
+
 def during_alarm(runs) -> list[str]:
-    """The attack runs whose alarm was already on when the attack began, and, for each pair
-    where one estimator counts a detection and the other does not, what happened (#189)."""
-    on = [r for r in runs if r.get("alarm_since_s") is not None
-          and not math.isnan(r["alarm_since_s"])]  # fmt: skip
-    if not on:
+    """The attack runs whose alarm was already on when the attack began, then every detection
+    the monitor variant does not count that the unchanged estimator does (#189)."""
+    on = [r for r in runs if _set(r.get("alarm_since_s"))]
+    notes = lost_detections(runs)
+    if not on and not notes:
         return []
     lines = [
         "",
@@ -292,49 +337,8 @@ def during_alarm(runs) -> list[str]:
             f"{_s(r['detect_delay_s'])} | {_s(r.get('alarm_clear_s'))} | "
             f"{_s(r.get('suspected_s'))} |"
         )
-    notes = []
-    key = {(r["case"], r["estimator"], r["seed"]): r for r in runs}
-    for base, mon in PAIRS:
-        for (case, est, seed), b in sorted(key.items()):
-            m = key.get((case, mon, seed))
-            if est != base or m is None or "attack_start_s" not in b:
-                continue
-            hit_b, hit_m = (not math.isnan(x["detect_delay_s"]) for x in (b, m))
-            if hit_b == hit_m:
-                continue
-            leg, entry = case.split(":")
-            seen, lost = (b, m) if hit_b else (m, b)
-            on_both = all(
-                x.get("alarm_since_s") is not None and not math.isnan(x["alarm_since_s"])
-                for x in (b, m)
-            )
-            if not on_both:
-                notes.append(
-                    f"- **{leg} {entry} seed {seed}: `{lost['estimator']}` misses an attack "
-                    f"`{seen['estimator']}` detects, with no alarm on before it. Not explained "
-                    "here: a defect to investigate.**"
-                )
-                continue
-            text = (
-                f"- {leg} {entry} seed {seed}: the alarm was on from {_s(b['alarm_since_s'])} s "
-                f"in `{base}` and from {_s(m['alarm_since_s'])} s in `{mon}`, before the attack "
-                f"at {_s(b['attack_start_s'])} s, so neither flags the attack at onset. "
-                f"`{seen['estimator']}`'s alarm cleared {_s(seen.get('alarm_clear_s'))} s after "
-                f"the attack began and started again: that restart is its "
-                f"{_s(seen['detect_delay_s'])} s detection."
-            )
-            if lost.get("alarm_clear_s") is None or math.isnan(lost["alarm_clear_s"]):
-                text += f" `{lost['estimator']}`'s alarm never cleared"
-                ss = lost.get("suspected_s")
-                if ss is not None and not math.isnan(ss):
-                    text += (
-                        f" (it raised `spoof_suspected` {_s(ss)} s after the attack began, "
-                        "which keeps GNSS position excluded)"
-                    )
-                text += ", so it had nothing to restart: no detection was lost."
-            notes.append(text)
-    if notes:
-        lines += ["", "Where one of a pair counts a detection and the other does not:", "", *notes]
+    lines += ["", "Detections the unchanged estimator counts and its `-spoof` twin does not:", ""]
+    lines += notes or ["- None."]
     return lines
 
 
