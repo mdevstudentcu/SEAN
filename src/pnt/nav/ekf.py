@@ -279,7 +279,9 @@ class EKF:
         told_sigma_model: str | None = None,  # "adr0036": radio records' sigma from SNR (#147)
         # the same for records from a real capture only, unless told_sigma_model is set (ADR-0048)
         capture_sigma_model: str | None = "adr0036",
-        arc_bias: bool = False,  # a radio cell's new arc (meta.arc) starts a new range bias (#147)
+        # a radio cell's new arc (meta.arc) starts a new range bias (#147); None: for a real
+        # capture's records only (ADR-0048)
+        arc_bias: bool | None = None,
         arc_settle_s: float = 0.0,  # s: a cell's new arc told ARC_SETTLE_FACTOR x sigma (ADR-0048)
         gnss_readmit: Callable[[], GnssReadmit] | None = None,  # GnssReadmit (#246, ADR-0048)
         heard_cell_radius_m: float | None = None,  # m: a heard cell's coverage bound (ADR-0048)
@@ -514,10 +516,13 @@ class EKF:
         90 of 103 new arcs at SNR >= -8 dB, median 874 m). The cell's first arc needs no state of
         its own (its site clock carries it); a later one gets a constant bias state, seeded from
         `residual` with `init_emitter_sigma` and no correlation with anything, so the step is
-        absorbed instead of pulling the position. Off, or for a record without `arc` or
+        absorbed instead of pulling the position. `arc_bias=None` (the default) turns it on for a
+        real capture's records (`told_sigma.from_capture`, ADR-0048): after #245 a re-find still
+        steps more than 100 m in 16 to 17 % of new arcs. Off, or for a record without `arc` or
         `rx_clock`: (None, False)."""
         arc = m.meta.get("arc")
-        if not self.arc_bias or arc is None or "rx_clock" not in m.meta:
+        on = told_sigma.from_capture(m) if self.arc_bias is None else self.arc_bias
+        if not on or arc is None or "rx_clock" not in m.meta:
             return None, False
         rec = self._arc_idx.get(m.emitter)
         if rec is None:
