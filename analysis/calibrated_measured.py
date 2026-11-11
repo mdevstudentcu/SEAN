@@ -371,6 +371,7 @@ def plot_mismatch(data: dict, out: Path) -> None:
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import FuncFormatter, NullFormatter
 
     rows = data["mismatch"]["filter"]
     labels = [r["case"] for r in rows]
@@ -394,6 +395,8 @@ def plot_mismatch(data: dict, out: Path) -> None:
                 color=INK,
             )
         ax.set_yscale("log")
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+        ax.yaxis.set_minor_formatter(NullFormatter())
         ax.set_ylabel(lab, fontsize=8)
         ax.grid(True, axis="y", color=GRID, lw=0.6)
         ax.set_axisbelow(True)
