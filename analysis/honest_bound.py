@@ -899,6 +899,9 @@ def write_summary(plans: dict, out: Path, figures: list[str], diagnosis: str) ->
         drone = {k for (k, _, _) in st["cells"] if k.startswith("drone/") and "lte*" not in k}
         keys = sorted(drone,
                       key=lambda k: _order((k, "", "")))  # fmt: skip
+        other = {k for (k, _, _) in st["cells"] if not k.startswith("drone/") or "lte*" in k}
+        if "legs" in plans:
+            other = {k for k in other if not k.startswith("approach/")}
         bs = bars(st, keys)
         L += bars_table(bs) + [""]
         miss = [b for b in bs if not b["honest"]]
@@ -917,12 +920,27 @@ def write_summary(plans: dict, out: Path, figures: list[str], diagnosis: str) ->
             "## Other legs and model mismatch (`stress`)",
             "",
             ROW_HEAD,
-            *rows_of(
-                st,
-                keys={k for (k, _, _) in st["cells"] if not k.startswith("drone/") or "lte*" in k},
-            ),  # fmt: skip
+            *rows_of(st, keys=other),
             "",
         ]
+        if "legs" in plans:
+            L += [
+                "The approach leg's `stress` rows were computed before `ekf-honest` gained the "
+                "receiver-clock switch (its records carry our clock and no `rx_clock`), so they "
+                "are left out above and rerun here (`legs`); the drone and timing records all "
+                "have `rx_clock`, which the switch does not touch "
+                "(`tests/test_ekf_honest.py`).",
+                "",
+                _provenance(plans["legs"]),
+                "",
+                ROW_HEAD,
+                *rows_of(plans["legs"]),
+                "",
+            ]
+    rl = plans.get("realistic")
+    if rl:
+        L += ["## `realistic-long-outage` and the barometer, held-out seeds (`realistic`, #228)",
+              "", _provenance(rl), "", ROW_HEAD, *rows_of(rl), ""]  # fmt: skip
     sw = plans.get("sweep")
     if sw:
         L += ["## Sweep of the new settings (`sweep`)", "", _provenance(sw), "",
@@ -1046,6 +1064,26 @@ def diagnosis(plans: dict) -> str:
         "state the NEES mean is near 2 and NEES > K² rare, so the covariance, not K, was wrong; "
         "no empirical inflation is used.",
     ]
+    rt = plans.get("realistic-tune")
+    if rt:
+        out += [
+            "",
+            "### `realistic-long-outage` and the barometer (#228, tuning seeds 1000–1049)",
+            "",
+            "The set's towers report their true white noise (50 m) but carry 50 m / 30 s "
+            "multipath too, and every range carries our receiver clock (`receiver_clock: true`, "
+            "20 ppb drift), which `ekf` does not model (`pseudorange_receiver_clock` False). Its "
+            "barometer is drawn as white 0.5 m at 10 Hz plus one constant bias of sigma 1.0 m per "
+            "run (`sim.models.baro`); the filter is told the 0.5 m white part only. Rows: each "
+            "estimator with the receiver-clock switch as registered and the other way; scenario "
+            "variants: `nobaro` (no barometer in the sim: every later source's draws change, as "
+            "#228's ablation), `drop-baro` (the same records, the barometer's dropped before the "
+            "filter: paired), `barobias=0` (no bias).",
+            "",
+            ROW_HEAD,
+            *rows_of(rt),
+            "",
+        ]
     return "\n".join(out)
 
 
