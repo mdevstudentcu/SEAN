@@ -18,7 +18,7 @@ python analysis/lte_measured_noise.py <out>/*-lte --raw-root data/sessions
 python analysis/recite.py --write
 ```
 
-Every session uses the recorder's own `sdr_a.json`. Carriers with no cell found (nothing written): 2535 (both spots and the first spot), 5035, 5085, 68611.
+Every session uses the recorder's own `sdr_a.json`. Carriers with no cell found (nothing written; re-run at `e9a9053`): 2535, 5035, 5085 and 68611 in both `20261110-1610-static-site1-e*` and `20261110-1623-static-out-e*` (the `1610` 68611 IQ is 26.2 s), 68661, 68711 and 68761 in `1623` only, and `20261110-lte-outside-2535`.
 
 Against the first results (analysis at `2408c19`, front end at `3e97678` and `060445f`, run on the branch before its rebase-merge; under `src/` only the dashboard, `payload/gpsd.py` and `_attacks.yaml` differ from `e9a9053`): every SNR bin, cell, pair, track-break and Allan value is the same except the fit (below) and three values in the fourth significant figure: `20261110-1610-static-site1-e5255` PCI 175 white σ robust 10.08 → 10.09 m, `20261110-1759-static-out-long-e5060` PCI 4 white σ RMS 3.194 → 3.195 m (`summary.json`), and its 492 − 4 drift −0.1751 → −0.175 m/s (`summary.json`).
 
