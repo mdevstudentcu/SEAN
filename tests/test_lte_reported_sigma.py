@@ -1,19 +1,26 @@
 """A radio's LTE records report a sigma from timing statistics, which can't see multipath, so it
-can be far too small (#147). The filter learns the range noise of such records (`meta.rx_clock`)
-from their innovations, with the reported sigma as a lower bound only. Records without
-`rx_clock` (the simulator's) keep their reported sigma exactly.
+can be far too small (#147). The opt-in estimators (ADR-0039) learn the range noise of such
+records (`meta.rx_clock`) from their innovations, with the reported sigma as a lower bound only.
+Records without `rx_clock` (the simulator's) keep their reported sigma exactly, and the default
+estimators keep every record's reported sigma.
 
 Thresholds are regression guards with the observed values in comments, not requirements.
 """
 
 import numpy as np
 import pytest
+from msgspec.structs import replace
 
 from pnt.core.measurement import Measurement
-from pnt.nav import ekf
+from pnt.nav import ESTIMATORS, ekf
 
 TOWERS = np.array([[2000.0, 0, 50], [-1000, 1800, 60], [-900, -1700, 40], [300, 2500, 45]])
 OUTAGE_S = (90.0, 270.0)
+
+
+def learning(**config):
+    """The filter of `ekf-learned-noise`: learning on, with its memory."""
+    return ekf.EKF(noise_tau_s=ekf.NOISE_TAU_S, **config)
 
 
 def stream(rx_clock="a", told_m=2.0, white_m=10.0, multipath_m=10.0, tau_s=30.0, seed=1):
@@ -65,17 +72,19 @@ def outage_stats(estimates, truth):
 
 
 @pytest.mark.parametrize(
-    ("run", "observed"),
+    ("learner", "default", "observed"),
     [
         # (mean NEES, HPL bound rate) observed in the outage, seed 1: learned / reported believed
-        (ekf.run, ((1.67, 1.0), (59.7, 0.42))),
-        (ekf.run_calibrated, ((1.39, 1.0), (82.7, 0.27))),
+        ("ekf-learned-noise", "ekf", ((1.67, 1.0), (59.7, 0.42))),
+        ("ekf-calibrated-learned-noise", "ekf-calibrated", ((1.39, 1.0), (82.7, 0.27))),
     ],
 )
-def test_an_optimistic_reported_sigma_no_longer_makes_the_filter_overconfident(run, observed):
+def test_learning_the_noise_keeps_an_optimistic_sigma_from_making_it_overconfident(
+    learner, default, observed
+):
     records, truth = stream()  # 20 m of range error in all, reported as 2 m
-    learned = outage_stats(list(run(records)), truth)
-    told = outage_stats(list(run(records, noise_tau_s=None)), truth)
+    learned = outage_stats(list(ESTIMATORS[learner](records)), truth)
+    told = outage_stats(list(ESTIMATORS[default](records)), truth)
     # Regression guards with margin around the observed values, not requirements
     assert told[0] > 30.0 and told[1] < 0.6  # the failure this guards against
     assert learned[0] < 10.0 and learned[1] > 0.95
@@ -83,7 +92,7 @@ def test_an_optimistic_reported_sigma_no_longer_makes_the_filter_overconfident(r
 
 def test_an_honest_reported_sigma_is_learned_down_to():
     records, _ = stream(told_m=1.0, white_m=1.0, multipath_m=0.0)
-    f = ekf.EKF()
+    f = learning()
     for m in records:
         f.process(m)
     # Innovations no larger than the reported 1 m: the learned variance falls from the prior's
@@ -100,8 +109,8 @@ def test_a_cells_first_records_carry_the_prior_not_the_reported_sigma():
     """The reported 2 m counted as a sample let the first two records pin the dongle clock's
     drift, after which the gate rejected the cell for good (#147)."""
     records, _ = stream()
-    assert ekf.EKF().range_variance(lte(records)[0]) == pytest.approx(40.0**2)
-    assert ekf.EKF(noise_prior_m=25.0).range_variance(lte(records)[0]) == pytest.approx(25.0**2)
+    assert learning().range_variance(lte(records)[0]) == pytest.approx(40.0**2)
+    assert learning(noise_prior_m=25.0).range_variance(lte(records)[0]) == pytest.approx(25.0**2)
 
 
 def test_an_uncertain_state_does_not_pull_the_learned_noise_down():
@@ -109,7 +118,7 @@ def test_an_uncertain_state_does_not_pull_the_learned_noise_down():
     its large negative sample collapsed the learned variance to the reported sigma (#147)."""
     records, _ = stream()
     gps = [m for m in records if m.t_ns / 1e9 < 60.0]
-    f = ekf.EKF()
+    f = learning()
     for m in gps:
         f.process(m)
     m = next(m for m in lte(records) if m.t_ns / 1e9 >= 60.0)
@@ -124,7 +133,7 @@ def test_an_uncertain_state_does_not_pull_the_learned_noise_down():
 
 def test_without_gnss_the_learned_noise_never_shrinks():
     records, _ = stream()
-    f = ekf.EKF()
+    f = learning()
     last: dict[str, float] = {}
     for m in records:
         f.process(m)
@@ -140,7 +149,7 @@ def curvature_case(extra_sigma_m):
     """A radio record 30 s into the stream, after the position variance is raised by
     `extra_sigma_m` squared per axis. Returns (filter, record, sigma_perp^2, range r)."""
     records, _ = stream()
-    f = ekf.EKF()
+    f = learning()
     for m in [m for m in records if m.t_ns / 1e9 < 30.0]:
         f.process(m)
     m = next(m for m in lte(records) if m.t_ns / 1e9 >= 30.0 and m.emitter == "lte:0")
@@ -171,7 +180,44 @@ def test_a_range_too_curved_for_a_linear_update_is_not_used():
 
 def test_records_without_rx_clock_are_untouched():
     records, _ = stream(rx_clock=None)
-    plain = list(ekf.run(records, noise_tau_s=None))
-    assert list(ekf.run(records)) == plain
+    plain = list(ekf.run(records))
+    assert list(ESTIMATORS["ekf-learned-noise"](records)) == plain
     assert list(ekf.run(records, range_sigma_floor_m=50.0)) == plain
-    assert list(ekf.run_calibrated(records)) == list(ekf.run_calibrated(records, noise_tau_s=None))
+    calibrated = list(ekf.run_calibrated(records))
+    assert list(ESTIMATORS["ekf-calibrated-learned-noise"](records)) == calibrated
+
+
+@pytest.mark.parametrize("name", ["ekf", "ekf-calibrated", "ekf-mhss", "ekf-imu"])
+def test_default_estimators_keep_the_reported_sigma(name, monkeypatch):
+    """Opt-in only (ADR-0039): on a radio's records whose reported sigma changes from record to
+    record, a default estimator gives exactly the output of a filter whose range noise is the
+    reported sigma squared, that learns nothing and that uses every range."""
+    records, _ = stream()
+    records = [
+        m if m.kind != "pseudorange" else replace(m, sigma=(2.0 + (m.t_ns // 10**9) % 3,))
+        for m in records
+    ]
+    default = list(ESTIMATORS[name](records))
+
+    def reported(self, m, mp):
+        return m.sigma[0] ** 2
+
+    def never(self, *args):
+        raise AssertionError("a default estimator learned a range noise or its curvature")
+
+    monkeypatch.setattr(ekf.EKF, "range_noise", reported)
+    monkeypatch.setattr(ekf.EKF, "_learn_noise", never)
+    monkeypatch.setattr(ekf.EKF, "range_curvature", never)
+    assert list(ESTIMATORS[name](records)) == default
+
+
+def test_the_learning_estimators_are_opt_in():
+    assert ESTIMATORS["ekf"] is ekf.run
+    assert ESTIMATORS["ekf-calibrated"] is ekf.run_calibrated
+    assert "noise_tau_s" not in ekf.CALIBRATED
+    assert ekf.EKF().noise_tau_ns is None
+    assert ESTIMATORS["ekf-learned-noise"].keywords == {"noise_tau_s": ekf.NOISE_TAU_S}
+    learned = ESTIMATORS["ekf-calibrated-learned-noise"]
+    assert learned.keywords == {"noise_tau_s": ekf.CALIBRATED_NOISE_TAU_S}
+    records, _ = stream()
+    assert list(learned(records)) != list(ekf.run_calibrated(records))  # it does learn
