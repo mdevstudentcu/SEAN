@@ -1,4 +1,4 @@
-# Accuracy budget: error after GPS loss against masts heard (#173)
+# Carrier hopping study: error after GPS loss against masts heard (#173)
 
 Sim, every value `TBC`. `python analysis/accuracy_budget.py --seeds 20 --jobs 3` at fb62912, seeds 0–19 (paired), 81.6 min. Scenarios `challenge-drone-outage` and `challenge-drone-hop-outage`, the drone leg's 600 s outage; filters unchanged. Targets (`TBC`): the mentors' 50 m at 120 s (#158) and our T1, 25 m at 300 s, both p95 horizontal error after GPS loss.
 
