@@ -92,6 +92,15 @@ class Config:
     # #183, 20261110-1305-lte-outside: PCI 268's own path had PSS/SSS 0.7; the PSS of PCI 244,
     # 3 µs ahead on the same root, 3.7 (7 dB more).
     first_path_ratio_db: float = 3.0
+    # And it must clear this many times the profile's interference floor, TBC: the mean power
+    # of the averaged delay profile (its median over the whole cyclic grid, / ln 2). The
+    # reserved-bin noise does not see the other cells' PSS and SSS, which arrive with ours in a
+    # frame-synchronised network and correlate with our sequences at every delay; being static,
+    # that floor does not average down, and its bins are exponential: 10x its mean is passed by
+    # chance with p 4.5e-5 per bin. Without it, on the real static captures 20261111-0151 and
+    # -0233, a faded cell moved 1.6 to 7.6 samples earlier every 200 ms onto that floor: 351
+    # first-path moves in 600 s on 0151, each a new arc, the "re-acquisition" steps of #214.
+    first_path_floor: float = 10.0
     # Regression guard, TBC: about one normal CP. A re-found cell this close to its prediction
     # moved to another path; beyond it, without host stamps, the jump counts as dropped samples.
     max_path_jump_us: float = 5.0
@@ -582,7 +591,7 @@ class _Track:
         gate = np.arange(-gi, gi + 1)
         win = np.arange(-int(round(cfg.first_path_us * 1e-6 * fs * cfg.interp)), gi + 1)
         # First-path profiles: combined, SSS alone and PSS alone (see `_earlier_path`)
-        prof_acc, prof_n = np.zeros((3, win.size)), 0
+        prof_acc, prof_n, interf_acc = np.zeros((3, win.size)), 0, 0.0
         e_win = np.exp((2j * np.pi / self.n_u) * np.outer(_K, win / cfg.interp))
         detect = 10 ** (cfg.detect_snr_db / 10)
         noise_ema = snr_ema = re_ema = None
@@ -639,6 +648,9 @@ class _Track:
                 ],
                 axis=1,
             )
+            # Interference floor per epoch: the profile's mean power from its median over the
+            # whole grid, at whole samples (independent bins), see `first_path_floor`.
+            interf = np.median(np.abs(prof[:, :: cfg.interp]) ** 2, axis=1) / math.log(2)
             if noise_ema is None:
                 noise_ema = float(np.median(noise))
             action = None
@@ -710,10 +722,13 @@ class _Track:
                     cell.epochs.append(ep)
                 last, good, last_seen = ep, st.copy(), float(bounds[r])
                 prof_acc += power[r]
+                interf_acc += float(interf[r])
                 prof_n += 1
                 if prof_n >= cfg.first_path_epochs:
-                    shift = self._earlier_path(prof_acc / prof_n, win, noise_ema)
-                    prof_acc[:], prof_n = 0, 0
+                    shift = self._earlier_path(
+                        prof_acc / prof_n, win, noise_ema, interf_acc / prof_n
+                    )
+                    prof_acc[:], prof_n, interf_acc = 0, 0, 0.0
                     if shift:
                         st.theta += shift
                         if settled:
@@ -831,7 +846,9 @@ class _Track:
                        if snr_ema is not None else float("nan"))  # fmt: skip
         return st
 
-    def _earlier_path(self, profs: np.ndarray, win: np.ndarray, noise: float) -> float:
+    def _earlier_path(
+        self, profs: np.ndarray, win: np.ndarray, noise: float, interf: float = 0.0
+    ) -> float:
         """Shift (samples, < 0) to an earlier path in the averaged power profiles, or 0.
 
         `profs` holds the tracked (combined), SSS-only and PSS-only power profiles. A local
@@ -841,7 +858,13 @@ class _Track:
         two conditions must also hold in the SSS alone and in the PSS alone, and the PSS-to-SSS
         power ratio there must be the tracked path's within `first_path_ratio_db`: a path of
         this cell is a copy of both, while an earlier cell sharing the PSS root is mostly PSS
-        and another cell's SSS sidelobe mostly SSS (#183)."""
+        and another cell's SSS sidelobe mostly SSS (#183).
+
+        Two more guards: the peak must clear `first_path_floor` times `interf`, the combined
+        profile's interference floor (mean power per delay), and it must be the largest value
+        within the code gate around it, so that the loop can track it once moved there. A peak
+        on the tracked path's skirt cannot be: on 20261111-0151 PCI 92 moved -2.4 samples onto
+        one, slid back, was re-found on its old path and moved again, 4 times in 7 s."""
         cfg = self.cfg
         prof = profs[0]
         zero = int(np.nonzero(win == 0)[0][0])
@@ -859,7 +882,11 @@ class _Track:
             & (v >= rel * top)
             & (v >= cfg.first_path_sidelobe * side[i] * top)
             & (v >= 4 * floor)
+            & (v >= cfg.first_path_floor * interf)
         )
+        gi = int(round(cfg.gate_samples * cfg.interp))
+        pad = np.r_[np.zeros(gi), prof, np.zeros(gi)]  # pad[i + gi] is prof[i]
+        ok &= v >= np.lib.stride_tricks.sliding_window_view(pad, 2 * gi + 1)[i].max(axis=1)
         for one in profs[1:]:  # and in the SSS and the PSS alone
             top_1 = one[near].max()
             ok &= (one[i] >= rel * top_1) & (one[i] >= cfg.first_path_sidelobe * side[i] * top_1)
