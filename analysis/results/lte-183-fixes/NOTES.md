@@ -1,6 +1,6 @@
 # #183 front-end fixes on real captures
 
-Evidence: **real sessions**, static, payload Pi, one NESDR (`sdr_a`), 14 captures from 2026-11-10/11 (EARFCN 2460, 2535, 5145, 5255). Before: front end at `c21e047` (`main`). After: the #183 branch (commit named in the PR). Raw IQ stays in `data/sessions/` (not in git); `20261111-0233-static-lte-1h` was read in place from the USB drive. No receiver position, distance or bearing is computed or written here.
+Evidence: **real sessions**, static, payload Pi, one NESDR (`sdr_a`), 14 captures from 2026-11-10/11 (EARFCN 2460, 2535, 5145, 5255). Before: front end at `c21e047` (`main`). After: `baf6eda` (`main`; run at its #245 branch twin, same `src/`). Raw IQ stays in `data/sessions/` (not in git); `20261111-0233-static-lte-1h` was read in place from the USB drive. No receiver position, distance or bearing is computed or written here.
 
 Files: `table.md` (per session and per cell, before → after), `cells.json` (the same, per cell), `before_after.png`.
 
@@ -33,7 +33,7 @@ The per-capture JSONs were made by the same per-cell code as `cell_stats` in a s
 
 ## ADR-0036's noise numbers: would they move?
 
-ADR-0036 was measured on 15 sessions; 3 are on the laptop (`20261110-1305-lte-outside`, `-5145`, `-5255`). They and `0151` were re-run through `pnt frontend lte --no-copy` at `c21e047` and at the branch (its `src/` then differed from the final commit only by one `ruff format` line wrap), then through `analysis/lte_measured_noise.py` and `analysis/lte_capture_report.py` (both unchanged, at `c21e047`). Yes, several move:
+ADR-0036 was measured on 15 sessions; 3 are on the laptop (`20261110-1305-lte-outside`, `-5145`, `-5255`). They and `0151` were re-run through `pnt frontend lte --no-copy` at `c21e047` and at an earlier #245 branch commit (its `src/` then differed from `baf6eda`'s only by one `ruff format` line wrap), then through `analysis/lte_measured_noise.py` and `analysis/lte_capture_report.py` (both unchanged, at `c21e047`). Yes, several move:
 
 | Quantity (`lte_measured_noise.py`) | Before | After |
 |---|---|---|
