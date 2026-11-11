@@ -1,6 +1,8 @@
 """A detected GNSS position jump is refused, not followed (#184, REQ-04)."""
 
 import copy
+import importlib.util
+from pathlib import Path
 from types import SimpleNamespace
 
 import msgspec
@@ -113,3 +115,43 @@ def test_clean_runs_are_unchanged(estimator):
     a = [msgspec.structs.astuple(e) for e in fn(run.measurements, origin_llh=spec["origin_llh"])]
     b = [msgspec.structs.astuple(e) for e in off(run.measurements, origin_llh=spec["origin_llh"])]
     assert repr(a) == repr(b)
+
+
+# The manoeuvre sweep (analysis/guard_manoeuvre.py, ADR-0038): GNSS-only CV filter, honest GNSS,
+# a hard manoeuvre at 20 s. These pin today's behaviour, lock-outs included; they are not targets.
+_SPEC = importlib.util.spec_from_file_location(
+    "guard_manoeuvre", Path(__file__).resolve().parents[1] / "analysis" / "guard_manoeuvre.py"
+)
+manoeuvre = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(manoeuvre)
+# The gate alone takes honest GNSS back; the guard latches on the manoeuvre and keeps it out to
+# the end of the run (all at 1 Hz, where the stream's own track is short)
+LOCKED_OUT = {
+    "accel 5.0 m/s^2 x 4 s, 1 Hz",
+    "accel 5.5 m/s^2 x 4 s, 1 Hz",
+    "accel 6.0 m/s^2 x 4 s, 1 Hz",
+    "turn 90 deg at 10 m/s, 1 Hz",
+    "turn 45 deg at 20 m/s, 1 Hz",
+}
+# Lost with or without the guard: the coast keeps the old velocity and drifts away faster than
+# its covariance grows, so the gate never takes GNSS back either (on main too)
+BOTH_LOST = {
+    *(f"accel {a} m/s^2 x 4 s, {r} Hz" for a in (7.0, 7.5, 8.0, 8.5, 9.0) for r in (5, 1)),
+    "accel 6.5 m/s^2 x 4 s, 1 Hz",
+    "turn 180 deg at 10 m/s, 1 Hz",
+    "turn 90 deg at 15 m/s, 1 Hz",
+    *(f"turn 180 deg at 15 m/s, {r} Hz" for r in (5, 1)),
+    *(f"turn {d} deg at 20 m/s, {r} Hz" for d in (90, 180) for r in (5, 1)),
+}
+
+
+@pytest.mark.parametrize("name", list(manoeuvre.CASES))
+def test_honest_gnss_after_a_hard_manoeuvre(name):
+    gate, _ = manoeuvre.outcome(name, guard=False)
+    guard, latches = manoeuvre.outcome(name, guard=True)
+    assert gate == (name not in BOTH_LOST)
+    assert guard == (name not in LOCKED_OUT | BOTH_LOST)
+    if name in LOCKED_OUT:
+        assert latches == 1  # latched on the manoeuvre, never released
+    elif guard:
+        assert latches == 0
