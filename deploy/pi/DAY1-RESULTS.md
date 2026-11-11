@@ -46,15 +46,9 @@ First full-suite session. Recorded at `4d3598b` (local commit; its change is on 
 | 3 | 400.80 | 8.39 | 401.22 | 8.23 |
 | 4 | 430.89 | 1.36 | 431.35 | 1.17 |
 
-Each gap starts within 0.5 s on both radios and lasts about as long. Roughly 17 s of the 10 min is lost on each radio (2.9 %). A cause shared by both radios, not by one dongle, fits this: a write stall on the SD card is the likely one (`TBC`: not shown directly). CPU (5.7 % mean) and memory (3427 MB available) were far from their limits, and the record queue dropped nothing.
+Each gap starts within 0.5 s on both radios and lasts about as long. Roughly 17 s of the 10 min is lost on each radio (2.9 %). The cause is shared by both radios, not one dongle. CPU (5.7 % mean) and memory (3427 MB available) were far from their limits, and the record queue dropped nothing. The re-record below, with the IQ on a USB drive, had no gap, which points to SD-card write stalls.
 
-Options, for the owners (no decision here):
-
-- **One radio at a time:** halves the write rate (3.84 or 4.8 MB/s). It loses the simultaneous LTE and ADS-B capture.
-- **A lower sample rate:** less data per second on the card. Which rate each decoder still works at is `TBD` (readsb was run at 2.4 MS/s only).
-- **Faster storage:** a USB SSD (ADR-0018 already allows one on a USB 3 port, shielded and away from the GPS antenna, RSK-06) or a faster A2 card. It needs a rerun of this test to show the gaps are gone.
-
-For the board capture profile (`capture-pi4b`, [`REHEARSAL.md`](REHEARSAL.md), #53), from this session: 4 gap events in 10 min on both radios together (0.4 per min if a shared stall counts once, 0.8 per min if each radio's counts), mean gap 4.3 s (1.2 to 8.4 s). The committed placeholders are 0.2 per min and 0.05 s. The profile is not changed here: stream loss was not measured (no laptop recording of the stream), and the profile belongs to #53.
+The board capture profile (`capture-pi4b`, [`REHEARSAL.md`](REHEARSAL.md), #53) takes its gap rate and length from this session.
 
 ### ADS-B: the FlightStick overloads at auto gain
 
@@ -64,4 +58,33 @@ readsb decoded **0 frames** from SDR B's 9 min 42 s capture: `frames-avr.txt` is
 
 - USB current (DPS-150).
 - Stream loss to the laptop.
-- Whether the gaps come from the SD card: a run with faster storage, or with one radio, would show it.
+
+## `20261111-0151-static-fullsuite2` (2026-11-11)
+
+Re-record, 01:51–02:01, recorded at `c007627` (on `origin/shrikar/feat/readsb-setup`). Laptop `pnt day1` at `1389832` on the copied session; the copy's SHA-256 matched the drive (coordinator's check). Same setup as 0040 except:
+
+- IQ to a SanDisk USB 3.2 Gen 1 drive (ext4) on the USB 2 bus, mounted at `/mnt/pntdata`
+- the LTE antenna taped upright
+- the FlightStick at a fixed 38.6 dB
+
+| Quantity | 0040 (SD card) | 0151 (USB drive) |
+| --- | --- | --- |
+| SDR A gaps; IQ kept | 4; 582.3 s of 599.4 s | 0 (`gaps` and `gaps_suspected` empty); 599.4 s |
+| SDR B gaps; IQ kept | 4; 582.4 s of 599.5 s | 0; 599.4 s |
+| SDR A / B latency above envelope p99 (ms) | 312.1 / 120.7 | 4.0 / 14.2 |
+| SDR A / B latency above envelope max (ms) | 1231.9 / 990.1 | 524.0 / 558.8 |
+| SDR A / B rate against host (ppm) | −2.397 / +19.813 | +0.772 / +23.116 |
+| IMU samples; jitter std / p99 / max (ms) | 59,803; 0.743 / 1.602 / 28.429 | 59,863; 0.675 / 1.369 / 27.712 |
+| IMU intervals > 1.5× nominal | 222 | 186 |
+| GNSS fixes; barometer samples | 600; 5,998 | 601; 5,999 |
+| PPS offset mean / std / max (µs) | 0.304 / 14.456 / 38.186 | −5.184 / 4.411 / 19.513 |
+| chrony RMS offset mean / max (µs) | 154.7 / 260.0 | 11.1 / 20.6 |
+| CPU mean / max | 5.7 / 16.5 % | 6.0 / 14.7 % |
+| Max SoC temperature; throttled | 31.6 °C; `0x0` | 30.2 °C; `0x0` |
+| Min available memory | 3427 MB | 3476 MB |
+| Records dropped (queue) | 0 | 0 |
+| Camera | not in the session | failed: `rpicam-vid exited with 255` (no camera fitted, `TBC`) |
+
+**Storage:** the gaps went away with the USB drive. One 10 min run with no gap bounds the drive's gap rate below about 0.3 per minute (95 %); it does not show zero. Which storage the payload records to is an owner decision: [ADR-0042](../../systems/adr/0042-record-iq-to-usb-drive.md) (Proposed) lays out the options with this evidence.
+
+**ADS-B:** at a fixed 38.6 dB the FlightStick capture still holds impulsive interference that comes in through the antenna (#211). With the antenna unscrewed, the share of samples above 30× the median fell from 5.0 % to 0.02 %. That was measured on the Pi by the coordinator and is not re-checked here. Whether readsb decodes frames from this capture is not checked here.
