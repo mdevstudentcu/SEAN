@@ -29,6 +29,17 @@ Every item in this file meets these, and anything added later must too. An item 
 | Pi Zero 2 W hub (ADR-0018) | In hand: nothing to buy | — |
 | Ground reference station (ADR-0020) | Not bought: it stays in sim (ADR-0020, *Amendment 2026-11-10*) | — |
 
+## Size, weight and power
+
+Not measured yet. Whoever has the assembled payload fills in both rows: the number, the date and the session name. Do not estimate.
+
+| Quantity | Value | Measured on | How |
+| --- | --- | --- | --- |
+| Weight, payload as flown (Pi 4B, GPS HAT, both SDRs, sensors, antennas and cables) | `TBD` g | `TBD` | Weigh the assembled payload with its antennas and cables on a kitchen scale that reads to 1 g. Write the reading here |
+| Current draw at 5 V, average and peak | `TBD` A avg, `TBD` A peak | `TBD` | Put a USB power meter (or the DPS-150, section 4) in line with the Pi's supply and run `bash deploy/pi/day1.sh 10` (a 10-minute `pnt record`, both SDRs). Read average and peak current; write them here with the session name |
+
+Size: `TBD`. These numbers feed H3 in [`safety.md`](../systems/safety.md#hazard-analysis) and the USB-current question under *Open decisions*.
+
 ## In hand
 
 Checked 2026-11-09 evening, updated 2026-11-10. Everything else in this file is still on order or `TBD`.
