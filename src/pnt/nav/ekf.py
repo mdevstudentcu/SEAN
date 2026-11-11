@@ -148,7 +148,8 @@ Hostile beacon (`hostile`, off by default, #93, ADR-0025 Proposed): a located ja
 power (`rssi` records with `meta.hostile`) as a low-trust coarse range, behind a promotion gate
 and a weight cap (`nav/hostile.py`). Off, those records are dropped before any prediction, so the
 output is exactly as without them. Its health key is `hostile:<emitter>`, never `gnss`.
-Jump guard (#184, `pnt.integrity.jump_guard`; `jump_guard=None` turns it off). Without it the
+Jump guard (#184, `pnt.integrity.jump_guard`; opt-in: `jump_guard=JumpGuard` turns it on, as in
+`ekf-guard`, `ekf-imu-guard` and `ekf-calibrated-guard`; ADR-0038). Without it the
 gate rejects a jumped GNSS fix only until the coasting covariance has grown enough to accept it.
 With it, a fix that jumps away from both the GNSS stream's own track and the filter, while GNSS
 steers the position, is refused, with the fixes after it, until the stream steps back. Until it
@@ -248,7 +249,7 @@ class EKF:
         motion: str = "cv",  # or "imu" (stage 2, nav/imu.py)
         imu: Mapping | None = None,  # ImuMotion options when motion="imu"
         hostile: Mapping | None = None,  # BeaconParams options: use hostile beacons (#93)
-        jump_guard: Callable[[], JumpGuard] | None = JumpGuard,  # refuse GNSS jumps; None: off
+        jump_guard: Callable[[], JumpGuard] | None = None,  # JumpGuard: refuse GNSS jumps (#184)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")

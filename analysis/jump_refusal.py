@@ -20,8 +20,8 @@ Cases per leg: the leg's `spoof-jump` entry with the jump set to 25, 50, 100 or 
 Variants, run on the same records (same seed, paired):
 - `ekf | main`, `ekf-calibrated | main`: the estimator with `jump_guard=None`, the code path
   `main` runs (byte-identical estimates, checked in the PR).
-- `ekf | undo`, `ekf-calibrated | undo`: the registered estimators, with the jump guard's default
-  rule (`pnt.integrity.jump_guard`).
+- `ekf | undo`, `ekf-calibrated | undo`: the opt-in `ekf-guard` and `ekf-calibrated-guard`,
+  with the jump guard's default rule (`pnt.integrity.jump_guard`).
 - `ekf | never`, `ekf | lr`: the alternative re-admission rules, for the owners' choice.
 
 Seeds 0 to N-1 are the reported seeds; nothing was chosen on them (the thresholds are derived in
@@ -74,7 +74,7 @@ BLUE, ORANGE, INK, GRID = "#2a78d6", "#eb6834", "#52514e", "#e4e3df"
 def estimator_of(variant: str):
     name, rule = (s.strip() for s in variant.split("|"))
     if rule == "undo":
-        return ESTIMATORS[name]
+        return ESTIMATORS[f"{name}-guard"]
     fn = ekfmod.run if name == "ekf" else ekfmod.run_calibrated
     guard = None if rule == "main" else partial(JumpGuard, readmit=rule)
     return configured(fn, jump_guard=guard)
@@ -261,7 +261,7 @@ def summary(rows: list[dict], meta: dict) -> str:
         "seeds 100–109.",
         "",
         "`main` = the estimator with the jump guard off (the code path `main` runs); `undo` = "
-        "the registered estimator, which now refuses a detected jump until it is undone; "
+        "the opt-in `-guard` estimator, which refuses a detected jump until it is undone; "
         "`never` and `lr` = the alternative re-admission rules (`ekf` only). `drone` is the "
         "`challenge-drone` leg as committed, `many` the same with every sector within 3 km "
         "heard, `timing` the `challenge-timing` leg. The jump is east, from 150 s.",
