@@ -18,7 +18,7 @@ p12-drone-map-handoff, ekf-calibrated, 20 seeds (sim), pooled over seeds
 | map, age 1200 s | 252.0 | 357.3 | 184.3 | 232.3 | 345.4 (seed 11) | 1.000 | 0 | 0 |
 | map, age 1800 s | 234.3 | 309.9 | 184.6 | 244.6 | 288.9 (seed 11) | 1.000 | 0 | 0 |
 
-## After: branch `60f3eb1` (guarded build, withheld if flagged)
+## After: `f234749` on `main` (guarded build, withheld if flagged)
 
 p12-drone-map-handoff, ekf-calibrated, 20 seeds (sim), pooled over seeds
 | case | T1 stat 0-120 s (m) | T1 stat 0-300 s (m) | pooled p95 0-120 s (m) | pooled p95 0-300 s (m) | worst seed p95 0-300 s (m) | HPL >= error, 0-300 s | misleading | hazardous | map withheld |
@@ -33,6 +33,6 @@ p12-drone-map-handoff, ekf-calibrated, 20 seeds (sim), pooled over seeds
 
 Every number is the same: no honest build latched the guard or raised `spoof_suspected`, so no
 map was withheld, and a guard that never latches changes nothing (ADR-0038). The spoofed-drone
-cases are in `analysis/results/p12-spoofed-map/summary.md` (same 20 seeds, commit `60f3eb1`):
+cases are in `analysis/results/p12-spoofed-map/summary.md` (same 20 seeds, commit `f234749`):
 every user and drone number there is unchanged against main's (commit `100b2f4`); the new
 `map withheld` cell for the honest map is 0/20.

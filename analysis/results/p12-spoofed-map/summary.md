@@ -1,6 +1,6 @@
 # P12 with a spoofed drone (#96)
 
-p12-drone-map-handoff and its spoofed-drone variants, ekf-calibrated user, 20 seeds (sim), seeds 0-19, commit 60f3eb1. `python analysis/p12_spoofed_map.py --runs 20 --jobs 3 --out analysis/results/p12-spoofed-map`.
+p12-drone-map-handoff and its spoofed-drone variants, ekf-calibrated user, 20 seeds (sim), seeds 0-19, commit f234749. `python analysis/p12_spoofed_map.py --runs 20 --jobs 3 --out analysis/results/p12-spoofed-map`.
 
 ## Does the drone flag its own GNSS during the build?
 
