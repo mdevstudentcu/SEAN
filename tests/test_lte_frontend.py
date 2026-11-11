@@ -51,6 +51,14 @@ def splice(tmp, name, first, second, at_s, dur, snr, seed=1, **sidecar):
     return capture.write_capture(tmp / f"{name}.cu8", capture.complex_to_cu8(z), meta)
 
 
+def epoch_boundaries(result, tower, fs=FS):
+    """Tracker frame-boundary estimate (corrected sample index) for each 5 ms epoch, in the
+    order `epoch_errors` gives them."""
+    L = sig.half_frame_length(fs)
+    return np.array([cell.n0 + e.k * L + e.theta_meas for cell in result.cells
+                     if cell.pci == tower.pci for e in cell.epochs])  # fmt: skip
+
+
 def epoch_errors(result, tower, fs=FS):
     """Tracker frame-boundary estimate minus truth, samples, for each 5 ms epoch."""
     L = sig.half_frame_length(fs)
@@ -230,14 +238,28 @@ def test_sample_drop_is_detected_and_sized(tmp_path, stamped):
 
 
 @pytest.mark.parametrize("n", [12_000, 131_072])
-def test_unstamped_drop_past_half_a_frame_is_still_flagged(tmp_path, n):
+@pytest.mark.parametrize("seed", [1, 2, 3])
+def test_unstamped_drop_past_half_a_frame_is_still_flagged(tmp_path, n, seed):
     # n mod 19200 > 9600 looks like the cell arriving late. 131072 is rtl_sdr's default buffer.
+    # At 0 dB a noise epoch after the drop can pass the detect gate (`detect_snr_db`) and reset
+    # the miss count, so the loss, and the gap, may be seen a few half-frames late: on noise
+    # seeds 1-20 up to 4.3 half-frames, with those noise epochs up to 1.35 samples off. Where
+    # the gap lands is therefore checked to within that, and the timing outside it (#183).
     at = int(0.6 * FS) + 777
-    r = process_file(write(tmp_path, "gap", [TOWER], 1.3, 0.0, drops=((at, n),)))
+    L = sig.half_frame_length(FS)
+    r = process_file(write(tmp_path, "gap", [TOWER], 1.3, 0.0, drops=((at, n),), seed=seed))
     assert len(r.gaps) == 1
     g = r.gaps[0]
-    assert g.ambiguous and g.n == n % (2 * sig.half_frame_length(FS)) and g.at <= at
-    assert np.max(np.abs(epoch_errors(r, TOWER))) < 1.0  # regression guard: timed right after it
+    assert g.ambiguous and g.n == n % (2 * L)
+    assert at - L <= g.at <= at + 6 * L  # regression guard: up to 4.3 half-frames late seen
+    # Epochs whose sync windows (up to `span` samples after the boundary) touch the stretch
+    # between the drop and the flagged gap are the noise ones above; every other is timed right.
+    span = sig.samples(sig.PSS_OFFSET_TS, FS) + sig.useful_length(FS)
+    err = epoch_errors(r, TOWER)
+    b = epoch_boundaries(r, TOWER)
+    f = np.where(b < g.at, b, b - g.n)  # file index of each epoch's boundary
+    noisy = (f + span > at) & (f < g.at)
+    assert np.max(np.abs(err[~noisy])) < 1.0  # regression guard: timed right after it
     pr = [m for m in r.measurements if m.kind == "pseudorange"]
     assert sum("gap_ambiguous" in m.meta["flags"] for m in pr) == 1
     assert {m.meta["arc"] for m in pr} == {0, 1}
