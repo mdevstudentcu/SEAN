@@ -2,7 +2,7 @@
 
 **The pitch in one line:** a navigation layer that knows when it is wrong, and tells the operator not to trust it.
 
-Seven slides, 249 s, 512 words of script, 16 numbers spoken. Seconds are the words at 2.1 a second, except the demo, which the panel's clock sets at 80 s. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md) (*Numbers the deck speaks or shows*).
+Seven slides, 251 s, 516 words of script, 16 numbers spoken. Seconds are the words at 2.1 a second, except the demo, which the panel's clock sets at 80 s. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md) (*Numbers the deck speaks or shows*).
 
 **Three rules on stage.** Say "simulated" whenever a number is simulated. Say "consistent with a registered site", never "identified". Never say "first": say "we found no published…".
 
@@ -14,8 +14,8 @@ Seven slides, 249 s, 512 words of script, 16 numbers spoken. Seconds are the wor
 | 4 | Real signals | 26 | 54 | 2 |
 | 5 | Where we miss, and what closes the gap | 45 | 95 | 7 |
 | 6 | Every source can lie | 32 | 67 | 1 |
-| 7 | Roadmap | 24 | 51 | 1 |
-| | **Total** | **249** | **512** | **16** |
+| 7 | Roadmap | 26 | 55 | 1 |
+| | **Total** | **251** | **516** | **16** |
 
 Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute, within two metres (3); seven-tenths of a metre, eight metres (4); two metres, thirteen carriers, ninety-five percent, fifty, a hundred and thirty-two metres, five minutes, twenty-five (5); fifty-nine (6); a hundred and seventy dollars (7).
 
@@ -50,7 +50,7 @@ Numbers spoken: three hundred metres (1); five seconds, three hundred metres, ha
 
 Fallback: the script no longer says the laptop "fuses everything": today the default filter rejects nearly every tower reading (slide 5). "Error bound" means a bound under our model (slide 6).
 
-**If asked:** Q4 (where towers are), Q10 (legal).
+**If asked:** Q4 (where towers are), Q10 (legal), Q21 (who else does this).
 
 ## 3. Live demo
 
@@ -65,7 +65,7 @@ Fallback: the script no longer says the laptop "fuses everything": today the def
 
 If Enter comes too early in segment 2, carry on and show `jump-3-followed.png` afterwards (runbook *Fallbacks*). The guard is opt-in, not our default: say so if asked.
 
-Room for one more segment: a demo of the towers helping (learned noise and hopping, sim study) may be added (#266). No script here. It would add about 25 s: 274 s in all at this pace, inside #268's 4 min 45 s.
+Room for one more segment: a demo of the towers helping (learned noise and hopping, sim study) may be added (#266). No script here. It would add about 25 s: 276 s in all at this pace, inside #268's 4 min 45 s.
 
 **If asked:** one seed is not a statistic (Q9 has the 50-run numbers; the guard still has hazardous epochs on 3 of 50 seeds); Q16 (did towers contribute); Q19 (GPS returning after an outage).
 
@@ -131,26 +131,31 @@ Fallback: #247 is a draft on unmerged branches; if a judge asks, say so. The sta
 
 Source: sky-map decision, #239 (merged, #250; ADR-0041 Accepted), [`summary.md`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/summary.md): real session `20261111-0040-static-fullsuite`, fake sky from 300 s, 59 of 59 faked skyviews flagged (suspect or spoofed) for each of three fake skies; 0 false alarms in 120 real skyviews. Bound: #251 (draft, verdict Not ready), `challenge-drone-outage`, 1 carrier, seeds 0–199: 45.33 % of epochs above HPL from GPS loss for `ekf`, 0.45 % for the opt-in `ekf-honest`; single runs still escape (worst 18.5 %); the 2 m/s ramp escapes every filter (99.3 %). The tower-time rule is our design (ADR-0024); the refutation of GPS time by tower time is planned, not built (Q11).
 
-**If asked:** Q6 (the 5.33 bound), Q11 (what is new), Q7 (slow drag), Q8 (false alarms).
+**If asked:** Q6 (the 5.33 bound), Q11 (what is new), Q7 (slow drag), Q8 (false alarms), Q24 (detect but not mitigate).
 
 ## 7. Roadmap
 
-**Headline:** A first user, radios and antennas under CAD 170, and three milestones that each end in evidence.
+**Headline:** The product is a receive-only GPS trust monitor that warns the autopilot; we found none on sale that checks GPS against cell towers, and no vendor publishing false alarms per flight hour.
 
 **On the slide:**
-- First user: an operator of inspection or delivery drones on an urban corridor over Ottawa, below 120 m.
-- Radios and antennas: under CAD 170; the full payload is not yet priced, weighed or power-measured.
-- Milestones: flights with independent truth → fault statistics from many hours of data → a multi-frequency receiver with a first operator. Details: [`roadmap.md`](roadmap.md).
+- **Product:** a receive-only GPS trust monitor. It checks GPS against cell towers and warns the autopilot. Today it flags on a ground laptop; the output to the autopilot is not built.
+- **Gap (our market search, 2026-11-11):** we found no spoof detector on sale that cross-checks GPS against cell towers, and no vendor publishing false alarms per flight hour.
+- **First buyers (proposed; none approached):** Canadian operators flying beyond line of sight, drone-show operators, a defence test slot.
+- **Proof it needs:** detection rate and delay on recorded spoofing; false alarms per hour over clean flight hours; one live-jamming event at an authorised event.
+- **Cost:** radios and antennas under CAD 170; the full payload is not yet priced, weighed or power-measured.
+- Milestones, each ending in evidence: [`roadmap.md`](roadmap.md).
 
 **Figure:** the error-against-masts-heard figure of the carrier hopping study ([`analysis/results/hopping-study/error_vs_masts.png`](../analysis/results/hopping-study/error_vs_masts.png), #179 merged via #250; simulation).
 
-**Script (51 words, 24 s):**
-> Our first user: an operator of inspection or delivery drones over a city. The radios and antennas cost under a hundred and seventy dollars; the full payload is not yet priced or weighed. Next: flights with independent truth, fault statistics from many hours of data, then a multi-frequency receiver. Thank you.
+**Script (55 words, 26 s):**
+> The product we found nobody selling: a receive-only monitor that checks GPS against cell towers, warns the autopilot, and publishes false alarms per flight hour. First buyers: beyond-line-of-sight operators, drone shows, defence trials. Unproven: recorded spoofing, clean flight hours, authorised live jamming. Radios and antennas: under a hundred and seventy dollars; payload unpriced. Thank you.
 
-Source: [`hardware/bom.md`](../hardware/bom.md): radios and antennas CAD 169.54 as bought; Pi, GPS HAT, IMU and barometer supplied, price `TBD`; weight and current draw `TBD`.
+Fallback: "beyond-line-of-sight" counts as one word here and is four when spoken: counted that way the script is 58 words, 28 s, and the talk 253 s. "Found nobody selling" is the result of a search, not proof that none exists: if pressed, say "we found none". Say nothing about Honeywell's products on stage.
 
-**If asked:** Q13 (a month), Q14 (certification), Q18 (who buys, what altitude), Q3 (a regional jam).
+Source: `reports/sources-research-20261111.md` on `main` (#271), research by another session, not a decision. Gap: section 10.1 (*checked*: no funded company found selling cellular opportunistic navigation for drones; receivers with built-in spoof flags publish no false-alarm rates), 10.2 and 17.10 (the report's summary of that search, no evidence label of their own). Product, buyers and proof: section 10.5, the report's own ranking, a proposal; product direction is an owners' decision (#279, item 4; #273). Cost: [`hardware/bom.md`](../hardware/bom.md): radios and antennas CAD 169.54 as bought; Pi, GPS HAT, IMU and barometer supplied, price `TBD`; weight and current draw `TBD`.
+
+**If asked:** Q21 (who else does this), Q18 (who buys, what altitude), Q8 (our own false alarms), Q13 (what next, in what order), Q14 (standards), Q23 (patents), Q24 (detect but not mitigate), Q22 (why not satellites), Q3 (a regional jam).
 
 ---
 
-*Status: 2026-11-11, seven slides (#268) against `main` at `2499f87`; numbers from `main` and the named PRs; demo cues from PR #220 (open).*
+*Status: 2026-11-11, seven slides (#268) against `main` at `2499f87`; numbers from `main` and the named PRs; demo cues from PR #220 (open). Slide 7 rewritten around the trust-monitor product (#273) from the research report on `main` at `3493cfb`.*

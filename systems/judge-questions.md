@@ -1,7 +1,8 @@
 # Judge questions
 
-- **Use:** for the presenter of [`deck.md`](deck.md): the 20 hardest questions a navigation engineer is likely to ask. Each answer is at most 45 words and can be said as written. Numbers are simulation unless the answer says real; each source line names its PR or file, and [`results.md`](results.md) collects them.
+- **Use:** for the presenter of [`deck.md`](deck.md): the 24 hardest questions a navigation engineer is likely to ask. Each answer is at most 45 words and can be said as written. Numbers are simulation unless the answer says real; each source line names its PR or file, and [`results.md`](results.md) collects them.
 - **If you don't know:** say "I don't have that number; it is in our results file" and move on. Never estimate a number on stage.
+- **The research report** cited in Q10, Q13, Q14, Q18 and Q21 to Q23 is `reports/sources-research-20261111.md` on `main` (#271): research by another session, not decisions. Only claims it labels *checked*, *experiment* or *repo* are spoken; a vendor's own number is called a vendor figure.
 - **Agreed statistic** (ADR-0034, *Amendment*): at each second after GPS loss, the 95th percentile of error across runs; the worst second of the window counts. "Worst second" below means this.
 
 ## 1. Your own target is 25 m for five minutes. Why do you miss it?
@@ -69,10 +70,10 @@
 
 ## 10. Is this legal? You record cell signals.
 
-> The payload never transmits: no transmit path in code or hardware. We decode only signals meant for everyone, sync and broadcasts, our reading of section 9(2) of the Radiocommunication Act. Wi-Fi identifiers are hashed at capture. Attacks are software only. No legal opinion yet.
+> The payload never transmits. We decode only signals meant for everyone, sync signals and broadcast fields, never content. Whether taking timing from them counts as use under section 9(2) of the Radiocommunication Act has no ruling we found. We need a legal opinion before selling.
 
-- **Source:** REQ-07, REQ-08, ADR-0001, ADR-0011, [`safety.md`](safety.md); `tests/test_hard_rules.py`.
-- **Do not claim:** that a lawyer or regulator has approved it.
+- **Source:** REQ-07, REQ-08, ADR-0001, ADR-0011, [`safety.md`](safety.md) *Legal* (our reading, not legal advice; mentor confirmation `TBD`); `tests/test_hard_rules.py`. Report (`reports/sources-research-20261111.md` on `main`) 10.4 and 17.8, *checked*: s.9(2) forbids intercepting and making use of a radiocommunication; s.9(3) exempts broadcasting; the regulations have no research or navigation exception; no case law or ISED guidance on using sync signals exists. Backup: Wi-Fi identifiers are hashed at capture (ADR-0011); attacks are software only.
+- **Do not claim:** that a lawyer or regulator has approved it; that cell sync signals are "broadcasting" under s.9(3) (not decided anywhere we found); any legal conclusion.
 
 ## 11. What is new compared with Kassas and colleagues?
 
@@ -88,19 +89,19 @@
 - **Source:** #170 (merged, #250; T3 missed on one seed at 1.55 µs; `ekf-calibrated`'s σ bound fails on 13 seeds); RUNBOOK (time PL calls time unsafe early). Elsewhere: since ADR-0047 (Accepted, cost accepted by the owners) the default `ekf` has 22 to 316 time-misleading epochs per run on the realistic, worst and approach sets ([`pr-evidence/228/before-after.md`](../analysis/pr-evidence/228/before-after.md), `73c9e9b`). Real: PPS discipline on the Pi, 769 ns standard deviation (#216, merged; ASM-04).
 - **Do not claim:** that T3 is met, that the time bound is honest on every set, or a real holdover number.
 
-## 13. What would another month buy?
+## 13. What would you build next, and why in that order? What would another month buy?
 
-> Moving captures with independent truth, so the error model covers motion; our noise-learning and honest-bound filters run on real sessions; honest GPS taken back after long outages. No durations estimated; we will not promise 25 metres.
+> In the order our research says limits us. First a filter honest about slowly varying errors, then heading at GPS loss, then a velocity source, then LTE carrier phase. Each ends in a measurement on real data. No durations, and no promise of 25 metres.
 
-- **Source:** [`roadmap.md`](roadmap.md) *Three milestones*, M1; moving capture #259; real runs #256; re-admitting GPS #246. Multipath limits the simulated stack (#262, draft: 51 m with at-rest multipath, 105 m without); realistic multipath alone exceeds 25 m in the budget (#178). Already done, not future: the fixes run together on the agreed statistic (#247, draft, #218) and the sky-map spoof decision (#239, merged, #250). Real frequency hopping stays in M1.
-- **Do not claim:** a date or a target we expect to meet.
+- **Source:** [`roadmap.md`](roadmap.md) *Milestones for accuracy after GPS loss*, M1 to M4; report 11.2 and 11.3 (order; item 1 seen in the *repo* and in its scratch *experiment*, section 5, placeholder models), 16.9, 17.10, 18.5 (order unchanged by later passes). The order is a proposal: the owners have not ruled (#279, item 3), and M3 waits on REQ-06 and REQ-07 (#279, items 1 and 2). If REQ-06 keeps radio primary, carrier phase moves ahead of the velocity source (report 11.3, 15 item 3). A month buys the start of M1 and M2: our noise-learning and honest-bound filters on real sessions (#256), a moving capture with independent truth (#259), honest GPS taken back after long outages (#246). Backup, carrier phase: 0.37 to 0.89 m on a drone in the literature (report 6.3, *checked*; line of sight, a GPS-disciplined receiver oscillator, the drone inside one sector); no published result without a disciplined receiver clock (16.9). Multipath limits the simulated stack (#262, draft: 51 m with at-rest multipath, 105 m without). Already done, not future: the fixes run together on the agreed statistic (#247, draft, #218) and the sky-map spoof decision (#239, merged, #250).
+- **Do not claim:** a date or a target we expect to meet; that the order is decided; that carrier phase would give us sub-metre accuracy (that result had a disciplined clock we do not have); any number from the report's scratch experiment as ours.
 
-## 14. What is the certification path?
+## 14. What standard would this be certified against? What is the certification path?
 
-> No performance standard exists for this kind of navigation; RTCA SC-159 covers GNSS equipment. Drones under a specific-operation risk assessment look shorter than crewed aircraft. First we need fault statistics from many hours of data. Route and regulator are to be decided with experts.
+> We found no standard for opportunistic navigation, or for protection levels on sources other than GPS; RTCA SC-159 covers GNSS equipment. The nearest framework is the US resilient-navigation one from DHS: four levels, and cross-checking sources belongs to its upper two. Route and regulator: undecided.
 
-- **Source:** [`research.md`](research.md) §3 item 6; [`roadmap.md`](roadmap.md) *Certification*.
-- **Do not claim:** a certification plan agreed with anyone, or a design assurance level.
+- **Source:** [`research.md`](research.md) §3 item 6; [`roadmap.md`](roadmap.md) *Certification*. Report 10.4, *checked*: the DHS resilient-PNT framework has four levels and its IEEE version is still a draft; no standard exists for opportunistic navigation or for protection levels on non-GPS sources. The mapping of our cross-checking onto the upper two levels is the report's reading; we have not assessed conformance. Backup: drones under a specific-operation risk assessment look shorter than crewed aircraft (`TBC`); first we need fault statistics from many hours of data.
+- **Do not claim:** a certification plan agreed with anyone, a design assurance level, or conformance to any level of the DHS framework. Say "we found no standard", never "none exists": the report's supporting notes list a 2025 ASTM specification for drone navigation that nobody on the team has read.
 
 ## 15. What did the simulation get wrong, compared with the captures?
 
@@ -125,10 +126,10 @@
 
 ## 18. Who buys this, and at what altitude does it work, given tower antenna downtilt?
 
-> First user: an operator of inspection or delivery drones on an urban corridor below 120 metres. Altitude is an assumption: we recorded on the ground only, and how tower antennas tilted toward the street affect reception at altitude is not measured.
+> First buyers we would approach: Canadian operators flying beyond line of sight, drone-show operators, and a defence test slot. None has been approached. Altitude is an assumption: we recorded on the ground only, and how downtilted tower antennas affect reception at altitude is not measured.
 
-- **Source:** UC-01, [`use-cases.md`](use-cases.md); [`roadmap.md`](roadmap.md) *Operating envelope*; real captures on the ground or 0.5 m up (#210). Simulated flights at 40 to 45 m.
-- **Do not claim:** a buyer who has expressed interest, a price for the product, or a working altitude.
+- **Source:** report 10.5 (the report's own ranking of product shapes and first buyers: a proposal, no evidence label); demand, 10.3, *checked*: closed Canadian defence challenges on drone geolocation under GPS degradation and on timing; calls elsewhere on GPS-independent navigation for small drones. Use case: UC-01, [`use-cases.md`](use-cases.md) (inspection or delivery drone on an urban corridor below 120 m); [`roadmap.md`](roadmap.md) *Operating envelope*; real captures on the ground or 0.5 m up (#210). Simulated flights at 40 to 45 m.
+- **Do not claim:** a buyer who has expressed interest, a price for the product, or a working altitude. Do not quote the report's "17 cells heard at 120 m": it is what a modem with interference cancellation reports, and the report's third pass says a single dongle hears fewer (18.4).
 
 ## 19. GPS comes back after a long outage, hundreds of metres from your estimate. Does the guard refuse it, and what stops a spoofer stepping back in?
 
@@ -144,6 +145,34 @@
 - **Source:** #247 (open, draft): learned noise + 13 carriers, worst second 132 m at s 88 in both windows, so no later second is worse. #262 (open, draft): arc restarts and steps added, 143 m (0–120 s) and 151 m (0–300 s, at s 177). Real: #240 and #245 (merged; nothing beats no LTE on two static sessions; #245 fixed most arc steps; the filter still trusts records told 1 to 5 m that are off by tens of metres); not reproduced on real data (#256). Backup (sim, #232, merged, #250, [`tower-count/summary.md`](../analysis/results/tower-count/summary.md)): with the committed and honest error models no tower count meets T1 or the fallback; with clean errors all 17 sites within 3 km meet T1.
 - **Do not claim:** that 132 m is a real-world or flight number, that it meets any target, or that the payload hops.
 
+## 21. Who else does this? Who is your nearest competitor?
+
+> We found no company selling cell-tower navigation for drones; the work is in universities. The nearest product is a ten-gram receive-only board, a vendor figure, that takes position from Iridium satellites. Receivers with built-in spoof flags exist; we found no false-alarm rates published for them.
+
+- **Source:** report 10.1, *checked* (vendor claims marked): no funded company found selling cellular or LEO opportunistic navigation for drones; a 10 g receive-only board on Iridium's positioning chip; receivers with built-in spoof flags publish no false-alarm rates. 17.3, *checked*: Iridium's paid service independently tested at 26.6 m horizontal, 95 %, over 100 days, static; the 10 g, 1.2 W board is from the vendor's datasheet; it needs a subscription and no price is published. 10.2 and 17.10 (the report's summary): no spoof detector on sale cross-checks against cell towers; that board is the nearest competitor. Research, not products: Kassas and colleagues (Q11). Backup, only if a judge raises it, worded as here: Honeywell's alternative-navigation framework has vision shipping, with magnetic and LEO modules slated for 2026, and the report found no published figure for it (report 10.1, *checked*; [`research.md`](research.md) §3).
+- **Do not claim:** "nobody does this" or "first": say "we found none". Do not compare ourselves with any Honeywell product. Do not say the Iridium board is worse than ours: it is a product with an independently tested service, and ours has no real accuracy. Left out for weak evidence: that board "flagged spoofing within 1 s at a 2026 jamming test" (a vendor statement the supporting notes mark as a snippet).
+
+## 22. Why cell towers and not satellites in low orbit?
+
+> Iridium is a low-orbit signal our radio can hear. Published fixes from its open bursts are 100 to 200 metres, standing still, over minutes, and those bursts are unauthenticated. Its paid service already sells on a chip. Towers are where we found no product.
+
+- **Source:** report 6.1, *checked*: Iridium only, published orbits, height aiding, minutes of observation, static: 198 m and 163 m (Tan et al.), about 132 m, and 130 to 140 m from a cold start; no Iridium-only drone result was found; the open bursts have no source authentication; a chip for the paid service has been on sale since 2026-07-14. Report 11.1 and 17.10 (its analysis: Doppler should not lead; on a free-running dongle crystal Doppler is kilometre-class). The report calls Iridium the only LEO signal our dongles reach (1, 11.1), but its own 6.1 lists Orbcomm at 137 MHz, so do not say "only". Ours: LEO is simulation only ([`results.md`](results.md) (e), #172, every value `TBC`), and the report says that layer has no orbit error, so its numbers are not credible (report 5, *experiment*).
+- **Do not claim:** that satellites cannot work: with a disciplined clock and corrected orbits the literature reaches tens of metres on vehicles (report 17.10), and the paid Iridium service tested at 26.6 m (17.3, *checked*). Do not quote our simulated LEO numbers. Do not say towers are more accurate than satellites on real data: ours are not.
+
+## 23. Are there patents in your way?
+
+> Possibly. The University of California holds patents on navigating with LTE signals, running to about 2038, and on a low-orbit Doppler receiver. We have not assessed them and draw no legal conclusion. A freedom-to-operate check is needed before any product. Nothing here is for sale.
+
+- **Source:** report 10.4 and 17.8: University of California patent families to about 2038 (LTE) and 2040 (LEO); "not legal advice; a freedom-to-operate check is needed before a product"; not a full landscape. Those two sections carry no evidence label; the supporting notes (`reports/research-round2/gnss-integrity-algorithms-market.md` on `main`, *Topic 12*) mark three of the patents, with their dates, as read at source, and say the expiry dates are the patent database's estimates and that Canadian counterparts were not checked.
+- **Do not claim:** that we infringe or do not infringe; that the patents do or do not cover our filter; an expiry date as exact. Do not mention any other company's patents.
+
+## 24. You detect and flag. You do not mitigate. Is that right?
+
+> By default, yes: we flag, reject the bad GPS and coast. Our opt-in jump guard keeps a detected fake out until GPS steps back. In simulation, on a study leg, towers with learned noise held a refused jump to 120 metres. Not flown.
+
+- **Source:** rejecting and coasting: slide 3 (the default filter rejects the first fake fix, then lets it back in half a minute later, seed 0), Q9. Jump guard: ADR-0038 (Proposed), #191 (merged, opt-in); [`jump-refusal/summary.md`](../analysis/results/jump-refusal/summary.md); cost: median error 1,263 m at +120 s after a refused jump on the drone leg, flagged unsafe; hazardous epochs on 3 of 50 seeds. Towers during a refused jump (#247, open, draft; study leg, 13 carriers, which the payload cannot hop): held 300 m jump, worst second over 0–300 s: guard alone 11,103 m; guard with learned noise 120 m, 0 hazardous, 0 of 50 on the spoofed position. On real static sessions towers made position worse than none (Q2). The product on slide 7 is a monitor that warns; mitigation stays with the autopilot.
+- **Do not claim:** that we mitigate by default; that the guard is on by default or free; that towers hold position during a spoof on real data or on the leg as flown; that 120 m is a flight number.
+
 ---
 
-*Status: 2026-11-11, against `main` at `c21e047`; brought up to `c97e09a` (#245, ADR-0041, ADR-0047); today's results (#241, #244, #247, #251, #262, #263) and the five questions of #268 added against `2499f87`.*
+*Status: 2026-11-11, against `main` at `c21e047`; brought up to `c97e09a` (#245, ADR-0041, ADR-0047); today's results (#241, #244, #247, #251, #262, #263) and the five questions of #268 added against `2499f87`. Q10, Q13, Q14 and Q18 rewritten and Q21 to Q24 added from the research report on `main` at `3493cfb` (#273).*
