@@ -88,6 +88,10 @@ class Config:
     first_path_rel_db: float = -10.0  # earlier path must be within this of the tracked, TBC
     first_path_sidelobe: float = 3.0  # and this many times the tracked path's own sidelobe, TBC
     first_path_epochs: int = 40  # epochs averaged before a first-path decision (200 ms)
+    # An earlier path's PSS-to-SSS power ratio must match the tracked path's within this, TBC.
+    # #183, 20261110-1305-lte-outside: PCI 268's own path had PSS/SSS 0.7; the PSS of PCI 244,
+    # 3 µs ahead on the same root, 3.7 (7 dB more).
+    first_path_ratio_db: float = 3.0
     # Regression guard, TBC: about one normal CP. A re-found cell this close to its prediction
     # moved to another path; beyond it, without host stamps, the jump counts as dropped samples.
     max_path_jump_us: float = 5.0
@@ -577,7 +581,9 @@ class _Track:
         gi = int(round(cfg.gate_samples * cfg.interp))
         gate = np.arange(-gi, gi + 1)
         win = np.arange(-int(round(cfg.first_path_us * 1e-6 * fs * cfg.interp)), gi + 1)
-        prof_acc, prof_n = np.zeros(win.size), 0
+        # First-path profiles: combined, SSS alone and PSS alone (see `_earlier_path`)
+        prof_acc, prof_n = np.zeros((3, win.size)), 0
+        e_win = np.exp((2j * np.pi / self.n_u) * np.outer(_K, win / cfg.interp))
         detect = 10 ** (cfg.detect_snr_db / 10)
         noise_ema = snr_ema = re_ema = None
         miss, settled = 0, False
@@ -625,7 +631,14 @@ class _Track:
             c = sub[rows, np.minimum(i + 1, gate.size - 1)]
             d = (gate[i] + _parabola(a, b, c)) / cfg.interp
             phase = np.angle(prof[rows, gate[i] % grid])
-            power = np.abs(prof[:, win % grid]) ** 2
+            power = np.stack(
+                [
+                    np.abs(prof[:, win % grid]) ** 2,
+                    np.abs(zs @ e_win) ** 2,
+                    np.abs(zp @ e_win) ** 2,
+                ],
+                axis=1,
+            )
             if noise_ema is None:
                 noise_ema = float(np.median(noise))
             action = None
@@ -818,15 +831,22 @@ class _Track:
                        if snr_ema is not None else float("nan"))  # fmt: skip
         return st
 
-    def _earlier_path(self, prof: np.ndarray, win: np.ndarray, noise: float) -> float:
-        """Shift (samples, < 0) to an earlier path in the averaged power profile, or 0.
+    def _earlier_path(self, profs: np.ndarray, win: np.ndarray, noise: float) -> float:
+        """Shift (samples, < 0) to an earlier path in the averaged power profiles, or 0.
 
-        A local maximum earlier than 1.5 samples qualifies if it is within `first_path_rel_db`
-        of the tracked path, `first_path_sidelobe` times above that path's own sidelobe there,
-        and clear of the noise. The earliest qualifying one wins."""
+        `profs` holds the tracked (combined), SSS-only and PSS-only power profiles. A local
+        maximum of the combined one earlier than 1.5 samples qualifies if it is within
+        `first_path_rel_db` of the tracked path, `first_path_sidelobe` times above that path's
+        own sidelobe there, and clear of the noise. The earliest qualifying one wins. The first
+        two conditions must also hold in the SSS alone and in the PSS alone, and the PSS-to-SSS
+        power ratio there must be the tracked path's within `first_path_ratio_db`: a path of
+        this cell is a copy of both, while an earlier cell sharing the PSS root is mostly PSS
+        and another cell's SSS sidelobe mostly SSS (#183)."""
         cfg = self.cfg
+        prof = profs[0]
         zero = int(np.nonzero(win == 0)[0][0])
-        top = prof[max(zero - cfg.interp, 0) : zero + cfg.interp + 1].max()
+        near = slice(max(zero - cfg.interp, 0), zero + cfg.interp + 1)
+        top = prof[near].max()
         floor = 2 * sig.N_SYNC * noise
         side = self.sidelobe[win % self.sidelobe.size]
         rel = 10 ** (cfg.first_path_rel_db / 10)
@@ -840,6 +860,14 @@ class _Track:
             & (v >= cfg.first_path_sidelobe * side[i] * top)
             & (v >= 4 * floor)
         )
+        for one in profs[1:]:  # and in the SSS and the PSS alone
+            top_1 = one[near].max()
+            ok &= (one[i] >= rel * top_1) & (one[i] >= cfg.first_path_sidelobe * side[i] * top_1)
+        # with the PSS-to-SSS power ratio of the tracked path
+        ratio = (profs[2, i] / np.maximum(profs[1, i], 1e-30)) / (
+            profs[2, near].max() / max(profs[1, near].max(), 1e-30)
+        )
+        ok &= np.abs(10 * np.log10(np.maximum(ratio, 1e-30))) <= cfg.first_path_ratio_db
         if ok.any():
             j = int(i[np.argmax(ok)])  # the earliest qualifying peak
             return (win[j] + float(_parabola(prof[j - 1], prof[j], prof[j + 1]))) / cfg.interp
