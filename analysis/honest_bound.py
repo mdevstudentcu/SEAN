@@ -780,9 +780,11 @@ def figure(p: dict, out: Path, tail: str) -> str | None:
             ax.text(0.04, 0.80, f"of all epochs: error above HPL\n({name}; from the fault: "
                     f"{100 * st['above_win']:.1f} %)", transform=ax.transAxes, va="top",
                     fontsize=13, zorder=3)  # fmt: skip
-            ax.text(0.97, 0.03, f"worst run {100 * st['worst_run']:.1f} % above\n"
-                    f"hazardous epochs {st['hazardous']:,}", transform=ax.transAxes, ha="right",
-                    va="bottom", fontsize=14, color="#333333", zorder=3)  # fmt: skip
+            bad = st["worst_run"] > ESCAPE_WORST_RUN
+            ax.text(0.97, 0.03, f"worst run {100 * st['worst_run']:.1f} % above"
+                    f"{' (bar: 5 %)' if bad else ''}\nhazardous epochs {st['hazardous']:,}",
+                    transform=ax.transAxes, ha="right", va="bottom", fontsize=14,
+                    color="#b2182b" if bad else "#333333", zorder=3)  # fmt: skip
             if r == 0:
                 ax.set_title(("before: default" if c == 0 else "after: the fix"), fontsize=20,
                              weight="bold", color="#2a78d6" if c == 0 else "#1b7837")  # fmt: skip
@@ -816,7 +818,7 @@ def figure(p: dict, out: Path, tail: str) -> str | None:
              "darker blue: more epochs · ekf-honest: learned LTE noise with its slow part as a "
              "state (ADR-0046); -guard: with the jump guard (ADR-0038)", fontsize=11,
              color="#555555")  # fmt: skip
-    fig.subplots_adjust(left=0.15, right=0.98, top=0.88, bottom=0.07, wspace=0.06, hspace=0.12)
+    fig.subplots_adjust(left=0.15, right=0.98, top=0.88, bottom=0.09, wspace=0.06, hspace=0.12)
     name = "bound_before_after.png"
     _save_png(fig, out / name)
     plt.close(fig)
@@ -947,7 +949,10 @@ def write_summary(plans: dict, out: Path, figures: list[str], diagnosis: str) ->
             f"{sum(b['t5'] for b in bs)} of {len(bs)}; useful (where there is a GPS loss) on "
             f"{sum(bool(b['useful']) for b in bs)} of {sum(b['useful'] is not None for b in bs)}; "
             f"no harm on {sum(bool(b['no_harm']) for b in bs)} of "
-            f"{sum(b['no_harm'] is not None for b in bs)}.",
+            f"{sum(b['no_harm'] is not None for b in bs)}. *Useful* tests tightness ≤ 3 only: "
+            "below 1 (the 2 m/s ramp, 0.02) the HPL is far under the error and the entry fails "
+            "*Honest*. *No harm* compares the fix with the same estimator without it "
+            "(`ekf-learned-noise`, `+guard`) at its worst second.",
             "",
             "## Before and after, every drone scenario key (`stress`)",
             "",
@@ -1007,7 +1012,8 @@ def report(runs_dir: Path, out: Path) -> None:
     figures = []
     st = plans.get("stress")
     if st:
-        d = st["docs"][0]
+        # The figure's panels are 1-carrier entries: name that part's seeds and commit
+        d = next((x for x in st["docs"] if x.get("part", "").endswith(":1c")), st["docs"][0])
         tail = f"sim · seeds {d['seeds'][0]}–{d['seeds'][-1]} · commit {d['commit']}"
         f = figure(st, out, tail)
         if f:
