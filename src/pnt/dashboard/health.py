@@ -114,6 +114,8 @@ def hypothesis_words(h: str) -> str:
         return f"every tower of network builder {name} (shared timing)"
     if kind == "layer":
         return f"all {name.upper()} measurements"
+    if kind == "hostile":
+        return f"the hostile beacon (located jammer {name.partition(':')[2] or name})"
     return h
 
 

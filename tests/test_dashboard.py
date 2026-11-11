@@ -97,6 +97,8 @@ def test_mhss_hypotheses_in_words():
     assert "tower site LTE sim3" in describe("mhss_alarm:site:lte:sim3")[1]
     assert "GPS and everything derived" in describe("mhss_excluded:gnss-cm")[1]
     assert "network builder rogers" in describe("mhss_alarm:builder:rogers")[1]
+    hostile = describe("mhss_excluded:hostile:jammer:sim0")[1]  # ADR-0025, #93
+    assert "hostile beacon (located jammer sim0)" in hostile and "hostile:" not in hostile
 
 
 def test_no_latching_during_start_up():
