@@ -687,7 +687,9 @@ def report(sessions: list[Session], res: dict, commit: str) -> str:
     add(
         "Mapping from `deploy/pi/first-capture.md`. A measured value lands in a PR naming the "
         "session and commit (ADR-0015); this table changes no file. *From* names the session "
-        "that gave the number; its commits are in the table at the top."
+        "that gave the number; its commits are in the table at the top. The dongle clock rows "
+        "(Allan deviation of the tracker's loop-filtered CFO, tower carrier error mixed in) are "
+        "indicative only and must not replace the sim's `TBC` values."
     )
     add("")
     add("| Quantity | Measured | From | `TBC` now | Where |")
@@ -833,7 +835,8 @@ def replacements(sessions: list[Session], res: dict) -> list[list[str]]:
             rows.append(
                 [
                     "Dongle white FM: c·σ_y(τ)·√τ at the shortest τ",
-                    f"{C * a1 * math.sqrt(tau1):.2f} m/√s at τ = {tau1:g} s (indicative)",
+                    f"{C * a1 * math.sqrt(tau1):.2f} m/√s at τ = {tau1:g} s (indicative: not a "
+                    "replacement)",
                     r["session"],
                     f"`Dongle.offset_rw_m` {Dongle().offset_rw_m:g}",
                     sim,
@@ -842,7 +845,8 @@ def replacements(sessions: list[Session], res: dict) -> list[list[str]]:
             rows.append(
                 [
                     "Dongle random-walk FM: c·σ_y(τ)·√(3/τ) at the longest τ",
-                    f"{C * an * math.sqrt(3 / taun):.3f} m/s/√s at τ = {taun:g} s (indicative)",
+                    f"{C * an * math.sqrt(3 / taun):.3f} m/s/√s at τ = {taun:g} s "
+                    "(indicative: not a replacement)",
                     r["session"],
                     f"`Dongle.drift_rw_mps` {Dongle().drift_rw_mps:g}",
                     sim,
