@@ -219,12 +219,28 @@ GUARD = ("ekf-guard", "ekf-learned-noise+guard", "ekf-calibrated-guard",
          "ekf-calibrated-learned-noise+guard")  # fmt: skip
 
 
+# The calibrated filter on 6 and 13 carriers takes 2 to 8 min a run and 1.6 GB (13 carriers,
+# 720 s), so on hopped entries it runs on the first CALIBRATED_HOP_SEEDS seeds only
+CALIBRATED_HOP_SEEDS = 5
+
+
+def split(names: tuple[str, ...], key: str, seeds: list[int]) -> list[tuple]:
+    """Tasks for `names` on `key`: every seed, except the calibrated family on hopped entries."""
+    plain = tuple(n for n in names if "calibrated" not in n)
+    cal = tuple(n for n in names if "calibrated" in n)
+    hopped = "/6c" in key or "/13c" in key
+    tasks = [(key, s, plain, None) for s in seeds] if plain else []
+    if cal:
+        tasks += [(key, s, cal, None) for s in (seeds[:CALIBRATED_HOP_SEEDS] if hopped else seeds)]
+    return tasks
+
+
 def plan_measure(seeds: list[int]) -> list[tuple]:
     tasks = []
     for n in CARRIERS:
         for entry in ("nominal", "outage", "spoof-jump"):
             names = BASE + (GUARD if entry == "spoof-jump" else ())
-            tasks += [(f"drone/{entry}/{n}c", s, names, None) for s in seeds]
+            tasks += split(names, f"drone/{entry}/{n}c", seeds)
     return tasks
 
 
@@ -245,10 +261,22 @@ def _clean(commit: str) -> bool:
     return len(commit) >= 7 and all(c in "0123456789abcdef" for c in commit) and not untracked
 
 
-def run_plan(plan: str, seeds: list[int], jobs: int, host: str, out: Path) -> Path:
+def run_plan(plan: str, seeds: list[int], jobs: int, host: str, out: Path, part: str = "") -> Path:
+    """Run a plan, or the part of it named `part`: `plain` or `calibrated` (estimator family),
+    optionally with `:hop` or `:1c` (scenario carriers), so one plan can be split over hosts."""
     tasks = PLANS[plan](seeds)
+    if part:
+        fam, _, car = part.partition(":")
+        keep = []
+        for key, seed, names, cfg in tasks:
+            names = tuple(n for n in names if ("calibrated" in n) == (fam == "calibrated"))
+            hop = "/6c" in key or "/13c" in key
+            if names and (not car or (car == "hop") == hop):
+                keep.append((key, seed, names, cfg))
+        tasks = keep
     # Longest first: 13-carrier calibrated runs take the most time
-    tasks.sort(key=lambda t: ("13c" not in t[0], "6c" not in t[0]))
+    tasks.sort(key=lambda t: (not any("calibrated" in n for n in t[2]), "13c" not in t[0],
+                              "6c" not in t[0]))
     commit = _commit()
     t0 = time.time()
     res = _map(run_task, tasks, jobs)
@@ -262,10 +290,11 @@ def run_plan(plan: str, seeds: list[int], jobs: int, host: str, out: Path) -> Pa
         "python": platform.python_version(),
         "command": "python analysis/honest_bound.py " + " ".join(sys.argv[1:]),
         "elapsed_min": (time.time() - t0) / 60,
+        "part": part,
         "runs": runs,
     }
     out.mkdir(parents=True, exist_ok=True)
-    path = out / f"{plan}.pkl.gz"
+    path = out / f"{plan}{'-' + part.replace(':', '-') if part else ''}.pkl.gz"
     with gzip.open(path, "wb") as f:
         pickle.dump(doc, f)
     errors = [r for r in runs if "error" in r]
@@ -357,13 +386,15 @@ def main(argv=None) -> None:
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--host", default=platform.node().split(".")[0])
     ap.add_argument("--out", type=Path, default=RUNS)
+    ap.add_argument("--part", default="", help="plain|calibrated[:hop|:1c]: one part of the plan")
     ap.add_argument("--table", type=Path, help="print the table of one plan's pickle")
     args = ap.parse_args(argv)
     if args.table:
         table(args.table)
         return
     if args.plan:
-        path = run_plan(args.plan, parse_seeds(args.seeds), args.jobs, args.host, args.out)
+        path = run_plan(args.plan, parse_seeds(args.seeds), args.jobs, args.host, args.out,
+                        args.part)
         table(path)
 
 
