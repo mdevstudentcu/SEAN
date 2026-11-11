@@ -1,6 +1,6 @@
 # Our clock in the tower ranges (#228)
 
-Commit `37d66b7`, seeds 0-49 (paired), sim with placeholder models. T1: p95 horizontal error over the first 300 s after GPS loss (`outage_h_p95_300s_m`); its HPL bound is the worst run's share of those epochs with HPL >= error. Gate: share of updates accepted while GPS is lost (median NIS), all runs pooled.
+Commit `883bfe6`, seeds 0-49 (paired), sim with placeholder models. T1: p95 horizontal error over the first 300 s after GPS loss (`outage_h_p95_300s_m`); its HPL bound is the worst run's share of those epochs with HPL >= error. Gate: share of updates accepted while GPS is lost (median NIS), all runs pooled.
 
 | Scenario | Variant | T1 p95 mean (m) | T1 worst run (m) | T1 HPL bound, worst run | p95 mean (m) | HPL bound, worst run | Misleading / run | Hazardous / run | LTE gate (NIS) | Baro gate (NIS) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

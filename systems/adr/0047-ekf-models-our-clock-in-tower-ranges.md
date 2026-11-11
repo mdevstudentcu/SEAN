@@ -9,7 +9,7 @@
 
 `ekf` (and `ekf-imu`, `ekf-mhss`, the `-guard` filters; `baseline` gives identical output on these runs) defaults to `pseudorange_receiver_clock=False`: a tower reading without `meta.rx_clock` carries no term for our clock. The realistic and worst sets, and `challenge-approach`, put our payload clock into every such reading (`receiver_clock: true`), as a real radio does. Their clock drifts 20 ppb (6 m/s) in the realistic set and 100 ppb (30 m/s) in the worst set.
 
-What that does, measured in #228 (`analysis/rx_clock_in_towers.py`, commit `37d66b7`, seeds 0-49, sim, placeholder models; `analysis/pr-evidence/228/summary.md`):
+What that does, measured in #228 (`analysis/rx_clock_in_towers.py`, commit `883bfe6`, seeds 0-49, sim, placeholder models; `analysis/pr-evidence/228/summary.md`):
 
 - **Cause.** Each tower's own clock is a 0.2 m/√s random walk, so it cannot follow a 6 m/s ramp. Once GPS is lost the gate still accepts the towers (73 % of LTE updates on `realistic-long-outage`, median NIS 1.7), and the filter moves the position to explain the ramp while its covariance shrinks as though the towers fixed it.
 - **The error follows our clock.** `ekf` on `realistic-long-outage`, T1 p95 mean: 304 m at 0 ppb, 2,351 m at 20 ppb and 4,239 m at 40 ppb. With the towers dropped it is 2,292 m at every drift (constant-velocity coasting). At 20 ppb the two are about the same by coincidence, which is why the #27 ablation found that removing LTE changed nothing (+2.9 ± 112.6 m).
@@ -38,11 +38,11 @@ Paired, seeds 0-49, `ekf` → `ekf` with `pseudorange_receiver_clock=True` (summ
 | `meaconing` | misleading per run (paired Δ ± SE) | 1,988.1 | 2,048.6 (+60.5 ± 9.6) |
 | `easy-long-outage` | T1 p95 mean (paired Δ ± SE) | 20.4 m | 4,314.2 m (+4,293.9 ± 241.8) |
 
-The Δ rows and `easy-long-outage` are from the cost study below (`costs.md`, commit `8b7cbda`). The `easy-long-outage` cost was missing from this ADR's first version.
+The Δ rows and `easy-long-outage` are from the cost study below (`costs.md`, commit `7383c34`). The `easy-long-outage` cost was missing from this ADR's first version.
 
 ### Can the costs be avoided? (2026-11-11, owner's follow-up)
 
-`analysis/rx_clock_in_towers.py --costs` (commit `8b7cbda`, seeds 0-49 paired, sim; `analysis/pr-evidence/228/costs.md`). The base scenarios that carry a cost fall into two kinds:
+`analysis/rx_clock_in_towers.py --costs` (commit `7383c34`, seeds 0-49 paired, sim; `analysis/pr-evidence/228/costs.md`). The base scenarios that carry a cost fall into two kinds:
 
 1. **No payload clock and no GNSS time** (`gps-outage`, `spoof-ramp`, `nominal` and most of the base set). The term adds a clock that nothing observes. The cost comes from its frequency wander (`h_2`):
    - Changing its initial offset or drift σ changed nothing (10 seeds, scratch run outside the committed script).
@@ -111,7 +111,7 @@ Accepted (2026-11-11, owners): option D. Every EKF built on `nav/ekf.py` default
     `time-spoof` improves: 20.9 → 5.2 time-misleading epochs per run. `ekf-calibrated` models the towers' multipath and had 0.0 time-misleading epochs per run on `realistic-long-outage` (`analysis/results/calibrated-measured/`), so the tower model (#77) is the likely fix. It has not been tried here. Our clock's noise is not the cause: raising `h0` to the sim's 2 ns/√s (8e-18) left it at 87 time-misleading epochs per run against 93 (`realistic-long-outage`, 10 seeds, scratch run).
   - **The owners accepted this time-integrity cost (2026-11-11)**, for the position gain: the mentors (2026-11-10) put location ahead of timing. Figures made with the new default carry it, and its fix, a tower error model with the multipath and correlation `ekf-calibrated` already uses (#77), is on the roadmap (`systems/roadmap.md`, phase 2).
   - `tests/test_ekf_rx_clock_modes.py` fails if the default reverts.
-- **The numbers above came from commits before the rebase onto `e9a9053`** (`37d66b7` and `8b7cbda`, on `c21e047`). The `analysis/rx_clock_in_towers.py` variants keep the old default explicitly, so they still mean what they did.
+- **The numbers above came from commits before the rebase onto `e9a9053`** (run on `c21e047`; the changes are `883bfe6` and `7383c34` on `main`). The `analysis/rx_clock_in_towers.py` variants keep the old default explicitly, so they still mean what they did.
 - **A does not make the HPL honest.** With the term on, `ekf`'s T1 HPL bound on the worst `realistic-long-outage` run is 0.631. The tower model is still white noise, while the sim adds 50 m of multipath correlated over 30 s and 100 m told-position errors (#77). In the #228 bisection those two were the rest of the gap: with the sim's multipath and told-position error removed, the bound was 1.000 on 5 seeds. `ekf-calibrated` models both and still reaches only 0.887 on its worst run.
 - **The UC-01 drone leg (`challenge-drone-outage`) is a separate problem.** Its front-end records already carry the dongle clock. `ekf` rejects 98 % of them (median NIS 150). Their reported σ is 2 m against the sim's 50 m white noise and 50 m multipath, which likely explains it (not bisected here). That is #147's question, not this one.
 - Reopen if real captures show our clock does not reach the tower ranges (it always does with one shared oscillator), if the base-set cost grows past a stated bar, or if the measured `h_2` of our oscillator is far from 2e-20.

@@ -1,4 +1,4 @@
-Before: `f15ba13` (origin/main). After: `9d1c6d2`. Seeds 0–49, sim. Δ = after − before per seed, mean ± SE. *Sim changed* rows: the scenario now puts our clock in its towers (same random draws, different physics), so Δ there is a before/after, not a like-for-like pairing.
+Before: `f15ba13` (origin/main). After: `73c9e9b`. Seeds 0–49, sim. Δ = after − before per seed, mean ± SE. *Sim changed* rows: the scenario now puts our clock in its towers (same random draws, different physics), so Δ there is a before/after, not a like-for-like pairing.
 
 | Scenario | Estimator | p95 before → after (m) | Δ p95 | T1 before → after (m) | Δ T1 | T1 HPL bound worst run before → after | HPL bound worst run before → after | Misleading/run before → after | Δ misleading | Hazardous/run before → after | Other |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

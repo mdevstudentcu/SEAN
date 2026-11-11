@@ -2,8 +2,8 @@
 
 Evidence: **sim**, placeholder worlds (ADR-0015). The filter's correlated LTE error is measured (ADR-0036, 20261110 static sessions, at rest); the worlds it runs in are not. Paired: every estimator on the same generated run per seed. Seeds 0-49 (REPORT_SEEDS); tuning seeds 1000-1049 are declared and none of `CALIBRATED_MEASURED` was chosen on any seed (each value is from ADR-0036 or `EKF`'s default, ADR-0043).
 
-- Paired results: `paired.json`, `t1-paired.png`, made at `9d1c6d2` (rerun for ADR-0047, which changed `ekf`: our clock in the tower ranges once GNSS time is used; the two calibrated estimators' rows are unchanged from `4ab2e35`).
-- Mismatch: `mismatch.json`, `mismatch-filter.png`, made at `395b2ff`.
+- Paired results: `paired.json`, `t1-paired.png`, made at `73c9e9b` (rerun for ADR-0047, which changed `ekf`: our clock in the tower ranges once GNSS time is used; the two calibrated estimators' rows are unchanged from `7809a46`).
+- Mismatch: `mismatch.json`, `mismatch-filter.png`, made at `b949b4a`.
 - Code that computes the numbers is the same at both commits (later commits change the mismatch cases and plots only).
 
 ```bash

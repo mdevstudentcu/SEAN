@@ -1,6 +1,6 @@
 # Keeping our clock in the tower ranges without its costs (#228, ADR-0045)
 
-Commit `8b7cbda`, seeds 0-49 (paired), sim with placeholder models. Δ: mean paired difference from `ekf` in the same rows ± its standard error. Rows marked *sim: towers carry our clock* rerun that scenario with `receiver_clock: true` (a sim change: they pair only with each other).
+Commit `7383c34`, seeds 0-49 (paired), sim with placeholder models. Δ: mean paired difference from `ekf` in the same rows ± its standard error. Rows marked *sim: towers carry our clock* rerun that scenario with `receiver_clock: true` (a sim change: they pair only with each other).
 
 | Scenario | Variant | p95 mean (m) | Δ p95 (m) | T1 p95 mean (m) | Δ T1 (m) | T1 HPL bound, worst run | Misleading / run | Δ misleading | Hazardous / run | Δ hazardous |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
