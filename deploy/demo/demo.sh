@@ -6,9 +6,11 @@
 #   deploy/demo/demo.sh jump       panel: 300 m location jump without the guard (ekf), then with
 #                                  it (ekf-guard, the jump ends at T+200); Enter moves on
 #   deploy/demo/demo.sh guard      panel: only the second half of jump (ekf-guard)
+#   deploy/demo/demo.sh towers     panel: GPS lost on today's setup (outage), then Enter: the same
+#                                  loss on 13 hopped carriers with learned LTE noise (sim study)
 #   deploy/demo/demo.sh time       panel: 50 ns/s time spoof (challenge-timing-time-spoof, seed 0)
-#   deploy/demo/demo.sh stage      outage -> jump (ekf) -> jump (ekf-guard) on one port; Enter
-#                                  moves on. The time spoof is left out (location first)
+#   deploy/demo/demo.sh stage      outage -> towers study -> jump (ekf) -> jump (ekf-guard) on one
+#                                  port; Enter moves on. The time spoof is left out (location first)
 #   deploy/demo/demo.sh real       terminal: real LTE cells heard, and the registered sites they fit
 #   deploy/demo/demo.sh realcut    panel: a real GPS session replayed with GPS cut in software at
 #                                  35 s (not in stage: run it after stage ends). Location hidden
@@ -57,11 +59,22 @@ scen() {
     outage) echo challenge-drone-outage ;;
     jump) echo challenge-drone-spoof-jump ;;
     guard) echo challenge-drone-gps-return ;;
+    towers) echo challenge-drone-hop-outage ;;
     time) echo challenge-timing-time-spoof ;;
   esac
 }
-estimator() { case "$1" in guard) echo ekf-guard ;; *) echo ekf ;; esac; }
-speed() { case "$1" in outage) echo 5 ;; *) echo 10 ;; esac; }
+estimator() { case "$1" in guard) echo ekf-guard ;; towers) echo ekf-learned-noise ;; *) echo ekf ;; esac; }
+speed() { case "$1" in outage|towers) echo 5 ;; *) echo 10 ;; esac; }
+# `towers` is a study, not the payload: hopping (ADR-0040) and learned LTE noise (ADR-0039, opt-in)
+# are not what flies today, so the panel says so under its top bar (`--banner`) for the whole run.
+# It skips the pre-flight HPL line: predicting it for 13 carriers adds about 4 s to the switch.
+banner() {
+  case "$1" in
+    towers) echo "Simulation study: 13 LTE carriers hopped, learned tower range noise (opt-in)." \
+      "Our payload cannot hop yet: it listens to one carrier." ;;
+  esac
+}
+preflight() { case "$1" in towers) echo --no-preflight ;; esac; }
 
 port_free() { ! lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; }
 
@@ -90,8 +103,9 @@ panel() {  # start one panel segment in the background; sets $server
       --hide-origin --speed "$CUT_SPEED" --port "$port" &
   else
     echo "== $seg: $(scen "$seg") seed $SEED, estimator $(estimator "$seg"), x$(speed "$seg")  ($url)"
+    local label pre; label="$(banner "$seg")"; pre="$(preflight "$seg")"
     "${py[@]}" -m pnt.cli sim "$(scen "$seg")" --seed "$SEED" --estimator "$(estimator "$seg")" \
-      --dash --speed "$(speed "$seg")" --port "$port" &
+      --dash --speed "$(speed "$seg")" --port "$port" ${label:+--banner "$label"} ${pre:+"$pre"} &
   fi
   server=$!
   for _ in $(seq 1 60); do  # up to 15 s for the server to listen
@@ -141,7 +155,7 @@ case "${1:-}" in
     command -v lsof >/dev/null 2>&1 && ok "lsof found" \
       || bad "lsof missing: port checks cannot see a port in use (install lsof)"
     port_free && ok "port $port free" || bad "port $port in use (lsof -iTCP:$port)"
-    for seg in outage jump guard time; do
+    for seg in outage jump guard time towers; do
       "${py[@]}" -c "from pnt.sim.scenario import load; load('$(scen "$seg")')
 from pnt.nav import ESTIMATORS; assert '$(estimator "$seg")' in ESTIMATORS" 2>/dev/null \
         && ok "scenario $(scen "$seg"), estimator $(estimator "$seg")" \
@@ -161,8 +175,11 @@ from pnt.nav import ESTIMATORS; assert '$(estimator "$seg")' in ESTIMATORS" 2>/d
   jump)
     sequence jump guard
     ;;
+  towers)
+    sequence outage towers
+    ;;
   stage)
-    sequence outage jump guard
+    sequence outage towers jump guard
     ;;
   real)
     "${py[@]}" "$repo/deploy/demo/cells.py" "$sessions/$real_session"
