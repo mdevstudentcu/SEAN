@@ -26,6 +26,8 @@ Scripts that turn scenarios and sessions into the figures and tables we present.
 - `lte_scan_table.py <cu8> ... [--out DIR]`: the cells each LTE capture heard (PCI, seconds tracked, SNR, CFO) and the registered eNB each (EARFCN, PCI) could be in the committed cell table, for #87. Distance from the receiver only with `--receiver-llh`. Writes `summary.md` and `summary.json` (default `results/lte-scan-20261110/`)
 - `adsb_avr_capture.py <session> [--plot PNG]`: readsb's AVR frames from a recorded 1090 MHz capture through the ADS-B front end. The frames carry no time: they are spread evenly over the capture, and the script reruns with them squeezed to show whether the result depends on that
 - `vor_quality.py <voracious>.jsonl ...`: whether Voracious locked onto a VOR (idents, 30 Hz and 9960 Hz SNR, radial spread), before its radials are used
+- `pnt compare <simulated> <real> --source lte [--first-s S] [--out fig.png]`: the same residual statistics (size, lag-1 persistence, availability) and histogram from any two sessions (ADR-0015, #30). A channel is one emitter in one tracking arc, its trend removed. Without `/truth`, a static session (`platform: static`) is its own reference, so a real LTE capture with no GPS can be compared
+- `pnt replay <session> --inject <scenario or .yaml> [--seed N] [--out folder]`: a scenario's faults applied to a recording, fault times from its first measurement; `--out` saves the injected session for `pnt compare` or `pnt viz`. `inject/` holds fault files sized for real captures
 - Planned: timing holdover from real sessions. No real session exists yet; `summary.md` keeps a marked placeholder for them
 
 ## Viewing a run in Foxglove
