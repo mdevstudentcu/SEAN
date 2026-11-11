@@ -91,6 +91,10 @@ FILTER_CASES: tuple[tuple[str, str, dict], ...] = (
         ("corr. size", f"sigma x{k:g} ({_SIG * k:g} m)", {"multipath_sigma_m": _SIG * k})
         for k in (0.5, 3.0)
     ),
+    # Which clock value the time-misleading epochs come from: ekf-calibrated's (the realistic
+    # set's) clock values, one block at a time. A sensitivity only, never a proposed value
+    ("clocks", "our clock as ekf-calibrated", {"h0": 8e-18, "h_2": 2e-23}),
+    ("clocks", "tower clock noise as ekf-calibrated", {"tower_h0": 8.9e-19}),
 )
 WORLD_KEYS = ("as committed", "multipath tau", "multipath white", "random-walk", "bias-step")
 WORLD_ESTIMATORS = ("ekf-calibrated", MEASURED)
