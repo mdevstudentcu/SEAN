@@ -294,6 +294,82 @@ def cfo_vs_ref(c: Cell, cells: list[Cell]) -> dict:
     }
 
 
+def freq_1s(c: Cell) -> tuple[np.ndarray, np.ndarray]:
+    """Fractional frequency y = −CFO / fc per whole second (median of its 10 Hz records)."""
+    sec = c.k // 10
+    y = -c.cfo / c.fc
+    us = np.unique(sec)
+    return us, np.array([np.nanmedian(y[sec == u]) for u in us])
+
+
+def allan_freq(sec: np.ndarray, y: np.ndarray, taus) -> list[dict]:
+    """Overlapping Allan deviation from 1 s frequency values with gaps: only τ-averages with
+    every second present count. RMS and robust (MAD) versions. Needs no arc: a carrier offset
+    carries no per-arc constant, unlike the pseudorange."""
+    if sec.size < 10:
+        return []
+    g = np.full(int(sec.max()) + 1, np.nan)
+    g[sec] = y
+    out = []
+    for tau in taus:
+        m = int(tau)
+        if m < 1 or 2 * m > g.size:
+            continue
+        cs = np.r_[0, np.cumsum(np.nan_to_num(g))]
+        cn = np.r_[0, np.cumsum(np.isfinite(g))]
+        avg = (cs[m:] - cs[:-m]) / m
+        full = (cn[m:] - cn[:-m]) == m
+        d = avg[m:] - avg[:-m]
+        ok = full[m:] & full[:-m]
+        d = d[ok]
+        if d.size < 10:
+            continue
+        out.append(
+            {
+                "tau_s": m,
+                "adev": math.sqrt(float(np.mean(d**2)) / 2),
+                "adev_robust": 1.4826 * float(np.median(np.abs(d - np.median(d)))) / math.sqrt(2),
+                "n": int(d.size),
+            }
+        )
+    return out
+
+
+def frequency_stability(sessions: list[Sess]) -> list[dict]:
+    """Long sessions: σ_y of each cell's carrier (dongle + tower) and of each pair's difference
+    on one carrier (the two towers only)."""
+    taus = [1, 2, 5, 10, 20, 50, 100, 200, 300]
+    rows = []
+    for s in sessions:
+        if s.span_s <= 300:
+            continue
+        f = {c.emitter: freq_1s(c) for c in s.cells}
+        for c in s.cells:
+            sec, y = f[c.emitter]
+            rows.append(
+                {
+                    "session": s.name,
+                    "what": c.emitter,
+                    "kind": "cell",
+                    "adev": allan_freq(sec, y, taus),
+                }
+            )
+        for a, b in combinations(s.cells, 2):
+            if a.earfcn != b.earfcn:
+                continue
+            common, ia, ib = np.intersect1d(f[a.emitter][0], f[b.emitter][0], return_indices=True)
+            dy = f[b.emitter][1][ib] - f[a.emitter][1][ia]
+            rows.append(
+                {
+                    "session": s.name,
+                    "what": f"{b.emitter} − {a.emitter}",
+                    "kind": "pair",
+                    "adev": allan_freq(common, dy, taus),
+                }
+            )
+    return rows
+
+
 # --- the sim's placeholders, as S(τ) ---------------------------------------------------------
 
 
@@ -468,6 +544,7 @@ def analyse(sessions: list[Sess]) -> dict:
         "jumps": jumps_all,
         "snr_bins": bins,
         "fit": fit_white(bins),
+        "freq": frequency_stability(sessions),
     }
 
 
@@ -692,6 +769,47 @@ def figures(sessions, res, sv, out: Path, commit: str) -> list[Path]:
     finish(
         fig, "reacquisition.png", "Where a broken track lands, against a line through its last 3 s"
     )
+    if res.get("freq"):
+        fig, ax = plt.subplots(figsize=(7, 4), dpi=130)
+        for i, r in enumerate(res["freq"]):
+            if not r["adev"]:
+                continue
+            t = [x["tau_s"] for x in r["adev"]]
+            ax.loglog(
+                t,
+                [x["adev_robust"] for x in r["adev"]],
+                "o-" if r["kind"] == "cell" else "s--",
+                ms=3,
+                lw=1,
+                color=PALETTE[i % 7],
+                label=f"{r['what']} {short(r['session'])}",
+            )
+        tt = np.logspace(0, math.log10(300), 40)
+        dg, st = sv["dongle"], sv["site"]
+        ax.loglog(
+            tt,
+            np.sqrt(dg["offset_rw_m"] ** 2 / tt + dg["drift_rw_mps"] ** 2 * tt / 3) / C,
+            ":",
+            color=INK,
+            label="sim dongle clock (TBC)",
+        )
+        ax.loglog(
+            tt,
+            np.sqrt(2 * st["offset_rw_m"] ** 2 / tt + 2 * st["drift_rw_mps"] ** 2 * tt / 3) / C,
+            "-.",
+            color=INK,
+            label="sim two sites' clocks (TBC)",
+        )
+        ax.set_xlabel("τ (s)")
+        ax.set_ylabel("Allan deviation σ_y (robust)")
+        ax.grid(True, which="both", color=GRID, lw=0.5)
+        ax.legend(fontsize=6)
+        finish(
+            fig,
+            "frequency_allan.png",
+            "Carrier frequency stability from the CFO: cells "
+            "(dongle + tower) and pairs (towers only)",
+        )
     return written
 
 
@@ -833,6 +951,40 @@ def report(sessions, res, sv, commit) -> str:
             for t in TAUS_LONG
         ]
         L.append("| sim | dongle clock (TBC) | " + " | ".join(f"{v:.1e}" for v in sim) + " |")
+    if res.get("freq"):
+        taus = sorted({x["tau_s"] for r in res["freq"] for x in r["adev"]})
+        L += [
+            "",
+            "## Carrier frequency stability, long sessions (no arc needed)",
+            "",
+            "Overlapping Allan deviation σ_y(τ) of y = −CFO / fc (1 s medians; robust MAD "
+            "version, RMS in summary.json). A cell holds the dongle and its tower; a pair "
+            "holds the two towers only. Carrier aliases (#183) inflate the RMS.",
+            "",
+            "| Session | Cell or pair | " + " | ".join(f"τ {t:g} s" for t in taus) + " |",
+            "|---|---|" + "---|" * len(taus),
+        ]
+        for r in res["freq"]:
+            v = {x["tau_s"]: x["adev_robust"] for x in r["adev"]}
+            L.append(
+                f"| {r['session']} | {r['what']} | "
+                + " | ".join("—" if t not in v else f"{v[t]:.1e}" for t in taus)
+                + " |"
+            )
+        dg, st = sv["dongle"], sv["site"]
+        for lab, q1, q2 in (
+            ("sim dongle clock (TBC)", dg["offset_rw_m"] ** 2, dg["drift_rw_mps"] ** 2),
+            (
+                "sim two sites (TBC)",
+                2 * st.get("offset_rw_m", 0) ** 2,
+                2 * st.get("drift_rw_mps", 0) ** 2,
+            ),
+        ):
+            L.append(
+                f"| sim | {lab} | "
+                + " | ".join(f"{math.sqrt(q1 / t + q2 * t / 3) / C:.1e}" for t in taus)
+                + " |"
+            )
     L += [
         "",
         "S(τ): robust second-difference structure function inside one arc (m). "

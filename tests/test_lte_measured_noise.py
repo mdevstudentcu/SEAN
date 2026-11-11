@@ -65,3 +65,13 @@ def test_drift_fit_recovers_a_tower_pair_drift():
     x = 2.0 * t + rng.normal(0, 3.0, t.size)  # 2 m/s, about 6.7 ppb
     fit = lmn.drift_fit(np.arange(t.size), x, np.zeros(t.size, np.int64))
     assert abs(fit["slope_mps"] - 2.0) < 3 * fit["se_mps"]
+
+
+def test_frequency_allan_of_white_frequency_noise_falls_as_one_over_root_tau_with_gaps():
+    rng = np.random.default_rng(4)
+    sec = np.arange(3000)
+    y = rng.normal(0, 1e-9, sec.size)
+    keep = rng.random(sec.size) > 0.05  # 5 % of seconds missing
+    rows = {r["tau_s"]: r for r in lmn.allan_freq(sec[keep], y[keep], [1, 10, 100])}
+    for tau, r in rows.items():
+        assert abs(r["adev"] / (1e-9 / np.sqrt(tau)) - 1) < 0.2
