@@ -1,0 +1,11 @@
+# P12's hand-off (p12-drone-map-handoff) with the drone's GNSS spoofed while it builds the map
+# (#96): a crude takeover, the jump of `spoof-jump` (300 m east), from 100 s into the drone's
+# 300 s circuit and held to the hand-off. The ground user's world, records and GPS loss are the
+# base scenario's, record for record. Software fault injection only (sim/attacks.py). Results:
+# analysis/p12_spoofed_map.py.
+extends: p12-drone-map-handoff
+description: As p12-drone-map-handoff, with the drone's GNSS jumped 300 m east while it builds the map.
+faults:
+  - {type: spoof_jump, source: gnss, start_s: 1900, offset_enu_m: [300, 0, 0]}   # TBC
+handoff:
+  map_ages_s: [0]   # the map handed on the moment the circuit ends (circuit 1800-2100 s)
