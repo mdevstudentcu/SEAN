@@ -6,6 +6,7 @@
 - **Commits** are the ones the source names. Several are pre-rebase hashes not on `main`; open PR #217 maps each to its twin on `main`, given here as "→ twin" where checked in `git log`.
 - **Two T1 statistics.** **A34**: the 95th percentile of horizontal error across runs at each second after GPS loss, worst second of the window ([ADR-0034](adr/0034-targets-after-mentor-answers.md), *Amendment*). **Per-run**: each run's own 95th percentile over the window, then the median or mean over seeds. Only A34 scores T1; per-run numbers are for comparison only.
 - **Placeholders** `TBD (#NNN)` are filled by that issue's work today. No value is guessed.
+- **HPL** is a bound under our model (5.33 σ of the filter's covariance, or the MHSS bound), not a certified protection level. It is not honest on the worst runs: see T5 below.
 
 ## (a) What is real
 
@@ -43,7 +44,7 @@ Sim against real, same tool (`pnt compare`, #199): the sim's LTE residual is 49.
 
 ## (b) The scoreboard
 
-Targets: [`plan.md`](plan.md), [ADR-0034](adr/0034-targets-after-mentor-answers.md). Sim unless marked. The `challenge` legs ([ADR-0030](adr/0030-challenge-benchmark-set.md), Proposed) use LTE records shaped as the real front end writes them, 60 s of GPS, then a 600 s outage. #170's numbers are being regenerated (#187).
+Targets: [`plan.md`](plan.md), [ADR-0034](adr/0034-targets-after-mentor-answers.md). **Met and Not met are against our own targets**, several of them Proposed, and most rows rest on open PRs. Sim unless marked. The `challenge` legs ([ADR-0030](adr/0030-challenge-benchmark-set.md), Proposed) use LTE records shaped as the real front end writes them, 60 s of GPS, then a 600 s outage. #170's numbers are being regenerated (#187).
 
 | Target | Requirement / fallback | Result | Source, seeds | Verdict |
 | --- | --- | --- | --- | --- |
@@ -76,7 +77,7 @@ Why the noise fix comes first: told 2 m, the drone leg's `ekf` reached 6,557 m a
 
 ## (d) Spoofing: what is detected, how fast, what is refused
 
-Sim unless marked. Detection means an alarm flag held 1 s (`pnt.metrics`).
+Sim unless marked. Detection means an alarm flag held 1 s (`pnt.metrics`). Read the first rows together: a sudden jump is caught in 1.1 s, while the slow 2 m/s drag, the more realistic attack, is caught by the default filter in 0 of 50 runs.
 
 | Attack | Detected | How fast | What the output does | False alarms | Source |
 | --- | --- | --- | --- | --- | --- |
@@ -93,6 +94,7 @@ Sim unless marked. Detection means an alarm flag held 1 s (`pnt.metrics`).
 
 ## (e) What is not shown
 
+- **Towers carrying the position on the real-shaped legs.** With records that report only the fast noise, the filter rejects nearly every tower reading (one seed: 5,374 of 5,383 before the spoof, #180), so after GPS loss the default filter flies on the barometer and dead reckoning. The guard demo's panel lists LTE as not in use (draft PR #220). No percentage of epochs is committed.
 - **Any position from real towers, and any real error after GPS loss:** `TBD (#214)` (a real session with GPS cut in software, scored against the real fixes).
 - **Any real-world accuracy, integrity level or detection rate.** Every number in (b), (c) and (d) is sim or synthetic, except the rows marked real.
 - **T1 on the agreed statistic for the `challenge` legs:** `TBD (#187)`; with every fix together: `TBD (#218)`.
