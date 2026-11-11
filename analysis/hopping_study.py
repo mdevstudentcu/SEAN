@@ -21,6 +21,7 @@ median, min and max over epochs; across seeds the median of medians, the min and
 
     python analysis/hopping_study.py --seeds 20 --jobs 3
     python analysis/hopping_study.py --redraw   # summary and figure from study.json
+    python analysis/hopping_study.py --seeds 1 --configs one-carrier,scan-2-1s --out <dir>
 """
 
 from __future__ import annotations
@@ -280,7 +281,7 @@ def _reproduced(data: dict) -> str:
         return ""
     return (
         f" {data['commit']} is not in the repo. Reproduced at {r['commit']}: `{r['command']}` "
-        f"(seeds {r['seeds']}, every configuration and told sigma) {r['match']}."
+        f"re-ran {r['what']}; {r['match']}."
     )
 
 
@@ -474,6 +475,7 @@ def main(argv=None) -> None:
     p.add_argument("--jobs", type=int, default=1)
     p.add_argument("--out", type=Path, default=OUT)
     p.add_argument("--redraw", action="store_true", help="from study.json, without running")
+    p.add_argument("--configs", help="comma-separated config keys to run (default: every one)")
     args = p.parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / "study.json"
@@ -481,11 +483,18 @@ def main(argv=None) -> None:
         data = json.loads(path.read_text())
     else:
         cfgs = configs()
+        if args.configs:
+            keep = args.configs.split(",")
+            unknown = set(keep) - {c["key"] for c in cfgs}
+            if unknown:
+                p.error(f"unknown configs: {sorted(unknown)}")
+            cfgs = [c for c in cfgs if c["key"] in keep]
         tasks = [(c, v, s) for c in cfgs for v in VARIANTS for s in range(args.seeds)]
         t0 = time.perf_counter()
         runs = _map(run_one, tasks, args.jobs)
         data = {
-            "command": f"python analysis/hopping_study.py --seeds {args.seeds} --jobs {args.jobs}",
+            "command": f"python analysis/hopping_study.py --seeds {args.seeds} --jobs {args.jobs}"
+            + (f" --configs {args.configs}" if args.configs else ""),
             "commit": _commit(),
             "seeds": args.seeds,
             "elapsed_min": (time.perf_counter() - t0) / 60,
