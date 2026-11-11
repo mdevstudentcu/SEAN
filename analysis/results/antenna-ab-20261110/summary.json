@@ -1,0 +1,219 @@
+{
+  "commit": "e5c56a3",
+  "floor_db": -12.934216851622352,
+  "pairs": [
+    [
+      "A1",
+      "A2"
+    ],
+    [
+      "A0",
+      "A0b"
+    ],
+    [
+      "A1",
+      "A0b"
+    ],
+    [
+      "A2",
+      "A0b"
+    ],
+    [
+      "B",
+      "B2"
+    ],
+    [
+      "A1",
+      "B"
+    ],
+    [
+      "A2",
+      "B2"
+    ],
+    [
+      "A2",
+      "C"
+    ],
+    [
+      "B2",
+      "C"
+    ]
+  ],
+  "runs": [
+    {
+      "label": "A0",
+      "session": "20261110-2307-static-ant-A0-uhf-ground",
+      "capture_s": 89.4976,
+      "gain_mode": "auto",
+      "gain_db": null,
+      "rms_lsb": 16.160875225868367,
+      "clip_frac": 2.004534665361604e-05,
+      "cells": [
+        {
+          "pci": 204,
+          "earfcn": 2460,
+          "snr_db": 14.011226119474545,
+          "tracked_s": 77.195,
+          "arcs": 1
+        }
+      ]
+    },
+    {
+      "label": "A0b",
+      "session": "20261110-2341-static-ant-A0b-uhf-ground-chairspot",
+      "capture_s": 89.4976,
+      "gain_mode": "auto",
+      "gain_db": null,
+      "rms_lsb": 23.1976129042924,
+      "clip_frac": 0.0005467761845010369,
+      "cells": [
+        {
+          "pci": 204,
+          "earfcn": 2460,
+          "snr_db": 14.109996961664127,
+          "tracked_s": 84.41,
+          "arcs": 2
+        },
+        {
+          "pci": 220,
+          "earfcn": 2460,
+          "snr_db": -11.19478110885096,
+          "tracked_s": 29.105,
+          "arcs": 24
+        }
+      ]
+    },
+    {
+      "label": "A1",
+      "session": "20261110-2315-static-ant-A1-uhf-chair",
+      "capture_s": 89.4976,
+      "gain_mode": "auto",
+      "gain_db": null,
+      "rms_lsb": 38.52539829449375,
+      "clip_frac": 0.013932985353797197,
+      "cells": [
+        {
+          "pci": 244,
+          "earfcn": 2460,
+          "snr_db": -10.951706261797016,
+          "tracked_s": 13.385,
+          "arcs": 54
+        },
+        {
+          "pci": 204,
+          "earfcn": 2460,
+          "snr_db": -11.624057038025102,
+          "tracked_s": 43.5,
+          "arcs": 27
+        },
+        {
+          "pci": 220,
+          "earfcn": 2460,
+          "snr_db": -10.398294143175338,
+          "tracked_s": 12.23,
+          "arcs": 21
+        }
+      ]
+    },
+    {
+      "label": "A2",
+      "session": "20261110-2338-static-ant-A2-uhf-chair",
+      "capture_s": 89.4976,
+      "gain_mode": "auto",
+      "gain_db": null,
+      "rms_lsb": 42.027696685980054,
+      "clip_frac": 0.024328535881595337,
+      "cells": [
+        {
+          "pci": 244,
+          "earfcn": 2460,
+          "snr_db": -11.235573152708813,
+          "tracked_s": 38.92,
+          "arcs": 41
+        }
+      ]
+    },
+    {
+      "label": "B",
+      "session": "20261110-2322-static-ant-B-bingfu-chair-HORIZONTAL",
+      "capture_s": 89.4976,
+      "gain_mode": "auto",
+      "gain_db": null,
+      "rms_lsb": 47.15716612774761,
+      "clip_frac": 0.03391629589322321,
+      "cells": [
+        {
+          "pci": 204,
+          "earfcn": 2460,
+          "snr_db": -10.90680409841463,
+          "tracked_s": 16.4,
+          "arcs": 43
+        },
+        {
+          "pci": 244,
+          "earfcn": 2460,
+          "snr_db": -12.38455932250837,
+          "tracked_s": 2.7,
+          "arcs": 1
+        },
+        {
+          "pci": 220,
+          "earfcn": 2460,
+          "snr_db": 5.069316622516057,
+          "tracked_s": 27.26,
+          "arcs": 10
+        }
+      ]
+    },
+    {
+      "label": "B2",
+      "session": "20261110-2331-static-ant-B2-bingfu-vertical",
+      "capture_s": 89.4976,
+      "gain_mode": "auto",
+      "gain_db": null,
+      "rms_lsb": 48.8088185646896,
+      "clip_frac": 0.03818046401058055,
+      "cells": [
+        {
+          "pci": 220,
+          "earfcn": 2460,
+          "snr_db": 6.1384911014889525,
+          "tracked_s": 49.555,
+          "arcs": 26
+        },
+        {
+          "pci": 244,
+          "earfcn": 2460,
+          "snr_db": -11.972386533014587,
+          "tracked_s": 4.74,
+          "arcs": 15
+        }
+      ]
+    },
+    {
+      "label": "C",
+      "session": "20261110-2334-static-ant-C-telescopic-257",
+      "capture_s": 89.4976,
+      "gain_mode": "auto",
+      "gain_db": null,
+      "rms_lsb": 55.401977572062954,
+      "clip_frac": 0.06766599630418395,
+      "cells": [
+        {
+          "pci": 204,
+          "earfcn": 2460,
+          "snr_db": 6.064742121892954,
+          "tracked_s": 75.31,
+          "arcs": 14
+        },
+        {
+          "pci": 244,
+          "earfcn": 2460,
+          "snr_db": -12.01084822327903,
+          "tracked_s": 22.005,
+          "arcs": 65
+        }
+      ]
+    }
+  ]
+}
