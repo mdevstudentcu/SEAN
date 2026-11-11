@@ -231,7 +231,7 @@ def mismatch(scenario=MISMATCH_SCENARIO, seeds=REPORT_SEEDS, jobs: int = 1) -> d
     mm = _model_mismatch()
     seeds = list(seeds)
     base = load(scenario)
-    tasks = [(base, s, (MEASURED,), cfg) for _, _, cfg in FILTER_CASES for s in seeds]
+    tasks = [(base, s, (MEASURED,), cfg, None) for _, _, cfg in FILTER_CASES for s in seeds]
     worlds = [mm.world(base, c[3]) for c in world_cases()]
     tasks += [(spec, s, WORLD_ESTIMATORS, None, inj) for spec, inj in worlds for s in seeds]
     results = _map(paired_run, tasks, jobs)
