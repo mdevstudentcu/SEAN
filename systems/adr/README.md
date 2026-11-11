@@ -38,7 +38,7 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0032](0032-residual-map.md) | Learn a per-place residual map of each tower while GPS is trusted | Accepted, opt-in only |
 | [0033](0033-adsb-raises-gnss-prior.md) | ADS-B interference evidence raises the GNSS fault prior | Proposed |
 | [0034](0034-targets-after-mentor-answers.md) | Targets after the mentors' answers: our stricter T1, their figure as the fallback | T1 and T4's jump target Accepted; T3, T5 and T4's ramp targets Proposed |
-| [0036](0036-lte-measured-error-model.md) | The LTE error model is split into white and correlated parts, sized from real captures | Proposed |
+| [0036](0036-lte-measured-error-model.md) | The LTE error model is split into white and correlated parts, sized from real captures | Proposed; *Amendment 2026-11-11* (front-end fixes, Doppler records off) Accepted |
 | [0037](0037-tower-spoof-monitor.md) | A tower displacement monitor checks the GNSS position against the towers, opt-in | Proposed |
 | [0038](0038-refuse-detected-gnss-jump.md) | Refuse a detected GNSS position jump until the jump is undone (opt-in: `*-guard` estimators) | Proposed |
 | [0040](0040-lte-carrier-hopping.md) | LTE carrier hopping with one dongle is a modelled option and a study leg, not part of the benchmark | Proposed |
