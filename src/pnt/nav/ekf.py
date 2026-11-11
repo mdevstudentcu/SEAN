@@ -861,10 +861,11 @@ class EKF:
         if mapped and used and gate and self.gnss_trusted():
             self.rmap.learn(m.emitter, at, float(y) + corr)  # before the map's correction
         alt_rejected = False
-        if key == "gnss" and m.kind == "position_enu" and verdict == "gate":
-            if not used:  # ADR-0045: the 3-D gate failed; keep the horizontal if it agrees
+        if key == "gnss" and m.kind == "position_enu":
+            if verdict == "gate" and not used:
+                # ADR-0045: the 3-D gate failed; keep the horizontal if it agrees
                 used = alt_rejected = self._update(key, m.t_ns, y[:2], H[:2], R[:2, :2])
-            self.gnss_alt_excluded = alt_rejected
+            self.gnss_alt_excluded = alt_rejected  # a re-admitted fix is used whole
         if self.calibrated:
             if key in ("gnss", GNSS_TIME) and (not used or alt_rejected):
                 self._note_trouble(True)  # an alarm precursor: GNSS rejected
