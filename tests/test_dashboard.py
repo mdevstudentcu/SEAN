@@ -697,3 +697,29 @@ def test_panel_font_is_bundled_with_its_licence_and_nothing_loads_from_the_netwo
     for name in ("index.html", "style.css", "app.js"):
         text = (web / name).read_text()
         assert not re.search(r"""(?:src|href|url)\s*[=(]\s*["']?(?:https?:)?//""", text), name
+
+
+def test_the_stage_demo_can_hide_the_whiteness_flag(tmp_path, monkeypatch):
+    """ADR-0055 Amendment: `--no-whiteness` reaches the estimator; without it the panel keeps the
+    flag; demo.sh passes it to every panel it starts."""
+    import pnt.dashboard.feed as feed_mod
+    import pnt.dashboard.server as server
+    from pnt import cli
+
+    seen, real = [], feed_mod.estimate
+
+    def spy(*a, **k):
+        seen.append(k.get("whiteness"))
+        return real(*a, **k)
+
+    monkeypatch.setattr(feed_mod, "estimate", spy)
+    served = []
+    monkeypatch.setattr(server, "create_app", lambda feed, **k: served.append(feed))
+    monkeypatch.setattr(server, "serve", lambda *a, **k: None)
+    for extra in ([], ["--no-whiteness"]):
+        cli.main(["sim", _small(tmp_path), "--dash", "--no-preflight", *extra])
+        next(iter(frames(served[-1], HealthMonitor(50.0, 1.5e-6))))
+    assert [f.whiteness for f in served] == [True, False]
+    assert seen == [True, False]
+    demo = (Path(__file__).resolve().parents[1] / "deploy" / "demo" / "demo.sh").read_text()
+    assert demo.count("--no-whiteness") == 2  # the stage segments and realcut

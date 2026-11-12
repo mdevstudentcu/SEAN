@@ -465,6 +465,7 @@ def _cmd_sweep(args) -> None:
 def _serve_dash(feed, args) -> None:
     from pnt.dashboard.server import create_app, serve  # needs fastapi (ground extra)
 
+    feed.whiteness = not getattr(args, "no_whiteness", False)  # `pnt live` has no such option
     app = create_app(
         feed,
         speed=getattr(args, "speed", 1.0),  # `pnt live` has none: a live feed is not paced
@@ -858,6 +859,11 @@ def main(argv=None) -> None:
         )
         parser.add_argument(
             "--banner", help="one sentence shown under the panel's top bar (e.g. a demo's label)"
+        )
+        parser.add_argument(
+            "--no-whiteness",
+            action="store_true",
+            help="hide the innovation whiteness caution (ADR-0055 Amendment: the stage demo)",
         )
 
     def add_panel(parser) -> None:
