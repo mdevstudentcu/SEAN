@@ -10,7 +10,7 @@ import msgspec
 
 # Registries mirror systems/icd/measurement.md. They are open: add new names there first.
 SOURCES = frozenset(
-    {"gnss", "imu", "baro", "lte", "nr", "adsb", "vor", "wifi", "ble", "fm", "leo", "cam"}
+    {"gnss", "imu", "baro", "mag", "lte", "nr", "adsb", "vor", "wifi", "ble", "fm", "leo", "cam"}
 )
 KINDS = frozenset(
     {
@@ -22,6 +22,7 @@ KINDS = frozenset(
         "range",
         "doppler",
         "bearing",
+        "heading",
         "rssi",
         "time",
         "gnss_health",
