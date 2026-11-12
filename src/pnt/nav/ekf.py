@@ -356,6 +356,11 @@ class EKF:
         lte_huber_k: float = 0.0,  # normalised innovation above which R grows (Huber); 0: off
         common_step_s: float = 0.0,  # s: new arcs this close share one bias (timing step); 0: off
         zupt_sigma_mps: float = 0.0,  # m/s: zero-velocity update when the IMU is still; 0: off
+        # a cell's innovations over the last this many s of trusted GNSS decide its use after
+        lte_consistency_s: float = 0.0,  # s: window of that test; 0: off
+        lte_consistency_k: float = 3.0,  # RMS normalised innovation above which a cell fails
+        lte_inconsistent_mode: str = "cells3",  # a failing cell: "cells3" (3 heard) or "skip"
+        curvature_inflate: bool = False,  # too curved a range: R grows by the term, not dropped
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -487,6 +492,13 @@ class EKF:
         self._zupt_last = -(10**18)
         self.geometry_held = 0  # radio records held back by the cell/HDOP limit
         self.zupts = 0  # zero-velocity updates made
+        if lte_inconsistent_mode not in ("cells3", "skip"):
+            raise ValueError("lte_inconsistent_mode must be 'cells3' or 'skip'")
+        self.lte_consistency_ns = int(lte_consistency_s * 1e9)
+        self.lte_consistency_k = lte_consistency_k
+        self.lte_inconsistent_mode = lte_inconsistent_mode
+        self.curvature_inflate = curvature_inflate
+        self._consistency: dict[str, deque[tuple[int, float]]] = {}  # cell -> (t, NIS) at 1 Hz
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -979,6 +991,8 @@ class EKF:
             self.gnss_alt_excluded = alt_rejected  # a re-admitted fix is used whole
         if m.kind == "pseudorange" and gate and self.noise_tau_ns and "rx_clock" in m.meta:
             self._learn_noise(m, float(R[0, 0]))  # not first sight: that innovation is zero
+        if self.lte_consistency_ns and m.kind == "pseudorange" and gate and "rx_clock" in m.meta:
+            self._note_consistency(m)
         if self.calibrated:
             if key in ("gnss", GNSS_TIME) and (not used or alt_rejected):
                 self._note_trouble(True)  # an alarm precursor: GNSS rejected
@@ -1284,11 +1298,19 @@ class EKF:
         `analysis/real_replay_diagnose.py`) exceeds `lte_max_hdop`: a 2-D fix from those ranges
         with our clock unknown needs 3 cells, and with fewer the slow range error goes into the
         position and velocity instead."""
-        if not (self.lte_min_cells or self.lte_max_hdop) or "rx_clock" not in m.meta:
+        on = self.lte_min_cells or self.lte_max_hdop or self.lte_consistency_ns
+        if not on or "rx_clock" not in m.meta:
             return None
         self._heard[m.emitter] = (m.t_ns, e)
         for k in [k for k, (t, _) in self._heard.items() if m.t_ns - t > self.lte_cells_window_ns]:
             del self._heard[k]
+        if self.lte_consistency_ns:
+            if self.gnss_trusted() or self.cell_consistent(m.emitter):
+                return None
+            if self.lte_inconsistent_mode == "cells3" and len(self._heard) >= 3:
+                return None
+            self.geometry_held += 1
+            return "skip"
         need = max(self.lte_min_cells, 3 if self.lte_max_hdop else 0)
         ok = len(self._heard) >= need
         if ok and self.lte_max_hdop:
@@ -1299,13 +1321,35 @@ class EKF:
             G = np.array(G)
             try:
                 Q = np.linalg.inv(G.T @ G)
-                ok = bool(np.sqrt(Q[0, 0] + Q[1, 1]) <= self.lte_max_hdop)
+                h2 = Q[0, 0] + Q[1, 1]  # negative only when G is numerically singular
+                ok = bool(0.0 <= h2 <= self.lte_max_hdop**2)
             except np.linalg.LinAlgError:
                 ok = False
         if ok:
             return None
         self.geometry_held += 1
         return self.lte_gate_mode
+
+    def _note_consistency(self, m: Measurement) -> None:
+        """While GNSS is trusted, keep this cell's NIS (one a second) over the last
+        `lte_consistency_s`; frozen once GNSS is lost (#286)."""
+        if not self.gnss_trusted():
+            return
+        w = self._consistency.setdefault(m.emitter, deque())
+        if w and m.t_ns - w[-1][0] < 1_000_000_000:
+            return
+        w.append((m.t_ns, self._last_nis[0]))
+        while w[0][0] < m.t_ns - self.lte_consistency_ns:
+            w.popleft()
+
+    def cell_consistent(self, emitter: str) -> bool:
+        """Whether a cell's innovations before GNSS was lost fit the model: at least
+        CHECK_MIN_SAMPLES of them and an RMS normalised innovation within `lte_consistency_k`
+        (in units of the model's own sigma). A cell first heard after the loss has no evidence."""
+        w = self._consistency.get(emitter)
+        if not w or len(w) < CHECK_MIN_SAMPLES:
+            return False
+        return float(np.sqrt(np.mean([n for _, n in w]))) <= self.lte_consistency_k
 
     def _slow_fixed(self) -> bool:
         """The slow state sized in metres (`multipath_sigma_m`, no ratio) with learned noise on:
@@ -1491,7 +1535,8 @@ def _pseudorange(ekf: EKF, m: Measurement):
     elif "rx_clock" in m.meta and ekf.noise_tau_ns:
         ekf._curvature = ekf.range_curvature(u, r, None if pos is None else pos[0])
         if not (new or new_arc) and ekf._curvature > ekf.range_variance(m):
-            return None  # not linear enough to use: the second-order term exceeds the noise
+            if not ekf.curvature_inflate:  # #286 opt-in: keep it, R carries the term
+                return None  # not linear enough to use: the second-order term exceeds the noise
     R += ekf._curvature
     gate = not (new or new_arc)
     if ekf.lte_huber_k and gate and "rx_clock" in m.meta:  # #286: Huber weight, not reject
