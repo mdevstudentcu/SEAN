@@ -1,3 +1,11 @@
+/* IBM Plex Sans, bundled so the panel looks the same on every machine and works offline.
+   Variable font (weight 100-700, width 85-100 %) from github.com/google/fonts ofl/ibmplexsans,
+   SIL Open Font License 1.1: fonts/IBMPlexSans-OFL.txt. */
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("fonts/IBMPlexSans-Variable.ttf") format("truetype");
+  font-weight: 100 700; font-stretch: 85% 100%; font-style: normal; font-display: block;
+}
 /* Operator panel. One visual language:
    - colour means state and nothing else: green, amber, red. Only the status tile is filled;
      everywhere else the state colours a word, a number or a mark;
@@ -29,7 +37,7 @@
   --critical-fill: #d42f2f;
   /* 16 px at 1920x1080; smaller windows scale the whole panel down, larger ones up */
   font-size: clamp(10px, min(0.8333vw, 1.4815vh), 24px);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--page); color: var(--ink); }
@@ -232,6 +240,8 @@ button.on { border-color: var(--est); color: var(--est); }
 /* The log: one line per alert (the sentence is under "What is wrong now" while active, and on hover) */
 .rail > .log { flex: 1 1 auto; min-height: 5.5rem; display: flex; flex-direction: column; }
 .alerts { flex: 1; min-height: 0; overflow-y: auto; }
+/* More rows below than fit: fade the last one so it reads as "scroll for more", not as a cut row */
+.alerts.more { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 2.125rem), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 2.125rem), transparent); }
 .alerts li {
   display: flex; align-items: center; gap: .625rem; height: 2.125rem; font-size: .875rem;
   border-top: 1px solid var(--grid); font-variant-numeric: tabular-nums;

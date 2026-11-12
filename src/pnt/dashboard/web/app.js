@@ -15,7 +15,7 @@ const alpha = (hex, a) => `rgba(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i +
 let U = 1;
 const measure = () => { U = parseFloat(getComputedStyle(document.documentElement).fontSize) / 16; };
 measure();
-const font = (px, weight = 400) => `${weight} ${px * U}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+const font = (px, weight = 400) => `${weight} ${px * U}px "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
 // Confidence of the position (health.confidence, #207): the track and the current position
 const CONF_COLOR = { green: C.good, amber: C.warning, red: C.critical };
 const CONF_WORD = { green: "confident", amber: "near the limit", red: "do not trust" };
@@ -379,6 +379,12 @@ function renderAlerts(alerts, settled = true) {
   const ul = $("alerts");
   ul.innerHTML = html;
   ul.querySelectorAll("button").forEach((b) => (b.onclick = () => ack({ id: +b.dataset.id })));
+  markMore();
+}
+// Fade the bottom of the alert list while rows are hidden below it (cleared at the end of the list)
+function markMore() {
+  const ul = $("alerts");
+  ul.classList.toggle("more", ul.scrollTop + ul.clientHeight < ul.scrollHeight - 1);
 }
 function ack(body) {
   // The reply carries the alerts too: the stream is closed once a replay has finished
@@ -591,4 +597,7 @@ es.addEventListener("quiet", (ev) => {
   if (!S.info || S.info.kind !== "live" || S.done || S.failed || q == null || q <= STALE_S) return;
   feedLost(`No estimate for ${q.toFixed(0)} s: the payload's stream has stopped. The values on this page are stale.`);
 });
-window.addEventListener("resize", () => { measure(); redraw(); });
+window.addEventListener("resize", () => { measure(); redraw(); markMore(); });
+$("alerts").addEventListener("scroll", markMore);
+// The charts draw text on canvas: draw again once the bundled font has loaded
+document.fonts?.ready.then(() => { measure(); redraw(); markMore(); });
