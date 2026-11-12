@@ -1004,19 +1004,20 @@ class _Track:
         n_drop, ambiguous = jump % (2 * L), True  # the signal only sizes a drop modulo a frame
         n_host = None
         if self.cap.buffers is not None:
-            n_host = _host_gap(self.cap.buffers, fs, at, f0 + n)
+            n_host = floor_step(self.cap.buffers, fs, at, f0 + n)
             if n_host is not None and n_host > 0:
                 n_drop = n_host + int((jump - n_host + L) % (2 * L) - L)
                 ambiguous = False
-        host_stalled = n_host is not None and n_host >= L  # well beyond the stamps' jitter
-        # Stamps that cover the stretch and show no stall rule a drop out whatever the jump: the
+        host_dropped = n_host is not None and n_host >= L  # well beyond the floor's wander
+        # Stamps that cover the stretch and show no drop rule one out whatever the jump: the
         # dongle loses whole USB transfers (131,072 samples with rtl_sdr's default -b, about 14
         # half-frames), which the stamps see. Without this, one cell re-found 12 samples off on
         # 20261111-0233 (beyond `max_path_jump_us`) was taken for a 19,188-sample drop, which
         # moved every other cell by 12 samples (1.9 km) for the rest of the hour (lte-reacq).
-        stamps_clear = n_host is not None and not host_stalled
+        # A host stall that catches up is not a drop either (#306): the floor does not move.
+        stamps_clear = n_host is not None and not host_dropped
         path_moved = stamps_clear or (
-            abs(jump) <= cfg.max_path_jump_us * 1e-6 * fs and not host_stalled
+            abs(jump) <= cfg.max_path_jump_us * 1e-6 * fs and not host_dropped
         )
         if path_moved or n_drop <= 0 or good is None:
             # Not a drop: the cell came back somewhere else (another path, or a reused PCI).
@@ -1033,11 +1034,32 @@ def _drop_window(cell: CellTrack, k0: int) -> None:
         cell.epochs.pop()
 
 
-def _host_gap(buffers: np.ndarray, fs: float, f_lo: int, f_hi: int) -> int | None:
-    """Samples missing between USB buffers in file range [f_lo, f_hi], from the host stamps."""
+# Seconds of buffers each side of a stretch whose latency floors are compared, TBC. A real drop
+# moves the floor (host stamp less sample time) up for good; a USB stall that catches up delays
+# a few buffers and the floor comes back. The longest catch-up on the real captures
+# 20261111-1806, -0151 and -0233 took 1.3 s (a 2.3 M-sample stall on -0233); 8 buffers (0.55 s
+# at rtl_sdr's 131,072-sample transfers) was too short for the walk's 0.48 s stall (#306).
+FLOOR_WINDOW_S = 4.0
+
+
+def latency(buffers: np.ndarray, fs: float) -> np.ndarray:
+    """Each buffer's host stamp less its sample time (samples, minus a constant)."""
     idx, t = buffers[:, 0], buffers[:, 1]
-    sel = np.nonzero((idx[1:] >= f_lo) & (idx[:-1] <= f_hi))[0]
-    if sel.size == 0:
+    return ((t - t[0]) - idx * 1e9 / fs) * fs / 1e9
+
+
+def floor_step(
+    buffers: np.ndarray, fs: float, f_lo: int, f_hi: int, window_s: float = FLOOR_WINDOW_S
+) -> int | None:
+    """Samples dropped in file range [f_lo, f_hi], from the host stamps: the latency floor of the
+    buffers in the `window_s` after it less the floor of those in the `window_s` before it.
+    Unlike the largest gap between two stamps, a stall that catches up does not count. None if
+    either side has no buffer."""
+    idx = buffers[:, 0]
+    w = window_s * fs
+    lat = latency(buffers, fs)
+    before = lat[(idx <= f_lo) & (idx >= f_lo - w)]
+    after = lat[(idx > f_hi) & (idx <= f_hi + w)]
+    if before.size == 0 or after.size == 0:
         return None
-    excess = (t[sel + 1] - t[sel]) - (idx[sel + 1] - idx[sel]) * 1e9 / fs
-    return int(round(float(excess.max()) * fs / 1e9))
+    return int(round(float(after.min() - before.min())))
