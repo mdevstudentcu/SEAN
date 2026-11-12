@@ -10,39 +10,62 @@
 
 ## Bars on held-out seeds (`stress`)
 
-`python analysis/honest_bound.py --plan stress --part plain:13c --seeds 0-19 --jobs 3 --host g14` at `9b02665` on g14 (Python 3.12.13), seeds 0–19, 107 min; `python analysis/honest_bound.py --plan stress --part plain:1c --seeds 0-199 --jobs 5 --host g14` at `694ecaa` on g14 (Python 3.12.13), seeds 0–199, 90 min; `python analysis/honest_bound.py --plan stress --part plain:6c --seeds 0-19 --jobs 2 --host g14` at `9b02665` on g14 (Python 3.12.13), seeds 0–19, 61 min
+`python analysis/honest_bound.py --plan stress --part plain:13c --seeds 0-19 --jobs 5 --host g14` at `f9df0ea` on g14 (Python 3.12.13), seeds 0–19, 71 min; `python analysis/honest_bound.py --plan stress --part plain:1c --seeds 0-199 --jobs 5 --host g14` at `f9df0ea` on g14 (Python 3.12.13), seeds 0–199, 71 min; `python analysis/honest_bound.py --plan stress --part plain:6c --seeds 0-19 --jobs 2 --host g14` at `f9df0ea` on g14 (Python 3.12.13), seeds 0–19, 54 min
 
-| Scenario | Fix | above HPL from fault (pooled) | worst run | hazardous | Honest (≤ 1 %, ≤ 5 %, 0) | T5 99.9 % | tightness | Useful (≤ 3) | HPL ≤ 50 m | p95 worst: fix / unfixed / default (m) | No harm (≤ 1.05×) | false alarms /h added |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `drone/nominal/1c` | `ekf-honest` | 0.00 % | 0.0 % | 0 | met | met | – | – | 100.0 % | – / – / – | – – | +0.00 |
-| `drone/outage/1c` | `ekf-honest` | 0.45 % | 18.5 % | 0 | **not met** | **not met** | 1.35 | met | 9.8 % | 2,242 / 2,446 / 11,656 | 0.917 met | -0.30 |
-| `drone/outage-tower-clock-step/1c` | `ekf-honest` | 1.74 % | 22.3 % | 0 | **not met** | **not met** | 1.12 | met | 9.7 % | 2,242 / 2,516 / 11,631 | 0.891 met | -0.85 |
-| `drone/outage-tower-holdover/1c` | `ekf-honest` | 0.45 % | 18.0 % | 0 | **not met** | **not met** | 1.35 | met | 9.8 % | 2,203 / 2,446 / 10,863 | 0.901 met | -0.35 |
-| `drone/outage-imu-bias/1c` | `ekf-honest` | 0.45 % | 18.5 % | 0 | **not met** | **not met** | 1.35 | met | 9.8 % | 2,242 / 2,446 / 11,656 | 0.917 met | -0.30 |
-| `drone/outage-baro-drift/1c` | `ekf-honest` | 0.44 % | 18.4 % | 0 | **not met** | **not met** | 1.35 | met | 0.7 % | 2,242 / 2,446 / 11,656 | 0.917 met | +0.00 |
-| `drone/spoof-jump/1c` | `ekf-honest-guard` | 0.39 % | 20.0 % | 0 | **not met** | **not met** | 0.71 | met | 0.9 % | 2,856 / 2,692 / 11,738 | 1.061 **not met** | +0.00 |
-| `drone/meaconing/1c` | `ekf-honest-guard` | 0.39 % | 20.0 % | 0 | **not met** | **not met** | 0.71 | met | 0.9 % | 2,856 / 2,692 / 11,738 | 1.061 **not met** | +0.00 |
-| `drone/spoof-ramp/1c` | `ekf-honest-guard` | 99.34 % | 99.6 % | 1,089,731 | **not met** | **not met** | 0.02 | met | 100.0 % | 602 / 602 / 602 | 1.000 met | +0.00 |
-| `drone/nominal/6c` | `ekf-honest` | 0.00 % | 0.0 % | 0 | met | met | – | – | 100.0 % | – / – / – | – – | +0.00 |
-| `drone/outage/6c` | `ekf-honest` | 0.38 % | 2.7 % | 0 | met | **not met** | 1.67 | met | 9.8 % | 303 / 331 / 11,190 | 0.916 met | +0.00 |
-| `drone/outage-tower-clock-step/6c` | `ekf-honest` | 0.38 % | 2.6 % | 0 | met | **not met** | 1.64 | met | 9.8 % | 315 / 340 / 11,190 | 0.927 met | +0.00 |
-| `drone/outage-tower-holdover/6c` | `ekf-honest` | 0.43 % | 2.3 % | 0 | met | **not met** | 1.70 | met | 9.8 % | 313 / 341 / 11,194 | 0.918 met | +0.00 |
-| `drone/outage-imu-bias/6c` | `ekf-honest` | 0.38 % | 2.7 % | 0 | met | **not met** | 1.67 | met | 9.8 % | 303 / 331 / 11,190 | 0.916 met | +0.00 |
-| `drone/outage-baro-drift/6c` | `ekf-honest` | 0.38 % | 2.7 % | 0 | met | **not met** | 1.66 | met | 0.7 % | 303 / 331 / 11,190 | 0.916 met | +0.00 |
-| `drone/spoof-jump/6c` | `ekf-honest-guard` | 0.24 % | 2.8 % | 0 | met | **not met** | 1.71 | met | 0.9 % | 260 / 290 / 5,497 | 0.897 met | +0.00 |
-| `drone/meaconing/6c` | `ekf-honest-guard` | 0.24 % | 2.8 % | 0 | met | **not met** | 1.71 | met | 0.9 % | 260 / 290 / 5,497 | 0.897 met | +0.00 |
-| `drone/spoof-ramp/6c` | `ekf-honest-guard` | 99.34 % | 99.5 % | 108,980 | **not met** | **not met** | 0.02 | met | 100.0 % | 602 / 602 / 602 | 1.000 met | +0.00 |
-| `drone/nominal/13c` | `ekf-honest` | 0.00 % | 0.0 % | 0 | met | met | – | – | 100.0 % | – / – / – | – – | +0.00 |
-| `drone/outage/13c` | `ekf-honest` | 0.20 % | 0.9 % | 0 | met | **not met** | 1.79 | met | 9.8 % | 136 / 115 / 12,503 | 1.186 **not met** | +0.00 |
-| `drone/outage-tower-clock-step/13c` | `ekf-honest` | 0.19 % | 0.8 % | 0 | met | **not met** | 1.80 | met | 9.8 % | 136 / 117 / 12,503 | 1.163 **not met** | +0.00 |
-| `drone/outage-tower-holdover/13c` | `ekf-honest` | 0.20 % | 0.9 % | 0 | met | **not met** | 1.79 | met | 9.8 % | 136 / 120 / 12,375 | 1.132 **not met** | +0.00 |
-| `drone/outage-imu-bias/13c` | `ekf-honest` | 0.20 % | 0.9 % | 0 | met | **not met** | 1.79 | met | 9.8 % | 136 / 115 / 12,503 | 1.186 **not met** | +0.00 |
-| `drone/outage-baro-drift/13c` | `ekf-honest` | 0.19 % | 0.9 % | 0 | met | **not met** | 1.79 | met | 0.8 % | 136 / 115 / 12,503 | 1.186 **not met** | +0.00 |
-| `drone/spoof-jump/13c` | `ekf-honest-guard` | 0.18 % | 1.0 % | 0 | met | **not met** | 1.93 | met | 0.9 % | 139 / 134 / 9,973 | 1.039 met | +0.00 |
-| `drone/meaconing/13c` | `ekf-honest-guard` | 0.18 % | 1.0 % | 0 | met | **not met** | 1.93 | met | 0.9 % | 139 / 134 / 9,973 | 1.039 met | +0.00 |
-| `drone/spoof-ramp/13c` | `ekf-honest-guard` | 99.34 % | 99.5 % | 108,979 | **not met** | **not met** | 0.02 | met | 100.0 % | 602 / 602 / 602 | 1.000 met | +0.00 |
+| Scenario | Fix | above HPL from fault (pooled) | worst run | hazardous | Honest (≤ 1 %, ≤ 5 %, 0) | T5 99.9 % | tightness | Useful (≤ 3) | HPL ≤ 50 m | p95 worst: fix / unfixed / default (m) | No harm (≤ 1.05×) | p95 worst, whole outage: fix / unfixed (m) | No harm, whole outage (≤ 1.05×) | false alarms /h added |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `drone/nominal/1c` | `ekf-honest` | 0.00 % | 0.0 % | 0 | met | met | – | – | 100.0 % | – / – / – | – – | – / – | – – | +0.00 |
+| `drone/outage/1c` | `ekf-honest` | 0.45 % | 18.5 % | 0 | **not met** | **not met** | 1.35 | met | 9.8 % | 2,242 / 2,446 / 11,656 | 0.917 met | 4,900 / 5,180 | 0.946 met | -0.30 |
+| `drone/outage-tower-clock-step/1c` | `ekf-honest` | 1.74 % | 22.3 % | 0 | **not met** | **not met** | 1.12 | met | 9.7 % | 2,242 / 2,516 / 11,631 | 0.891 met | 4,913 / 5,180 | 0.949 met | -0.85 |
+| `drone/outage-tower-holdover/1c` | `ekf-honest` | 0.45 % | 18.0 % | 0 | **not met** | **not met** | 1.35 | met | 9.8 % | 2,203 / 2,446 / 10,863 | 0.901 met | 4,825 / 5,142 | 0.938 met | -0.35 |
+| `drone/outage-imu-bias/1c` | `ekf-honest` | 0.45 % | 18.5 % | 0 | **not met** | **not met** | 1.35 | met | 9.8 % | 2,242 / 2,446 / 11,656 | 0.917 met | 4,900 / 5,180 | 0.946 met | -0.30 |
+| `drone/outage-baro-drift/1c` | `ekf-honest` | 0.44 % | 18.4 % | 0 | **not met** | **not met** | 1.35 | met | 0.7 % | 2,242 / 2,446 / 11,656 | 0.917 met | 4,900 / 5,180 | 0.946 met | +0.00 |
+| `drone/spoof-jump/1c` | `ekf-honest-guard` | 0.39 % | 20.0 % | 0 | **not met** | **not met** | 0.71 | met | 0.9 % | 2,856 / 2,692 / 11,738 | 1.061 **not met** | – / – | – – | +0.00 |
+| `drone/meaconing/1c` | `ekf-honest-guard` | 0.39 % | 20.0 % | 0 | **not met** | **not met** | 0.71 | met | 0.9 % | 2,856 / 2,692 / 11,738 | 1.061 **not met** | – / – | – – | +0.00 |
+| `drone/spoof-ramp/1c` | `ekf-honest-guard` | 99.34 % | 99.6 % | 1,089,731 | **not met** | **not met** | 0.02 | met | 100.0 % | 602 / 602 / 602 | 1.000 met | – / – | – – | +0.00 |
+| `drone/nominal/6c` | `ekf-honest` | 0.00 % | 0.0 % | 0 | met | met | – | – | 100.0 % | – / – / – | – – | – / – | – – | +0.00 |
+| `drone/outage/6c` | `ekf-honest` | 0.38 % | 2.7 % | 0 | met | **not met** | 1.67 | met | 9.8 % | 303 / 331 / 11,190 | 0.916 met | 303 / 331 | 0.916 met | +0.00 |
+| `drone/outage-tower-clock-step/6c` | `ekf-honest` | 0.38 % | 2.6 % | 0 | met | **not met** | 1.64 | met | 9.8 % | 315 / 340 / 11,190 | 0.927 met | 315 / 340 | 0.927 met | +0.00 |
+| `drone/outage-tower-holdover/6c` | `ekf-honest` | 0.43 % | 2.3 % | 0 | met | **not met** | 1.70 | met | 9.8 % | 313 / 341 / 11,194 | 0.918 met | 313 / 341 | 0.918 met | +0.00 |
+| `drone/outage-imu-bias/6c` | `ekf-honest` | 0.38 % | 2.7 % | 0 | met | **not met** | 1.67 | met | 9.8 % | 303 / 331 / 11,190 | 0.916 met | 303 / 331 | 0.916 met | +0.00 |
+| `drone/outage-baro-drift/6c` | `ekf-honest` | 0.38 % | 2.7 % | 0 | met | **not met** | 1.66 | met | 0.7 % | 303 / 331 / 11,190 | 0.916 met | 303 / 331 | 0.916 met | +0.00 |
+| `drone/spoof-jump/6c` | `ekf-honest-guard` | 0.24 % | 2.8 % | 0 | met | **not met** | 1.71 | met | 0.9 % | 260 / 290 / 5,497 | 0.897 met | – / – | – – | +0.00 |
+| `drone/meaconing/6c` | `ekf-honest-guard` | 0.24 % | 2.8 % | 0 | met | **not met** | 1.71 | met | 0.9 % | 260 / 290 / 5,497 | 0.897 met | – / – | – – | +0.00 |
+| `drone/spoof-ramp/6c` | `ekf-honest-guard` | 99.34 % | 99.5 % | 108,980 | **not met** | **not met** | 0.02 | met | 100.0 % | 602 / 602 / 602 | 1.000 met | – / – | – – | +0.00 |
+| `drone/nominal/13c` | `ekf-honest` | 0.00 % | 0.0 % | 0 | met | met | – | – | 100.0 % | – / – / – | – – | – / – | – – | +0.00 |
+| `drone/outage/13c` | `ekf-honest` | 0.20 % | 0.9 % | 0 | met | **not met** | 1.79 | met | 9.8 % | 136 / 115 / 12,503 | 1.186 **not met** | 136 / 142 | 0.961 met | +0.00 |
+| `drone/outage-tower-clock-step/13c` | `ekf-honest` | 0.19 % | 0.8 % | 0 | met | **not met** | 1.80 | met | 9.8 % | 136 / 117 / 12,503 | 1.163 **not met** | 136 / 143 | 0.949 met | +0.00 |
+| `drone/outage-tower-holdover/13c` | `ekf-honest` | 0.20 % | 0.9 % | 0 | met | **not met** | 1.79 | met | 9.8 % | 136 / 120 / 12,375 | 1.132 **not met** | 148 / 146 | 1.016 met | +0.00 |
+| `drone/outage-imu-bias/13c` | `ekf-honest` | 0.20 % | 0.9 % | 0 | met | **not met** | 1.79 | met | 9.8 % | 136 / 115 / 12,503 | 1.186 **not met** | 136 / 142 | 0.961 met | +0.00 |
+| `drone/outage-baro-drift/13c` | `ekf-honest` | 0.19 % | 0.9 % | 0 | met | **not met** | 1.79 | met | 0.8 % | 136 / 115 / 12,503 | 1.186 **not met** | 136 / 141 | 0.964 met | +0.00 |
+| `drone/spoof-jump/13c` | `ekf-honest-guard` | 0.18 % | 1.0 % | 0 | met | **not met** | 1.93 | met | 0.9 % | 139 / 134 / 9,973 | 1.039 met | – / – | – – | +0.00 |
+| `drone/meaconing/13c` | `ekf-honest-guard` | 0.18 % | 1.0 % | 0 | met | **not met** | 1.93 | met | 0.9 % | 139 / 134 / 9,973 | 1.039 met | – / – | – – | +0.00 |
+| `drone/spoof-ramp/13c` | `ekf-honest-guard` | 99.34 % | 99.5 % | 108,979 | **not met** | **not met** | 0.02 | met | 100.0 % | 602 / 602 / 602 | 1.000 met | – / – | – – | +0.00 |
 
-Honest on 17 of 27 drone scenario keys; T5's 99.9 % on 3 of 27; useful (where there is a GPS loss) on 24 of 24; no harm on 17 of 24. *Useful* tests tightness ≤ 3 only: below 1 (the 2 m/s ramp, 0.02) the HPL is far under the error and the entry fails *Honest*. *No harm* compares the fix with the same estimator without it (`ekf-learned-noise`, `+guard`) at its worst second.
+Honest on 17 of 27 drone scenario keys; T5's 99.9 % on 3 of 27; useful (where there is a GPS loss) on 24 of 24; no harm on 17 of 24, and over the whole outage on 15 of 15. *Useful* tests tightness ≤ 3 only: below 1 (the 2 m/s ramp, 0.02) the HPL is far under the error and the entry fails *Honest*. *No harm* compares the fix with the same estimator without it (`ekf-learned-noise`, `+guard`) at its worst second over 0–300 s (ADR-0034); *no harm, whole outage* the same over the whole GPS outage (600 s; not defined on the GNSS attacks, which have no outage that ends).
+
+## No harm over the whole outage (`stress`)
+
+The across-run 95th percentile and median of horizontal error at seconds after GPS loss, and the 95th percentile's worst second over the whole 600 s outage.
+
+| Scenario | Estimator | runs | p95 at 120 s | p95 at 300 s | p95 at 450 s | p95 at 600 s | p95 worst (m, s) | median at 120 s | median at 300 s | median at 450 s | median at 600 s |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `drone/outage/1c` | `ekf` | 200 | 3,577 | 11,656 | 20,548 | 31,134 | 31,134 (s 600) | 1,240 | 4,063 | 6,560 | 9,407 |
+| `drone/outage/1c` | `ekf-learned-noise` | 200 | 797 | 2,446 | 3,718 | 5,180 | 5,180 (s 600) | 413 | 702 | 634 | 642 |
+| `drone/outage/1c` | `ekf-honest` | 200 | 688 | 2,242 | 3,542 | 4,900 | 4,900 (s 600) | 381 | 701 | 761 | 1,554 |
+| `drone/outage/1c` | honest / learned | | 0.86 | 0.92 | 0.95 | 0.95 | 0.946 | 0.92 | 1.00 | 1.20 | 2.42 |
+| `drone/outage/6c` | `ekf` | 20 | 3,083 | 11,090 | 20,298 | 32,280 | 32,280 (s 600) | 1,283 | 4,771 | 7,802 | 10,720 |
+| `drone/outage/6c` | `ekf-learned-noise` | 20 | 140 | 169 | 177 | 117 | 331 (s 203) | 83 | 66 | 74 | 52 |
+| `drone/outage/6c` | `ekf-honest` | 20 | 138 | 156 | 156 | 145 | 303 (s 203) | 80 | 53 | 72 | 49 |
+| `drone/outage/6c` | honest / learned | | 0.98 | 0.92 | 0.88 | 1.24 | 0.916 | 0.96 | 0.80 | 0.97 | 0.95 |
+| `drone/outage/13c` | `ekf` | 20 | 3,369 | 12,503 | 23,020 | 35,255 | 35,255 (s 600) | 1,147 | 4,223 | 11,443 | 16,644 |
+| `drone/outage/13c` | `ekf-learned-noise` | 20 | 66 | 92 | 71 | 72 | 142 (s 425) | 50 | 45 | 26 | 44 |
+| `drone/outage/13c` | `ekf-honest` | 20 | 75 | 90 | 86 | 70 | 136 (s 41) | 51 | 49 | 36 | 43 |
+| `drone/outage/13c` | honest / learned | | 1.13 | 0.97 | 1.22 | 0.98 | 0.961 | 1.01 | 1.09 | 1.38 | 0.99 |
+
+Each run's own p95 over the outage, `ekf-honest` / `ekf-learned-noise`, paired by seed: `drone/outage/1c`: median 0.98, 40% of 200 runs over 1.05×, largest 6.11 (seed 74); `drone/outage/6c`: median 0.92, 10% of 20 runs over 1.05×, largest 1.15 (seed 1); `drone/outage/13c`: median 0.99, 30% of 20 runs over 1.05×, largest 1.32 (seed 13).
+
+Why the median grows late on 1 carrier ([late-outage.md](late-outage.md), the same seeds replayed record by record): `ekf-honest`'s position covariance is larger (it is the honest one), so the curvature rule, which skips a radio record whose second-order term σ⊥⁴ / (2 r²) exceeds its learned noise, drops more of the LTE records as the outage goes on; the gate rejects almost none, and the records it uses carry a smaller R than `ekf-learned-noise`'s. Fewer updates, so the typical run drifts further while its HPL still covers it. Keeping every record makes both filters far more accurate and breaks the bound, so the rule is doing its job. What would fix it is an update that handles the nonlinearity instead of dropping the record (an iterated or sigma-point update, or a coarse re-acquisition once the position is far off); not tried here.
 
 ## Before and after, every drone scenario key (`stress`)
 
@@ -182,41 +205,47 @@ Honest on 17 of 27 drone scenario keys; T5's 99.9 % on 3 of 27; useful (where th
 
 The approach leg's `stress` rows were computed before `ekf-honest` gained the receiver-clock switch (its records carry our clock and no `rx_clock`), so they are left out above and rerun here (`legs`); the drone and timing records all have `rx_clock`, which the switch does not touch (`tests/test_ekf_honest.py`).
 
-`python analysis/honest_bound.py --plan legs --seeds 0-199 --jobs 2 --host mac` at `479d98b` on mac (Python 3.14.6), seeds 0–199, 4 min
+`python analysis/honest_bound.py --plan legs --seeds 0-199 --jobs 2 --host g14` at `f9df0ea` on g14 (Python 3.12.13), seeds 0–199, 5 min
 
 | Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run | hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | unsafe after loss (median s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `approach/nominal` | `ekf` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 0) | 0 (0) | 1.5 | – | 100.0 % | – | – |
 | `approach/nominal` | `ekf-learned-noise` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 0) | 0 (0) | 1.5 | – | 100.0 % | – | – |
 | `approach/nominal` | `ekf-honest` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 0) | 0 (0) | 1.5 | – | 100.0 % | – | – |
-| `approach/outage` | `ekf` | 50 | 76.78 % | 83.75 % | 96.1 % (seed 22) | 0 (0) | 33412.3 | 0.45 | 0.7 % | 2,938 (s 199) | 4.9 |
-| `approach/outage` | `ekf-learned-noise` | 50 | 76.78 % | 83.75 % | 96.1 % (seed 22) | 0 (0) | 33412.3 | 0.45 | 0.7 % | 2,938 (s 199) | 4.9 |
+| `approach/outage` | `ekf` | 50 | 11.47 % | 12.51 % | 43.3 % (seed 4) | 0 (0) | 199.2 | 1.17 | 4.7 % | 2,312 (s 141) | 4.9 |
+| `approach/outage` | `ekf-learned-noise` | 50 | 11.47 % | 12.51 % | 43.3 % (seed 4) | 0 (0) | 199.2 | 1.17 | 4.7 % | 2,312 (s 141) | 4.9 |
 | `approach/outage` | `ekf-honest` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 0) | 0 (0) | 1.3 | 3.36 | 9.8 % | 1,747 (s 230) | 4.9 |
 
 ## `realistic-long-outage` and the barometer, held-out seeds (`realistic`, #228)
 
-`python analysis/honest_bound.py --plan realistic --seeds 0-199 --jobs 2 --host mac` at `624436f` (DIRTY TREE) on mac (Python 3.14.6), seeds 0–199, 42 min
+`python analysis/honest_bound.py --plan realistic --seeds 0-199 --jobs 3 --host g14` at `f9df0ea` on g14 (Python 3.12.13), seeds 0–199, 41 min
 
 | Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run | hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | unsafe after loss (median s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+| `realistic/nominal` | `ekf {"pseudorange_receiver_clock": false}` | 200 | 0.00 % | 0.00 % | 0.0 % (seed 0) | 0 (0) | 1.6 | – | 99.9 % | – | – |
 | `realistic/nominal` | `ekf {"pseudorange_receiver_clock": true}` | 200 | 0.00 % | 0.00 % | 0.0 % (seed 0) | 0 (0) | 1.6 | – | 99.9 % | – | – |
 | `realistic/nominal` | `ekf` | 200 | 0.00 % | 0.00 % | 0.0 % (seed 0) | 0 (0) | 1.6 | – | 99.9 % | – | – |
 | `realistic/nominal` | `ekf-honest {"pseudorange_receiver_clock": false}` | 200 | 0.00 % | 0.00 % | 0.0 % (seed 0) | 0 (0) | 1.6 | – | 99.9 % | – | – |
 | `realistic/nominal` | `ekf-honest` | 200 | 0.00 % | 0.00 % | 0.0 % (seed 0) | 0 (0) | 1.6 | – | 99.9 % | – | – |
+| `realistic/long-outage` | `ekf {"pseudorange_receiver_clock": false}` | 200 | 75.75 % | 90.87 % | 97.3 % (seed 9) | 0 (0) | 6692.3 | 0.17 | 1.6 % | 3,609 (s 288) | 4.9 |
+| `realistic/baro-drift` | `ekf {"pseudorange_receiver_clock": false}` | 200 | 5.30 % | 7.95 % | 37.5 % (seed 137) | 0 (0) | 1266.0 | 1.23 | 45.5 % | 3,702 (s 239) | – |
 | `realistic/long-outage` | `ekf {"pseudorange_receiver_clock": true}` | 200 | 8.89 % | 10.67 % | 54.2 % (seed 80) | 0 (0) | 18.9 | 0.59 | 1.6 % | 588 (s 270) | 4.9 |
 | `realistic/baro-drift` | `ekf {"pseudorange_receiver_clock": true}` | 200 | 2.43 % | 3.65 % | 32.9 % (seed 45) | 0 (0) | 9.4 | 0.92 | 44.8 % | 327 (s 178) | – |
-| `realistic/long-outage` | `ekf` | 200 | 75.75 % | 90.87 % | 97.3 % (seed 9) | 0 (0) | 6692.3 | 0.17 | 1.6 % | 3,609 (s 288) | 4.9 |
-| `realistic/baro-drift` | `ekf` | 200 | 5.30 % | 7.95 % | 37.5 % (seed 137) | 0 (0) | 1266.0 | 1.23 | 45.5 % | 3,702 (s 239) | – |
+| `realistic/long-outage` | `ekf` | 200 | 8.89 % | 10.67 % | 54.2 % (seed 80) | 0 (0) | 18.9 | 0.59 | 1.6 % | 588 (s 270) | 4.9 |
+| `realistic/baro-drift` | `ekf` | 200 | 2.43 % | 3.65 % | 32.9 % (seed 45) | 0 (0) | 9.4 | 0.92 | 44.8 % | 327 (s 178) | – |
 | `realistic/long-outage` | `ekf-honest {"pseudorange_receiver_clock": false}` | 200 | 70.27 % | 84.30 % | 95.6 % (seed 160) | 0 (0) | 1314.0 | 0.26 | 1.6 % | 2,706 (s 298) | 4.9 |
 | `realistic/baro-drift` | `ekf-honest {"pseudorange_receiver_clock": false}` | 200 | 8.76 % | 13.14 % | 49.8 % (seed 153) | 0 (0) | 271.1 | 0.93 | 45.2 % | 3,276 (s 234) | – |
 | `realistic/long-outage` | `ekf-honest` | 200 | 0.16 % | 0.19 % | 24.5 % (seed 74) | 0 (0) | 2.6 | 1.85 | 1.6 % | 516 (s 270) | 4.9 |
 | `realistic/baro-drift` | `ekf-honest` | 200 | 0.00 % | 0.00 % | 0.8 % (seed 45) | 0 (0) | 2.1 | 2.07 | 45.5 % | 319 (s 150) | – |
+| `realistic/long-outage/nobaro` | `ekf {"pseudorange_receiver_clock": false}` | 200 | 69.81 % | 83.75 % | 96.6 % (seed 45) | 0 (0) | 1161.9 | 0.25 | 1.6 % | 2,942 (s 294) | 4.9 |
+| `realistic/long-outage/drop-baro` | `ekf {"pseudorange_receiver_clock": false}` | 200 | 71.17 % | 85.38 % | 97.0 % (seed 24) | 0 (0) | 1059.1 | 0.26 | 1.6 % | 2,715 (s 277) | 4.9 |
+| `realistic/long-outage/barobias=0` | `ekf {"pseudorange_receiver_clock": false}` | 200 | 75.75 % | 90.88 % | 97.3 % (seed 9) | 0 (0) | 6692.4 | 0.17 | 1.6 % | 3,609 (s 288) | 4.9 |
 | `realistic/long-outage/nobaro` | `ekf {"pseudorange_receiver_clock": true}` | 200 | 7.60 % | 9.11 % | 66.0 % (seed 44) | 0 (0) | 16.5 | 0.54 | 1.6 % | 1,089 (s 270) | 4.9 |
 | `realistic/long-outage/drop-baro` | `ekf {"pseudorange_receiver_clock": true}` | 200 | 6.83 % | 8.19 % | 61.6 % (seed 81) | 0 (0) | 17.1 | 0.63 | 1.6 % | 1,079 (s 270) | 4.9 |
 | `realistic/long-outage/barobias=0` | `ekf {"pseudorange_receiver_clock": true}` | 200 | 8.89 % | 10.67 % | 54.2 % (seed 80) | 0 (0) | 18.9 | 0.59 | 1.6 % | 588 (s 270) | 4.9 |
-| `realistic/long-outage/nobaro` | `ekf` | 200 | 69.81 % | 83.75 % | 96.6 % (seed 45) | 0 (0) | 1161.9 | 0.25 | 1.6 % | 2,942 (s 294) | 4.9 |
-| `realistic/long-outage/drop-baro` | `ekf` | 200 | 71.17 % | 85.38 % | 97.0 % (seed 24) | 0 (0) | 1059.1 | 0.26 | 1.6 % | 2,715 (s 277) | 4.9 |
-| `realistic/long-outage/barobias=0` | `ekf` | 200 | 75.75 % | 90.88 % | 97.3 % (seed 9) | 0 (0) | 6692.4 | 0.17 | 1.6 % | 3,609 (s 288) | 4.9 |
+| `realistic/long-outage/nobaro` | `ekf` | 200 | 7.60 % | 9.11 % | 66.0 % (seed 44) | 0 (0) | 16.5 | 0.54 | 1.6 % | 1,089 (s 270) | 4.9 |
+| `realistic/long-outage/drop-baro` | `ekf` | 200 | 6.83 % | 8.19 % | 61.6 % (seed 81) | 0 (0) | 17.1 | 0.63 | 1.6 % | 1,079 (s 270) | 4.9 |
+| `realistic/long-outage/barobias=0` | `ekf` | 200 | 8.89 % | 10.67 % | 54.2 % (seed 80) | 0 (0) | 18.9 | 0.59 | 1.6 % | 588 (s 270) | 4.9 |
 | `realistic/long-outage/nobaro` | `ekf-honest {"pseudorange_receiver_clock": false}` | 200 | 58.90 % | 70.67 % | 96.0 % (seed 183) | 0 (0) | 233.1 | 0.46 | 1.6 % | 2,552 (s 299) | 4.9 |
 | `realistic/long-outage/drop-baro` | `ekf-honest {"pseudorange_receiver_clock": false}` | 200 | 62.25 % | 74.68 % | 95.6 % (seed 160) | 0 (0) | 222.3 | 0.45 | 1.6 % | 2,496 (s 299) | 4.9 |
 | `realistic/long-outage/barobias=0` | `ekf-honest {"pseudorange_receiver_clock": false}` | 200 | 70.27 % | 84.30 % | 95.6 % (seed 160) | 0 (0) | 1314.0 | 0.26 | 1.6 % | 2,706 (s 298) | 4.9 |
@@ -226,7 +255,7 @@ The approach leg's `stress` rows were computed before `ekf-honest` gained the re
 
 ## Sweep of the new settings (`sweep`)
 
-`python analysis/honest_bound.py --plan sweep --seeds 0-49 --jobs 5 --host g14` at `624436f` on g14 (Python 3.12.13), seeds 0–49, 17 min
+`python analysis/honest_bound.py --plan sweep --seeds 0-49 --jobs 5 --host g14` at `f9df0ea` on g14 (Python 3.12.13), seeds 0–49, 19 min
 
 | Scenario | Setting | above HPL from fault | worst run | hazardous | tightness | p95 worst (m) | p95 worst / unfixed | Honest | Useful | No harm |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -247,7 +276,7 @@ The approach leg's `stress` rows were computed before `ekf-honest` gained the re
 
 ## Solution separation as the reference (`mhss`)
 
-`python analysis/honest_bound.py --plan mhss --seeds 0-19 --jobs 2 --host g14` at `624436f` on g14 (Python 3.12.13), seeds 0–19, 41 min
+`python analysis/honest_bound.py --plan mhss --seeds 0-19 --jobs 2 --host g14` at `f9df0ea` on g14 (Python 3.12.13), seeds 0–19, 48 min
 
 | Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run | hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | unsafe after loss (median s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -291,28 +320,34 @@ The approach leg's `stress` rows were computed before `ekf-honest` gained the re
 
 ### `realistic-long-outage` and the barometer (#228, tuning seeds 1000–1049)
 
-The set's towers report their true white noise (50 m) but carry 50 m / 30 s multipath too, and every range carries our receiver clock (`receiver_clock: true`, 20 ppb drift), which `ekf` does not model (`pseudorange_receiver_clock` False). Its barometer is drawn as white 0.5 m at 10 Hz plus one constant bias of sigma 1.0 m per run (`sim.models.baro`); the filter is told the 0.5 m white part only. Rows: each estimator with the receiver-clock switch as registered and the other way; scenario variants: `nobaro` (no barometer in the sim: every later source's draws change, as #228's ablation), `drop-baro` (the same records, the barometer's dropped before the filter: paired), `barobias=0` (no bias).
+The set's towers report their true white noise (50 m) but carry 50 m / 30 s multipath too, and every range carries our receiver clock (`receiver_clock: true`, 20 ppb drift). `ekf` as registered models it once GNSS time has been used (`pseudorange_receiver_clock` "observed", ADR-0047, PR #244); with it False it is `ekf` before #244, which did not model it (#228). Its barometer is drawn as white 0.5 m at 10 Hz plus one constant bias of sigma 1.0 m per run (`sim.models.baro`); the filter is told the 0.5 m white part only. Rows: each estimator with the receiver-clock switch as registered and the other way; scenario variants: `nobaro` (no barometer in the sim: every later source's draws change, as #228's ablation), `drop-baro` (the same records, the barometer's dropped before the filter: paired), `barobias=0` (no bias).
 
 | Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run | hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | unsafe after loss (median s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+| `realistic/nominal` | `ekf {"pseudorange_receiver_clock": false}` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 99.9 % | – | – |
 | `realistic/nominal` | `ekf {"pseudorange_receiver_clock": true}` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 99.9 % | – | – |
 | `realistic/nominal` | `ekf` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 99.9 % | – | – |
 | `realistic/nominal` | `ekf-honest {"pseudorange_receiver_clock": false}` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 99.9 % | – | – |
 | `realistic/nominal` | `ekf-honest` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 99.9 % | – | – |
+| `realistic/long-outage` | `ekf {"pseudorange_receiver_clock": false}` | 50 | 76.16 % | 91.36 % | 97.3 % (seed 1023) | 0 (0) | 6905.1 | 0.19 | 1.6 % | 3,375 (s 275) | 4.9 |
+| `realistic/baro-drift` | `ekf {"pseudorange_receiver_clock": false}` | 50 | 5.84 % | 8.75 % | 22.9 % (seed 1035) | 0 (0) | 1378.0 | 1.56 | 45.8 % | 3,490 (s 239) | – |
 | `realistic/long-outage` | `ekf {"pseudorange_receiver_clock": true}` | 50 | 6.40 % | 7.68 % | 43.5 % (seed 1010) | 0 (0) | 16.8 | 0.73 | 1.6 % | 578 (s 289) | 4.9 |
 | `realistic/baro-drift` | `ekf {"pseudorange_receiver_clock": true}` | 50 | 2.85 % | 4.28 % | 37.5 % (seed 1026) | 0 (0) | 17.5 | 0.89 | 45.0 % | 413 (s 150) | – |
-| `realistic/long-outage` | `ekf` | 50 | 76.16 % | 91.36 % | 97.3 % (seed 1023) | 0 (0) | 6905.1 | 0.19 | 1.6 % | 3,375 (s 275) | 4.9 |
-| `realistic/baro-drift` | `ekf` | 50 | 5.84 % | 8.75 % | 22.9 % (seed 1035) | 0 (0) | 1378.0 | 1.56 | 45.8 % | 3,490 (s 239) | – |
+| `realistic/long-outage` | `ekf` | 50 | 6.40 % | 7.68 % | 43.5 % (seed 1010) | 0 (0) | 16.8 | 0.73 | 1.6 % | 578 (s 289) | 4.9 |
+| `realistic/baro-drift` | `ekf` | 50 | 2.85 % | 4.28 % | 37.5 % (seed 1026) | 0 (0) | 17.5 | 0.89 | 45.0 % | 413 (s 150) | – |
 | `realistic/long-outage` | `ekf-honest {"pseudorange_receiver_clock": false}` | 50 | 70.70 % | 84.81 % | 94.6 % (seed 1016) | 0 (0) | 1335.7 | 0.26 | 1.6 % | 2,824 (s 299) | 4.9 |
 | `realistic/baro-drift` | `ekf-honest {"pseudorange_receiver_clock": false}` | 50 | 8.05 % | 12.07 % | 46.6 % (seed 1034) | 0 (0) | 260.1 | 0.99 | 45.4 % | 2,994 (s 239) | – |
 | `realistic/long-outage` | `ekf-honest` | 50 | 0.30 % | 0.36 % | 17.9 % (seed 1001) | 0 (0) | 2.3 | 2.35 | 1.6 % | 456 (s 289) | 4.9 |
 | `realistic/baro-drift` | `ekf-honest` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 2.1 | 2.20 | 45.8 % | 380 (s 150) | – |
+| `realistic/long-outage/nobaro` | `ekf {"pseudorange_receiver_clock": false}` | 50 | 68.77 % | 82.50 % | 97.0 % (seed 1026) | 0 (0) | 1006.8 | 0.25 | 1.6 % | 2,454 (s 270) | 4.9 |
+| `realistic/long-outage/drop-baro` | `ekf {"pseudorange_receiver_clock": false}` | 50 | 71.88 % | 86.23 % | 97.6 % (seed 1023) | 0 (0) | 1134.1 | 0.25 | 1.6 % | 2,998 (s 279) | 4.9 |
+| `realistic/long-outage/barobias=0` | `ekf {"pseudorange_receiver_clock": false}` | 50 | 76.16 % | 91.36 % | 97.3 % (seed 1023) | 0 (0) | 6905.1 | 0.19 | 1.6 % | 3,375 (s 275) | 4.9 |
 | `realistic/long-outage/nobaro` | `ekf {"pseudorange_receiver_clock": true}` | 50 | 7.37 % | 8.84 % | 63.0 % (seed 1019) | 0 (0) | 18.0 | 0.70 | 1.6 % | 1,278 (s 292) | 4.9 |
 | `realistic/long-outage/drop-baro` | `ekf {"pseudorange_receiver_clock": true}` | 50 | 4.29 % | 5.15 % | 51.9 % (seed 1010) | 0 (0) | 13.5 | 0.77 | 1.6 % | 769 (s 293) | 4.9 |
 | `realistic/long-outage/barobias=0` | `ekf {"pseudorange_receiver_clock": true}` | 50 | 6.40 % | 7.68 % | 43.5 % (seed 1010) | 0 (0) | 16.8 | 0.73 | 1.6 % | 578 (s 289) | 4.9 |
-| `realistic/long-outage/nobaro` | `ekf` | 50 | 68.77 % | 82.50 % | 97.0 % (seed 1026) | 0 (0) | 1006.8 | 0.25 | 1.6 % | 2,454 (s 270) | 4.9 |
-| `realistic/long-outage/drop-baro` | `ekf` | 50 | 71.88 % | 86.23 % | 97.6 % (seed 1023) | 0 (0) | 1134.1 | 0.25 | 1.6 % | 2,998 (s 279) | 4.9 |
-| `realistic/long-outage/barobias=0` | `ekf` | 50 | 76.16 % | 91.36 % | 97.3 % (seed 1023) | 0 (0) | 6905.1 | 0.19 | 1.6 % | 3,375 (s 275) | 4.9 |
+| `realistic/long-outage/nobaro` | `ekf` | 50 | 7.37 % | 8.84 % | 63.0 % (seed 1019) | 0 (0) | 18.0 | 0.70 | 1.6 % | 1,278 (s 292) | 4.9 |
+| `realistic/long-outage/drop-baro` | `ekf` | 50 | 4.29 % | 5.15 % | 51.9 % (seed 1010) | 0 (0) | 13.5 | 0.77 | 1.6 % | 769 (s 293) | 4.9 |
+| `realistic/long-outage/barobias=0` | `ekf` | 50 | 6.40 % | 7.68 % | 43.5 % (seed 1010) | 0 (0) | 16.8 | 0.73 | 1.6 % | 578 (s 289) | 4.9 |
 | `realistic/long-outage/nobaro` | `ekf-honest {"pseudorange_receiver_clock": false}` | 50 | 61.89 % | 74.25 % | 95.3 % (seed 1034) | 0 (0) | 210.4 | 0.45 | 1.6 % | 2,452 (s 297) | 4.9 |
 | `realistic/long-outage/drop-baro` | `ekf-honest {"pseudorange_receiver_clock": false}` | 50 | 62.56 % | 75.05 % | 94.6 % (seed 1016) | 0 (0) | 156.6 | 0.47 | 1.6 % | 2,393 (s 294) | 4.9 |
 | `realistic/long-outage/barobias=0` | `ekf-honest {"pseudorange_receiver_clock": false}` | 50 | 70.70 % | 84.81 % | 94.6 % (seed 1016) | 0 (0) | 1335.7 | 0.26 | 1.6 % | 2,824 (s 299) | 4.9 |
@@ -323,46 +358,46 @@ The set's towers report their true white noise (50 m) but carry 50 m / 30 s mult
 
 ## Step 1: the existing estimators on tuning seeds (`measure`)
 
-`python analysis/honest_bound.py --plan measure --part calibrated:1c --seeds 1000-1049 --jobs 5 --host g14` at `e982f95` (DIRTY TREE) on g14 (Python 3.12.13), seeds 1000–1049, 10 min; `python analysis/honest_bound.py --plan measure --part plain --seeds 1000-1049 --jobs 5 --host g14` at `e982f95` (DIRTY TREE) on g14 (Python 3.12.13), seeds 1000–1049, 14 min
+`python analysis/honest_bound.py --plan measure --part calibrated:1c --seeds 1000-1049 --jobs 5 --host g14` at `f9df0ea` on g14 (Python 3.12.13), seeds 1000–1049, 7 min; `python analysis/honest_bound.py --plan measure --part plain --seeds 1000-1049 --jobs 5 --host g14` at `f9df0ea` on g14 (Python 3.12.13), seeds 1000–1049, 17 min
 
 | Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run | hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | unsafe after loss (median s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| `drone/nominal/1c` | `ekf` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | – | – | 100.0 % | – | – |
-| `drone/nominal/1c` | `ekf-learned-noise` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | – | – | 100.0 % | – | – |
-| `drone/nominal/1c` | `ekf-calibrated` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | – | – | 100.0 % | – | – |
-| `drone/nominal/1c` | `ekf-calibrated-learned-noise` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | – | – | 100.0 % | – | – |
-| `drone/outage/1c` | `ekf` | 50 | 34.42 % | 37.55 % | 95.3 % (seed 1015) | 237 (7) | – | 1.03 | 4.5 % | 10,006 (s 300) | 4.9 |
-| `drone/outage/1c` | `ekf-learned-noise` | 50 | 2.43 % | 2.66 % | 22.3 % (seed 1041) | 0 (0) | – | 1.11 | 9.5 % | 2,344 (s 300) | 4.9 |
-| `drone/outage/1c` | `ekf-calibrated` | 50 | 32.94 % | 35.93 % | 93.0 % (seed 1015) | 25 (2) | – | 1.29 | 4.7 % | 7,295 (s 299) | 4.9 |
-| `drone/outage/1c` | `ekf-calibrated-learned-noise` | 50 | 0.03 % | 0.04 % | 1.8 % (seed 1013) | 0 (0) | – | 1.81 | 9.6 % | 2,442 (s 300) | 4.9 |
-| `drone/spoof-jump/1c` | `ekf` | 50 | 74.63 % | 94.25 % | 97.7 % (seed 1015) | 240,047 (48) | – | 0.00 | 85.1 % | 7,508 (s 300) | – |
-| `drone/spoof-jump/1c` | `ekf-learned-noise` | 50 | 71.60 % | 90.43 % | 96.2 % (seed 1025) | 256,516 (50) | – | 0.02 | 90.9 % | 508 (s 57) | – |
-| `drone/spoof-jump/1c` | `ekf-guard` | 50 | 24.45 % | 30.88 % | 97.7 % (seed 1015) | 669 (6) | – | 1.61 | 1.1 % | 9,532 (s 300) | – |
-| `drone/spoof-jump/1c` | `ekf-learned-noise+guard` | 50 | 2.62 % | 3.31 % | 19.1 % (seed 1010) | 0 (0) | – | 0.82 | 0.9 % | 1,828 (s 300) | – |
-| `drone/spoof-jump/1c` | `ekf-calibrated` | 50 | 74.98 % | 94.70 % | 96.7 % (seed 1046) | 249,259 (48) | – | 0.01 | 88.3 % | 2,446 (s 300) | – |
-| `drone/spoof-jump/1c` | `ekf-calibrated-learned-noise` | 50 | 73.38 % | 92.68 % | 95.5 % (seed 1004) | 264,026 (50) | – | 0.02 | 93.5 % | 306 (s 28) | – |
-| `drone/spoof-jump/1c` | `ekf-calibrated-guard` | 50 | 24.62 % | 31.09 % | 95.6 % (seed 1015) | 29 (2) | – | 1.53 | 0.9 % | 7,619 (s 300) | – |
-| `drone/spoof-jump/1c` | `ekf-calibrated-learned-noise+guard` | 50 | 0.22 % | 0.28 % | 5.2 % (seed 1028) | 0 (0) | – | 1.06 | 0.9 % | 2,004 (s 300) | – |
-| `drone/nominal/6c` | `ekf` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | – | – | 100.0 % | – | – |
-| `drone/nominal/6c` | `ekf-learned-noise` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | – | – | 100.0 % | – | – |
-| `drone/outage/6c` | `ekf` | 50 | 42.34 % | 46.19 % | 98.2 % (seed 1013) | 293 (6) | – | 0.82 | 3.6 % | 12,442 (s 300) | 4.9 |
-| `drone/outage/6c` | `ekf-learned-noise` | 50 | 0.21 % | 0.23 % | 1.8 % (seed 1034) | 0 (0) | – | 1.41 | 9.8 % | 213 (s 94) | 4.9 |
-| `drone/spoof-jump/6c` | `ekf` | 50 | 75.40 % | 95.23 % | 96.5 % (seed 1017) | 244,207 (50) | – | 0.00 | 86.6 % | 4,700 (s 300) | – |
-| `drone/spoof-jump/6c` | `ekf-learned-noise` | 50 | 48.49 % | 61.24 % | 95.1 % (seed 1047) | 174,122 (48) | – | 0.44 | 62.0 % | 304 (s 82) | – |
-| `drone/spoof-jump/6c` | `ekf-guard` | 50 | 28.74 % | 36.30 % | 96.5 % (seed 1017) | 590 (6) | – | 1.36 | 1.1 % | 12,539 (s 300) | – |
-| `drone/spoof-jump/6c` | `ekf-learned-noise+guard` | 50 | 0.38 % | 0.48 % | 8.2 % (seed 1021) | 0 (0) | – | 1.59 | 0.9 % | 199 (s 270) | – |
-| `drone/nominal/13c` | `ekf` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | – | – | 100.0 % | – | – |
-| `drone/nominal/13c` | `ekf-learned-noise` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | – | – | 100.0 % | – | – |
-| `drone/outage/13c` | `ekf` | 50 | 49.42 % | 53.90 % | 99.1 % (seed 1047) | 362 (8) | – | 0.65 | 3.1 % | 14,019 (s 300) | 4.9 |
-| `drone/outage/13c` | `ekf-learned-noise` | 50 | 0.07 % | 0.08 % | 1.1 % (seed 1005) | 0 (0) | – | 1.70 | 9.8 % | 130 (s 256) | 5.0 |
-| `drone/spoof-jump/13c` | `ekf` | 50 | 75.12 % | 94.88 % | 98.4 % (seed 1013) | 240,838 (48) | – | 0.00 | 85.4 % | 9,428 (s 300) | – |
-| `drone/spoof-jump/13c` | `ekf-learned-noise` | 50 | 2.71 % | 3.42 % | 56.5 % (seed 1048) | 9,467 (6) | – | 1.88 | 4.2 % | 120 (s 259) | – |
-| `drone/spoof-jump/13c` | `ekf-guard` | 50 | 35.77 % | 45.17 % | 98.4 % (seed 1013) | 588 (4) | – | 0.92 | 1.1 % | 11,725 (s 300) | – |
-| `drone/spoof-jump/13c` | `ekf-learned-noise+guard` | 50 | 0.06 % | 0.08 % | 1.3 % (seed 1004) | 0 (0) | – | 1.88 | 0.9 % | 120 (s 259) | – |
+| `drone/nominal/1c` | `ekf` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 100.0 % | – | – |
+| `drone/nominal/1c` | `ekf-learned-noise` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 100.0 % | – | – |
+| `drone/nominal/1c` | `ekf-calibrated` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 100.0 % | – | – |
+| `drone/nominal/1c` | `ekf-calibrated-learned-noise` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 100.0 % | – | – |
+| `drone/outage/1c` | `ekf` | 50 | 34.42 % | 37.55 % | 95.3 % (seed 1015) | 237 (7) | 508.4 | 1.03 | 4.5 % | 10,006 (s 300) | 4.9 |
+| `drone/outage/1c` | `ekf-learned-noise` | 50 | 2.43 % | 2.66 % | 22.3 % (seed 1041) | 0 (0) | 7.1 | 1.11 | 9.5 % | 2,344 (s 300) | 4.9 |
+| `drone/outage/1c` | `ekf-calibrated` | 50 | 32.94 % | 35.93 % | 93.0 % (seed 1015) | 25 (2) | 224.4 | 1.29 | 4.7 % | 7,295 (s 299) | 4.9 |
+| `drone/outage/1c` | `ekf-calibrated-learned-noise` | 50 | 0.03 % | 0.04 % | 1.8 % (seed 1013) | 0 (0) | 1.8 | 1.81 | 9.6 % | 2,442 (s 300) | 4.9 |
+| `drone/spoof-jump/1c` | `ekf` | 50 | 74.63 % | 94.25 % | 97.7 % (seed 1015) | 240,047 (48) | 42333.7 | 0.00 | 85.1 % | 7,508 (s 300) | – |
+| `drone/spoof-jump/1c` | `ekf-learned-noise` | 50 | 71.60 % | 90.43 % | 96.2 % (seed 1025) | 256,516 (50) | 45180.8 | 0.02 | 90.9 % | 508 (s 57) | – |
+| `drone/spoof-jump/1c` | `ekf-guard` | 50 | 24.45 % | 30.88 % | 97.7 % (seed 1015) | 669 (6) | 277.6 | 1.61 | 1.1 % | 9,532 (s 300) | – |
+| `drone/spoof-jump/1c` | `ekf-learned-noise+guard` | 50 | 2.62 % | 3.31 % | 19.1 % (seed 1010) | 0 (0) | 7.9 | 0.82 | 0.9 % | 1,828 (s 300) | – |
+| `drone/spoof-jump/1c` | `ekf-calibrated` | 50 | 74.98 % | 94.70 % | 96.7 % (seed 1046) | 249,259 (48) | 43951.5 | 0.01 | 88.3 % | 2,446 (s 300) | – |
+| `drone/spoof-jump/1c` | `ekf-calibrated-learned-noise` | 50 | 73.38 % | 92.68 % | 95.5 % (seed 1004) | 264,026 (50) | 46511.2 | 0.02 | 93.5 % | 306 (s 28) | – |
+| `drone/spoof-jump/1c` | `ekf-calibrated-guard` | 50 | 24.62 % | 31.09 % | 95.6 % (seed 1015) | 29 (2) | 114.5 | 1.53 | 0.9 % | 7,619 (s 300) | – |
+| `drone/spoof-jump/1c` | `ekf-calibrated-learned-noise+guard` | 50 | 0.22 % | 0.28 % | 5.2 % (seed 1028) | 0 (0) | 3.0 | 1.06 | 0.9 % | 2,004 (s 300) | – |
+| `drone/nominal/6c` | `ekf` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 100.0 % | – | – |
+| `drone/nominal/6c` | `ekf-learned-noise` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 100.0 % | – | – |
+| `drone/outage/6c` | `ekf` | 50 | 42.34 % | 46.19 % | 98.2 % (seed 1013) | 293 (6) | 637.6 | 0.82 | 3.6 % | 12,442 (s 300) | 4.9 |
+| `drone/outage/6c` | `ekf-learned-noise` | 50 | 0.21 % | 0.23 % | 1.8 % (seed 1034) | 0 (0) | 5.0 | 1.41 | 9.8 % | 213 (s 94) | 4.9 |
+| `drone/spoof-jump/6c` | `ekf` | 50 | 75.40 % | 95.23 % | 96.5 % (seed 1017) | 244,207 (50) | 42989.8 | 0.00 | 86.6 % | 4,700 (s 300) | – |
+| `drone/spoof-jump/6c` | `ekf-learned-noise` | 50 | 48.49 % | 61.24 % | 95.1 % (seed 1047) | 174,122 (48) | 30640.0 | 0.44 | 62.0 % | 304 (s 82) | – |
+| `drone/spoof-jump/6c` | `ekf-guard` | 50 | 28.74 % | 36.30 % | 96.5 % (seed 1017) | 590 (6) | 388.5 | 1.36 | 1.1 % | 12,539 (s 300) | – |
+| `drone/spoof-jump/6c` | `ekf-learned-noise+guard` | 50 | 0.38 % | 0.48 % | 8.2 % (seed 1021) | 0 (0) | 4.8 | 1.59 | 0.9 % | 199 (s 270) | – |
+| `drone/nominal/13c` | `ekf` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 100.0 % | – | – |
+| `drone/nominal/13c` | `ekf-learned-noise` | 50 | 0.00 % | 0.00 % | 0.0 % (seed 1000) | 0 (0) | 1.6 | – | 100.0 % | – | – |
+| `drone/outage/13c` | `ekf` | 50 | 49.42 % | 53.90 % | 99.1 % (seed 1047) | 362 (8) | 3470.5 | 0.65 | 3.1 % | 14,019 (s 300) | 4.9 |
+| `drone/outage/13c` | `ekf-learned-noise` | 50 | 0.07 % | 0.08 % | 1.1 % (seed 1005) | 0 (0) | 3.9 | 1.70 | 9.8 % | 130 (s 256) | 5.0 |
+| `drone/spoof-jump/13c` | `ekf` | 50 | 75.12 % | 94.88 % | 98.4 % (seed 1013) | 240,838 (48) | 42665.7 | 0.00 | 85.4 % | 9,428 (s 300) | – |
+| `drone/spoof-jump/13c` | `ekf-learned-noise` | 50 | 2.71 % | 3.42 % | 56.5 % (seed 1048) | 9,467 (6) | 1660.4 | 1.88 | 4.2 % | 120 (s 259) | – |
+| `drone/spoof-jump/13c` | `ekf-guard` | 50 | 35.77 % | 45.17 % | 98.4 % (seed 1013) | 588 (4) | 840.6 | 0.92 | 1.1 % | 11,725 (s 300) | – |
+| `drone/spoof-jump/13c` | `ekf-learned-noise+guard` | 50 | 0.06 % | 0.08 % | 1.3 % (seed 1004) | 0 (0) | 3.5 | 1.88 | 0.9 % | 120 (s 259) | – |
 
 ## Step 2: one term changed at a time, tuning seeds (`diagnose`)
 
-`python analysis/honest_bound.py --plan diagnose --seeds 1000-1049 --jobs 2 --host mac` at `af3aab6` (DIRTY TREE) on mac (Python 3.14.6), seeds 1000–1049, 20 min
+`python analysis/honest_bound.py --plan diagnose --seeds 1000-1049 --jobs 2 --host g14` at `f9df0ea` on g14 (Python 3.12.13), seeds 1000–1049, 19 min
 
 | Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run | hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | unsafe after loss (median s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -388,4 +423,4 @@ Runs that raised: 0.
 - **Calibrated family:** `ekf-calibrated` and `-learned-noise` were measured on 1 carrier (tuning seeds) only; their 6- and 13-carrier runs (8 min and 1.6 GB a run) were stopped. No fix is proposed for them.
 - **PR #241** (keep a GNSS fix's horizontal when only its height fails the 3-D gate; not on this branch) would change only epochs where GNSS is present and the barometer has drifted: the last 60 s of the drone `outage-baro-drift` runs (GPS back at 660 s after 96 m of baro drift; HPL ≤ 50 m on 0.7 % of epochs against 9.8 % on `outage`) and `realistic/baro-drift` (GNSS never lost, refused once the drift exceeds the gate). It cannot change an outage epoch.
 - **Real barometer.** A BMP180 told 0.3 m read −3.4 to +77.5 m on a static receiver (PR #241); the sim's barometer is white 0.5 m plus a 1 m bias. Not modelled here.
-- **Hop entries and the sweep** were run at different commits from the 1-carrier part (provenance lines); the estimator code is the same in all of them, except the receiver-clock switch, which changes no drone or timing record (test) and is why the approach leg was rerun.
+- **Commits:** every plan ran at `f9df0ea` (provenance lines).
