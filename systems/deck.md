@@ -2,7 +2,7 @@
 
 **The pitch in one line:** a navigation layer that knows when it is wrong, and tells the operator not to trust it.
 
-Seven slides, 251 s, 517 words of script, 15 numbers spoken. Seconds are the words at 2.1 a second, except the demo, which the panel's clock sets at 80 s. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md) (*Numbers the deck speaks or shows*).
+Seven slides, 255 s, 526 words of script, 16 numbers spoken. Seconds are the words at 2.1 a second, except the demo, which the panel's clock sets at 80 s. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md) (*Numbers the deck speaks or shows*).
 
 **Three rules on stage.** Say "simulated" whenever a number is simulated. Say "consistent with a registered site", never "identified". Never say "first": say "we found no published…".
 
@@ -11,13 +11,13 @@ Seven slides, 251 s, 517 words of script, 15 numbers spoken. Seconds are the wor
 | 1 | The moment: green and 300 m wrong | 21 | 44 | 1 |
 | 2 | What we built | 21 | 45 | 0 |
 | 3 | Live demo | 80 | 157 | 3 |
-| 4 | Real signals | 26 | 54 | 2 |
+| 4 | Real signals | 27 | 56 | 2 |
 | 5 | Where we miss, and what closes the gap | 45 | 95 | 7 |
-| 6 | Every source can lie | 32 | 67 | 1 |
+| 6 | Every source can lie | 35 | 74 | 2 |
 | 7 | Roadmap | 26 | 55 | 1 |
-| | **Total** | **251** | **517** | **15** |
+| | **Total** | **255** | **526** | **16** |
 
-Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute (3); seven-tenths of a metre, eight metres (4); two metres, thirteen carriers, ninety-five percent, fifty, a hundred and thirty-two metres, five minutes, twenty-five (5); fifty-nine (6); a hundred and seventy dollars (7).
+Numbers spoken: three hundred metres (1); five seconds, three hundred metres, half a minute (3); seven-tenths of a metre, eight metres (4); two metres, thirteen carriers, ninety-five percent, fifty, a hundred and thirty-two metres, five minutes, twenty-five (5); fifty-nine, a third (6); a hundred and seventy dollars (7).
 
 ---
 
@@ -71,19 +71,19 @@ Room for one more segment: a demo of the towers helping (learned noise and hoppi
 
 ## 4. Real signals
 
-**Headline:** On real towers our low-cost radio is precise on strong cells, but a slower error it does not report sits on top; on real static sessions with GPS removed, the towers still made position worse, by hundreds of metres; nothing is measured on the move yet.
+**Headline:** On real towers our low-cost radio is precise on strong cells, but a slower error it does not report sits on top; on four real static sessions with GPS removed, the towers still made position worse, by hundreds of metres to kilometres; nothing is measured on the move yet.
 
 **On the slide:**
 - Range jitter on the strongest cells: 0.73 m (real, 10 records a second). A slower error, median 8.1 m at 1 s, that the radio's own estimate leaves out.
-- Two real static sessions, GPS removed in software: with towers, hundreds of metres worse than without (median at 300 s 595 m and 364 m, against 0.6 m and 1.3 m), and the bound misses a quarter of the withheld fixes.
+- Four real static sessions, GPS removed in software: with towers, hundreds of metres to kilometres worse than without. Median at 300 s for the default filter: 595 m, 364 m and 4,689 m, against about 1 to 2 m; on the fourth, 255 m at 120 s against 1.6 m.
 - Nothing measured on the move yet.
 
 **Figure:** [`analysis/results/lte-measured-noise/white_vs_snr.png`](../analysis/results/lte-measured-noise/white_vs_snr.png) (real).
 
-**Script (54 words, 26 s):**
-> This part is real. On strong cells our radio's range jitter is seven-tenths of a metre, but a slower error of about eight metres sits on top, unreported. On two real sessions with GPS removed in software, standing still, towers made position hundreds of metres worse. And nothing is measured on the move yet.
+**Script (56 words, 27 s):**
+> This part is real. On strong cells our radio's range jitter is seven-tenths of a metre, but a slower error of about eight metres sits on top, unreported. On four real sessions with GPS removed in software, standing still, towers made position hundreds of metres to kilometres worse. And nothing is measured on the move yet.
 
-Source: ADR-0036 on `main` (numbers regenerated after #245: white σ 0.73 m at 13–16 dB; S(1 s) median 8.1 m). GPS cut: #267 (merged; ADR-0050, Accepted), the other owner's result, not re-run by us ([`real-lte-filter/NOTES.md`](../analysis/results/real-lte-filter/NOTES.md), run at `af9dd16` (the commit `summary.json` names, on #267's branch; the files are on `main` at `aac7bd4`)): the default `ekf`, which now tells a real capture's LTE records the measured σ and gives each new arc a bias, median (worst) at 300 s over five cut times 595 m (1,536 m) on `20261111-0151` and 364 m (1,582 m) on `20261111-0233` with LTE, against 0.6 m and 1.3 m without; HPL at or above the error on 76 % and 75 % of the withheld fixes. Before ADR-0050 the same sessions gave 21,553 m and 10,718 m. "No variant beats no LTE on a static receiver, and the HPL still misses a quarter of the fixes" (NOTES). The five cuts share one recording per session, and a static receiver favours no LTE by construction. If asked for the number, give it with those caveats.
+Source: ADR-0036 on `main` (numbers regenerated after #245: white σ 0.73 m at 13–16 dB; S(1 s) median 8.1 m). GPS cut: #267 (merged; ADR-0050, Accepted), the other owner's result, not re-run by us ([`real-lte-filter/NOTES.md`](../analysis/results/real-lte-filter/NOTES.md), run at `af9dd16` (the commit `summary.json` names, on #267's branch; the files are on `main` at `aac7bd4`)): the default `ekf`, which now tells a real capture's LTE records the measured σ and gives each new arc a bias, median (worst) at 300 s over five cut times 595 m (1,536 m) on `20261111-0151` and 364 m (1,582 m) on `20261111-0233` with LTE, against 0.6 m and 1.3 m without; HPL at or above the error on 76 % and 75 % of the withheld fixes. Before ADR-0050 the same sessions gave 21,553 m and 10,718 m. "No variant beats no LTE on a static receiver, and the HPL still misses a quarter of the fixes" (NOTES). The five cuts share one recording per session, and a static receiver favours no LTE by construction. If asked for the number, give it with those caveats. Third and fourth sessions: draft PR #283 (`analysis/results/real-replay-256/summary.md`): `20261111-0040-static-fullsuite`, default `ekf` 4,689 m (worst 5,193) at 300 s against 1.7 m with no LTE; `20261111-1937-static-fullsuite3` (recorded 2026-11-12 UTC, #282), 255 m (worst 1,246) at 120 s against 1.6 m; five cuts of one recording each, re-run by QA (0 of 1,479 fields differ on the first).
 
 **If asked:** Q2 (is any of it real), Q5 (8-bit radio), Q17 (multipath or oscillator), Q15 (what the sim got wrong), Q20 (why believe 132 m).
 
@@ -110,7 +110,7 @@ Fallback: #247 is a draft on unmerged branches; if a judge asks, say so. The sta
 
 ## 6. Every source can lie
 
-**Headline:** Every source can lie, GPS and the towers alike; towers may contradict GPS time but never confirm it; on a real recording every faked sky was caught; and our bound holds only under our model.
+**Headline:** Every source can lie, GPS and the towers alike; towers may contradict GPS time but never confirm it; on a real recording every faked sky was caught; and on two real sessions the default filter's bound was wrong a third of the time while our opt-in honest-bound filter's never was, though it is kilometres wide.
 
 **On the slide:**
 
@@ -122,14 +122,14 @@ Fallback: #247 is a draft on unmerged branches; if a judge asks, say so. The sta
 
 - Towers take their time from GPS: they may contradict it, never confirm it.
 - Real recording, GPS sky faked in software: 59 of 59 fake sky reports flagged, no false alarm on 120 real ones.
-- In simulation the error still escapes the bound after GPS loss: 45.3 % of the time, 0.45 % with a proposed fix (draft PR #251).
+- The bound, on two real static sessions with GPS removed: the default filter's was below the error on 34 % of 3,005 withheld fixes; our opt-in honest-bound filter's on none. Its bound is kilometres wide: honest, not yet usable (draft PRs #251, #283). In simulation: 45.3 % against 0.45 %.
 
 **Figure:** [`analysis/pr-evidence/shrikar-feat-206-spoof-decision/spoof-decision-real-sky.png`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/spoof-decision-real-sky.png) (real session, fake sky injected in software).
 
-**Script (67 words, 32 s):**
-> Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so by design they may contradict GPS time, never confirm it. On a real recording we faked the GPS sky in software: all fifty-nine fakes were flagged, with no false alarm. And our bound holds only under our model: in simulation the error still escapes it, and we report that.
+**Script (74 words, 35 s):**
+> Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so by design they may contradict GPS time, never confirm it. On a real recording we faked the GPS sky in software: all fifty-nine fakes were flagged, with no false alarm. And the bound: on two real sessions the default filter's was wrong a third of the time; our honest-bound filter's never, though it is kilometres wide.
 
-Source: sky-map decision, #239 (merged, #250; ADR-0041 Accepted), [`summary.md`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/summary.md): real session `20261111-0040-static-fullsuite`, fake sky from 300 s, 59 of 59 faked skyviews flagged (suspect or spoofed) for each of three fake skies; 0 false alarms in 120 real skyviews. Bound: #251 (draft, verdict Not ready), `challenge-drone-outage`, 1 carrier, seeds 0–199: 45.33 % of epochs above HPL from GPS loss for `ekf`, 0.45 % for the opt-in `ekf-honest`; single runs still escape (worst 18.5 %); the 2 m/s ramp escapes every filter (99.3 %). The tower-time rule is our design (ADR-0024); the refutation of GPS time by tower time is planned, not built (Q11).
+Source: sky-map decision, #239 (merged, #250; ADR-0041 Accepted), [`summary.md`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/summary.md): real session `20261111-0040-static-fullsuite`, fake sky from 300 s, 59 of 59 faked skyviews flagged (suspect or spoofed) for each of three fake skies; 0 false alarms in 120 real skyviews. Bound on real data: draft PR #283, sessions `20261111-0040-static-fullsuite` and `20261111-1937-static-fullsuite3`, five GPS cuts each: default `ekf` above HPL on 622 of 1,505 and 403 of 1,500 withheld fixes (1,025 of 3,005, 34 %), `ekf-honest` on 0 of 3,005; its HPL is 3.2 km at 120 s and 9.4 km at 300 s on the first session; no row beats no LTE. Bound: #251 (draft, verdict Not ready), `challenge-drone-outage`, 1 carrier, seeds 0–199: 45.33 % of epochs above HPL from GPS loss for `ekf`, 0.45 % for the opt-in `ekf-honest`; single runs still escape (worst 18.5 %); the 2 m/s ramp escapes every filter (99.3 %). The tower-time rule is our design (ADR-0024); the refutation of GPS time by tower time is planned, not built (Q11).
 
 **If asked:** Q6 (the 5.33 bound), Q11 (what is new), Q7 (slow drag), Q8 (false alarms), Q24 (detect but not mitigate).
 
