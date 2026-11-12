@@ -1,6 +1,6 @@
 # Real GPS cut: error after GPS loss on a real session (#214)
 
-Evidence: **replay of a real session, GPS cut in software** (ADR-0015). Session `20261111-0040-static-fullsuite-lte` (front end at `28ec0a2`, analysis at `105e9a3`). Static receiver, outdoors, on the ground; one site; LTE on one carrier (EARFCN 2460), few weak cells. Runs: one per cut time (99, 149, 199, 249, 299 s after the first measurement), each scored for 300 s after its cut. The runs share the same data, so they are not independent: n = 5 cut times of one session.
+Evidence: **replay of a real session, GPS cut in software** (ADR-0015). Session `20261111-0040-static-fullsuite-lte` (front end at `22d528f`, analysis at `8807879`). Static receiver, outdoors, on the ground; one site; LTE on one carrier (EARFCN 2460), few weak cells. Runs: one per cut time (99, 149, 199, 249, 299 s after the first measurement), each scored for 300 s after its cut. The runs share the same data, so they are not independent: n = 5 cut times of one session.
 
 Truth: the GPS fixes withheld from the filter (1 Hz). Their scatter about the session's GPS mean is 0.73 m rms, 1.25 m p95, 1.46 m max (horizontal): every error below that size is truth noise. No position, origin, range or bearing is given here, only errors.
 
