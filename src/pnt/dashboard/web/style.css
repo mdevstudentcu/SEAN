@@ -65,14 +65,14 @@ main {
   grid-area: hero; display: grid; gap: 12px;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 560px);
 }
-.map { grid-area: map; display: flex; flex-direction: column; min-height: 460px; }
+.map { grid-area: map; display: flex; flex-direction: column; min-height: 0; }
 .side { grid-area: side; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
 .charts { grid-area: charts; display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
 .card { background: var(--surface); border: 1px solid var(--grid); border-radius: 8px; padding: 12px; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 h2 { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--ink-2); }
 .card-head h2 { margin: 0; }
-.map-wrap { position: relative; flex: 1; min-height: 420px; margin-top: 8px; }
+.map-wrap { position: relative; flex: 1; min-height: 300px; margin-top: 8px; }
 #map { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
 canvas { display: block; }
 .charts canvas { width: 100%; height: 190px; margin-top: 8px; }
@@ -209,6 +209,8 @@ footer { padding: 4px 16px 16px; font-size: 12px; }
   body { height: auto; min-height: 100vh; }
   main { grid-template-rows: none; }
   .side { overflow-y: visible; }
+  .map { min-height: 460px; }
+  .map-wrap { min-height: 420px; }
 }
 @media (max-width: 1100px) {
   main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "hero" "side" "map" "charts"; }
