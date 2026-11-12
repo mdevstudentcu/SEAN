@@ -30,9 +30,9 @@ aux 0 0 0 1700 2100 0 0                   # ARM on AUX1
 aux 1 1 1 900 1300 0 0                    # ANGLE on AUX2
 ```
 
-**Done 2026-11-11:** accelerometer level calibration (roll 0.4° / pitch 2.6° → 0.0° / 0.0°); motor order and direction, props off. Order is Betaflight's Quad X default, props in: M1 rear-right CW, M2 front-right CCW, M3 rear-left CCW, M4 front-left CW. M3 and M4 were reversed and fixed in the ESC (`dshotprog 2 21 12`, `dshotprog 3 21 12`), then re-tested.
+**Done 2026-11-11:** accelerometer level calibration (roll 0.4° / pitch 2.6° → 0.0° / 0.0°); motor order and direction, props off. Order is Betaflight's Quad X default, props in: M1 rear-right CW, M2 front-right CCW, M3 rear-left CCW, M4 front-left CW. M3 and M4 were reversed and fixed in the ESC (`dshotprog 2 21 12`, `dshotprog 3 21 12`), then re-tested; all four directions confirmed at slow speed.
 
-**Open before the first flight:** re-check M1's direction slowly with a tape flag (it was judged at a higher speed only); bidirectional DShot (whether the ESC supports it is `TBC`); `failsafe_throttle`, only if AUTO-LAND is ever used instead of `DROP`.
+**Open before the first flight:** bidirectional DShot (whether the ESC supports it is `TBC`); `failsafe_throttle`, only if AUTO-LAND is ever used instead of `DROP`.
 
 ### Pre-flight (indoor)
 
@@ -44,7 +44,7 @@ Netted area · prop guards · speed limit · props matched to motor direction (C
 2. SwB disarmed.
 3. Throttle down.
 4. SwA at rest (ANGLE).
-5. Props on only after the motor check (M1 re-checked slowly), each matched to its motor's direction.
+5. Props each matched to its motor's direction (CCW/"R" on M2 and M3).
 6. SwB is the kill: flip it to stop the motors.
 
 ### FS-i6 menu reference

@@ -62,11 +62,10 @@ INAV was never flashed. The owners chose to stay on Betaflight. The *Decision* a
 - **Motor check, props off,** each motor spun alone over MSP:
   - Order is correct: M1 rear-right, M2 front-right, M3 rear-left, M4 front-left (Betaflight's Quad X default, props in).
   - M1 CW and M2 CCW were correct. **M3 and M4 spun the wrong way**, fixed in the ESC with `dshotprog 2 21 12` and `dshotprog 3 21 12` (DShot: spin direction reversed, then save). Re-tested: M3 CCW, M4 CW.
-  - M1's direction was judged at a higher speed only.
+  - All four directions confirmed at slow speed (M1 re-checked slowly: CW).
 
 **Open before the first flight:**
 
-- Re-check M1's direction slowly, with a tape flag.
 - Props matched to each motor's direction: CCW ("R") props on M2 and M3.
 - Bidirectional DShot: whether the E55S ESC firmware supports it is unknown (`TBC`).
 - `failsafe_throttle` tuning, only if Betaflight's AUTO-LAND failsafe is ever used instead of `DROP`.
