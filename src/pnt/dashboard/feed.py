@@ -47,6 +47,9 @@ class Feed:
     # session origin and the towers (a registered site drawn in ENU locates the origin). The
     # estimator still gets the origin. The track stays: ENU metres about the origin, relative.
     hide_origin: bool = False
+    # The innovation whiteness flag (ADR-0055) on the panel; off only on request (`--no-whiteness`:
+    # the stage demo, owner decision 2026-11-12, ADR-0055 *Amendment*)
+    whiteness: bool = True
 
     def info(self, alert_limit_m: float, time_alert_limit_s: float) -> dict:
         """The static part of the panel: sent once to every browser that connects."""
@@ -226,8 +229,12 @@ def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
     watch = _Watch(cells.attach(feed.measurements, feed.origin_llh), feed.origin_llh, spoof)
     heard_ns = int(HEARD_S * 1e9)
     run = estimate(
-        feed.estimator, watch, origin_llh=feed.origin_llh, reference=feed.reference, whiteness=True
-    )  # the panel shows the whiteness flag (ADR-0055)
+        feed.estimator,
+        watch,
+        origin_llh=feed.origin_llh,
+        reference=feed.reference,
+        whiteness=feed.whiteness,
+    )  # the panel shows the whiteness flag (ADR-0055) unless the feed says not to
     for est in run:
         if lock is not None:
             with lock:
