@@ -1,10 +1,10 @@
 # LTE carrier phase on static captures: the dongle from the cells' common drift, and what is left (#277)
 
-Evidence: **real static sessions** (one NESDR SMArt v5, `sdr_a`, recorded at the owner's home on 2026-11-10 and -11; each `meta.yaml` names the recorder's commit). No truth is used: nothing here needs a position, and nothing here gives one. Only noise, frequencies, slips and SNR are reported; sites are letters per capture (which cells share an eNB, by `lte-cells-ottawa.csv`), not identities. Front end at `de95c22` (`origin/main`, unchanged); analysis `analysis/lte_carrier_phase.py` at `354b27d`. Analysis only: no estimator or front-end change.
+Evidence: **real static sessions** (one NESDR SMArt v5, `sdr_a`, recorded at the owner's home on 2026-11-10 and -11; each `meta.yaml` names the recorder's commit). No truth is used: nothing here needs a position, and nothing here gives one. Only noise, frequencies, slips and SNR are reported; sites are letters per capture (which cells share an eNB, by `lte-cells-ottawa.csv`), not identities. Front end at `de95c22` (`origin/main`, unchanged); analysis `analysis/lte_carrier_phase.py` at `c0980a0`. Analysis only: no estimator or front-end change.
 
 ![Carrier vs code noise, growth with time, and the dongle](carrier_vs_code.png)
 
-*Left: white noise of a 10 Hz record against SNR, carrier (single difference with the reference cell) and code (one cell), same epochs; lines are ADR-0036's code fit and the SSS phase bound. Middle: S(τ) of the single difference, every cell ≥ −8 dB. Right: the dongle's frequency from the cells' common carrier (10 s means). Real static sessions, all 17 captures; analysis at `354b27d`.*
+*Left: white noise of a 10 Hz record against SNR, carrier (single difference with the reference cell) and code (one cell), same epochs; lines are ADR-0036's code fit and the SSS phase bound. Middle: S(τ) of the single difference, every cell ≥ −8 dB. Right: the dongle's frequency from the cells' common carrier (10 s means). Real static sessions, all 17 captures; analysis at `c0980a0`.*
 
 ## Short version
 
@@ -116,4 +116,4 @@ done
 PYTHONPATH=src python analysis/lte_carrier_phase.py report $O/*.npz   # -> this folder
 ```
 
-The `run` step was made with the branch's working copy before it was squashed to `354b27d`; its collection code (the `collect` section and the `wrap`/`cycles` it uses) is byte-identical to `354b27d`'s. `report` at `354b27d`, clean tree; `summary.json` was also identical, but for the commit, when made at the pre-squash commit. The front end on the 1 h capture took 78 to 186 s per 600 s chunk on the shared laptop. Not used: the `20261110` captures with no cell (as in `lte-measured-noise/NOTES.md`), `20261111-0216-static-lte-1h` (600 s on disk; not in the brief), the antenna comparison captures (`20261110-23*`), and every moving capture.
+The `run` step was made with the branch's working copy before it was squashed to `c0980a0`; its collection code (the `collect` section and the `wrap`/`cycles` it uses) is byte-identical to `c0980a0`'s. `report` at `c0980a0`, clean tree; `summary.json` was also identical, but for the commit, when made at the pre-squash commit. The front end on the 1 h capture took 78 to 186 s per 600 s chunk on the shared laptop. Not used: the `20261110` captures with no cell (as in `lte-measured-noise/NOTES.md`), `20261111-0216-static-lte-1h` (600 s on disk; not in the brief), the antenna comparison captures (`20261110-23*`), and every moving capture.
