@@ -72,9 +72,9 @@ def test_cuts_fall_only_in_the_moving_part_with_a_minute_of_walking_before():
     t, pos = _walk()
     cuts = wc.select_cuts(t, pos, T0, n=5)
     assert len(cuts) == 5
-    # walking >= 80 % of WALK_BEFORE_S before (speed is a 10 s centred difference: 5 s slack)
-    assert min(cuts) >= 150 + 0.8 * wc.WALK_BEFORE_S - 5
-    assert max(cuts) <= 150 + 1200 - 0.8 * 300 + 1  # >= 80 % of the 300 s window still walking
+    # walking >= MIN_MOVING of WALK_BEFORE_S before (speed is a 10 s centred difference: 5 s slack)
+    assert min(cuts) >= 150 + wc.MIN_MOVING * wc.WALK_BEFORE_S - 5
+    assert max(cuts) <= 150 + 1200 - wc.MIN_MOVING * wc.HORIZON_S + 1  # still walking after
     assert np.all(np.diff(cuts) >= wc.MIN_SPACING_S)
     assert cuts == sorted(cuts)
 
@@ -87,7 +87,8 @@ def test_a_static_session_has_no_cut():
 def test_cuts_need_truth_at_the_horizon():
     t, pos = _walk(static_s=0, walk_s=500, end_s=0)  # walking for 500 s, then the log ends
     cuts = wc.select_cuts(t, pos, T0, n=5)
-    assert cuts and max(cuts) + wc.HORIZON_S <= 499 and min(cuts) >= 0.8 * wc.WALK_BEFORE_S - 5
+    assert cuts and max(cuts) + wc.HORIZON_S <= 499
+    assert min(cuts) >= wc.MIN_MOVING * wc.WALK_BEFORE_S - 5
     assert wc.select_cuts(*_walk(static_s=0, walk_s=300, end_s=0), T0) == []
 
 
