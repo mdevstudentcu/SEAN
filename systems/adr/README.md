@@ -56,3 +56,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0051](0051-heading-at-gps-loss.md) | Heading at GPS loss: S-turns before the cut and a magnetometer `heading` record, opt-in in the sim (`ekf-imu-mag`); changes ICD-measurement | Proposed |
 | [0052](0052-field-filter-ab.md) | Keep `ekf-honest` as the opt-in LTE filter after the field A/B; the field settings stay unregistered | Proposed |
 | [0053](0053-imu-bias-calibration-while-still.md) | The IMU biases are calibrated from a still stretch before alignment, and no alignment window runs while still | Proposed |
+| [0054](0054-numba-for-the-ekf-kernels.md) | numba compiles the EKF's covariance kernels; `pnt eval` workers run one BLAS thread | Proposed |
