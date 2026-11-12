@@ -9,6 +9,9 @@ State (metres and metres per second throughout, so the matrix stays well conditi
   strapdown propagation of the payload's IMU (stage 2, `nav/imu.py`), which adds attitude error
   and accelerometer and gyro bias states after the receiver clock. The measurement side is the
   same for both.
+- Magnetometer (`magnetometer`, opt-in, #276, ADR-0051 Proposed): with motion="imu", `heading`
+  records update the attitude, with one constant per-flight bias state (`MagModel`). Ignored
+  otherwise, so a run that carries them gives every other filter the same output.
 - Receiver clock: offset and drift with the standard two-state oscillator model (white
   frequency noise h0 and random-walk frequency noise h-2). Defaults are literature values for a
   TCXO-class oscillator, TBC until measured (ADR-0015).
@@ -185,6 +188,7 @@ subtracted from later readings in the same grid cell, with its variance added to
 from __future__ import annotations
 
 from collections import deque
+from dataclasses import dataclass
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 
 import numpy as np
@@ -197,7 +201,7 @@ from pnt.integrity.protection import hpl, vpl
 from pnt.nav import told_sigma
 from pnt.nav.baseline import CHI2_999
 from pnt.nav.hostile import BeaconParams, Beacons
-from pnt.nav.imu import ImuMotion
+from pnt.nav.imu import ImuMotion, rotation, skew
 from pnt.nav.residual_map import MapParams, ResidualMap
 
 C = 299_792_458.0
@@ -295,12 +299,17 @@ class EKF:
         arc_settle_s: float = 0.0,  # s: a cell's new arc told ARC_SETTLE_FACTOR x sigma (ADR-0050)
         gnss_readmit: Callable[[], GnssReadmit] | None = None,  # GnssReadmit (#246, ADR-0050)
         heard_cell_radius_m: float | None = None,  # m: a heard cell's coverage bound (ADR-0050)
+        magnetometer: Mapping | None = None,  # MagModel options: use `heading` records (#276)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
         if motion not in MOTIONS:
             raise ValueError(f"motion must be one of {MOTIONS}, not {motion!r}")
         self.imu = ImuMotion(**(imu or {})) if motion == "imu" else None
+        if magnetometer is not None and self.imu is None:
+            raise ValueError('magnetometer needs motion="imu": heading is an attitude state')
+        self.mag = None if magnetometer is None else MagModel(**magnetometer)
+        self.mag_bias_idx: int | None = None  # the magnetometer's per-flight bias state
         self.hostile = None if hostile is None else Beacons(BeaconParams(**hostile), alert_limit_m)
         self.rmap = None if residual_map is None else ResidualMap(MapParams(**residual_map))
         self.n_core = N_CORE  # states before the first clock block (IMU states included)
@@ -832,6 +841,8 @@ class EKF:
             m = told_sigma.retold(m, sigma_model)  # a radio record's sigma from its SNR
         if m.kind == "rssi" and (self.hostile is None or not m.meta.get("hostile")):
             return  # only a hostile beacon's power is modelled, and only when asked for
+        if m.kind == "heading" and self.mag is None:
+            return  # a magnetometer's heading is used only when asked for (#276)
         self.predict(m.t_ns)
         out = model(self, m)
         if out is None:
@@ -1304,6 +1315,44 @@ def _bearing(ekf: EKF, m: Measurement):
     return y, H, np.diag(np.square(m.sigma)), True
 
 
+@dataclass(frozen=True)
+class MagModel:
+    """What the filter assumes about a magnetometer's `heading` records (#276, ADR-0051
+    Proposed). The record's sigma is the white noise; a constant per-flight bias is one more
+    state, added on the first record used. TBC: the sim's model (`sim.sensors.MAG`) is a
+    Student-t bias of scale 2.5 deg; the filter takes it as Gaussian."""
+
+    bias_sigma_deg: float = 3.0  # 1-sigma of the per-flight bias prior (TBC)
+    min_horizontal: float = 0.1  # the body x axis's horizontal part below which heading is
+    # undefined (pointing near vertical) and the record is skipped
+
+
+def _heading(ekf: EKF, m: Measurement):
+    """A magnetometer's heading of the body x axis, clockwise from true north (ICD `heading`),
+    plus a constant per-flight bias state. Only with the opt-in `magnetometer` model and once
+    the IMU is aligned: before that the filter has no attitude. The innovation is wrapped to
+    [-pi, pi). The attitude error dθ is a small rotation in ENU, so the body x axis x moves by
+    dθ × x = -[x]× dθ, and heading atan2(x_e, x_n) by (x_n, -x_e, 0) / (x_e² + x_n²) times that."""
+    imu = ekf.imu
+    if ekf.mag is None or imu is None or imu.R is None:
+        return None
+    R = rotation(ekf.x[imu.att]) @ imu.R
+    xb = R[:, 0]
+    r2 = xb[0] * xb[0] + xb[1] * xb[1]
+    if r2 < ekf.mag.min_horizontal**2:
+        return None
+    b = ekf.mag_bias_idx
+    if b is None:
+        sigma = np.deg2rad(ekf.mag.bias_sigma_deg)
+        b = ekf.mag_bias_idx = ekf._append_states([0.0], [sigma])
+    H = _row(ekf)
+    H[0, imu.att] = np.array([xb[1], -xb[0], 0.0]) / r2 @ -skew(xb)
+    H[0, b] = 1.0
+    psi = np.arctan2(xb[0], xb[1])
+    y = (m.value[0] - psi - ekf.x[b] + np.pi) % (2 * np.pi) - np.pi
+    return y, H, np.diag(np.square(m.sigma)), True
+
+
 def _rssi(ekf: EKF, m: Measurement):
     """A hostile beacon's received power (`nav/hostile.py`); `process` passes only those."""
     return ekf.hostile.model(ekf, m)
@@ -1312,6 +1361,7 @@ def _rssi(ekf: EKF, m: Measurement):
 MODELS: dict[str, Callable] = {
     "position_enu": _position,
     "bearing": _bearing,
+    "heading": _heading,
     "altitude": _altitude,
     "time": _time,
     "pseudorange": _pseudorange,

@@ -50,6 +50,9 @@ ESTIMATORS = {
     # Stage 2 (#12): the same filters with IMU-driven prediction (nav/imu.py)
     "ekf-imu": configured(ekf.run, motion="imu"),
     "ekf-base-imu": configured(base_rover.run, motion="imu"),
+    # Opt-in (#276, ADR-0051 Proposed): ekf-imu that also uses a magnetometer's `heading`
+    # records, with a per-flight bias state. The payload has no magnetometer: sim only
+    "ekf-imu-mag": configured(ekf.run, motion="imu", magnetometer={}),
     # Opt-in jump guard (#184, ADR-0038 Proposed): the same filters, refusing a detected GNSS
     # position jump until it is undone
     "ekf-guard": configured(ekf.run, jump_guard=JumpGuard),
