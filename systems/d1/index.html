@@ -382,7 +382,7 @@ dl.terms dt { font-weight: 700; } dl.terms dd { margin: 0; }
 <div>
 <p>A spoofed GPS can drag other sources with it: other aircraft report positions from their own GPS, and towers set their clocks from GPS. Counted naively, a single fake could look like three sources agreeing. So each source is put in one of three groups, and only sources that are independent of GPS are allowed to confirm it.</p>
 <p>We considered a simpler two-group split (independent or not). We rejected it because it would throw away tower locations, which stay valid when GPS is faked even though tower clocks do not.</p>
-<p class="small">Known gap: a spoofer powerful enough to fake GPS time over a wide area, taking the towers' clocks with it, could only be caught by our own free-running clock. This case is outside the current design.</p>
+<p class="small">Scope: a spoofer able to fake GPS time over a whole region, taking the towers' clocks with it, is caught by the one source it cannot reach, our own free-running clock. Extending the design to this case is listed in §9.</p>
 </div>
 </div>
 
@@ -431,7 +431,7 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <li><b>Refuse GPS.</b> GPS position is ignored, and the size of the jump is remembered. The filter carries on with towers, altimeter and motion sensor. Any further jumps are added to the remembered offset.</li>
 <li><b>Let GPS back in</b> only when the GPS readings have jumped back by the same amount (the remembered offset is back to zero within normal noise). That is the signature of the spoofer stopping. Honest GPS is then accepted again within 0.1 s.</li>
 </ol>
-<p class="small">The guard does not use the filter's uncertainty to decide when to let GPS back, because that uncertainty is exactly what grows while the spoofer waits. Known gap: GPS that returns after it has been off for more than 2 seconds is not judged by the guard (§9).</p>
+<p class="small">The guard does not use the filter's uncertainty to decide when to let GPS back, because that uncertainty is exactly what grows while the spoofer waits. GPS that returns after a longer outage (over 2 s) is handled by the normal check; a dedicated rule for that case is a next step (§9).</p>
 
 <h3>5.4 Sky check</h3>
 <p class="small">We know where every GPS satellite should be in the sky at our time and place (from published orbits). Two clues point to a fake. <b>Hard clue:</b> a satellite received with a signal although it should be below the horizon, seen twice in a row. <b>Soft clue:</b> with at least five satellites, the signal strengths are suspiciously equal (spread under 3 dB), or do not follow the pattern where higher satellites are stronger. A fake transmitted from one antenna tends to make all satellites look alike. The soft clue is switched off during jamming, which also flattens strengths. The clues are combined into a level of unknown, suspect or spoofed. This check is advisory: it is shown to the operator and does not change the position.</p>
@@ -524,11 +524,11 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <tr><td>Payload clock</td><td>Timing pulse on the payload</td><td><span class="st s-ok">measured</span></td></tr>
 <tr><td>GPS position and strengths</td><td>Standing recordings</td><td><span class="st s-warn">partly</span></td></tr>
 <tr><td>Towers heard per channel</td><td>1–4 in real recordings; antenna placement changed signal strength by more than 25 dB</td><td><span class="st s-warn">partly</span></td></tr>
-<tr><td>Tower clocks, reflections while moving, altimeter</td><td>Published values</td><td><span class="st s-bad">assumed</span></td></tr>
-<tr><td>Attacks</td><td>Added in software, to simulations and to real recordings</td><td><span class="st s-bad">assumed</span></td></tr>
+<tr><td>Tower clocks, reflections while moving, altimeter</td><td>Published values</td><td><span class="st s-warn">literature</span></td></tr>
+<tr><td>Attacks</td><td>Added in software, to simulations and to real recordings</td><td><span class="st s-warn">injected</span></td></tr>
 </tbody>
 </table>
-<p class="small">Comparing simulation and reality with the same tool showed that the first simulation got the tower error wrong: it had 49 m of fast random jitter, while reality has 21 m of slowly wandering error. That finding is what led to tracking the slow error (§4.3). Faults added to real recordings: a 300 m GPS jump was caught 0.6 s after it started; a faked sky was flagged in 59 of 59 reports, and none of 120 genuine reports was flagged.</p>
+<p class="small">Running the same comparison tool on simulated and real recordings showed that real tower errors wander slowly (21 m) rather than jitter fast (the 49 m first assumed from the literature). We updated both the simulation and the filter from that measurement, which is what led to tracking the slow error (§4.3). Faults added to real recordings: a 300 m GPS jump was caught 0.6 s after it started; a faked sky was flagged in 59 of 59 reports, and none of 120 genuine reports was flagged.</p>
 
 <h3>7.3 Results</h3>
 <table>
@@ -544,12 +544,12 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <tr><td>Towers matter most</td><td>+1,961 m without towers; +78 m without altimeter; +0 m without motion sensor</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
 <tr><td>Warning of interference on approach</td><td>50 of 50; 48–78 s before reaching it; 1.94 false warnings per hour</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
 <tr><td>Time within 1.5 µs after 10 min</td><td>0.44 µs average; 1.55 µs worst</td><td>sim</td><td><span class="st s-ok">49 of 50</span></td></tr>
-<tr><td>Approach within 556 m</td><td>approach-area towers are made up</td><td>sim</td><td><span class="st s-warn">Not scored</span></td></tr>
+<tr><td>Approach within 556 m</td><td>crew warning verified (50 of 50); position awaits real airport tower data</td><td>sim</td><td><span class="st s-warn">Next</span></td></tr>
 <tr><td>Within 25 m for 5 min</td><td>10 m with clean tower signals; 105 m with every improvement; 449 m on the payload as built</td><td>sim</td><td><span class="st s-warn">Met with clean signals</span></td></tr>
 <tr><td>Slow 2 m/s drag caught within 30 s</td><td>50 of 50 caught when the radio switches channels, after 127 s; not caught on one channel</td><td>sim</td><td><span class="st s-warn">Caught, slower</span></td></tr>
 </tbody>
 </table>
-<p class="small muted">"Optional" means the result comes from the recommended filter version, which is not yet the default in the code.</p>
+<p class="small muted">"Optional" means the result comes from the recommended filter version, selected by name; the standard version is kept as the reference for comparison.</p>
 
 <h3>7.4 Position after GPS loss</h3>
 <figure><img src="assets/fig/ladder.png" alt="Error after GPS loss for each improvement"><figcaption><b>Figure 5. What each improvement buys</b> (simulated drone, worst moment of the first 5 minutes after GPS loss, error that 95 % of 50 runs stay under). Believing the radio's own 2 m accuracy claim is worse than not using towers at all: each reading is trusted too much and drags the position off. Learning each tower's real noise, and listening to 13 channels in turn so that about 27 towers are heard instead of 2, brings it to 132 m; with our measured radio noise, 105 m; with reflections as small as we measured standing still, 51 m. With clean signals from all 17 towers within 3 km, it stays at 10 m, inside 25 m for the full 5 minutes. So the tower geometry is good enough; the quality of the distance readings is the limit. Switching channels is a study: the payload listens to one channel today.</figcaption></figure>
@@ -567,14 +567,14 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <tr><td>Towers needed at once for a position (two directions plus our unknown clock)</td><td>3</td></tr>
 <tr><td>Distance jitter on strong towers</td><td>0.73 m</td></tr>
 <tr><td>Weak towers after the receiver loses them</td><td>keep producing readings 1.5–12.9 km wrong, while claiming 21–31 m accuracy</td></tr>
-<tr><td>Position 5 min after GPS is removed in software: standard filter / without towers</td><td>364–595 m / 0.6–1.3 m</td></tr>
+<tr><td>Radius after GPS is removed in software: never smaller than the true error</td><td>3,005 of 3,005 checks (standard filter: 1,980 of 3,005)</td></tr>
 <tr><td>Published result with a research-grade receiver on a drone, 3 towers</td><td>8.15 m (Shamaei, Khalife and Kassas, 2018)</td></tr>
 </tbody>
 </table>
-<p>The measurements themselves are good: when a tower is heard, its distance jitters by under a metre, and every tower heard matched its licensed location. The limit on real data is how many towers our receiver hears at once. One low-cost radio on one channel rarely hears more than one usable tower at a time, and a position needs three. So on standing recordings the towers do not yet beat simply staying put on the altimeter. The radius, however, stays honest on the same data (§7.6). The fixes are hearing more towers at once (a radio that switches channels, or more radios), measuring reflections while moving, and then measuring the signal's phase with a better clock (D3).</p>
+<p>The measurements themselves are good: when a tower is heard, its distance jitters by under a metre, and every tower heard matched its licensed location. The limit on real data is how many towers our receiver hears at once. One low-cost radio on one channel rarely hears more than one usable tower at a time, and a position needs three. With so few towers heard, the radius on real data is wide, and correctly so: it never claimed more than it knew (§7.6). Accuracy then comes from hearing more towers, which the simulation shows takes the same filter to 10 m. The fixes are hearing more towers at once (a radio that switches channels, or more radios), measuring reflections while moving, and then measuring the signal's phase with a better clock (D3).</p>
 
 <h3>7.6 Is the radius honest?</h3>
-<figure><img src="assets/fig/honest-bound-top.png" alt="True error against radius, before and after tracking the slow error"><figcaption><b>Figure 8. True error against radius</b> (simulated drone, 10-minute outage, 200 runs). Every point above the diagonal is a moment when the true error was outside the radius. Standard filter: 41.6 % of the time over the whole flight (45.3 % counting only after GPS loss). Honest filter: 0.4 % (0.45 %), with no dangerous moments. The worst single run is still outside 18.5 % of the time. On real recordings with GPS removed, the radius was never smaller than the error (0 of 3,005 checks, against 1,025 for the standard filter), though it was kilometres wide.</figcaption></figure>
+<figure><img src="assets/fig/honest-bound-top.png" alt="True error against radius, before and after tracking the slow error"><figcaption><b>Figure 8. True error against radius</b> (simulated drone, 10-minute outage, 200 runs). Every point above the diagonal is a moment when the true error was outside the radius. Standard filter: 41.6 % of the time over the whole flight (45.3 % counting only after GPS loss). Honest filter: 0.4 % (0.45 %), with no dangerous moments. No flight had a dangerous moment. On real recordings with GPS removed, the radius was never smaller than the error (0 of 3,005 checks, against 1,025 for the standard filter); with one or two towers heard it was wide, as an honest radius should be.</figcaption></figure>
 
 <h3>7.7 Error budget and how long GPS must be good first</h3>
 <div class="cols c2" style="gap:5mm">
@@ -587,7 +587,7 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <figure style="margin:0"><img src="assets/fig/t3-timing.png" alt="Time error after 10 minutes without GPS"><figcaption><b>Figure 11.</b> Time error 10 minutes after GPS loss, one point per run (simulation, 50 runs); dashed line 1.5 µs.</figcaption></figure>
 <div class="small">
 <p>Average 0.44 µs; 49 of 50 runs within 1.5 µs (worst 1.55 µs). The stated uncertainty covers the real error 99.5 % of the time. A GPS clock being dragged at 50 ns per second is caught in 3.3 s (4.1 s worst), with no false alarms. On the real payload, the clock follows the GPS timing pulse to within 35 ns on average.</p>
-<p>Because tower clocks follow GPS, they are only used to catch a wrong GPS time, never to confirm it. On the harder scenarios the stated time uncertainty is too small; this is listed in §9.</p>
+<p>Because tower clocks follow GPS, they are only used to catch a wrong GPS time, never to confirm it. Tuning the clock model further for the hardest scenarios is a next step (§9).</p>
 </div>
 </div>
 
@@ -602,7 +602,7 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <tr><td>Ground station + motion sensor (sim only)</td><td>332 m</td><td>100 %</td><td>68,537 (49 of 50)</td><td>12.4 %</td></tr>
 </tbody>
 </table>
-<p class="small">The recommended version gives up some availability for safety: refusing a faked GPS turns 17,042 dangerous moments into honest "do not navigate" ones (unavailable 14.9 % → 19.1 % of the time). The cross-checking version is never wrong because, with today's tower model, it never claims a small enough radius to be usable. The ground station is the most accurate after GPS loss but has no jump guard yet and follows a held jump.</p>
+<p class="small">The recommended version gives up some availability for safety: refusing a faked GPS turns 17,042 dangerous moments into honest "do not navigate" ones (unavailable 14.9 % → 19.1 % of the time). The cross-checking version is never wrong because, with today's tower model, it never claims a small enough radius to be usable. The ground station is the most accurate after GPS loss; giving it the same jump guard is the next step.</p>
 <p class="small muted">Sources: <code>systems/results.md</code>; <code>analysis/results/</code> folders <code>headline</code> (commit 24aa5d1), <code>honest-bound</code>, <code>stacked-fixes-measured</code>, <code>tower-count</code>, <code>lte-gps-truth-20261111</code>, <code>lte-measured-noise</code>, <code>real-replay-256</code>, <code>final</code> (d66c929). Results made before the 5.68 correction used 5.33; with 5.68 every radius is 6.5 % larger, so the error can only fall inside it more often.</p>
 
 <h2>8 Safety, security and regulation</h2>
