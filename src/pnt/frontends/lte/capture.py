@@ -15,13 +15,19 @@ their t_ns) but not its keys, so this reader proposes them (an open question for
   "earfcn": 2460,                  // optional: overrides the EARFCN computed from the frequency
   "hops": [{"sample_index": 0, "t_ns": 1446000000000000000, "center_freq_hz": 875000000}],
   "gaps": [[1234567, 131072]],     // optional: [sample_index, samples dropped before it]
-  "buffers": [[0, 1446000000000000000], [131072, 1446000000068266667]]
+  "buffers": [[0, 1446000000000000000], [131072, 1446000000068266667]],
                                    // optional: host GPS-ns stamp of each USB buffer
+  "outages": [{"sample_index": 1934491648, "t_lost_ns": 1446000840000000000,
+               "t_back_ns": 1446000843000000000}]
+                                   // optional: the dongle was reopened (#288); more keys
 }
 ```
 
 `gaps` is for a recorder that knows its drops. `buffers` lets the front end size a drop it finds
-in the signal to the whole frame (a drop shows in the signal only modulo 10 ms).
+in the signal to the whole frame (a drop shows in the signal only modulo 10 ms). `outages` are
+breaks the recorder knows the place of exactly (`sample_index`) but the length only from its host
+clock (`t_back_ns - t_lost_ns`): the dongle dropped off USB and was opened again. One never
+reopened (`t_back_ns` null) ends the file, so it has no samples after it and is left out.
 """
 
 from __future__ import annotations
@@ -88,6 +94,8 @@ class Capture:
     segments: list[Segment]
     gaps: list[tuple[int, int]] = field(default_factory=list)  # (file index, samples dropped)
     buffers: np.ndarray | None = None  # (n, 2) int64: file sample index, host GPS ns
+    # Reopens (file index, samples missing by the host clock), sized only to its jitter
+    outages: list[tuple[int, int]] = field(default_factory=list)
     gain_db: float | None = None
 
     @property
@@ -183,6 +191,11 @@ def open_capture(
         segments=[s for s in segments if s.stop > s.start],
         gaps=[(int(a), int(b)) for a, b in meta.get("gaps") or []],
         buffers=None if not buffers else np.asarray(buffers, dtype=np.int64),
+        outages=[
+            (int(o["sample_index"]), round((int(o["t_back_ns"]) - int(o["t_lost_ns"])) * fs / 1e9))
+            for o in meta.get("outages") or []
+            if o.get("t_back_ns") is not None and int(o["sample_index"]) < n
+        ],
         gain_db=meta.get("gain_db"),
     )
 

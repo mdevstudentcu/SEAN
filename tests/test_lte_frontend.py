@@ -17,7 +17,7 @@ from pnt.core.measurement import validate
 from pnt.frontends.lte import capture, process_file, synth
 from pnt.frontends.lte import signals as sig
 from pnt.frontends.lte.frontend import _start, emit
-from pnt.frontends.lte.tracker import CellTrack, Config, Epoch, Found, GapMap, State
+from pnt.frontends.lte.tracker import CellTrack, Config, Epoch, Found, Gap, GapMap, State
 from pnt.io.mcap_log import read_session
 from pnt.sources.replay import ReplaySource
 
@@ -450,6 +450,82 @@ def test_stamp_stall_that_catches_up_is_not_a_drop(tmp_path):
     extra = _stamps(int(1.3 * FS), stall_at=16384 * 70, stall_ns=40_000_000)  # 40 ms late
     r = process_file(write(tmp_path, "stall", [TOWER], 1.3, 0.0, **extra))
     assert r.gaps == []
+
+
+OUTAGE_AT = 16384 * 70  # 0.6 s, on a buffer boundary: the recorder appends whole buffers
+OUTAGE_N = int(2.5 * FS) + 4321  # 2.5 s off the bus, not a whole number of frames
+
+
+def _outage_capture(tmp_path, seed, stamped=True):
+    """A capture whose dongle dropped off USB for 2.5 s and was reopened (#288), with the
+    `outages` entry the recorder writes: the break placed exactly, sized by host stamps that
+    jitter by up to 0.5 ms (960 samples)."""
+    stamps = _stamps(int(1.3 * FS), drop_at=OUTAGE_AT, n=OUTAGE_N, seed=seed)
+    b = dict(stamps["buffers"])
+    t_lost = b[OUTAGE_AT - 16384] + round(16384 * 1e9 / FS)  # last buffer's stamp + duration
+    extra = {
+        "outages": [
+            {
+                "sample_index": OUTAGE_AT,
+                "t_lost_ns": t_lost,
+                "t_back_ns": b[OUTAGE_AT],
+                "attempts": 2,
+                "device": "00001090",
+            }
+        ]
+    }
+    if stamped:
+        extra |= stamps
+    towers = [TOWER, synth.Tower(pci=9, delay_s=7.891e-3, power_db=-3, phase=2.0)]
+    drops = ((OUTAGE_AT, OUTAGE_N),)
+    return process_file(write(tmp_path, "out", towers, 1.3, 0.0, drops=drops, seed=seed, **extra))
+
+
+@pytest.mark.parametrize("seed", [1, 2])
+def test_recorded_outage_is_a_gap_the_first_refound_cell_sizes(tmp_path, seed):
+    # 20261111-1806-walk-lte: SDR B dropped off USB and came back ~2 s later (#288). The cells
+    # come back at timing moved by the outage modulo a frame: a gap, not a path move. Without
+    # the outage the 2.5 s without signal also outlasted `lost_s` and every cell was given up.
+    r = _outage_capture(tmp_path, seed)
+    assert [(g.at, g.outage, g.ambiguous) for g in r.gaps] == [(OUTAGE_AT, True, False)]
+    assert abs(r.gaps[0].n - OUTAGE_N) <= 3  # the loop's rate coasted 2.5 s: a few samples
+    for emitter in ("lte:2460:8", "lte:2460:9"):
+        pr = [m for m in r.measurements if m.kind == "pseudorange" and m.emitter == emitter]
+        t = np.array([(m.t_ns - T0) / 1e9 for m in pr])
+        assert t.min() < 0.6 and t.max() > 3.3  # tracked on after it, at the right time
+        assert not np.any((t > 0.62) & (t < 3.1))  # nothing inside it
+        assert sum("sample_gap" in m.meta["flags"] for m in pr) == 1
+        assert {m.meta["arc"] for m in pr} == {0}  # sized: the arc goes on
+    assert np.max(np.abs(epoch_errors(r, TOWER))) < 4.0  # regression guard
+
+
+def test_recorded_outage_without_stamps_is_still_placed_and_timed(tmp_path):
+    # Without buffer stamps the first cell re-found still sizes the outage from the host times.
+    r = _outage_capture(tmp_path, 1, stamped=False)
+    assert [(g.at, g.outage, g.ambiguous) for g in r.gaps] == [(OUTAGE_AT, True, False)]
+    pr = [m for m in r.measurements if m.kind == "pseudorange"]
+    assert max(m.t_ns - T0 for m in pr) / 1e9 > 3.3
+
+
+def test_lost_cell_timer_does_not_count_an_outage():
+    # A cell is given up after `lost_s` without it; seconds with no samples at all are not that.
+    gaps = GapMap([Gap(at=1000, n=OUTAGE_N, until=1000, ambiguous=True, outage=True)])
+    assert gaps.outage_between(0.0, 1000 + OUTAGE_N + 500) == OUTAGE_N
+    assert gaps.outage_between(0.0, 1500) == 500  # half-way into it
+    assert GapMap([Gap(at=1000, n=5, until=1000)]).outage_between(0.0, 2000.0) == 0.0
+
+
+def test_sidecar_outages_load_and_old_sidecars_still_open(tmp_path):
+    raw = capture.complex_to_cu8(np.ones(4000, np.complex64))
+    meta = {"sample_rate_hz": FS, "center_freq_hz": FC, "t_ns": T0}
+    old = capture.open_capture(capture.write_capture(tmp_path / "old.cu8", raw, meta))
+    assert old.outages == []
+    meta["outages"] = [
+        {"sample_index": 1000, "t_lost_ns": T0 + 10**9, "t_back_ns": T0 + 3 * 10**9},
+        {"sample_index": 4000, "t_lost_ns": T0 + 5 * 10**9, "t_back_ns": None},  # never back
+    ]
+    new = capture.open_capture(capture.write_capture(tmp_path / "new.cu8", raw, meta))
+    assert new.outages == [(1000, round(2 * FS))]
 
 
 def _psd(st: State) -> bool:

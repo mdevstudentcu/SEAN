@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Day-1 test of the Pi 4B payload (#88, ADR-0018) with the PPS check (#17, RSK-05).
 # Run on the Pi from ~/pnt:  [DEV_A=0 DEV_B=1] bash deploy/pi/day1.sh [minutes] [sdr_a_hz] [sdr_b_hz]
-# DEV_A/DEV_B: rtl_sdr device index or serial of each dongle (see `rtl_test -t`).
+# DEV_A/DEV_B: rtl_sdr device index or serial of each dongle (see `rtl_test -t`). Indices swap
+# between boots, the serial (`SN:`) does not; a dongle that drops off USB mid-recording is
+# reopened by its serial if no other dongle shares it (#288).
 # The stream needs the keys from RUNBOOK "Keys"; RECORD_ARGS=--insecure only if libzmq lacks CURVE.
 # Writes, under data/sessions/: the session, <session>.pps.json, <session>.day1.md and .json.
 set -euo pipefail
