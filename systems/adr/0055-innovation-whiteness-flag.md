@@ -55,3 +55,7 @@ Sim (placeholder models, ADR-0015) and replay of real sessions; numbers, command
 - **No estimate changed:** against `main` `c62255d`, every registered estimator (21) on 10 sim scenarios × seeds 0, 1: 420 of 420 identical on the eval path (this test's flags included: there are none) and 420 of 420 on the panel path once this test's flags are left out; 6 estimators × 3 real sessions on the panel path: 18 of 18 (`hashes.md`).
 - **Eval-path cost:** `ekf` on `challenge-drone-outage` and `nominal`, seeds 0–2, +0.7 % and −0.6 % against `main` `c62255d`.
 - **Tests:** `tests/test_whiteness.py`; its EKF tests fail without the hook in `EKF.process`.
+
+## Amendment 2026-11-12 (owner): hidden on the stage demo
+
+Owner decision (Shrikar; Mo not consulted): the stage panel does not show the flag. With it on, every demo segment lists an LTE caution from T+3 s that the talk does not explain, and the jump segments list four alerts instead of the runbook's three. `pnt sim --dash` and `pnt dash` take `--no-whiteness`, and `deploy/demo/demo.sh` passes it to every panel it starts (the stage segments and `realcut`). Everything else is unchanged: the panel shows the flag by default, live and replay outside the demo keep it, the eval path never had it, and no estimate changes either way (the flag is report-only).

@@ -100,12 +100,12 @@ panel() {  # start one panel segment in the background; sets $server
     echo "== realcut: real session $cut_session, GPS cut at ${CUT_S} s, estimator ekf," \
       "x$CUT_SPEED, origin hidden  ($url)"
     "${py[@]}" -m pnt.cli dash "$cut_dir/$cut_session-gps-cut-${CUT_S}s" --estimator ekf \
-      --hide-origin --speed "$CUT_SPEED" --port "$port" &
+      --hide-origin --no-whiteness --speed "$CUT_SPEED" --port "$port" &
   else
     echo "== $seg: $(scen "$seg") seed $SEED, estimator $(estimator "$seg"), x$(speed "$seg")  ($url)"
     local label pre; label="$(banner "$seg")"; pre="$(preflight "$seg")"
     "${py[@]}" -m pnt.cli sim "$(scen "$seg")" --seed "$SEED" --estimator "$(estimator "$seg")" \
-      --dash --speed "$(speed "$seg")" --port "$port" ${label:+--banner "$label"} ${pre:+"$pre"} &
+      --dash --no-whiteness --speed "$(speed "$seg")" --port "$port" ${label:+--banner "$label"} ${pre:+"$pre"} &
   fi
   server=$!
   for _ in $(seq 1 60); do  # up to 15 s for the server to listen
