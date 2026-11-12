@@ -65,7 +65,10 @@ Fallback: the script no longer says the laptop "fuses everything": today the def
 
 "Within a few metres": after GPS returns the error is 1.7 m at T+200.0, then 0.1 to 3.6 m to T+220, median 1.5 m (seed 0, `challenge-drone-gps-return`, `ekf-guard`; guard demo runbook in PR #220 at `e340a56`, measured headlessly there, not re-run by us). If Enter comes too early in segment 2, carry on and show `jump-3-followed.png` afterwards (runbook *Fallbacks*). The guard is opt-in, not our default: say so if asked.
 
-Room for one more segment: a demo of the towers helping (learned noise and hopping, sim study) may be added (#266). No script here. It would add about 25 s: 276 s in all at this pace, inside #268's 4 min 45 s.
+Optional segment 1b, the towers helping (draft #272; only if it is merged and rehearsed; adds about 23 s, 278 s in all). After the first Enter, before the spoofer:
+> *[Enter; NO DATA gap; point at the banner]* Same GPS loss, now a simulation study: one radio hopping thirteen carriers, and a filter that learns each tower's noise. Our payload cannot hop yet. *[Segment 1b, T+80–105, red]* The error stays in the tens of metres, against hundreds before. Still red: the bound is above the fifty-metre limit.
+
+45 words. On the panel at T+80 and T+100 (seed 0): error 29 and 53 m with HPL 80 and 137 m, against 106 and 321 m with HPL 311 and 829 m on today's setup. Without it, the script below runs as written.
 
 **If asked:** one seed is not a statistic (Q9 has the 50-run numbers; the guard still has hazardous epochs on 3 of 50 seeds); Q16 (did towers contribute); Q19 (GPS returning after an outage).
 
@@ -124,7 +127,7 @@ Fallback: #247 is a draft on unmerged branches; if a judge asks, say so. The sta
 - Real recording, GPS sky faked in software: 59 of 59 fake sky reports flagged, no false alarm on 120 real ones.
 - The bound, on two real static sessions with GPS removed: the default filter's was below the error on 34 % of 3,005 withheld fixes; our opt-in honest-bound filter's on none. Its bound is kilometres wide: honest, not yet usable (draft PRs #251, #283). In simulation: 45.3 % against 0.45 %.
 
-**Figure:** [`analysis/pr-evidence/shrikar-feat-206-spoof-decision/spoof-decision-real-sky.png`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/spoof-decision-real-sky.png) (real session, fake sky injected in software).
+**Figure:** [`analysis/results/gnss-health-20261111-fullsuite/gnss_health.png`](../analysis/results/gnss-health-20261111-fullsuite/gnss_health.png) (real GPS signal power from our payload, one of the cues the sky check reads). The sky check's own figure, for questions: [`spoof-decision-real-sky.png`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/spoof-decision-real-sky.png).
 
 **Script (74 words, 35 s):**
 > Our design rule: every source can lie, GPS and towers alike. Towers take their time from GPS, so by design they may contradict GPS time, never confirm it. On a real recording we faked the GPS sky in software: all fifty-nine fakes were flagged, with no false alarm. And the bound: on two real sessions the default filter's was wrong a third of the time; our honest-bound filter's never, though it is kilometres wide.
