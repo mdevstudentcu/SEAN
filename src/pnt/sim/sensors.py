@@ -42,6 +42,9 @@ class ImuParams:
     gyro_lsb_dps: float  # quantization step
     accel_lsb_g: float
     vibration: dict | None = None  # {freq_hz, accel_mps2, gyro_dps}: e.g. motor vibration
+    # 1-sigma gyro bias change per kelvin of board temperature change, deg/s/K, drawn per axis;
+    # 0: off (#278). Needs the scenario's `board_temperature:`
+    gyro_temp_dps_per_k: float = 0.0
     provenance: dict = field(default_factory=dict)
 
 
@@ -76,6 +79,12 @@ MPU6050 = ImuParams(
         "instability_tau_s": "TBC: the measured floors sit at tau 20-100 s (gyro), 4-13 s (accel)",
         "scale_error": "TBC: raw sensitivity tolerance is +/-3 %",
         "ranges_and_lsb": "datasheet, at the +/-500 deg/s and +/-8 g settings",
+        "gyro_temp_dps_per_k": (
+            "off (0). When on, TBC: 0.015 deg/s/K, one consumer gyro's datasheet "
+            "(sources-research-20261111.md 18.3). Our bench overnight ("
+            + _STATIC.split(",")[0]
+            + ") spans 1.3 K only: slopes -0.030, -0.007, -0.011 deg/s/K, |r| <= 0.2, not a size"
+        ),
     },
 )
 
@@ -128,8 +137,15 @@ def imu(
     omega_b: np.ndarray,
     rng: np.random.Generator,
     params: ImuParams = MPU6050,
+    temperature_k: np.ndarray | None = None,
+    rng_temperature: np.random.Generator | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Accelerometer (m/s^2) and gyro (rad/s) readings at evenly spaced times t_s."""
+    """Accelerometer (m/s^2) and gyro (rad/s) readings at evenly spaced times t_s.
+
+    With `params.gyro_temp_dps_per_k` (off by default, #278), the gyro bias also moves with the
+    board's temperature change since start-up calibration (`temperature_k`, K at t_s): a
+    coefficient per axis, normal with that std, drawn from `rng_temperature` so that every other
+    draw stays as it was."""
     t_s = np.asarray(t_s, float)
     n = len(t_s)
     dt = float(np.median(np.diff(t_s))) if n > 1 else 1.0
@@ -153,6 +169,11 @@ def imu(
 
     accel = specific_force_b * accel_scale + accel_bias + accel_wander + accel_white
     gyro = omega_b * gyro_scale + gyro_bias + gyro_wander + gyro_white
+    if p.gyro_temp_dps_per_k:
+        if temperature_k is None or rng_temperature is None:
+            raise ValueError("gyro_temp_dps_per_k needs temperature_k and rng_temperature")
+        coeff = rng_temperature.normal(0.0, p.gyro_temp_dps_per_k * DEG, 3)
+        gyro = gyro + np.asarray(temperature_k, float)[:, None] * coeff
     if p.vibration:
         # One sinusoid per axis at the vibration frequency, random phase per axis. Sampled at fs,
         # it aliases exactly as a real unfiltered sensor would.

@@ -30,10 +30,17 @@ own, so a change to one term or to the hearing model leaves every other draw as 
 `meta` carries the front end's fields where the sim has the quantity: `snr_db` (link budget
 only: against noise and every other sector on air, fully loaded), `cfo_hz` (from the rate of
 geometry and clocks), `n_epochs` (5 ms epochs per record), `sigma_crb_m` (the reported sigma).
-`sample_index` is left out: there is no capture file to index. `arc` is always 0 and `flags`
-empty: re-acquisition after a gap, which may start a new arc in the front end, is not modelled
-(TBC); the lookup aligns values across the frame ambiguity either way. Only pseudoranges are made,
-not the front end's dopplers.
+`sample_index` is left out: there is no capture file to index. `flags` is empty. `arc` is 0
+unless `arcs:` is on (below): re-acquisition after a gap in hearing is not what starts an arc
+here (TBC); the lookup aligns values across the frame ambiguity either way. Only pseudoranges are
+made, not the front end's dopplers.
+
+Opt-in terms of #278, each off by default and drawn on a stream of its own:
+- `troposphere: {m_per_km}`: excess delay per km of true range, per eNB (`models.troposphere`).
+- `arcs: {}` (or any `Arcs` field): each sector's front end re-finds the cell and starts a new
+  arc (`meta.arc` counts them) at the rate measured on real static sessions, and each arc
+  carries a range offset of its own (`Arcs`; the model of #262's measured-noise ladder).
+- A constant range bias per sector is `tower_clocks: sector: {offset_m}` (scenario.py).
 
 Carrier hopping (#173): `cells_from.earfcn` may list several carriers, with a `hop:` block
 (`Hop`). One dongle, one clock, dwells on each carrier in the list's order in turn, from t = 0.
@@ -58,9 +65,11 @@ Every value is TBC (ADR-0015).
 from __future__ import annotations
 
 import csv
+import math
 from dataclasses import dataclass, fields
 from functools import lru_cache
 from pathlib import Path
+from statistics import NormalDist
 
 import numpy as np
 
@@ -86,8 +95,12 @@ KEYS = frozenset(
         "dropout",
         "told_position_sigma_m",
         "hop",
+        "troposphere",
+        "arcs",
     }
 )
+# Streams of the opt-in terms of #278 (scenario.py uses 250 to 252)
+_TROPO_STREAM, _ARC_STREAM = 253, 254
 _NEEDS_HOP = "several carriers need a hop: block (one dongle hears one carrier at a time)"
 
 
@@ -105,6 +118,62 @@ class Dongle:
     # analysis/lte_real_geometry.py (PR #133) uses it; unsourced for a dongle
     offset_rw_m: float = 0.6
     drift_rw_mps: float = 0.05  # TBC, unsourced: m/s/sqrt(s), as lte_real_geometry.py (PR #133)
+
+
+# Arc restarts of the front end on `main` after the re-acquisition fix (#245; front end at
+# `ea72f6a`), on two real static sessions with GPS truth: analysis/results/lte-reacq-steps/
+# summary.json, "after". Per session: (new arcs, 10 Hz pseudorange records, re-find steps, their
+# median in m, their share over 100 m). Steps are |double-difference change| when one cell of a
+# pair starts a new arc.
+_REACQ_AFTER = {
+    "20261111-0151-static-fullsuite2": (53, 15457, 64, 9.44, 0.15625),
+    "20261111-0233-static-lte-1h": (197, 92342, 192, 10.07, 0.171875),
+}
+_ARC_RATE_HZ = sum(r[0] for r in _REACQ_AFTER.values()) / (
+    sum(r[1] for r in _REACQ_AFTER.values()) * 0.1
+)  # per second of tracked cell time: 250 arcs in 10,780 s, one per 43 s
+# TBC, chosen in #262 (ADR-0049, Proposed): puts the model's step p90 (about 0.4 x this) between
+# the two sessions' (462 and 1,033 m)
+_ARC_FAR_M = 1500.0
+_STEPS_OVER_100M = sum(r[2] * r[4] for r in _REACQ_AFTER.values()) / sum(
+    r[2] for r in _REACQ_AFTER.values()
+)
+# A step over 100 m needs either arc far, 1 - (1 - q)^2, less the far-to-anything steps that
+# still land within 100 m (about 100 m / _ARC_FAR_M of them)
+_ARC_FAR_SHARE = 1.0 - math.sqrt(1.0 - _STEPS_OVER_100M / (1.0 - 100.0 / _ARC_FAR_M))
+# The steps' median is reached by the near-to-near steps, |N(0, sqrt(2) s)|, a share (1 - q)^2
+_ARC_NEAR_SIGMA_M = float(np.mean([r[3] for r in _REACQ_AFTER.values()])) / (
+    math.sqrt(2.0) * NormalDist().inv_cdf(0.5 + 0.25 / (1.0 - _ARC_FAR_SHARE) ** 2)
+)
+
+
+@dataclass(frozen=True)
+class Arcs:
+    """Arc restarts of a sector's front end (`arcs:`, #278; #233, #262). Restarts are a Poisson
+    process in run time at `rate_hz`, whether the sector is heard or not; each arc, the first
+    included, carries one range offset: with probability `far_share` uniform within +-`far_m`
+    (the re-search found another path or peak), otherwise normal with `near_sigma_m`. A step is
+    the difference of two arcs' offsets. Defaults: the measured rate and step sizes above."""
+
+    rate_hz: float = _ARC_RATE_HZ  # measured: 0.023 per s
+    far_share: float = _ARC_FAR_SHARE  # from the measured share of steps over 100 m: 0.094
+    far_m: float = _ARC_FAR_M  # TBC (above)
+    near_sigma_m: float = _ARC_NEAR_SIGMA_M  # from the measured step median: 8.0 m
+
+
+def arc_offsets(rng, t_s: np.ndarray, arcs: Arcs) -> tuple[np.ndarray, np.ndarray]:
+    """One sector's arc at each of times t_s (0 first) and the range offset (m) of that arc."""
+    span = float(t_s[-1]) if len(t_s) else 0.0
+    gaps = rng.exponential(1.0 / arcs.rate_hz, int(span * arcs.rate_hz * 3) + 20)
+    starts = np.cumsum(gaps)
+    starts = starts[starts < span]
+    n = len(starts) + 1
+    far = rng.random(n) < arcs.far_share
+    offset = np.where(
+        far, rng.uniform(-arcs.far_m, arcs.far_m, n), rng.normal(0.0, arcs.near_sigma_m, n)
+    )
+    arc = np.searchsorted(starts, t_s, side="right")
+    return arc, offset[arc]
 
 
 @dataclass(frozen=True)
@@ -353,6 +422,13 @@ def _hearing(cfg: dict | None):
     raise ValueError(f"hearing model must be range or link_budget, not {model!r}")
 
 
+def _arcs(cfg: dict | None) -> Arcs:
+    unknown = set(cfg or {}) - {f.name for f in fields(Arcs)}
+    if unknown:
+        raise ValueError(f"arcs has no {sorted(unknown)}")
+    return Arcs(**{k: float(v) for k, v in (cfg or {}).items()})
+
+
 def _dongle(cfg: dict | None) -> Dongle:
     unknown = set(cfg or {}) - {f.name for f in fields(Dongle)}
     if unknown:
@@ -455,8 +531,21 @@ def records(
         heard = one_per_pci(heard, -distance.T, pcis)
 
     clean = distance + site_clock + rx  # what the carrier sees: geometry and clocks
+    if cfg.get("troposphere"):  # per eNB: the sectors of one mast share its path
+        rng_tropo = np.random.default_rng([seed, _TROPO_STREAM])
+        k = models.troposphere(rng_tropo, len(enbs), **cfg["troposphere"])
+        clean = clean + k[of_enb, None] * 1e-3 * distance
     rate = np.gradient(clean, ts, axis=1) if n_t > 1 else np.zeros_like(clean)
-    value = np.mod(clean + noise + multipath[of_enb], AMBIGUITY_M)
+    measured = clean + noise + multipath[of_enb]
+    arc = np.zeros((n_s, n_t), int)
+    if cfg.get("arcs") is not None:
+        arcs = _arcs(cfg["arcs"])
+        rng_arc = np.random.default_rng([seed, _ARC_STREAM])
+        arc_m = np.zeros((n_s, n_t))
+        for i in range(n_s):
+            arc[i], arc_m[i] = arc_offsets(rng_arc, ts, arcs)
+        measured = measured + arc_m
+    value = np.mod(measured, AMBIGUITY_M)
     n_epochs = round((float(np.median(dt[1:])) if n_t > 1 else 1.0) / EPOCH_S)  # per record
     if schedule is not None:
         n_epochs = schedule.n_epochs
@@ -474,7 +563,7 @@ def records(
                 "pci": s.pci,
                 "fc_hz": s.fc_hz,
                 "n_epochs": n_epochs,
-                "arc": 0,  # TBC: re-acquisition is not modelled (module docstring)
+                "arc": int(arc[i, k]),  # 0 unless `arcs:` is on (module docstring)
                 "sigma_crb_m": round(reported, 3),
                 "sigma_obs_m": None,
                 "ambiguity_m": AMBIGUITY_M,

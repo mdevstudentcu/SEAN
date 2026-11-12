@@ -63,9 +63,25 @@ def gnss(
     return out
 
 
-def baro(ts_ns, pos, rng, sigma_m: float, bias_sigma_m: float = 1.0, **_) -> list[Measurement]:
+def baro(
+    ts_ns,
+    pos,
+    rng,
+    sigma_m: float,
+    bias_sigma_m: float = 1.0,
+    temp_m_per_k: float = 0.0,
+    temperature_k: np.ndarray | None = None,
+    **_,
+) -> list[Measurement]:
+    """Barometric altitude: truth + one bias per run + white noise. Optionally (#278, off by
+    default) the chip tracks its own temperature: `temp_m_per_k` times the board's temperature
+    change since start-up (`temperature_k`, `board_temperature`), with no draw of its own."""
     bias = rng.normal(0.0, bias_sigma_m)
     alt = pos[:, 2] + bias + rng.normal(0.0, sigma_m, len(pos))
+    if temp_m_per_k:
+        if temperature_k is None:
+            raise ValueError("baro temp_m_per_k needs a `board_temperature:` block")
+        alt = alt + temp_m_per_k * temperature_k
     return [
         Measurement(t_ns=int(t), source="baro", kind="altitude", value=(a,), sigma=(sigma_m,))
         for t, a in zip(ts_ns, alt, strict=True)
@@ -102,6 +118,7 @@ def pseudoranges(
     place_error_m: np.ndarray | None = None,
     receiver: str = "payload",
     tower_clocks_out: list | None = None,
+    troposphere_m_per_km: np.ndarray | None = None,
     **_,
 ) -> list[Measurement]:
     """Range to each emitter + clock terms + lingering error + white noise.
@@ -123,6 +140,8 @@ def pseudoranges(
     - ray_table: {tower index: (times, excess delay m, NaN if no path)}, from a ray tracer. Adds
       the excess delay of the nearest sample in time, and loses the tower with no path or beyond
       max_excess_m (TBC).
+    - troposphere_m_per_km: (towers,) the troposphere's excess delay per km of true range, per
+      tower (`troposphere`, #278): a near-horizontal path's delay grows with its length.
 
     A second receiver hearing the same towers (the reference station, ADR-0020) shares their
     clocks: pass a list as `tower_clocks_out` and each tower's clock (m, one row per tower, own
@@ -145,7 +164,10 @@ def pseudoranges(
             )
         else:
             bias = tower_clock_m[i]
-        rho = np.linalg.norm(pos - e, axis=1) + bias + rng.normal(0.0, sigma_m, len(pos))
+        geometric = np.linalg.norm(pos - e, axis=1)
+        rho = geometric + bias + rng.normal(0.0, sigma_m, len(pos))
+        if troposphere_m_per_km is not None:
+            rho = rho + troposphere_m_per_km[i] * 1e-3 * geometric
         if clock_s is not None:
             rho = rho + C_MPS * clock_s
         if drift_sigma_mps and tower_clock_m is None:
@@ -273,6 +295,61 @@ def oscillator(
     drift = y0 + np.cumsum(w_drift)
     drift_before = np.concatenate([[y0], drift[:-1]])
     return x0 + np.cumsum(drift_before * dt + w_offset)
+
+
+def troposphere(rng, n: int, m_per_km) -> np.ndarray:
+    """Each of `n` towers' tropospheric excess delay per km of range (m/km, #278).
+
+    On a near-horizontal path the refractivity of the air near the ground (about 300 ppm) adds
+    about 0.3 to 0.4 m per km of range (sources-research-20261111.md 18.2), and differently per
+    tower: `m_per_km` is that value, or a [low, high] range drawn uniformly per tower (the
+    spread stands for each path's own air). A tower clock absorbs the delay's constant part; the
+    part that changes as the receiver moves stays."""
+    if np.ndim(m_per_km) == 0:
+        return np.full(n, float(m_per_km))
+    low, high = (float(x) for x in m_per_km)
+    if not 0.0 <= low <= high:
+        raise ValueError(f"troposphere m_per_km needs 0 <= low <= high, not {m_per_km!r}")
+    return rng.uniform(low, high, n)
+
+
+def steering(rng, t_s: np.ndarray, jump_rate_hz: float, drift_mps: float) -> np.ndarray:
+    """A GNSS-steered tower clock's offset (m) at times t_s: piecewise-constant drift (#278).
+
+    Lapin et al. (IEEE TVT 2024) watched two LTE towers for 11 days: the clock's drift jumped
+    about once a minute, by up to about 1 ppb, and about 20 m built up between jumps. Here jumps
+    come as a Poisson process at `jump_rate_hz`. The first drift is uniform in +-`drift_mps`; at
+    each jump a step uniform in [0, `drift_mps`] moves the drift towards steering the offset
+    back to zero, and the drift stays within +-`drift_mps`. The offset starts at zero (the
+    tower's constant offset is its other clock terms'), so it stays bounded, as a steered clock
+    does. Draws nothing when `jump_rate_hz` or `drift_mps` is zero."""
+    t_s = np.asarray(t_s, float)
+    if not (jump_rate_hz and drift_mps) or len(t_s) == 0:
+        return np.zeros(len(t_s))
+    span = float(t_s[-1] - t_s[0])
+    gaps = rng.exponential(1.0 / jump_rate_hz, int(span * jump_rate_hz * 3) + 20)
+    jumps = t_s[0] + np.cumsum(gaps)
+    jumps = jumps[jumps < t_s[-1]]
+    steps = rng.uniform(0.0, drift_mps, len(jumps))
+    drift = rng.uniform(-drift_mps, drift_mps)
+    edges = np.concatenate([[t_s[0]], jumps])
+    offsets, drifts = [0.0], [drift]
+    for j, t_jump in enumerate(jumps):
+        x = offsets[-1] + drifts[-1] * (t_jump - edges[j])
+        drift = float(np.clip(drift - np.sign(x) * steps[j], -drift_mps, drift_mps))
+        offsets.append(x)
+        drifts.append(drift)
+    seg = np.searchsorted(jumps, t_s, side="right")
+    return np.asarray(offsets)[seg] + np.asarray(drifts)[seg] * (t_s - edges[seg])
+
+
+def board_temperature(t_s: np.ndarray, change_k: float, tau_s: float) -> np.ndarray:
+    """The payload board's temperature change since start-up (K) at times t_s (#278): a
+    first-order approach to `change_k` with time constant `tau_s`, zero at t = 0, when the
+    sensors are calibrated."""
+    if tau_s <= 0.0:
+        raise ValueError(f"board_temperature tau_s must be positive, not {tau_s!r}")
+    return change_k * (1.0 - np.exp(-np.asarray(t_s, float) / tau_s))
 
 
 # Random Fourier features per tower for `place_error`. Numerical, not a model value: enough
