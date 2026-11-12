@@ -1,0 +1,8 @@
+{
+ "commit": "8218318",
+ "estimator": "ekf",
+ "seconds": {
+  "challenge-drone-outage": 3.2048625459865434,
+  "nominal": 1.7989447799918707
+ }
+}
