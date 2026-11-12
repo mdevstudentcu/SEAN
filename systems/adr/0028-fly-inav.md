@@ -58,11 +58,16 @@ INAV was never flashed. The owners chose to stay on Betaflight. The *Decision* a
   - Checked live: SwB armed, transmitter off, channel 5 dropped to 1000.
   - Betaflight's own `failsafe_procedure` stays `DROP` (the default).
 - **MAVLink to the Pi:** flight-controller **UART1** runs MAVLink telemetry at 115200 baud (`serial 0 512 ...`). Planned wiring: **flight-controller TX1 → Pi GPIO13 (`uart5` RX) and GND only.** The Pi's TX is not connected, so the Pi physically cannot command the flight controller. Which MAVLink messages Betaflight sends, and at what rate, is `TBC` until the payload records them (#114).
+- **Accelerometer level calibration:** done on a level surface (MSP `MSP_ACC_CALIBRATION`). Attitude went from roll 0.4° / pitch 2.6° to 0.0° / 0.0°.
+- **Motor check, props off,** each motor spun alone over MSP:
+  - Order is correct: M1 rear-right, M2 front-right, M3 rear-left, M4 front-left (Betaflight's Quad X default, props in).
+  - M1 CW and M2 CCW were correct. **M3 and M4 spun the wrong way**, fixed in the ESC with `dshotprog 2 21 12` and `dshotprog 3 21 12` (DShot: spin direction reversed, then save). Re-tested: M3 CCW, M4 CW.
+  - M1's direction was judged at a higher speed only.
 
 **Open before the first flight:**
 
-- Accelerometer level calibration.
-- Motor order and direction check, props off.
+- Re-check M1's direction slowly, with a tape flag.
+- Props matched to each motor's direction: CCW ("R") props on M2 and M3.
 - Bidirectional DShot: whether the E55S ESC firmware supports it is unknown (`TBC`).
 - `failsafe_throttle` tuning, only if Betaflight's AUTO-LAND failsafe is ever used instead of `DROP`.
 
