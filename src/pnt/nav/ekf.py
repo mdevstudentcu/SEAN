@@ -361,6 +361,11 @@ class EKF:
         lte_consistency_k: float = 3.0,  # RMS normalised innovation above which a cell fails
         lte_inconsistent_mode: str = "cells3",  # a failing cell: "cells3" (3 heard) or "skip"
         curvature_inflate: bool = False,  # too curved a range: R grows by the term, not dropped
+        # Stationary hold (#286): zero velocity after GNSS loss, only for a platform shown at rest
+        hold_rest_s: float = 0.0,  # s of GNSS steering before the loss that must show rest; 0: off
+        hold_speed_mps: float = 0.5,  # m/s: largest horizontal speed in that window (TBC)
+        hold_k: float = 3.0,  # IMU variance factor over the rest baseline that disarms it (TBC)
+        hold_sigma_mps: float = 0.1,  # m/s: the zero-velocity update's sigma (TBC)
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -499,6 +504,16 @@ class EKF:
         self.lte_inconsistent_mode = lte_inconsistent_mode
         self.curvature_inflate = curvature_inflate
         self._consistency: dict[str, deque[tuple[int, float]]] = {}  # cell -> (t, NIS) at 1 Hz
+        self.hold_rest_ns = int(hold_rest_s * 1e9)
+        self.hold_speed, self.hold_k, self.hold_sigma = hold_speed_mps, hold_k, hold_sigma_mps
+        self._rest_imu: deque[tuple[int, np.ndarray]] = deque()  # IMU while GNSS steers
+        self._rest_fix: deque[tuple[int, np.ndarray]] = deque()  # (t, GNSS fix EN) used
+        self._hold: dict | None = None  # the rest baseline while armed, else None
+        self._hold_state = "off"  # "off" (GNSS steering or never armed), "armed", "disarmed"
+        self._hold_win: deque[tuple[int, np.ndarray]] = deque()  # IMU since the last test
+        self.hold_updates = 0  # zero-velocity updates made by the hold
+        self.hold_armed_at: list[int] = []  # when the hold armed
+        self.hold_disarmed_at: list[int] = []  # when it disarmed
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -929,6 +944,8 @@ class EKF:
                 self.imu.add(self, m)
             if self.zupt_sigma and self.x is not None:
                 self._zupt(m)  # except a zero-velocity update when the IMU is still (#286)
+            if self.hold_rest_ns and self.x is not None:
+                self._stationary_hold(m)  # or one for a platform at rest at GNSS loss (#286)
             return
         if self.x is None:
             if m.kind == "position_enu":
@@ -991,6 +1008,10 @@ class EKF:
             self.gnss_alt_excluded = alt_rejected  # a re-admitted fix is used whole
         if m.kind == "pseudorange" and gate and self.noise_tau_ns and "rx_clock" in m.meta:
             self._learn_noise(m, float(R[0, 0]))  # not first sight: that innovation is zero
+        if self.hold_rest_ns and key == "gnss" and m.kind == "position_enu" and used:
+            self._rest_fix.append((m.t_ns, np.asarray(m.value[:2], float)))  # read only (#286)
+            while self._rest_fix[0][0] < m.t_ns - self.hold_rest_ns:
+                self._rest_fix.popleft()
         if self.lte_consistency_ns and m.kind == "pseudorange" and gate and "rx_clock" in m.meta:
             self._note_consistency(m)
         if self.calibrated:
@@ -1045,6 +1066,73 @@ class EKF:
         if self._update("zupt", m.t_ns, -self.x[VEL], H, R):
             self.zupts += 1
             del self.last_used["zupt"]  # a constraint, not a source: no trust or health entry
+
+    def _stationary_hold(self, m: Measurement) -> None:
+        """Stationary hold (#286, opt-in `hold_rest_s`). While GNSS steers it only records the
+        IMU samples and the GNSS fixes used over the last `hold_rest_s`. When GNSS stops steering
+        it arms only if the fixes cover that window and their displacement speed (the mean of the
+        last HOLD_AVG_NS of fixes less the mean of the first, over the time between, horizontal)
+        is at or under `hold_speed_mps`: the platform was at rest when GNSS went away. Fixes, not
+        the filter's velocity: with 2.5 m GNSS at 5 Hz (the sim's timing leg) the constant-
+        velocity filter's speed wanders 0.3 to 1.8 m/s on a receiver that does not move.
+
+        The window's IMU is then the baseline: each axis's standard deviation and the mean
+        specific-force magnitude. While armed, every HOLD_TEST_NS of IMU is compared with it:
+        each axis's standard deviation within `hold_k` times its baseline, and the mean magnitude
+        within `hold_k` baseline standard deviations of the magnitude. Within, the velocity is
+        told zero (sigma `hold_sigma_mps`, gated); the first test outside disarms it until GNSS
+        steers again. Never armed, it changes no state: the estimate is the filter's without
+        it."""
+        v = np.asarray(m.value[:6], float)
+        if self.gnss_trusted():
+            self._hold_state, self._hold = "off", None
+            self._rest_imu.append((m.t_ns, v))
+            while self._rest_imu[0][0] < m.t_ns - self.hold_rest_ns:
+                self._rest_imu.popleft()
+            return
+        if self._hold_state == "off":
+            self._hold_state = "disarmed"
+            end = self.last_used.get("gnss", -(10**18))
+            imu = np.array([x for t, x in self._rest_imu if end - self.hold_rest_ns <= t <= end])
+            if self._rest_speed_ok() and len(imu):
+                mag = np.linalg.norm(imu[:, :3], axis=1)
+                self._hold = {"std": imu.std(axis=0), "mag": mag.mean(), "mag_std": mag.std()}
+                self._hold_state = "armed"
+                self._hold_win.clear()
+                self.hold_armed_at.append(m.t_ns)
+        if self._hold_state != "armed":
+            return
+        self._hold_win.append((m.t_ns, v))
+        if m.t_ns - self._hold_win[0][0] < HOLD_TEST_NS:
+            return
+        w = np.array([x for _, x in self._hold_win])
+        self._hold_win.clear()
+        b = self._hold
+        mag = np.linalg.norm(w[:, :3], axis=1).mean()
+        still = bool(np.all(w.std(axis=0) <= self.hold_k * b["std"])) and (
+            abs(mag - b["mag"]) <= self.hold_k * b["mag_std"]
+        )
+        if not still:
+            self._hold_state, self._hold = "disarmed", None
+            self.hold_disarmed_at.append(m.t_ns)
+            return
+        self.predict(m.t_ns)
+        H = _row(self, 3)
+        H[:, VEL] = np.eye(3)
+        if self._update("hold", m.t_ns, -self.x[VEL], H, np.eye(3) * self.hold_sigma**2):
+            self.hold_updates += 1
+            del self.last_used["hold"]  # a constraint, not a source: no trust or health entry
+
+    def _rest_speed_ok(self) -> bool:
+        """The fixes kept cover 90 % of `hold_rest_s` and moved no faster than `hold_speed_mps`."""
+        f = self._rest_fix
+        if not f or f[-1][0] - f[0][0] < 0.9 * self.hold_rest_ns:
+            return False
+        t0, t1 = f[0][0], f[-1][0]
+        a = np.mean([p for t, p in f if t <= t0 + HOLD_AVG_NS], axis=0)
+        b = np.mean([p for t, p in f if t >= t1 - HOLD_AVG_NS], axis=0)
+        dt = (t1 - t0) / 1e9 - HOLD_AVG_NS / 1e9  # between the two averages' centres
+        return float(np.hypot(*(b - a))) / max(dt, 1.0) <= self.hold_speed
 
     def _coverage_bound(self, m: Measurement) -> None:
         """A heard cell bounds where we are: within `heard_cell_radius_m` of its site,
@@ -1554,6 +1642,8 @@ LTE_GATE_MODES = ("skip", "clock")  # what `geometry_hold` does with a held reco
 # session 20261111-0040 (0.022 m/s^2, 0.00088 rad/s; TBC). The sim drone's IMU passes the same
 # test on part of its flight, so the update is gated (PR evidence, #286).
 ZUPT_WINDOW_NS = 2_000_000_000
+HOLD_TEST_NS = 1_000_000_000  # stationary hold: IMU tested against its rest baseline each second
+HOLD_AVG_NS = 5_000_000_000  # stationary hold: fixes averaged at each end of the rest window
 ZUPT_ACCEL_STD = 0.025  # m/s^2 (TBC)
 ZUPT_GYRO_STD = 0.0012  # rad/s (TBC)
 
