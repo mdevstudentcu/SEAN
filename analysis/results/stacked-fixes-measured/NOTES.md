@@ -1,6 +1,6 @@
 # Reading the measured-noise ladder (#257)
 
-Evidence: **sim**, a study variant of the drone leg, `ekf` family, seeds 0–49 paired, at `6f2699d` on g14. `summary.md` is generated; this file is the reading. Choices: ADR-0049 (Proposed).
+Evidence: **sim**, a study variant of the drone leg, `ekf` family, seeds 0–49 paired, at `b22bee1` on g14. `summary.md` is generated; this file is the reading. Choices: ADR-0049 (Proposed).
 
 ## What changed between the two columns
 
