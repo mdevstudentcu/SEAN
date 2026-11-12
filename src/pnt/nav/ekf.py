@@ -242,6 +242,7 @@ from pnt.core.measurement import Estimate, Measurement
 from pnt.integrity.gnss_readmit import GnssReadmit
 from pnt.integrity.jump_guard import JumpGuard
 from pnt.integrity.protection import hpl, vpl
+from pnt.integrity.whiteness import Whiteness, WhitenessParams
 from pnt.nav import _kernels, told_sigma
 from pnt.nav.baseline import CHI2_999
 from pnt.nav.hostile import BeaconParams, Beacons
@@ -366,6 +367,9 @@ class EKF:
         hold_speed_mps: float = 0.5,  # m/s: largest horizontal speed in that window (TBC)
         hold_k: float = 3.0,  # IMU variance factor over the rest baseline that disarms it (TBC)
         hold_sigma_mps: float = 0.1,  # m/s: the zero-velocity update's sigma (TBC)
+        # innovation whiteness per source, a report-only flag (#275, ADR-0052); True: defaults,
+        # a mapping: WhitenessParams options, None or False: off (`nav.estimate` switches it on)
+        whiteness: Mapping | bool | None = False,
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -514,6 +518,9 @@ class EKF:
         self.hold_updates = 0  # zero-velocity updates made by the hold
         self.hold_armed_at: list[int] = []  # when the hold armed
         self.hold_disarmed_at: list[int] = []  # when it disarmed
+        on = whiteness is True or isinstance(whiteness, Mapping)
+        params = WhitenessParams(**whiteness) if isinstance(whiteness, Mapping) else None
+        self.whiteness = Whiteness(params) if on else None
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -989,6 +996,8 @@ class EKF:
             self.last_rejected[key] = m.t_ns
         else:  # "readmit": GNSS is back on its own pre-jump track, so the gate is skipped
             used = self._update(key, m.t_ns, y, H, R, gate and verdict == "gate")
+            if self.whiteness is not None:  # report only (#275): the innovation just computed
+                self.whiteness.add(m.t_ns, key, m.emitter, m.kind, *self._last_innov[:2])
         readmit = self.readmit.decide(self, m.t_ns, used) if watch and verdict == "gate" else None
         if readmit is not None:  # towers unfit to refute GNSS kept it out (#246)
             if readmit == "reset":
@@ -1884,7 +1893,8 @@ def run(
                 next_epoch = (ekf.t_ns // epoch_ns + 1) * epoch_ns
             while next_epoch <= m.t_ns:
                 ekf.predict(next_epoch)
-                yield ekf.estimate() if mon is None else mon.estimate(ekf.estimate())
+                est = ekf.estimate() if mon is None else mon.estimate(ekf.estimate())
+                yield est if ekf.whiteness is None else ekf.whiteness.flag(est)  # report only
                 next_epoch += epoch_ns
         if mon is not None:
             mon.process(m)
