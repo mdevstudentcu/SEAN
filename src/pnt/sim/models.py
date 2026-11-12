@@ -379,8 +379,17 @@ def _gauss_markov(rng, dt: np.ndarray, sigma: float, tau_s: float) -> np.ndarray
     phi = np.exp(-dt / tau_s)
     x = np.empty(len(dt))
     x[0] = rng.normal(0.0, sigma)
-    for k in range(1, len(dt)):
-        x[k] = phi[k] * x[k - 1] + rng.normal(0.0, sigma * np.sqrt(1.0 - phi[k] ** 2))
+    # All steps' noise in one draw: the same stream, in the same order, as one draw per step.
+    # phi**2 per element as a scalar (C pow), which can differ from the array square in the
+    # last bit; the recursion then runs on Python floats, the same IEEE operations as before.
+    phi_k = phi[1:].tolist()
+    w = rng.normal(0.0, sigma * np.sqrt(1.0 - np.array([p**2 for p in phi_k]))).tolist()
+    v = float(x[0])
+    col = []
+    for p, wk in zip(phi_k, w, strict=True):
+        v = p * v + wk
+        col.append(v)
+    x[1:] = col
     return x
 
 

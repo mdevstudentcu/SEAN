@@ -185,13 +185,12 @@ def _attitude(vel: np.ndarray, acc: np.ndarray, vehicle: str) -> np.ndarray:
     up = np.tile([0.0, 0.0, 1.0], (n, 1))
     heading = vel.copy()
     heading[:, 2] = 0.0 if vehicle == "multirotor" else heading[:, 2]
-    # Hold the last heading while stopped (and start facing east if never moving)
+    # Hold the last heading while stopped (and start facing east if never moving): row 0 of
+    # `held` is east, row k the k-th moving sample's direction
     norm = np.linalg.norm(heading, axis=1)
-    last = np.array([1.0, 0.0, 0.0])
-    for i in range(n):
-        if norm[i] > 1e-6:
-            last = heading[i] / norm[i]
-        heading[i] = last
+    moving = norm > 1e-6
+    held = np.vstack([[1.0, 0.0, 0.0], heading[moving] / norm[moving][:, None]])
+    heading = held[np.cumsum(moving)]
     f = acc - GRAVITY  # specific force: what thrust or lift must supply
     if vehicle == "multirotor":
         z = f / np.linalg.norm(f, axis=1)[:, None]
