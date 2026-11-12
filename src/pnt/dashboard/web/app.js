@@ -366,9 +366,33 @@ function spoofWhy(sp) {
 
 function renderSpoof(sp) {
   if (!sp) return;
-  $("spoof").className = `card spoof ${sp.level}`;
+  $("spoof").className = `trust-sky ${sp.level}`;
   $("spoof-word").textContent = SPOOF_WORD[sp.level] || sp.level;
   $("spoof-why").textContent = spoofWhy(sp);
+}
+
+// ---- GPS trust (health.gps_trust) and the error bound -----------------------------------
+const TRUST_WORD = { trusted: "TRUSTED", checking: "CHECKING", not_trusted: "NOT TRUSTED", absent: "NO GPS" };
+const fdur = (s) => (s < 120 ? `${s.toFixed(0)} s` : `${(s / 60).toFixed(1)} min`);
+function renderTrust(g) {
+  if (!g) return;
+  $("gps-trust").className = `card trust ${g.level}`;
+  $("trust-word").textContent = TRUST_WORD[g.level] || g.level;
+  $("trust-since").textContent = g.unused_s == null ? "" : `GPS not used for ${fdur(g.unused_s)}`;
+  $("trust-why").innerHTML = g.reasons.map((r) => `<li>${esc(r[0].toUpperCase() + r.slice(1))}</li>`).join("");
+}
+function renderBound(f, h) {
+  const al = h.rnp_m, hpl = f.hpl_m;
+  $("bound").className = `card bound ${f.confidence}`;
+  $("big-hpl").textContent = fm(hpl);
+  $("big-al").textContent = fm(al, 0);
+  $("big-mark").style.left = `${hpl == null ? 100 : Math.min(100, (100 * hpl) / (1.5 * al))}%`;
+  let sub;
+  if (hpl == null) sub = "No bound: do not trust the position";
+  else if (hpl > al) sub = `Over the alert limit: ${(hpl / al).toFixed(1)}× the limit`;
+  else if (h.tta_hpl_s == null) sub = "Not heading for the alert limit (last 10 s trend)";
+  else sub = `Reaches the alert limit in ${fdur(h.tta_hpl_s)} on the last 10 s trend`;
+  $("big-tta").textContent = sub;
 }
 
 function renderSide() {
@@ -384,9 +408,7 @@ function renderSide() {
   $("anp").textContent = fm(h.anp95_m);
   $("hpl").textContent = fm(f.hpl_m);
   const frac = (v, lim) => Math.min(100, (100 * v) / (1.5 * lim));
-  const bar = $("hpl-bar");
-  bar.style.width = `${f.hpl_m == null ? 0 : frac(f.hpl_m, h.rnp_m)}%`;
-  bar.style.background = f.hpl_m > h.rnp_m ? C.critical : f.hpl_m > 0.8 * h.rnp_m ? C.warning : C.good;
+  renderBound(f, h);
   $("tta-h").textContent = ftta(h.tta_hpl_s);
   $("err-row").style.display = S.info && S.info.has_truth ? "" : "none";
   // a replay's /truth need not be a simulation's (#264: a real session's withheld GPS fixes)
@@ -404,6 +426,7 @@ function renderSide() {
     : '<li class="muted">Nothing flagged.</li>';
   renderAlerts(h.alerts, h.settled);
   renderSpoof(f.spoof);
+  renderTrust(f.gps_trust);
   $("trusted").innerHTML = chips(h.trusted, false);
   $("lowtrust").innerHTML = chips(h.low_trust, true);
   const towers = [...S.emitters.keys()];
@@ -429,6 +452,7 @@ const conn = $("conn");
 es.addEventListener("info", (ev) => {
   const i = (S.info = JSON.parse(ev.data));
   $("kind").textContent = i.kind.toUpperCase();
+  $("kind").className = `chip kind ${i.kind}`;
   $("name").textContent = i.name;
   $("estimator").textContent = `estimator ${i.estimator}`;
   $("banner").textContent = i.banner || "";
@@ -473,6 +497,11 @@ function feedLost(message) {
   $("status").className = "card status lost";
   $("status-word").textContent = "NO DATA";
   $("headline").textContent = message;
+  $("gps-trust").className = "card trust";
+  $("trust-word").textContent = "NO DATA";
+  $("trust-since").textContent = "";
+  $("trust-why").innerHTML = '<li class="muted">No estimate: the values on this page are stale.</li>';
+  $("bound").className = "card bound";
 }
 es.addEventListener("error", (ev) => {
   if (ev.data) { S.failed = true; feedLost(`Feed error: ${JSON.parse(ev.data).message}. The values on this page are stale.`); }

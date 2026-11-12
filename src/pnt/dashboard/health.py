@@ -137,6 +137,32 @@ C_M_PER_US = 299.792458  # light travel in one microsecond (m): a clock jump in 
 CONF_AMBER_FRACTION = 0.8
 CONFIDENT, NEAR_LIMIT, DO_NOT_TRUST = "green", "amber", "red"
 
+# GPS trust: the panel's one answer to "is GPS telling the truth?" (`gps_trust`). Presentation
+# only: it reads the estimate's flags, its source trust and the ADR-0041 spoof decision, and
+# decides nothing the estimator or the spoof decision has not already decided.
+GPS_TRUSTED, GPS_CHECKING = "trusted", "checking"
+GPS_NOT_TRUSTED, GPS_ABSENT = "not_trusted", "absent"
+# A flag that means the GPS solution is refused or contradicted: GPS is not trusted
+GPS_DISTRUST = {
+    "gnss_jump_latched": "GPS position jumped away from its own track: refused by the jump guard",
+    "spoof_suspected": "the towers' geometry contradicts the GPS position",
+    "gnss_excluded": "GPS position disagrees with the rest of the solution: rejected",
+    "time_spoof_suspected": "GPS time disagrees with our clock model: rejected",
+    "mhss_excluded:gnss-cm": "the integrity monitor excluded GPS: its solution separated",
+}
+# A flag that casts doubt on GPS while it is still used: GPS is being checked
+GPS_DOUBT = {
+    "gnss_alt_excluded": "GPS height disagrees with the barometer: only its horizontal is used",
+    "mhss_alarm:gnss-cm": "the integrity monitor flags GPS, but cannot exclude it",
+    "adsb_interference": "aircraft nearby report degraded GPS",
+    "adsb_spoofed_aircraft": "an aircraft nearby reports a spoofed-looking track",
+}
+# The spoof decision's sky cues (ADR-0041) in words; its flag cues repeat GPS_DISTRUST
+SKY_CUES = {
+    "sky_below_horizon": "a satellite is received that should be below the horizon here",
+    "power_flat": "every satellite arrives at the same power, whatever its elevation",
+}
+
 
 def hypothesis_words(h: str) -> str:
     """An MHSS fault hypothesis (pnt.integrity.mhss) in words."""
@@ -250,6 +276,51 @@ def confidence(hpl_m: float | None, flags, alert_limit_m: float) -> str:
     return CONFIDENT
 
 
+def gps_in_use(flags, trust: dict) -> bool:
+    """GPS position used by the estimator now: trusted as a source, and not flagged as lost,
+    rejected or refused (an estimator keeps GPS's trust at 1 for a few seconds after it rejects
+    it, so the trust alone is not enough)."""
+    if trust.get("gnss", 0.0) < LOW_TRUST or "gnss_unavailable" in flags:
+        return False
+    return not any(f in GPS_DISTRUST for f in flags)
+
+
+def gps_trust(
+    flags, trust: dict, spoof: dict | None = None, unused_s: float | None = None
+) -> dict:
+    """Is GPS telling the truth? One of GPS_NOT_TRUSTED (a flag refuses or contradicts it, or
+    the spoof decision says spoofed), GPS_CHECKING (a doubt while it is used, or the spoof
+    decision says suspect), GPS_ABSENT (not in use and nothing says it lies: lost, blocked or not
+    fitted) or GPS_TRUSTED (in use, nothing against it). `reasons` says why, in plain words.
+    `unused_s`: seconds since GPS was last in use (None if in use now or never used)."""
+    flags = list(flags)
+    level = (spoof or {}).get("level")
+    sky = [
+        SKY_CUES[c]
+        for c in (c.removesuffix(" (held)") for c in (spoof or {}).get("cues", []))
+        if c in SKY_CUES
+    ]
+    distrust = [text for f, text in GPS_DISTRUST.items() if f in flags]  # the tables' order
+    doubt = [text for f, text in GPS_DOUBT.items() if f in flags]
+    if distrust or level == "spoofed":
+        state, reasons = GPS_NOT_TRUSTED, distrust + sky
+        if not reasons:  # spoofed on cues with no words here: say so rather than nothing
+            reasons = ["the spoof decision says spoofed"]
+    elif doubt or level == "suspect":
+        state, reasons = GPS_CHECKING, doubt + sky
+        if not reasons:
+            reasons = ["the spoof decision has a cue against GPS"]
+    elif not gps_in_use(flags, trust):
+        state = GPS_ABSENT
+        if unused_s is None:
+            reasons = ["no GPS position accepted yet"]
+        else:
+            reasons = ["no GPS position accepted recently: signal lost, blocked or rejected"]
+    else:
+        state, reasons = GPS_TRUSTED, ["GPS in use and consistent with the rest of the solution"]
+    return {"level": state, "reasons": reasons, "unused_s": unused_s}
+
+
 @dataclass
 class Alert:
     id: int
@@ -278,6 +349,7 @@ class HealthMonitor:
         self._hpl: deque[tuple[float, float]] = deque()
         self._tpl: deque[tuple[float, float]] = deque()
         self.settled = False  # past start-up: alerts latch from here on
+        self.gps_last_s: float | None = None  # when GPS was last in use (`gps_in_use`)
 
     def t_s(self, t_ns: int) -> float:
         if self.t0_ns is None:
@@ -318,6 +390,9 @@ class HealthMonitor:
         tta_h = self._trend(self._hpl, t, hpl, self.al)
         tta_t = self._trend(self._tpl, t, tpl_s, self.tal)
         trust = dict(sorted(est.trust.items()))
+        in_use = gps_in_use(est.flags, trust)
+        if in_use:
+            self.gps_last_s = t
         if status in STATUS:
             headline = STATUS[status]
         else:
@@ -347,6 +422,8 @@ class HealthMonitor:
             "tta_tpl_s": tta_t,
             "trusted": {s: v for s, v in trust.items() if v >= LOW_TRUST},
             "low_trust": {s: v for s, v in trust.items() if v < LOW_TRUST},
+            # seconds since GPS was last in use; None while it is, or before it ever was
+            "gps_unused_s": None if in_use or self.gps_last_s is None else t - self.gps_last_s,
         }
 
     def _trend(self, window: deque, t: float, pl: float | None, limit: float) -> float | None:
