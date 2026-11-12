@@ -449,7 +449,7 @@ class: topo-light
 <tr><td>Dangerous moments, held 300 m spoof</td><td class="r">2,257</td><td class="r">12,142</td><td class="r ok"><strong>0</strong></td></tr>
 </tbody>
 </table>
-<p class="small muted" style="margin-top: 0.4rem">Simulated flights over the real Ottawa towers, with the same noise as every other result here. Across every noise setting we tried, including the noise we measured on our own radio, the station kept the radius honest and dangerous moments at zero.</p>
+<p class="small muted" style="margin-top: 0.4rem">Simulated flights over the real Ottawa towers, with the same noise as every other result here. In every noise setting we tried, including the noise we measured on our own radio, the station lowered the worst moment, made the radius more honest, and with the guard had zero dangerous moments.</p>
 
 <div class="foot">analysis/results/station-zones (analysis/station_zones.py, seeds 0–9) · realistic-with-base set · ADR-0020 · ADR-0036 · ADR-0038</div>
 
@@ -471,7 +471,9 @@ Here's the proof. Same flight, same moment, 90 seconds after GPS is lost. [left]
 - *B, white noise at ADR-0036's measured 10 m:* median 171 → 77 m; worst 3,263 → 982 m; honest 7 → 51 %; dangerous moments during the outage 39 → 0; spoof 1,899 / 1,355 / 0.
 - *C, B plus reflections at rest (10 m, 3 s):* median 27 → 35 m; worst 359 → 294 m; honest 67 → 100 %; spoof 86 / 0 / 0.
 
-**The consistent win is trust:** a radius honest every time and no dangerous moments, in every setting. Worst case falls in all three; typical error in two of three (at-rest noise, the payload alone is already 27 m).
+**What holds in every setting:** with the guard, zero dangerous moments; the worst moment falls; the radius gets more honest. The radius is honest in every flight in A and C, but only 51 % in the worst flight in B (from 7 %). Typical error falls in two of three (at-rest noise, the payload alone is already 27 m).
+
+**The spoof row:** the zero comes from the jump guard; the station without it is worse (12,142). The point is that the guard plugs into the station unchanged.
 
 **The screenshots:** seed 0, setting A, 90 s after GPS loss: 162.6 m (radius 196.9 m) alone; 71.2 m (radius 430.8 m) with the station.
 
