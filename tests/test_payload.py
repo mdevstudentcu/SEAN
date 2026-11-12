@@ -5,6 +5,7 @@ socket), so the recorder code that runs on the Pi is the code under test."""
 
 import errno
 import json
+import re
 import signal
 import socket
 import struct
@@ -38,7 +39,8 @@ from pnt.payload.devices import TRACKING_FIELDS, FlightController, Health, parse
 from pnt.payload.gpsd import Gpsd, tpv_measurements
 from pnt.payload.i2c import Bmp280, Mpu6050, bmp180_compensate, bmp280_compensate
 from pnt.payload.recorder import Recorder
-from pnt.payload.sdr import RtlSdr, estimate_t0, find_gaps
+from pnt.payload.sdr import RtlSdr, estimate_t0, find_gaps, parse_device_list, reads_as_index
+from pnt.payload.sdr import clock_time as sdr_clock_time
 from pnt.payload.streamer import Streamer
 from pnt.payload.survey import average, load_reference, survey_session, write_survey
 from pnt.payload.wifi import WifiScan, hash_bssid, parse_scan
@@ -630,6 +632,177 @@ def test_real_readers_stop_cleanly_even_when_a_dongle_is_stuck(tmp_path):
     cam_json = json.loads((tmp_path / "s" / "camera.json").read_text())
     assert cam_json["t_ns"] >= cam_json["t_ns_launch"]
     assert (tmp_path / "s" / "camera.mp4").stat().st_size > 0
+
+
+# A stand-in for rtl_sdr (#288). Each run reads its plan from the file named by argv[1]: the
+# devices on the bus as `[name, serial]` by index, which index is ours, and how many chunks it
+# streams before the dongle drops off USB (-1: until killed). It resolves `-d` as librtlsdr
+# does (a number is an index, else a serial), prints the same stderr, writes chunks whose bytes
+# are the run's number, and logs each run's time and `-d` beside the plan.
+FAKE_RTL_SDR = r"""
+import json, sys, time
+from pathlib import Path
+plan_file, args = Path(sys.argv[1]), sys.argv[2:]
+log = plan_file.with_suffix(".log")
+runs = json.loads(log.read_text()) if log.exists() else []
+dev, nbytes = args[args.index("-d") + 1], int(args[args.index("-b") + 1])
+runs.append({"t": time.monotonic(), "dev": dev})
+log.write_text(json.dumps(runs))
+plans = json.loads(plan_file.read_text())
+plan = plans[min(len(runs) - 1, len(plans) - 1)]
+err = sys.stderr
+devices = plan["devices"]
+if not devices:
+    err.write("No supported devices found.\n"); sys.exit(1)
+err.write(f"Found {len(devices)} device(s):\n")
+for i, (name, serial) in enumerate(devices):
+    err.write(f"  {i}:  {name}, SN: {serial}\n")
+err.write("\n")
+if dev.isdigit() and int(dev) < len(devices):
+    index = int(dev)
+else:
+    index = next((i for i, d in enumerate(devices) if d[1] == dev), None)
+    if index is None:
+        err.write("No matching devices found.\n"); sys.exit(1)
+err.write(f"Using device {index}: Generic RTL2832U OEM\n"); err.flush()
+if index != plan["ours"]:
+    err.write(f"usb_claim_interface error -6\nFailed to open rtlsdr device #{index}.\n")
+    sys.exit(1)
+err.write("Reading samples in async mode...\n"); err.flush()
+k = 0
+while plan["chunks"] < 0 or k < plan["chunks"]:
+    sys.stdout.buffer.write(bytes([len(runs)]) * nbytes); sys.stdout.buffer.flush()
+    time.sleep(0.025)
+    k += 1
+err.write("cb transfer status: 1, canceling...\n\nLibrary error -5, exiting...\n")
+sys.exit(1)
+"""
+FLIGHTSTICK = ["Realtek, RTL2838UHIDIR", "00001090"]
+OTHER = ["Realtek, RTL2838UHIDIR", "00000002"]
+
+
+def record_with_fake_rtl_sdr(tmp_path, plans, duration_s, backoff_s=(0.2, 0.4)):
+    """Record `duration_s` with one SDR on FAKE_RTL_SDR through the real pipe reader. Returns
+    the meta, the sidecar, the `.cu8` bytes and the stand-in's runs."""
+    from pnt.payload.sdr import RtlSdrStream
+
+    plan = tmp_path / "plan.json"
+    plan.write_text(json.dumps(plans))
+    stand_in = [sys.executable, "-c", FAKE_RTL_SDR, str(plan)]
+    sdr = RtlSdr("a", 48e3, rate_hz=48e3, chunk=1200, backoff_s=backoff_s,
+                 stream_factory=lambda cmd: RtlSdrStream([*stand_in, *cmd[1:]]))  # fmt: skip
+    meta = Recorder(tmp_path / "s", [sdr]).run(duration_s=duration_s)
+    side = json.loads((tmp_path / "s" / "sdr_a.json").read_text())
+    raw = (tmp_path / "s" / "sdr_a.cu8").read_bytes()
+    events = [e for _, e in read_json(tmp_path / "s" / "session.mcap", ["/events"])]
+    return meta, side, raw, json.loads(plan.with_suffix(".log").read_text()), events
+
+
+def test_sdr_that_drops_off_usb_is_reopened_by_serial(tmp_path):
+    # 20261111-1806-walk-lte: SDR B dropped off USB 14 min in and was back ~2 s later, but the
+    # recorder never reopened it. Here it drops after 10 chunks, is absent on the first try and
+    # back on the second, at the other index (indices swap when the bus re-enumerates).
+    plans = [
+        {"devices": [FLIGHTSTICK, OTHER], "ours": 0, "chunks": 10},
+        {"devices": [OTHER], "ours": None, "chunks": 0},
+        {"devices": [OTHER, FLIGHTSTICK], "ours": 1, "chunks": -1},
+    ]
+    meta, side, raw, runs, events = record_with_fake_rtl_sdr(tmp_path, plans, 2.5)
+    assert [r["dev"] for r in runs] == ["0", "00001090", "00001090"]  # the serial, not index 0
+    assert "rtl-sdr" in meta["hardware"] and "failed" not in meta["notes"]
+    first = 10 * 1200
+    (o,) = side["outages"]
+    assert o["sample_index"] == first and o["attempts"] == 2 and o["device"] == "00001090"
+    assert "Library error -5" in o["error"]
+    assert o["t_back_ns"] - o["t_lost_ns"] > 0.6e9  # two waits (0.2 + 0.4 s) and the starts
+    # the same file goes on: the first run's samples, then the reopened dongle's
+    assert raw[: 2 * first] == bytes([1]) * 2 * first and set(raw[2 * first :]) == {3}
+    assert side["samples"] * 2 == len(raw) > 2 * first
+    assert [first, o["t_back_ns"]] in side["buffers"]
+    note = re.search(
+        r"sdr_a: dropped (\S+), reopened (\S+) \(-d 00001090\); 1 outage", meta["notes"]
+    )
+    assert note and note[1] == sdr_clock_time(o["t_lost_ns"]), meta["notes"]
+    texts = [e["text"] for e in events]
+    assert "sdr_a dropped" in texts and "sdr_a reopened" in texts
+
+
+def test_reopen_waits_longer_each_try_and_gives_up_cleanly_at_the_end(tmp_path):
+    plans = [
+        {"devices": [FLIGHTSTICK, OTHER], "ours": 0, "chunks": 10},
+        {"devices": [OTHER], "ours": None, "chunks": 0},  # never back
+    ]
+    t = time.monotonic()
+    meta, side, raw, runs, _ = record_with_fake_rtl_sdr(tmp_path, plans, 2.5, (0.2, 0.4, 0.6))
+    assert time.monotonic() - t < 8  # the end of the recording ends the tries
+    waits = np.diff([r["t"] for r in runs[1:]])
+    assert len(runs) >= 4
+    assert all(w >= b for w, b in zip(waits, (0.4, 0.6, 0.6, 0.6), strict=False))  # backoff
+    assert max(waits) < 0.6 + 0.5  # capped at the last entry
+    (o,) = side["outages"]
+    assert o["t_back_ns"] is None and o["device"] is None and o["attempts"] == len(runs) - 1
+    assert side["samples"] == 10 * 1200 and len(raw) == 2 * 10 * 1200
+    assert "failed" not in meta["notes"]  # what it recorded is good; the notes say the rest
+    assert re.search(
+        r"sdr_a: dropped \S+, not back by the end \(\d+ tries\); 1 outage", meta["notes"]
+    )
+
+
+def test_reopen_without_a_unique_serial_tries_each_matching_index(tmp_path):
+    # Two dongles sharing the common serial 00000001, which librtlsdr would read as index 1:
+    # each index listed under that name and serial is tried; the one in use fails to open.
+    same = ["Realtek, RTL2838UHIDIR", "00000001"]
+    plans = [
+        {"devices": [same, same], "ours": 0, "chunks": 10},
+        {"devices": [same, same], "ours": 1, "chunks": -1},
+    ]
+    _, side, _, runs, _ = record_with_fake_rtl_sdr(tmp_path, plans, 2.0)
+    assert [r["dev"] for r in runs] == ["0", "0", "1"]
+    assert side["outages"][0]["device"] == "1"
+
+
+def test_sdr_that_fails_before_its_first_sample_is_not_retried(tmp_path):
+    plans = [{"devices": [OTHER], "ours": None, "chunks": 0}]  # wrong -d: a setup error
+    meta, side, _, runs, _ = record_with_fake_rtl_sdr(tmp_path, plans, 1.0)
+    assert len(runs) == 1 and "outages" not in side
+    assert (
+        "failed: sdr_a (rtl-sdr): RuntimeError('rtl_sdr stopped after 0 samples" in meta["notes"]
+    )
+
+
+def test_recording_without_a_drop_is_unchanged(tmp_path):
+    # Readers of earlier sessions see the same sidecar: no `outages` key, no extra note.
+    plans = [{"devices": [FLIGHTSTICK, OTHER], "ours": 0, "chunks": -1}]
+    meta, side, raw, runs, events = record_with_fake_rtl_sdr(tmp_path, plans, 1.0)
+    assert len(runs) == 1 and set(raw) == {1}
+    assert set(side) == {
+        "dongle", "device", "center_freq_hz", "sample_rate_hz", "gain_db", "gain_mode",
+        "ppm_correction", "command", "t_ns", "t_ns_method", "buffers_stamp", "samples",
+        "buffers", "gaps", "gaps_suspected", "hops", "rate_ppm_vs_host", "stderr",
+    }  # fmt: skip
+    assert side["command"].startswith("rtl_sdr -d 0 -f 48000 -s 48000 -b 2400")
+    assert "sdr_a" not in meta["notes"]
+    assert not any("dropped" in e["text"] or "reopened" in e["text"] for e in events)
+
+
+def test_device_list_and_serial_rules():
+    lines = [
+        "Found 2 device(s):",
+        "  0:  Realtek, RTL2838UHIDIR, SN: 00001090",
+        "  1:  Nooelec, NESDR SMArt v5, SN: 12345678",
+        "",
+        "Using device 1: Generic",
+    ]
+    listing, using = parse_device_list(lines)
+    assert listing == [
+        ("Realtek, RTL2838UHIDIR", "00001090"),
+        ("Nooelec, NESDR SMArt v5", "12345678"),
+    ]
+    assert using == 1
+    # librtlsdr's strtol(base 0): "00000001" is octal 1, "12345678" decimal; "00001090" is not
+    # a number (9 is no octal digit), nor is "FS1090"
+    assert reads_as_index("00000001") and reads_as_index("12345678") and reads_as_index("0x1f")
+    assert not reads_as_index("00001090") and not reads_as_index("FS1090")
 
 
 def test_pnt_live_runs_the_estimator_on_the_stream_and_records_it(tmp_path, capsys):

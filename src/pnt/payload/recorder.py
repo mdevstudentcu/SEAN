@@ -3,7 +3,8 @@
 One session folder per run, laid out as `systems/icd/session.md` says. Every device runs in its
 own thread (SDRs and the camera also in their own process), so a device that is missing or fails
 does not stop the others. `meta.yaml` lists in `hardware` the devices that captured, and in
-`notes` the ones that were absent or failed, with the reason.
+`notes` the ones that were absent or failed, with the reason, and anything a device adds (an
+SDR that dropped off USB and was reopened).
 
 Only one thread touches the MCAP writer and the stream socket: devices hand records to it
 through a queue.
@@ -187,6 +188,10 @@ class Recorder:
             for s in self.devices
             if s.state in ("absent", "failed")
         ]
+        for s in self.devices:  # what a device has to add: an SDR's drops and reopens (#288)
+            notes = getattr(s.device, "notes", None)
+            if notes is not None:
+                lines += notes()
         if self.ctx.dropped:
             lines.append(f"records dropped (queue full): {self.ctx.dropped}")
         if self.write_errors:

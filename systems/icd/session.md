@@ -1,6 +1,6 @@
 # ICD-session: recorded session layout
 
-- **Status:** Baselined 2026-11-08 (ADR-0007); `reference` block added 2026-11-09 (ADR-0020); SDR sidecar keys, `platform: static`, the Wi-Fi salt event and derived sessions added 2026-11-09 (#19, #23)
+- **Status:** Baselined 2026-11-08 (ADR-0007); `reference` block added 2026-11-09 (ADR-0020); SDR sidecar keys, `platform: static`, the Wi-Fi salt event and derived sessions added 2026-11-09 (#19, #23); SDR sidecar `outages` added 2026-11-11 (#288)
 
 A session is one folder in `data/sessions/` (never committed):
 
@@ -59,6 +59,9 @@ One JSON object beside each `.cu8` (8-bit unsigned interleaved I/Q, as `rtl_sdr`
 | `hops` | list of `{sample_index` or `t_ns, center_freq_hz}` | no | Band hops; empty when there is one carrier |
 | `gaps` | list of `[sample_index, n]` | no | Drops known exactly: `n` samples lost before `sample_index`. `rtl_sdr` never reports drops, so the recorder leaves this empty |
 | `buffers` | list of `[sample_index, host_t_ns]` | no | Each USB buffer's first sample index and its host GPS-ns time (arrival minus the buffer's duration). Readers size drops from these |
+| `outages` | list of objects (below) | no | Breaks where the dongle dropped off USB and the recorder opened it again (#288). Present only when there was one: a capture without one has no `outages` key |
+
+Each `outages` entry: `sample_index` (int, the file index of the first sample after the break, exact), `t_lost_ns` (int, host GPS ns at which the first missing sample was due: the last buffer's stamp plus its duration), `t_back_ns` (int, the stamp of the first buffer after the break; null if the dongle was not back by the end of the recording, so no samples follow), `attempts` (int, opens tried), `device` (string or null, the `rtl_sdr -d` value that worked: the serial when it names the dongle alone) and `error` (string, `rtl_sdr`'s last stderr lines). The samples on either side are **not** continuous: about `(t_back_ns - t_lost_ns) × sample_rate_hz` are missing before `sample_index`, known only to the host stamps' jitter (ms), so a reader treats the break as a gap of that size whose exact length it must find from the signal or leave unknown, never as samples in a row. The `.cu8` file goes on after it, so the sample index stays one per dongle.
 
 The recorder also writes these, which are for people and the day-1 report, not for readers: `gain_mode`, `gaps_suspected` (drops it estimates from the stamps' latency floor), `rate_ppm_vs_host`, `t_ns_method`, `buffers_stamp`, `samples`, `device`, `command`, `stderr` and `ppm_correction`.
 

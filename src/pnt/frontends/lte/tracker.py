@@ -183,7 +183,10 @@ class Gap:
     at: int
     n: int
     until: int
-    ambiguous: bool = False  # sized only modulo a frame (no buffer stamps)
+    ambiguous: bool = False  # not sized to the sample (no buffer stamps; an outage not refound)
+    # The recorder reopened the dongle here (#288): placed exactly, sized by the host clock to
+    # its jitter (ms) until the first cell re-found after it sizes it to the sample (`_relocate`)
+    outage: bool = False
 
 
 class GapMap:
@@ -207,6 +210,17 @@ class GapMap:
         self._cstart = at + np.concatenate([[0], self._cum[:-1]])  # corrected start of each gap
         self._cend = at + self._cum
         self._until = np.array([g.until for g in self.gaps], np.int64)
+
+    def outage_between(self, c_lo: float, c_hi: float) -> float:
+        """Samples of outages (a reopened dongle) between corrected indices `c_lo` and `c_hi`:
+        seconds with no signal, which must not count as a cell gone. Other gaps are tens of ms
+        and count as before."""
+        if not any(g.outage for g in self.gaps):
+            return 0.0
+        mask = np.array([g.outage for g in self.gaps])
+        lo = np.clip(c_lo, self._cstart[mask], self._cend[mask])
+        hi = np.clip(c_hi, self._cstart[mask], self._cend[mask])
+        return float(np.sum(hi - lo))
 
     def corrected_ends(self) -> np.ndarray:
         """Corrected index just after each gap, in the order of `gaps`."""
@@ -625,7 +639,8 @@ class _Track:
             n_blk = int(np.clip(0.3 / (3 * math.sqrt(max(st.p11, 0.0)) * L + 1e-15), 2, 200))
             ks = np.arange(k, k + n_blk)
             bounds = cell.n0 + ks * L + st.theta + st.nu * (ks - st.k) * L
-            if bounds[0] > c_stop or bounds[0] - last_seen > cfg.lost_s * fs:
+            gone = bounds[0] - last_seen - self.gaps.outage_between(last_seen, bounds[0])
+            if bounds[0] > c_stop or gone > cfg.lost_s * fs:
                 break
             ok = self.usable(bounds) & (bounds <= c_stop)
             if not ok.any():
@@ -762,9 +777,12 @@ class _Track:
                 if new_arc:
                     cell.arc += 1
                 k, last, miss = k_found, None, 0
-            else:  # ("gap", Gap)
+            else:  # ("gap", Gap), or ("outage", Gap) just sized
                 gap = action[1]
-                self.gaps.add(gap)
+                if action[0] == "gap":
+                    self.gaps.add(gap)
+                else:
+                    self.gaps.refresh()
                 pending = gap
                 st = good.copy()
                 k, last, miss = good.k + 1, None, 0
@@ -799,7 +817,8 @@ class _Track:
             n_b = int(np.clip(0.3 / (3 * math.sqrt(max(st.p11, 0.0)) * L * m + 1e-15), 1, 25))
             ks = np.arange(k, k + n_b * m)
             bounds = cell.n0 + ks * L + st.theta + st.nu * (ks - st.k) * L
-            if bounds[0] > c_stop or bounds[0] - last_seen > cfg.lost_s * fs:
+            gone = bounds[0] - last_seen - self.gaps.outage_between(last_seen, bounds[0])
+            if bounds[0] > c_stop or gone > cfg.lost_s * fs:
                 break
             k = int(ks[-1]) + 1
             ok = (self.usable(bounds) & (bounds <= c_stop)).reshape(n_b, m).all(axis=1)
@@ -910,7 +929,8 @@ class _Track:
 
     def _relocate(self, cell: CellTrack, st: State, kk: int, good: State | None, last):
         """Search for the cell near its prediction after a loss of lock. Returns ("lost",),
-        ("found", k, theta, new_arc) or ("gap", Gap)."""
+        ("found", k, theta, new_arc), ("gap", Gap) or ("outage", Gap) (a recorded outage, now
+        sized)."""
         cfg, fs, L = self.cfg, self.fs, self.L
         n = int(cfg.acq_ms * 1e-3 * fs)
         f0 = max(self.file_index(cell.n0 + kk * L + st.theta - L), self.seg.start)
@@ -934,6 +954,18 @@ class _Track:
             if last is not None
             else f0
         )
+        # A recorded outage in the stretch (#288) is where the timing moved: the recorder placed
+        # it exactly and its host clock sized it to within its jitter, far inside a frame. The
+        # first cell re-found after it sizes it to the sample: modulo a frame from the signal,
+        # the whole frames from the host clock. For a cell re-found after that, the outage is
+        # already sized, so its jump is its own (another path), not a drop.
+        outage = next((g for g in self.gaps.gaps if g.outage and at <= g.at <= f0 + n), None)
+        if outage is not None:
+            if outage.ambiguous and good is not None:
+                outage.n += int((jump + L) % (2 * L) - L)
+                outage.ambiguous = False
+                return ("outage", outage)
+            return ("found", k_found, theta_at + resid, True)
         n_drop, ambiguous = jump % (2 * L), True  # the signal only sizes a drop modulo a frame
         n_host = None
         if self.cap.buffers is not None:

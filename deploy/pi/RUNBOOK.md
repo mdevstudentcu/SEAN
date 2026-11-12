@@ -20,7 +20,7 @@ A checklist to follow with the Pi in hand. Commands run **on the Pi in `~/pnt`**
    | `sudo ppstest /dev/pps0` (Ctrl-C) | one `assert` line per second |
    | `chronyc sources -v` | `#* PPS` (selected), offset a few µs or less |
    | `gpsmon` (q) | 3D fix, satellites with SNR |
-   | `rtl_test -t` | both dongles listed (`0:` and `1:`); note which index is which |
+   | `rtl_test -t` | both dongles listed (`0:` and `1:`); note which index is which, and each one's `SN:`. Indices can swap between boots; the serial stays, and `dev=<serial>` picks the dongle by it unless it reads as a number (`rtl_sdr` takes `00000001` as index 1). If both show the same `SN:`, a dongle that drops off USB is reopened by trying each index instead (#288) |
    | `systemctl is-enabled readsb` | `disabled`: setup installs readsb only to decode recorded IQ files, so nothing listens on the radios at boot |
    | `/usr/sbin/i2cdetect -y 1` (not on `pi`'s `PATH`) | `68` (MPU6050) and `77` (BMP180, ADR-0014). `pnt record` then lists `bmp180` under captured |
    | `.venv/bin/pnt record --help` | the help text (the Python install works) |

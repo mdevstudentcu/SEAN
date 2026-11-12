@@ -109,7 +109,10 @@ def _unexplained_stalls(cap: Capture, found: list) -> list[tuple[int, int]]:
 def _process(cap: Capture, cfg: Config | None, receiver: str, known: list) -> Result:
     cfg = cfg or Config()
     t_start = time.perf_counter()
-    gaps = GapMap([Gap(at=a, n=n, until=a) for a, n in known])
+    # A recorded outage (#288) is a gap from the start, not sized to the sample until a cell
+    # re-found after it sizes it: until then epochs after it start new arcs.
+    outages = [Gap(at=a, n=n, until=a, ambiguous=True, outage=True) for a, n in cap.outages]
+    gaps = GapMap([*(Gap(at=a, n=n, until=a) for a, n in known), *outages])
     carry: dict[tuple, tuple[CellTrack, State]] = {}
     cells: list[CellTrack] = []
     found_log: list[tuple[int, Found]] = []
@@ -364,6 +367,9 @@ def summary(result: Result, cap: Capture) -> str:
         )
     for g in result.gaps:
         kind = "ambiguous (no buffer stamps)" if g.ambiguous else "sized"
+        if g.outage:  # #288
+            size = "sized by the host clock only" if g.ambiguous else "sized"
+            kind = f"dongle reopened, {size}"
         lines.append(f"  gap at sample {g.at}: {g.n} samples dropped, {kind}")
     n_pr = sum(m.kind == "pseudorange" for m in result.measurements)
     n_dop = sum(m.kind == "doppler" for m in result.measurements)
