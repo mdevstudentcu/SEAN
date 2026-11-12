@@ -113,7 +113,7 @@ Each number in [`deck.md`](deck.md), where it comes from. Rows above give the de
 
 | Slide | Number | Kind | Source |
 | --- | --- | --- | --- |
-| 1, 3 | 300 m jump; 7 m bound; red within 5 s; GPS back in half a minute without the guard; within a few metres after the spoof (1.7 m at T+200.0, then 0.1 to 3.6 m to T+220, median 1.5 m) | Sim, seed 0 | Guard demo runbook, PR #220 (open), `challenge-drone-outage`, `challenge-drone-spoof-jump`, `challenge-drone-gps-return`, seed 0, commit `d3beadd`; the error after GPS returns as corrected in the runbook at `e340a56` |
+| 1, 3 | 300 m jump; 7 m bound; red within 5 s; GPS back in half a minute without the guard; within a few metres after the spoof (1.7 m at T+200.0, then 0.1 to 3.6 m to T+220, median 1.5 m) | Sim, seed 0 | Guard demo runbook, PR #220 (merged), `challenge-drone-outage`, `challenge-drone-spoof-jump`, `challenge-drone-gps-return`, seed 0, commit `d3beadd`; the error after GPS returns as corrected in the runbook at `e340a56` |
 | 3 | Guard: hazardous epochs on 3 of 50 seeds | Sim | (c) *Jump guard*, seeds 0–49 |
 | 4 | 0.73 m range jitter on the strongest cells; slower error median 8.1 m at 1 s | Real | (a) *What the LTE captures measured* |
 | 4 | Two real static sessions, GPS removed: default `ekf` 595 m and 364 m at 300 s with LTE (median of five cuts), 0.6 m and 1.3 m without; the HPL misses a quarter of the withheld fixes | Real, GPS cut in software | (e) *A useful position from real towers* (ADR-0050, #267) |
