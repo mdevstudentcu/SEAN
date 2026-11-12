@@ -154,6 +154,17 @@ The Pi records raw IQ; the decoders run on the file afterwards. `setup.sh` insta
 
     Use the radials (`pnt.frontends.vor`) only if one ident repeats and the radials of a still receiver stay within a few degrees. On 2026-11-10 neither happened ([`verification.md`](../../systems/verification.md#first-real-air-sessions-2026-11-10)).
 
+## I. Flight-controller MAVLink (Betaflight, #114)
+
+The drone's Betaflight sends MAVLink telemetry on its UART1 at 115200 baud (`flight/README.md`, ADR-0028 *Amendment 2026-11-11 (owners)*). The Pi only listens.
+
+21. **Wire one way only:** flight-controller **TX1 → Pi GPIO13** (pin 33, `uart5` RX) and **GND → Pi GND** (pin 34). Leave Pi GPIO12 (pin 32, `uart5` TX) unconnected, so the Pi physically cannot send to the flight controller (ADR-0028: our navigation is never fed to it).
+22. `setup.sh` adds `dtoverlay=uart5` to `/boot/firmware/config.txt` (not `uart2`, whose GPIO0/1 are the HAT's ID EEPROM pins, nor `uart3`, whose GPIO4 is PPS). Reboot once after it is added.
+23. Find the device: `ls -l /sys/class/tty/ | grep fe201a00` (uart5's address on the Pi 4). The name at the start of the link, `ttyAMA<n>`, is the device. Which `<n>` this kernel gives it is `TBC` on our Pi.
+24. Record with it: `.venv/bin/pnt record --platform drone --place <site> --fc /dev/ttyAMA<n> --fc-baud 115200 ...`. Without `--fc`, the recorder looks only for a USB flight controller under `/dev/serial/by-id` and lists `fc` as absent.
+
+    Good output: the summary lists `flight-controller` under `captured`, and the `status` events on `/events` show `fc` with `messages` rising. An open port with no data also counts as captured, so check `messages`: if it stays 0, check the TX1 → GPIO13 wire and the baud rate. Which messages Betaflight sends, and at what rate, is `TBC` until this first recording: note them in #114 with the session name.
+
 ## If something is wrong
 
 - A device shows as `absent` or `failed` in the summary or in `meta.yaml` `notes`: the others kept recording. Fix it and record again.

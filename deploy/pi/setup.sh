@@ -16,6 +16,9 @@ fi
 CFG=/boot/firmware/config.txt
 # Adafruit Ultimate GPS HAT: NMEA on /dev/serial0, PPS on GPIO4 (ADR-0014)
 grep -q '^dtoverlay=pps-gpio' "$CFG" || echo 'dtoverlay=pps-gpio,gpiopin=4' | sudo tee -a "$CFG"
+# Flight-controller MAVLink in on uart5 (GPIO12 TX unwired, GPIO13 RX; RUNBOOK I). Not uart2 (GPIO0/1
+# are the HAT ID EEPROM pins) or uart3 (GPIO4 is the PPS line).
+grep -q '^dtoverlay=uart5' "$CFG" || echo 'dtoverlay=uart5' | sudo tee -a "$CFG"
 sudo raspi-config nonint do_serial_cons 1   # no login console on the UART
 sudo raspi-config nonint do_serial_hw 0     # UART hardware on
 sudo raspi-config nonint do_i2c 0           # I2C on: MPU6050 + BMP180 on the Pi (ADR-0018)
