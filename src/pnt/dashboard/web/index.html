@@ -8,46 +8,18 @@
 </head>
 <body>
 <header class="bar">
-  <div class="brand">PNT <span>navigation panel</span></div>
+  <div class="brand">PNT <span>GPS trust monitor</span></div>
   <div class="meta">
     <span id="kind" class="chip">—</span>
     <span id="name">connecting…</span>
     <span class="sep">·</span>
-    <span id="estimator" class="muted"></span>
+    <span id="estimator"></span>
   </div>
-  <div class="clock"><span id="clock">T+—</span><span id="speed" class="muted"></span><span id="conn" class="dot" title="stream"></span></div>
+  <div class="clock"><span id="clock">T+—</span><span id="speed"></span><span id="conn" class="dot" title="stream"></span></div>
 </header>
 <div id="banner" class="banner" hidden></div>
 
 <main>
-  <section class="hero">
-    <section id="gps-trust" class="card trust absent" title="Read from the estimator's flags, its source trust and the spoof decision (ADR-0041): it changes nothing in the estimate">
-      <h2>GPS trust: is GPS telling the truth?</h2>
-      <div class="trust-line"><span class="trust-word" id="trust-word">—</span><span class="trust-since" id="trust-since"></span></div>
-      <ul class="trust-why" id="trust-why"><li class="muted">Waiting for the first estimate.</li></ul>
-    </section>
-
-    <section id="bound" class="card bound" title="HPL: our bound on the horizontal error. Green under 80 % of the alert limit, amber up to it, red over it (thresholds TBC)">
-      <h2>Error bound against the alert limit</h2>
-      <div class="bound-line"><b id="big-hpl">—</b><span class="bound-al">HPL, our error bound · alert limit <b id="big-al">—</b></span></div>
-      <div class="zgauge"><i id="zg-green" class="z green"></i><i id="zg-amber" class="z amber"></i><i id="zg-red" class="z red"></i><div id="big-mark" class="zmark"></div></div>
-      <div class="zticks"><span style="left:0">0</span><span id="zt-amber" style="left:53.333%">—</span><span id="zt-al" style="left:66.667%">—</span><span id="zt-max" style="left:100%">—</span></div>
-      <div class="bound-sub" id="big-tta">—</div>
-    </section>
-
-    <div class="hero-right">
-      <section id="status" class="card status nominal">
-        <div class="status-word" id="status-word">—</div>
-        <div class="status-text" id="headline">Waiting for the first estimate.</div>
-      </section>
-      <!-- ADR-0041: the spoof decision's card, under the status -->
-      <section id="spoof" class="card spoof unknown" title="ADR-0041: advisory, it never changes the estimate">
-        <div class="spoof-head"><h2>GPS spoofing (sky, power and cues)</h2><span class="spoof-word" id="spoof-word">UNKNOWN</span></div>
-        <div class="spoof-why" id="spoof-why">No GPS sky data yet.</div>
-      </section>
-    </div>
-  </section>
-
   <section class="map card">
     <div class="card-head">
       <h2>Position (ENU, metres about the session origin)</h2>
@@ -57,13 +29,12 @@
       </div>
     </div>
     <div class="map-wrap"><canvas id="map"></canvas></div>
-    <div class="legend conf-legend" id="conf-legend" title="Track and current position coloured by HPL against the alert limit (thresholds TBC)">
-      <span class="conf-head">Estimate track and position, by confidence (thresholds TBC):</span>
-      <span><i class="ln conf green"></i>Confident <em id="lg-conf-green" class="muted"></em></span>
-      <span><i class="ln conf amber"></i>Near the limit <em id="lg-conf-amber" class="muted"></em></span>
-      <span><i class="ln conf red"></i>Do not trust <em id="lg-conf-red" class="muted"></em></span>
-    </div>
-    <div class="legend" id="map-legend">
+    <div class="legend" id="map-legend" title="Track and current position coloured by HPL against the alert limit (thresholds TBC)">
+      <span class="legend-head">Track by confidence (thresholds TBC)</span>
+      <span><i class="ln conf green"></i>Confident <em id="lg-conf-green"></em></span>
+      <span><i class="ln conf amber"></i>Near the limit <em id="lg-conf-amber"></em></span>
+      <span><i class="ln conf red"></i>Do not trust <em id="lg-conf-red"></em></span>
+      <span class="legend-break"></span>
       <span id="lg-truth"><i class="sw truth"></i>Truth</span>
       <span><i class="sw ell"></i>95 % error ellipse</span>
       <span><i class="sw hplc"></i>HPL circle</span>
@@ -72,56 +43,14 @@
     </div>
   </section>
 
-  <aside class="side">
-    <!-- Timing is last: the location segments come first on stage, the time spoof is for questions -->
-    <section class="card">
-      <h2>Horizontal integrity</h2>
-      <div class="nums">
-        <div><label>RNP (alert limit)</label><b id="rnp">—</b></div>
-        <div><label>ANP (95 %)</label><b id="anp">—</b></div>
-        <div><label>HPL</label><b id="hpl">—</b></div>
-      </div>
-      <div class="row"><label>Predicted time to alert</label><span id="tta-h">—</span></div>
-      <div class="row" id="err-row"><label>Error against truth</label><span id="err">—</span></div>
-    </section>
-
-    <section class="card">
-      <h2>What is wrong now</h2>
-      <ul id="causes" class="causes"><li class="muted">Nothing flagged.</li></ul>
-    </section>
-
-    <section class="card">
-      <div class="card-head"><h2>Alerts (latched until acknowledged)</h2><button id="ack-all">Acknowledge all</button></div>
-      <ul id="alerts" class="alerts"><li class="muted">No alerts.</li></ul>
-    </section>
-
-    <section class="card">
-      <h2>Sources</h2>
-      <div class="row" title="trust 0.5 or more: used by the estimator in the last few seconds"><label>In use</label><span id="trusted" class="chips">—</span></div>
-      <div class="row" title="trust under 0.5: not used by the estimator in the last few seconds"><label>Not in use</label><span id="lowtrust" class="chips">—</span></div>
-      <div class="row"><label>Towers heard</label><span id="heard">—</span></div>
-    </section>
-
-    <section class="card">
-      <h2>Timing</h2>
-      <div class="nums">
-        <div><label>Clock 1σ</label><b id="clk">—</b></div>
-        <div><label>Time PL</label><b id="tpl">—</b></div>
-        <div><label>Time alert limit</label><b id="tal">—</b></div>
-      </div>
-      <div class="gauge"><div id="tpl-bar"></div><div class="gauge-al"></div></div>
-      <div class="row"><label>Predicted time to alert</label><span id="tta-t">—</span></div>
-    </section>
-  </aside>
-
   <section class="charts">
     <div class="card">
       <div class="card-head">
         <h2>Horizontal protection level against the alert limit</h2>
         <div class="legend">
           <span><i class="ln est"></i>HPL</span>
-          <span id="lg-pred"><i class="ln pred"></i>Pre-flight prediction</span>
           <span id="lg-err"><i class="ln err"></i>Error against truth</span>
+          <span id="lg-pred" title="Shaded where the prediction is over the alert limit"><i class="ln pred"></i>Pre-flight prediction</span>
           <span><i class="ln al"></i>Alert limit</span>
         </div>
       </div>
@@ -137,10 +66,81 @@
         </div>
       </div>
       <canvas id="chart-tpl"></canvas>
+      <!-- The timing numbers sit with their chart: location comes first on the rail -->
+      <div class="readout">
+        <span><label>Time PL</label><b id="tpl">—</b></span>
+        <span><label>Clock 1σ</label><b id="clk">—</b></span>
+        <span title="Predicted from the time protection level's trend over the last 10 s"><label>To alert</label><b id="tta-t">—</b></span>
+      </div>
     </div>
   </section>
+
+  <!-- The rail reads top to bottom: state, GPS trust, the bound against the limit, why, the log -->
+  <aside class="rail">
+    <section id="status" class="status wait">
+      <div class="status-word" id="status-word">—</div>
+      <div class="status-text" id="headline">Waiting for the first estimate.</div>
+    </section>
+
+    <section id="gps-trust" class="trust" title="Read from the estimator's flags, its source trust and the spoof decision (ADR-0041): it changes nothing in the estimate">
+      <div class="sec-head">
+        <h2>GPS trust</h2>
+        <span id="guard" class="tag" hidden></span>
+      </div>
+      <div class="trust-line"><span class="trust-word" id="trust-word">—</span><span class="trust-since" id="trust-since">Waiting for the first estimate.</span></div>
+      <!-- ADR-0041: the spoof decision stays with the GPS trust, under the status -->
+      <div id="spoof" class="spoof unknown" title="ADR-0041: advisory, it never changes the estimate">
+        <span class="spoof-k">Spoof check (sky, power and cues)</span>
+        <span class="spoof-word" id="spoof-word">UNKNOWN</span>
+        <span class="spoof-why" id="spoof-why">No GPS sky data yet.</span>
+      </div>
+    </section>
+
+    <section id="bound" class="bound" title="HPL: our bound on the horizontal error. Green under 80 % of the alert limit, amber up to it, red over it (thresholds TBC)">
+      <div class="sec-head">
+        <h2>Error bound against the alert limit</h2>
+        <span class="facts">RNP <b id="big-al">—</b> · ANP (95 %) <b id="anp">—</b></span>
+      </div>
+      <div class="bound-line">
+        <b id="big-hpl">—</b>
+        <div class="bound-facts">
+          <span><b>HPL</b>, our bound on the error</span>
+          <span class="bound-sub" id="big-tta">—</span>
+        </div>
+      </div>
+      <div class="zgauge" id="zgauge">
+        <i id="zg-green" class="z green"></i><i id="zg-amber" class="z amber"></i><i id="zg-red" class="z red"></i>
+        <div id="big-mark" class="zmark" title="HPL"></div>
+        <div id="err-mark" class="zerr" title="Error against truth" hidden></div>
+      </div>
+      <div class="zticks"><span style="left:0">0</span><span id="zt-amber" style="left:40%">—</span><span id="zt-al" style="left:50%">—</span><span id="zt-max" style="left:100%">—</span></div>
+      <div class="truth-row" id="err-row">
+        <label><i class="dot"></i>Error against truth</label>
+        <b id="err">—</b>
+        <span id="err-check" class="check"></span>
+      </div>
+    </section>
+
+    <section class="why">
+      <div class="sec-head"><h2>What is wrong now</h2></div>
+      <ul id="causes" class="causes"><li class="muted">Nothing flagged.</li></ul>
+    </section>
+
+    <section class="log">
+      <div class="sec-head"><h2>Alerts (latched until acknowledged)</h2><button id="ack-all">Acknowledge all</button></div>
+      <ul id="alerts" class="alerts"><li class="muted">No alerts.</li></ul>
+    </section>
+
+    <section class="sources">
+      <div class="sec-head"><h2>Sources</h2><span class="heard">Towers heard <b id="heard">—</b></span></div>
+      <div class="src-cols">
+        <div class="src-row" title="trust 0.5 or more: used by the estimator in the last few seconds"><label>In use</label><span id="trusted" class="chips">—</span></div>
+        <div class="src-row" title="trust under 0.5: not used by the estimator in the last few seconds"><label>Not in use</label><span id="lowtrust" class="chips">—</span></div>
+      </div>
+    </section>
+  </aside>
 </main>
-<footer id="notes" class="muted"></footer>
+<footer id="notes"></footer>
 <script src="/static/app.js"></script>
 </body>
 </html>

@@ -8,7 +8,14 @@ const C = {
   err: css("--err"), truth: css("--truth"), good: css("--good"), warning: css("--warning"),
   critical: css("--critical"),
 };
-const STATUS_COLOR = { nominal: C.good, degraded: C.warning, unsafe: C.critical };
+// "#rrggbb" with an opacity, for canvas fills
+const alpha = (hex, a) => `rgba(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",")},${a})`;
+// Canvas sizes follow the page's root font size (style.css scales it with the window): U = 1 at
+// 1920x1080, so a number below is in pixels on the projector
+let U = 1;
+const measure = () => { U = parseFloat(getComputedStyle(document.documentElement).fontSize) / 16; };
+measure();
+const font = (px, weight = 400) => `${weight} ${px * U}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
 // Confidence of the position (health.confidence, #207): the track and the current position
 const CONF_COLOR = { green: C.good, amber: C.warning, red: C.critical };
 const CONF_WORD = { green: "confident", amber: "near the limit", red: "do not trust" };
@@ -25,12 +32,11 @@ const P = { t: 0, e: 1, n: 2, te: 3, tn: 4, hpl: 5, tpl: 6, st: 7, err: 8, cerr:
 // ---- formatting --------------------------------------------------------------------------
 const fm = (v, d = 1) => (v == null ? "—" : `${v.toFixed(d)} m`);
 const fns = (s) => (s == null ? "—" : s < 1e-6 ? `${(s * 1e9).toFixed(0)} ns` : `${(s * 1e6).toFixed(2)} µs`);
-function ftta(s) {
+function ftta(s) {  // predicted time to an alert, on the last 10 s trend (health.time_to_limit_s)
   if (s === undefined) return "—";
-  if (s === null) return "none within 10 min on the last 10 s trend";
-  if (s <= 0) return "NOW: over the limit";
-  if (s < 120) return `${s.toFixed(0)} s on the last 10 s trend`;
-  return `${(s / 60).toFixed(1)} min on the last 10 s trend`;
+  if (s === null) return "none in 10 min";
+  if (s <= 0) return "NOW";
+  return s < 120 ? `${s.toFixed(0)} s` : `${(s / 60).toFixed(1)} min`;
 }
 const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
@@ -81,7 +87,7 @@ function drawMap() {
 
   // grid
   const step = niceStep(w / v.scale, 6);
-  ctx.strokeStyle = C.grid; ctx.lineWidth = 1; ctx.fillStyle = C.muted; ctx.font = "11px system-ui";
+  ctx.strokeStyle = C.grid; ctx.lineWidth = 1; ctx.fillStyle = C.muted; ctx.font = font(13);
   const e0 = Math.ceil((v.cx - w / 2 / v.scale) / step) * step;
   for (let e = e0; X(e) < w; e += step) {
     ctx.beginPath(); ctx.moveTo(X(e), 0); ctx.lineTo(X(e), h); ctx.stroke();
@@ -91,29 +97,29 @@ function drawMap() {
     ctx.beginPath(); ctx.moveTo(0, Y(n)); ctx.lineTo(w, Y(n)); ctx.stroke();
   }
   // origin cross
-  ctx.strokeStyle = C.axis; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(X(0) - 8, Y(0)); ctx.lineTo(X(0) + 8, Y(0));
-  ctx.moveTo(X(0), Y(0) - 8); ctx.lineTo(X(0), Y(0) + 8); ctx.stroke();
+  ctx.strokeStyle = C.axis; ctx.lineWidth = 1.5 * U;
+  ctx.beginPath(); ctx.moveTo(X(0) - 8 * U, Y(0)); ctx.lineTo(X(0) + 8 * U, Y(0));
+  ctx.moveTo(X(0), Y(0) - 8 * U); ctx.lineTo(X(0), Y(0) + 8 * U); ctx.stroke();
 
   // towers
   for (const em of S.emitters.values()) {
     const x = X(em.e), y = Y(em.n), on = S.heard.has(em.id);
-    ctx.fillStyle = on ? C.ink2 : C.axis;
-    ctx.strokeStyle = C.surface; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x + 7, y + 5); ctx.lineTo(x - 7, y + 5); ctx.closePath();
+    ctx.fillStyle = on ? C.ink : C.axis;
+    ctx.strokeStyle = C.surface; ctx.lineWidth = 2 * U;
+    ctx.beginPath(); ctx.moveTo(x, y - 9 * U); ctx.lineTo(x + 8 * U, y + 6 * U); ctx.lineTo(x - 8 * U, y + 6 * U); ctx.closePath();
     ctx.stroke(); ctx.fill();
-    ctx.fillStyle = on ? C.ink2 : C.muted;
-    ctx.fillText(em.id.replace(/^[^:]+:/, ""), x + 9, y + 4);
+    ctx.fillStyle = on ? C.ink2 : C.axis;
+    ctx.fillText(em.id.replace(/^[^:]+:/, ""), x + 11 * U, y + 5 * U);
   }
   // reference station
   const ref = S.info && S.info.reference_enu;
   if (ref) {
-    ctx.fillStyle = C.warning; ctx.fillRect(X(ref[0]) - 5, Y(ref[1]) - 5, 10, 10);
-    ctx.fillStyle = C.ink2; ctx.fillText("reference", X(ref[0]) + 8, Y(ref[1]) + 4);
+    ctx.fillStyle = C.warning; ctx.fillRect(X(ref[0]) - 5 * U, Y(ref[1]) - 5 * U, 10 * U, 10 * U);
+    ctx.fillStyle = C.ink2; ctx.fillText("reference", X(ref[0]) + 9 * U, Y(ref[1]) + 5 * U);
   }
   // tracks
   const track = (ie, in_, color, dash) => {
-    ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash(dash); ctx.beginPath();
+    ctx.strokeStyle = color; ctx.lineWidth = 2 * U; ctx.setLineDash(dash.map((d) => d * U)); ctx.beginPath();
     let pen = false;
     for (const p of S.hist) {
       if (p[ie] == null) { pen = false; continue; }
@@ -124,7 +130,7 @@ function drawMap() {
   };
   track(P.te, P.tn, C.truth, [6, 5]);
   // estimate: each segment in the confidence of the epoch it ends at, one path per colour run
-  ctx.lineWidth = 3; ctx.lineCap = "round";
+  ctx.lineWidth = 4 * U; ctx.lineCap = "round";
   let prev = null, run = null;
   for (const p of S.hist) {
     const col = CONF_COLOR[p[P.conf]] || C.est;
@@ -142,41 +148,59 @@ function drawMap() {
   const f = S.frame;
   if (f) {
     const x = X(f.pos[0]), y = Y(f.pos[1]);
-    const col = STATUS_COLOR[f.status] || C.ink2;
+    // The HPL circle is the confidence display: a disc in the colour of the bound against the limit
+    const col = CONF_COLOR[f.confidence] || C.ink2;
     if (f.hpl_m != null) {
-      ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash([7, 6]);
-      ctx.beginPath(); ctx.arc(x, y, f.hpl_m * v.scale, 0, 2 * Math.PI); ctx.stroke(); ctx.setLineDash([]);
+      const r = f.hpl_m * v.scale;
+      ctx.fillStyle = alpha(col, 0.1); ctx.strokeStyle = col; ctx.lineWidth = 2.5 * U; ctx.setLineDash([8 * U, 6 * U]);
+      ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
     }
     const [a, b, c] = f.cov;
     const m = (a + c) / 2, d = Math.sqrt(((a - c) / 2) ** 2 + b * b);
     const s1 = Math.sqrt(Math.max(m + d, 0)), s2 = Math.sqrt(Math.max(m - d, 0));
     const th = 0.5 * Math.atan2(2 * b, a - c); // from east, counter-clockwise
-    ctx.fillStyle = "rgba(57,135,229,0.18)"; ctx.strokeStyle = C.est; ctx.lineWidth = 2;
+    ctx.fillStyle = alpha(C.est, 0.16); ctx.strokeStyle = C.est; ctx.lineWidth = 2 * U;
     ctx.beginPath();
     ctx.ellipse(x, y, Math.max(K95 * s1 * v.scale, 1), Math.max(K95 * s2 * v.scale, 1), -th, 0, 2 * Math.PI);
     ctx.fill(); ctx.stroke();
+    const boxed = (text, tx, ty, ink) => {  // a label on its own patch, so it reads over tracks
+      const tw = ctx.measureText(text).width;
+      ctx.fillStyle = alpha(C.surface, 0.85); ctx.fillRect(tx - 4 * U, ty - 14 * U, tw + 8 * U, 19 * U);
+      ctx.fillStyle = ink; ctx.fillText(text, tx, ty);
+    };
+    ctx.font = font(15, 600);
     if (f.truth) {
-      ctx.strokeStyle = C.truth; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(X(f.truth[0]), Y(f.truth[1]), 5, 0, 2 * Math.PI); ctx.stroke();
+      const tx = X(f.truth[0]), ty = Y(f.truth[1]);
+      // Truth outside the bound (only a simulation knows): join the two and say how far
+      if (f.err_h_m != null && f.hpl_m != null && f.err_h_m > f.hpl_m) {
+        ctx.strokeStyle = C.critical; ctx.lineWidth = 2 * U; ctx.setLineDash([3 * U, 4 * U]);
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty); ctx.stroke(); ctx.setLineDash([]);
+        const text = `${f.err_h_m.toFixed(0)} m from truth`;
+        boxed(text, (x + tx) / 2 - ctx.measureText(text).width / 2, (y + ty) / 2 + 26 * U, C.ink);
+      }
+      ctx.fillStyle = C.surface; ctx.strokeStyle = C.truth; ctx.lineWidth = 2.5 * U;
+      ctx.beginPath(); ctx.arc(tx, ty, 6 * U, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
     }
-    ctx.fillStyle = CONF_COLOR[f.confidence] || C.est; ctx.strokeStyle = C.surface; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(x, y, 7, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = C.ink2; ctx.font = "12px system-ui";
+    ctx.fillStyle = col; ctx.strokeStyle = C.surface; ctx.lineWidth = 2.5 * U;
+    ctx.beginPath(); ctx.arc(x, y, 8 * U, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    // The number is on the rail; here only the word, at the circle's edge while it is on screen
     const word = CONF_WORD[f.confidence] || "";
-    if (f.hpl_m != null) {
-      ctx.fillText(`HPL ${f.hpl_m.toFixed(1)} m · ${word}`, x + f.hpl_m * v.scale * 0.72 + 4, y - f.hpl_m * v.scale * 0.72 - 4);
-    } else if (word) ctx.fillText(`no HPL · ${word}`, x + 10, y - 10);
+    const r = f.hpl_m == null ? 0 : Math.min(f.hpl_m * v.scale, 0.42 * Math.min(w, h));
+    if (word) boxed(f.hpl_m == null ? `no HPL · ${word}` : word, x + r * 0.72 + 12 * U, y - r * 0.72 - 10 * U, C.ink);
   }
   // scale bar + north
   const bar = niceStep(w / v.scale, 5);
-  ctx.fillStyle = C.surface; ctx.fillRect(10, h - 38, bar * v.scale + 12, 30);
-  ctx.strokeStyle = C.ink2; ctx.fillStyle = C.ink2; ctx.lineWidth = 2; ctx.font = "11px system-ui";
-  ctx.beginPath(); ctx.moveTo(16, h - 18); ctx.lineTo(16 + bar * v.scale, h - 18); ctx.stroke();
-  ctx.fillText(fmtDist(bar), 16, h - 24);
-  ctx.beginPath(); ctx.moveTo(w - 22, 34); ctx.lineTo(w - 22, 14); ctx.lineTo(w - 27, 22); ctx.moveTo(w - 22, 14); ctx.lineTo(w - 17, 22); ctx.stroke();
-  ctx.fillText("N", w - 26, 48);
-  ctx.fillStyle = C.muted;
-  ctx.fillText(`grid ${fmtDist(step)}`, w - 70, h - 12);
+  ctx.font = font(13);
+  ctx.fillStyle = alpha(C.surface, 0.85); ctx.fillRect(8 * U, h - 42 * U, bar * v.scale + 16 * U, 36 * U);
+  ctx.strokeStyle = C.ink2; ctx.fillStyle = C.ink2; ctx.lineWidth = 2 * U;
+  ctx.beginPath(); ctx.moveTo(16 * U, h - 20 * U); ctx.lineTo(16 * U, h - 14 * U); ctx.lineTo(16 * U + bar * v.scale, h - 14 * U); ctx.lineTo(16 * U + bar * v.scale, h - 20 * U); ctx.stroke();
+  ctx.fillText(fmtDist(bar), 16 * U, h - 24 * U);
+  const nx = w - 24 * U;
+  ctx.beginPath(); ctx.moveTo(nx, 40 * U); ctx.lineTo(nx, 16 * U); ctx.lineTo(nx - 6 * U, 25 * U); ctx.moveTo(nx, 16 * U); ctx.lineTo(nx + 6 * U, 25 * U); ctx.stroke();
+  ctx.textAlign = "center"; ctx.fillText("N", nx, 56 * U);
+  ctx.textAlign = "right"; ctx.fillStyle = C.muted;
+  ctx.fillText(`grid ${fmtDist(step)}`, w - 12 * U, h - 12 * U);
+  ctx.textAlign = "left";
 }
 function setView(view) {
   S.view = view;
@@ -204,58 +228,80 @@ window.addEventListener("pointermove", (ev) => {
 
 // ---- charts ------------------------------------------------------------------------------
 const hover = { "chart-hpl": null, "chart-tpl": null };
-function logTicks(lo, hi) {
-  const out = [];
-  for (let p = Math.floor(Math.log10(lo)); p <= Math.ceil(Math.log10(hi)); p++)
-    for (const m of [1, 2, 5]) { const v = m * 10 ** p; if (v >= lo && v <= hi) out.push(v); }
-  return out;
-}
-// series: [{x: [...], y: [...], color, dash}], refline: {y, label}
-function drawChart(canvas, { series, limit, unit, scale = 1, shade = [], tmax, emptyText = "No data yet" }) {
+const sig = (v) => +v.toPrecision(3);
+const fmtM = (v) => (v >= 1000 ? `${sig(v / 1000)} km` : `${sig(v)} m`);
+const fmtT = (s) => (s >= 1e-6 ? `${sig(s * 1e6)} µs` : `${sig(s * 1e9)} ns`);
+// series: [{name, x: [...], y: [...], color, dash, label}]; a series with `label` is named at its
+// last point. Log axis: decades labelled, from a floor of limit / 500 (lower values draw on the
+// floor). Time axis: from 0 to a little past now, so the plot is full and the prediction leads.
+function drawChart(canvas, { series, limit, fmt, limitName, shade = [], tnow, tend, emptyText = "No data yet" }) {
   const [ctx, w, h] = fit(canvas);
   ctx.fillStyle = C.surface; ctx.fillRect(0, 0, w, h);
-  const L = 54, R = 10, T = 8, B = 22;
-  let lo = Infinity, hi = -Infinity;
-  for (const s of series) for (const v of s.y) if (v != null && v > 0) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
-  const empty = !isFinite(lo);
-  if (empty) { lo = limit / 10; hi = limit * 2; }
-  lo = Math.max(Math.min(lo * 0.8, limit / 2), limit / 1e4); hi = Math.max(hi * 1.25, limit * 1.6);
-  const x1 = Math.max(tmax || 0, 10);
+  const L = 64 * U, R = 14 * U, T = 8 * U, B = 26 * U;
+  const lo = 10 ** Math.floor(Math.log10(limit / 500));
+  let top = -Infinity;
+  for (const s of series) for (let i = 0; i < s.y.length; i++) if (s.y[i] != null && s.y[i] > 0 && (tnow == null || s.x[i] <= tnow)) top = Math.max(top, s.y[i]);
+  const empty = !isFinite(top);
+  const hi = Math.max(empty ? 0 : top * 2, limit * 5);
+  let x1 = tnow == null ? Math.max(tend || 0, 60) : Math.max(30, tnow * 1.22 + 4);
+  const ts = niceStep(x1, 7);
+  x1 = Math.ceil(x1 / ts - 1e-9) * ts;
   const X = (t) => L + (t / x1) * (w - L - R);
   const Y = (v) => T + (1 - (Math.log10(v) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo))) * (h - T - B);
-  ctx.fillStyle = "rgba(208,59,59,0.12)";
-  for (const [a, b] of shade) ctx.fillRect(X(a), T, Math.max(1, X(b) - X(a)), h - T - B);
-  ctx.font = "11px system-ui"; ctx.lineWidth = 1;
-  for (const v of logTicks(lo, hi)) {
-    ctx.strokeStyle = C.grid; ctx.beginPath(); ctx.moveTo(L, Y(v)); ctx.lineTo(w - R, Y(v)); ctx.stroke();
-    ctx.fillStyle = C.muted; ctx.textAlign = "right"; ctx.fillText(`${+(v * scale).toPrecision(3)}${unit}`, L - 6, Y(v) + 4);
+  // over the limit: a faint red field, so "above the dashed line" reads at a glance
+  ctx.fillStyle = alpha(C.critical, 0.07); ctx.fillRect(L, T, w - L - R, Y(limit) - T);
+  ctx.fillStyle = alpha(C.pred, 0.1);  // where the pre-flight prediction is over the limit
+  for (const [a, b] of shade) if (a < x1) ctx.fillRect(X(a), T, Math.max(1, X(Math.min(b, x1)) - X(a)), h - T - B);
+  ctx.font = font(13); ctx.lineWidth = 1;
+  for (let p = Math.round(Math.log10(lo)); 10 ** p <= hi; p++) {
+    const v = 10 ** p;
+    ctx.strokeStyle = C.axis; ctx.beginPath(); ctx.moveTo(L, Y(v)); ctx.lineTo(w - R, Y(v)); ctx.stroke();
+    ctx.fillStyle = C.ink2; ctx.textAlign = "right"; ctx.fillText(fmt(v), L - 8 * U, Y(v) + 4.5 * U);
+    ctx.strokeStyle = C.grid;
+    for (const m of [2, 5]) if (m * v < hi) { ctx.beginPath(); ctx.moveTo(L, Y(m * v)); ctx.lineTo(w - R, Y(m * v)); ctx.stroke(); }
   }
-  const ts = niceStep(x1, 6);
-  ctx.textAlign = "center";
-  for (let t = 0; t <= x1 + 1e-9; t += ts) { ctx.fillStyle = C.muted; ctx.fillText(`${t.toFixed(0)} s`, X(t), h - 6); }
+  ctx.textAlign = "center"; ctx.fillStyle = C.ink2;
+  for (let t = 0; t <= x1 + 1e-9; t += ts) ctx.fillText(`${t.toFixed(0)} s`, Math.min(X(t), w - R - 12 * U), h - 7 * U);
   ctx.textAlign = "left";
-  ctx.strokeStyle = C.axis; ctx.beginPath(); ctx.moveTo(L, h - B); ctx.lineTo(w - R, h - B); ctx.stroke();
+  ctx.strokeStyle = C.axis; ctx.beginPath(); ctx.moveTo(L, h - B); ctx.lineTo(w - R, h - B); ctx.moveTo(L, T); ctx.lineTo(L, h - B); ctx.stroke();
   // alert limit
-  ctx.strokeStyle = C.critical; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+  ctx.strokeStyle = C.critical; ctx.lineWidth = 2 * U; ctx.setLineDash([7 * U, 5 * U]);
   ctx.beginPath(); ctx.moveTo(L, Y(limit)); ctx.lineTo(w - R, Y(limit)); ctx.stroke(); ctx.setLineDash([]);
-  const alText = `alert limit ${+(limit * scale).toPrecision(3)}${unit}`;
-  ctx.textAlign = "right"; ctx.fillStyle = C.surface;
-  ctx.fillRect(w - R - ctx.measureText(alText).width - 8, Y(limit) - 17, ctx.measureText(alText).width + 6, 14);
-  ctx.fillStyle = C.ink2; ctx.fillText(alText, w - R - 5, Y(limit) - 6); ctx.textAlign = "left";
+  ctx.font = font(13, 600); ctx.fillStyle = C.ink;
+  ctx.fillText(`${limitName} ${fmt(limit)}`, L + 8 * U, Y(limit) - 7 * U);
+  ctx.save(); ctx.beginPath(); ctx.rect(L, T, w - L - R, h - T - B); ctx.clip();
+  const ends = [];
   for (const s of series) {
-    ctx.strokeStyle = s.color; ctx.lineWidth = 2; ctx.setLineDash(s.dash || []); ctx.beginPath();
-    let pen = false;
+    ctx.strokeStyle = s.color; ctx.lineWidth = (s.dash ? 2 : 2.5) * U; ctx.lineJoin = "round";
+    ctx.setLineDash((s.dash || []).map((d) => d * U)); ctx.beginPath();
+    let pen = false, last = null;
     for (let i = 0; i < s.x.length; i++) {
       const v = s.y[i];
       if (v == null || v <= 0) { pen = false; continue; }
       const px = X(s.x[i]), py = Y(Math.min(Math.max(v, lo), hi));
       if (pen) ctx.lineTo(px, py); else { ctx.moveTo(px, py); pen = true; }
+      last = [px, py];
     }
     ctx.stroke(); ctx.setLineDash([]);
+    if (s.label && last) ends.push({ x: last[0], y: last[1], ty: last[1], s });
   }
+  // the lines the presenter talks about are named where they end; names kept a line apart
+  ends.sort((a, b) => a.ty - b.ty);
+  for (let i = 1; i < ends.length; i++) ends[i].ty = Math.max(ends[i].ty, ends[i - 1].ty + 17 * U);
+  ctx.font = font(14, 700);
+  for (const e of ends) {
+    ctx.fillStyle = e.s.color; ctx.strokeStyle = C.surface; ctx.lineWidth = 2 * U;
+    ctx.beginPath(); ctx.arc(e.x, e.y, 4.5 * U, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    const ly = Math.min(Math.max(e.ty + 5 * U, T + 14 * U), h - B - 5 * U);
+    const tw = ctx.measureText(e.s.label).width;
+    const lx = Math.min(e.x + 9 * U, w - R - tw - 3 * U);  // kept inside the plot
+    ctx.fillStyle = alpha(C.surface, 0.8); ctx.fillRect(lx - 2 * U, ly - 13 * U, tw + 5 * U, 17 * U);
+    ctx.fillStyle = C.ink; ctx.fillText(e.s.label, lx, ly);
+  }
+  ctx.restore();
   if (empty) {
-    ctx.fillStyle = C.muted; ctx.font = "13px system-ui"; ctx.textAlign = "center";
-    ctx.fillText(emptyText, (L + w - R) / 2, (T + h - B) / 2 + 20);
+    ctx.fillStyle = C.muted; ctx.font = font(15); ctx.textAlign = "center";
+    ctx.fillText(emptyText, (L + w - R) / 2, (Y(limit) + h - B) / 2 + 5 * U);
     ctx.textAlign = "left";
   }
   // hover crosshair + values
@@ -266,13 +312,14 @@ function drawChart(canvas, { series, limit, unit, scale = 1, shade = [], tmax, e
     const lines = [`t = ${t.toFixed(1)} s`];
     for (const s of series) {
       const i = nearest(s.x, t);
-      if (i >= 0 && Math.abs(s.x[i] - t) < x1 / 50 && s.y[i] != null) lines.push(`${s.name}: ${+(s.y[i] * scale).toPrecision(3)}${unit}`);
+      if (i >= 0 && Math.abs(s.x[i] - t) < x1 / 50 && s.y[i] != null) lines.push(`${s.name}: ${fmt(s.y[i])}`);
     }
-    const bw = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 14, bh = lines.length * 15 + 8;
-    const bx = hx + bw + 12 > w ? hx - bw - 8 : hx + 8;
-    ctx.fillStyle = "rgba(13,13,13,0.92)"; ctx.strokeStyle = C.axis;
-    ctx.fillRect(bx, T + 4, bw, bh); ctx.strokeRect(bx, T + 4, bw, bh);
-    ctx.fillStyle = C.ink; lines.forEach((l, k) => ctx.fillText(l, bx + 7, T + 19 + k * 15));
+    ctx.font = font(13);
+    const lh = 17 * U, bw = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 16 * U, bh = lines.length * lh + 9 * U;
+    const bx = hx + bw + 12 * U > w ? hx - bw - 8 * U : hx + 8 * U;
+    ctx.fillStyle = alpha(css("--page"), 0.94); ctx.strokeStyle = C.axis;
+    ctx.fillRect(bx, T + 4 * U, bw, bh); ctx.strokeRect(bx, T + 4 * U, bw, bh);
+    ctx.fillStyle = C.ink; lines.forEach((l, k) => ctx.fillText(l, bx + 8 * U, T + 4 * U + (k + 1) * lh));
   }
 }
 function nearest(xs, t) {
@@ -290,20 +337,20 @@ function drawCharts() {
   if (!S.info) return;
   const t = S.hist.map((p) => p[P.t]);
   const pre = S.info.preflight;
-  const tmax = Math.max(t.length ? t[t.length - 1] : 0, pre ? pre.t_s[pre.t_s.length - 1] : 0);
+  const tnow = t.length ? t[t.length - 1] : null, tend = pre ? pre.t_s[pre.t_s.length - 1] : 0;
   const hs = [];
   if (pre) hs.push({ name: "predicted", x: pre.t_s, y: pre.hpl_m, color: C.pred, dash: [6, 4] });
-  if (S.info.has_truth) hs.push({ name: "error", x: t, y: S.hist.map((p) => p[P.err]), color: C.err });
-  hs.push({ name: "HPL", x: t, y: S.hist.map((p) => p[P.hpl]), color: C.est });
-  drawChart($("chart-hpl"), { series: hs, limit: S.info.alert_limit_m, unit: " m", shade: pre ? pre.unavailable : [], tmax });
+  if (S.info.has_truth) hs.push({ name: "error", label: "error", x: t, y: S.hist.map((p) => p[P.err]), color: C.err });
+  hs.push({ name: "HPL", label: "HPL", x: t, y: S.hist.map((p) => p[P.hpl]), color: C.est });
+  drawChart($("chart-hpl"), { series: hs, limit: S.info.alert_limit_m, fmt: fmtM, limitName: "alert limit", shade: pre ? pre.unavailable : [], tnow, tend });
   const ts = [];
-  if (S.info.has_truth) ts.push({ name: "clock error", x: t, y: S.hist.map((p) => p[P.cerr]), color: C.err });
-  ts.push({ name: "time PL", x: t, y: S.hist.map((p) => p[P.tpl]), color: C.est });
-  drawChart($("chart-tpl"), { series: ts, limit: S.info.time_alert_limit_s, unit: " ns", scale: 1e9, tmax,
+  if (S.info.has_truth) ts.push({ name: "clock error", label: "clock error", x: t, y: S.hist.map((p) => p[P.cerr]), color: C.err });
+  ts.push({ name: "time PL", label: "time PL", x: t, y: S.hist.map((p) => p[P.tpl]), color: C.est });
+  drawChart($("chart-tpl"), { series: ts, limit: S.info.time_alert_limit_s, fmt: fmtT, limitName: "time alert limit", tnow, tend,
     emptyText: S.hist.length ? "Clock not estimated: no time source in this run, or the estimator has no clock" : "No data yet" });
 }
 
-// ---- side panel --------------------------------------------------------------------------
+// ---- the rail ----------------------------------------------------------------------------
 function chips(obj, low) {
   const keys = Object.keys(obj || {});
   if (!keys.length) return '<span class="muted">none</span>';
@@ -317,8 +364,9 @@ function alertsHtml(alerts, settled) {
   return alerts.map((a) => {
     const state = a.active ? (a.acked ? "active, acknowledged" : "active") : `cleared at T+${a.last_s.toFixed(1)} s`;
     const times = a.count > 1 ? ` (${a.count} times; first T+${a.since_s.toFixed(1)} s)` : "";
+    const when = `since T+${a.onset_s.toFixed(1)} s${times} · ${state}`;
     const btn = a.acked ? "" : `<button data-id="${a.id}">Ack</button>`;
-    return `<li class="${a.severity}${a.active ? "" : " cleared"}"><div class="txt"><span class="one" title="${esc(a.text)}"><span class="sev">${a.severity}</span>${esc(a.text)}</span><span class="when">since T+${a.onset_s.toFixed(1)} s${times} · ${state}</span></div>${btn}</li>`;
+    return `<li class="${a.severity}${a.active ? "" : " cleared"}"><span class="sev">${a.severity}</span><span class="one" title="${esc(a.text)}">${esc(a.text)}</span><span class="when" title="${esc(when)}">${when}</span>${btn}</li>`;
   }).join("");
 }
 // Rebuilt only when what it shows has changed: a button replaced between press and release, as a
@@ -353,7 +401,8 @@ function spoofWhy(sp) {
     const k = held ? c.slice(0, -7) : c;
     return `${CUE_WORDS[k] || k}${held ? " (held)" : ""}`;
   });
-  const parts = [cues.length ? `Cue: ${cues.join("; ")}.` : "No cue."];
+  // with no sky data and no cue the level already says it all: keep that case to one line
+  const parts = cues.length ? [`Cue: ${cues.join("; ")}.`] : sp.level === "unknown" ? [] : ["No cue."];
   const s = sp.sky;
   if (s) {
     const pw = s.spread_db == null ? "" : `, C/N0 spread ${s.spread_db.toFixed(1)} dB, correlation with elevation ${s.corr.toFixed(2)}`;
@@ -366,7 +415,7 @@ function spoofWhy(sp) {
 
 function renderSpoof(sp) {
   if (!sp) return;
-  $("spoof").className = `card spoof ${sp.level}`;
+  $("spoof").className = `spoof ${sp.level}`;
   $("spoof-word").textContent = SPOOF_WORD[sp.level] || sp.level;
   $("spoof-why").textContent = spoofWhy(sp);
 }
@@ -374,61 +423,69 @@ function renderSpoof(sp) {
 // ---- GPS trust (health.gps_trust) and the error bound -----------------------------------
 const TRUST_WORD = { trusted: "TRUSTED", checking: "CHECKING", not_trusted: "NOT TRUSTED", absent: "NO GPS" };
 const fdur = (s) => (s < 120 ? `${s.toFixed(0)} s` : `${(s / 60).toFixed(1)} min`);
+const cap = (t) => t[0].toUpperCase() + t.slice(1);
 function renderTrust(g) {
   if (!g) return;
-  $("gps-trust").className = `card trust ${g.level}`;
+  $("gps-trust").className = `trust ${g.level}`;
   $("trust-word").textContent = TRUST_WORD[g.level] || g.level;
-  $("trust-since").textContent = g.unused_s == null ? "" : `GPS not used for ${fdur(g.unused_s)}`;
-  $("trust-why").innerHTML = g.reasons.map((r) => `<li>${esc(r[0].toUpperCase() + r.slice(1))}</li>`).join("");
+  // One line beside the word: how long GPS has been unused (the reasons are then the sentences
+  // under "What is wrong now"), or else the first reason
+  $("trust-since").textContent = g.unused_s != null ? `GPS not used for ${fdur(g.unused_s)}` : g.reasons.length ? cap(g.reasons[0]) : "";
 }
+// The bound, the limit and (where truth is known) the true error on one scale: 0 to twice the limit
 function renderBound(f, h) {
-  const al = h.rnp_m, hpl = f.hpl_m;
-  $("bound").className = `card bound ${f.confidence}`;
+  const al = h.rnp_m, hpl = f.hpl_m, max = 2 * al;
+  $("bound").className = `bound ${f.confidence}`;
   $("big-hpl").textContent = fm(hpl);
   $("big-al").textContent = fm(al, 0);
-  // zones as the map colours them (health.confidence): the gauge runs to 1.5 x the limit
-  const amb = S.info ? S.info.confidence_amber_m : 0.8 * al, pc = (v) => `${(100 * v) / (1.5 * al)}%`;
-  $("zg-green").style.width = pc(amb); $("zg-amber").style.width = pc(al - amb);
-  $("zg-red").style.width = pc(0.5 * al);
+  $("anp").textContent = fm(h.anp95_m);
+  // zones as the map colours them (health.confidence)
+  const amb = S.info ? S.info.confidence_amber_m : 0.8 * al, pc = (v) => `${(100 * Math.min(v, max)) / max}%`;
+  $("zg-green").style.width = `calc(${pc(amb)} - 2px)`; $("zg-amber").style.width = `calc(${pc(al - amb)} - 2px)`;
   $("zt-amber").style.left = pc(amb); $("zt-al").style.left = pc(al);
   $("zt-amber").textContent = fm(amb, 0);
   $("zt-al").textContent = `limit ${fm(al, 0)}`;
-  $("zt-max").textContent = `${fm(1.5 * al, 0)}+`;
-  $("big-mark").style.left = `${hpl == null ? 100 : Math.min(100, (100 * hpl) / (1.5 * al))}%`;
+  $("zt-max").textContent = `${fm(max, 0)} and over`;
+  // the zone the HPL is in is lit; the number takes the confidence colour, which an alarm also reddens
+  $("zgauge").className = `zgauge ${hpl == null ? "" : hpl >= al ? "in-red" : hpl >= amb ? "in-amber" : "in-green"}`;
+  $("big-mark").style.left = hpl == null ? "100%" : pc(hpl);
+  $("big-mark").title = hpl != null && hpl > max ? "HPL: off this scale" : "HPL";
+  const trend = ' <span class="muted">on the last 10 s trend</span>';
   let sub;
   if (hpl == null) sub = "No bound: do not trust the position";
-  else if (hpl > al) sub = `Over the alert limit: ${(hpl / al).toFixed(1)}× the limit`;
-  else if (h.tta_hpl_s == null) sub = "Not heading for the alert limit (last 10 s trend)";
-  else sub = `Reaches the alert limit in ${fdur(h.tta_hpl_s)} on the last 10 s trend`;
-  $("big-tta").textContent = sub;
+  else if (hpl >= al) sub = `Over the alert limit: ${(hpl / al).toFixed(1)}× the limit`;
+  else if (f.confidence === "red") sub = "Within the limit, but an alarm is raised: do not trust";
+  else if (h.tta_hpl_s == null) sub = `Not heading for the alert limit${trend}`;
+  else sub = `Reaches the alert limit in ${fdur(h.tta_hpl_s)}${trend}`;
+  $("big-tta").innerHTML = sub;
+  // Error against truth: shown wherever truth is known, and loud when it is outside the bound.
+  // That is the one thing the estimator cannot see for itself (a spoof it has accepted).
+  const truth = S.info && S.info.has_truth, err = f.err_h_m;
+  $("err-row").style.display = truth ? "" : "none";
+  // a replay's /truth need not be a simulation's (#264: a real session's withheld GPS fixes)
+  const truthOf = S.info && S.info.kind === "sim" ? "sim truth" : "the session's truth";
+  $("err").textContent = err == null ? "—" : `${err.toFixed(1)} m (${truthOf})`;
+  $("err-mark").hidden = !truth || err == null;
+  if (err != null) $("err-mark").style.left = pc(err);
+  const breach = err != null && hpl != null && err > hpl;
+  $("err-row").classList.toggle("breach", breach);
+  $("err-check").textContent = err == null || hpl == null ? "" : breach ? "OUTSIDE THE BOUND" : "inside the bound";
 }
 
 function renderSide() {
   const f = S.frame;
   if (!f) return;
   const h = f.health;
+  document.body.classList.remove("stale");
   $("clock").textContent = `T+${f.t_s.toFixed(1)} s`;
-  const st = $("status");
-  st.className = `card status ${f.status}`;
+  $("status").className = `status ${f.status}`;
   $("status-word").textContent = f.status.toUpperCase();
   $("headline").textContent = h.headline;
-  $("rnp").textContent = fm(h.rnp_m, 0);
-  $("anp").textContent = fm(h.anp95_m);
-  $("hpl").textContent = fm(f.hpl_m);
-  const frac = (v, lim) => Math.min(100, (100 * v) / (1.5 * lim));
   renderBound(f, h);
-  $("tta-h").textContent = ftta(h.tta_hpl_s);
-  $("err-row").style.display = S.info && S.info.has_truth ? "" : "none";
-  // a replay's /truth need not be a simulation's (#264: a real session's withheld GPS fixes)
-  const truthOf = S.info && S.info.kind === "sim" ? "sim truth" : "the session's truth";
-  $("err").textContent = f.err_h_m == null ? "—" : `${f.err_h_m.toFixed(1)} m (${truthOf})`;
   $("clk").textContent = fns(f.clock_sigma_s);
   $("tpl").textContent = fns(h.tpl_s);
-  $("tal").textContent = fns(h.time_alert_limit_s);
-  const tb = $("tpl-bar");
-  tb.style.width = `${h.tpl_s == null ? 0 : frac(h.tpl_s, h.time_alert_limit_s)}%`;
-  tb.style.background = h.tpl_s > h.time_alert_limit_s ? C.critical : C.good;
   $("tta-t").textContent = h.tpl_s == null ? "clock not estimated" : ftta(h.tta_tpl_s);
+  $("tta-t").title = h.tpl_s == null ? "" : h.tta_tpl_s === 0 ? "over the time alert limit" : "on the last 10 s trend";
   $("causes").innerHTML = h.causes.length
     ? h.causes.map((c) => `<li class="${c.severity}"><span class="sev">${c.severity}</span>${esc(c.text)}</li>`).join("")
     : '<li class="muted">Nothing flagged.</li>';
@@ -463,6 +520,13 @@ es.addEventListener("info", (ev) => {
   $("kind").className = `chip kind ${i.kind}`;
   $("name").textContent = i.name;
   $("estimator").textContent = `estimator ${i.estimator}`;
+  // Which filter is on screen: only the `-guard` estimators refuse a GPS jump (ADR-0038), so a
+  // plain one that takes a spoofed GPS back is seen for what it is
+  const guarded = /(^|-)guard$/.test(i.estimator);
+  $("guard").textContent = `jump guard ${guarded ? "on" : "off"}`;
+  $("guard").className = `tag${guarded ? " on" : ""}`;
+  $("guard").title = guarded ? "This estimator refuses a GPS position that jumps (ADR-0038)" : "This estimator has no jump guard (ADR-0038): it can take a jumped GPS position back";
+  $("guard").hidden = false;
   $("banner").textContent = i.banner || "";
   $("banner").hidden = !i.banner;
   $("speed").textContent = i.kind === "live" ? "" : i.speed == null ? "as fast as possible" : `×${i.speed}`;
@@ -480,6 +544,7 @@ es.addEventListener("info", (ev) => {
     notes.push(`Pre-flight prediction leaves out unplanned faults: ${i.preflight.dropped_faults.join(", ")}`);
   notes.push("Alert limits are TBC placeholders (REQ-01/02/03). ANP: 95 % radius from the estimate's covariance.");
   $("notes").textContent = notes.join("  ·  ");
+  $("notes").title = notes.join("\n");
   S.emitters.clear(); S.hist = []; S.frame = null; S.done = false; S.failed = false;
   conn.className = "dot live";
 });
@@ -502,14 +567,14 @@ es.addEventListener("end", () => {
 // The numbers have stopped: leave no green NOMINAL on screen. The next `info` and `frame` restore it.
 function feedLost(message) {
   conn.className = "dot err";
-  $("status").className = "card status lost";
+  document.body.classList.add("stale");
+  $("status").className = "status lost";
   $("status-word").textContent = "NO DATA";
   $("headline").textContent = message;
-  $("gps-trust").className = "card trust";
+  $("gps-trust").className = "trust";
   $("trust-word").textContent = "NO DATA";
-  $("trust-since").textContent = "";
-  $("trust-why").innerHTML = '<li class="muted">No estimate: the values on this page are stale.</li>';
-  $("bound").className = "card bound";
+  $("trust-since").textContent = "No estimate: the values on this page are stale.";
+  $("bound").className = "bound";
 }
 es.addEventListener("error", (ev) => {
   if (ev.data) { S.failed = true; feedLost(`Feed error: ${JSON.parse(ev.data).message}. The values on this page are stale.`); }
@@ -526,4 +591,4 @@ es.addEventListener("quiet", (ev) => {
   if (!S.info || S.info.kind !== "live" || S.done || S.failed || q == null || q <= STALE_S) return;
   feedLost(`No estimate for ${q.toFixed(0)} s: the payload's stream has stopped. The values on this page are stale.`);
 });
-window.addEventListener("resize", redraw);
+window.addEventListener("resize", () => { measure(); redraw(); });
