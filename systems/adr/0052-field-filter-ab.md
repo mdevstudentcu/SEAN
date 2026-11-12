@@ -1,4 +1,4 @@
-# ADR-0051: Keep `ekf-honest` as the opt-in LTE filter after the field A/B; the field settings stay unregistered
+# ADR-0052: Keep `ekf-honest` as the opt-in LTE filter after the field A/B; the field settings stay unregistered
 
 - **Status:** Proposed
 - **Date:** 2026-11-11
