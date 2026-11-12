@@ -21,6 +21,9 @@ layout: default
   <p class="lede" style="margin-top: 1.2rem">A receive-only GPS trust monitor. It keeps position and time from the cell towers already in the air, and tells the operator, with a number, how far to trust them.</p>
   <p class="muted small" style="margin-top: 2.2rem">Shrikar Vempati · M. Elshoubky</p>
 </div>
+<div style="position: absolute; right: 4.2rem; top: 50%; transform: translateY(-50%); width: 27rem">
+  <Media file="drone-payload.jpg" label="The drone with the payload mounted" hint="Outdoors, three-quarter view, antennas visible. Landscape." ratio="4 / 3" />
+</div>
 
 <!--
 (0:00, 15 s) The real danger is not losing GPS. It is a display that says "trust me" when it should not. We built a navigation layer that knows when it is wrong, and says so with a number.
@@ -79,7 +82,7 @@ class: topo-light
 
 # One code path from simulation to live flight
 
-<div class="arch" style="margin-top: 1.3rem">
+<div class="arch" style="margin-top: 0.8rem">
   <div class="node payload">
     <div class="nt">Payload</div>
     <div class="ns">Raspberry Pi 4B · never transmits</div>
@@ -98,10 +101,14 @@ class: topo-light
   <div class="tagline"><span class="tag">Inputs</span> public tower registry (ISED) · simulation, replay and live share one interface</div>
 </div>
 
-<div class="cols cols-3 small" style="margin-top: 1.6rem">
-<div><span class="tag">Decisions</span><br>57 recorded, each with its trade-off</div>
-<div><span class="tag">Interfaces</span><br>one measurement record; GPS-nanosecond time everywhere</div>
-<div><span class="tag">Sim to real</span><br>error models set from our own real captures</div>
+<div class="cols" style="grid-template-columns: 1fr 1fr 1.15fr; margin-top: 0.9rem; gap: 1.2rem; align-items: start">
+<Media file="payload.jpg" label="The payload, lid off" hint="Pi, LTE radio, GPS with its timing pulse, IMU, barometer, labelled if you can." ratio="16 / 9" />
+<Media file="panel-live.jpg" label="The panel on the ground laptop" hint="A real session on screen, location hidden." ratio="16 / 9" />
+<div class="flex flex-col gap-3 small">
+<div><span class="tag">Decisions</span> 57 recorded, each with its trade-off</div>
+<div><span class="tag">Interfaces</span> one measurement record; GPS-nanosecond time everywhere</div>
+<div><span class="tag">Sim to real</span> error models set from our own real captures</div>
+</div>
 </div>
 
 <div class="foot">systems/architecture.md (D1) · systems/adr/ · systems/icd/</div>
@@ -157,20 +164,20 @@ class: topo-light
 
 <div class="cols cols-3" style="margin-top: 1.1rem; gap: 1.2rem">
 <figure class="shot">
-  <img src="/proof/outage-3-rail.jpg" alt="Panel 40 s after GPS loss: UNSAFE, bound 895 m, error 325 m inside it">
+  <Clip src="/proof/clips/outage-rail.mp4" poster="/proof/outage-3-rail.jpg" label="Panel 40 s after GPS loss: UNSAFE, bound 895 m, error 325 m inside it" />
   <figcaption><span class="n">1</span><span><strong>GPS lost.</strong> Red within 3 s. Forty seconds on: 325 m off, and the bound (895 m) says so.</span></figcaption>
 </figure>
 <figure class="shot">
-  <img src="/proof/jump-3-rail.jpg" alt="Panel after a spoofed jump without the guard: NOMINAL, bound 7 m, error 298 m outside it">
+  <Clip src="/proof/clips/jump-rail.mp4" poster="/proof/jump-3-rail.jpg" label="Panel after a spoofed jump without the guard: NOMINAL, bound 7 m, error 298 m outside it" />
   <figcaption><span class="n">2</span><span><strong>Spoofed 300 m, no guard.</strong> Caught at the first fake fix, then taken back: <span class="ok">green</span> and 298 m wrong.</span></figcaption>
 </figure>
 <figure class="shot">
-  <img src="/proof/guard-1-rail.jpg" alt="Panel with the jump guard: UNSAFE, fake GPS refused, bound 1,006 m, error 254 m inside it">
+  <Clip src="/proof/clips/guard-rail.mp4" poster="/proof/guard-1-rail.jpg" label="Panel with the jump guard: UNSAFE, fake GPS refused, bound 1,006 m, error 254 m inside it" />
   <figcaption><span class="n">3</span><span><strong>Same attack, guard on.</strong> Fake GPS refused, stays <span class="bad">red</span>; real GPS back within metres.</span></figcaption>
 </figure>
 </div>
 
-<div class="foot">Status rail of the panel itself (main de28b38), held at T+100, T+187 and T+194 · deploy/demo/RUNBOOK.md</div>
+<div class="foot">Status rail of the panel itself (main de28b38), recorded live and looped: T+52–102, T+144–192, T+144–214 · deploy/demo/RUNBOOK.md</div>
 
 <!--
 (1:35, 80 s) SWITCH TO THE PANEL: deploy/demo/demo.sh stage. Enter at T+105 (skip the towers study if short of time), T+188, T+212.
@@ -427,6 +434,23 @@ class: topo-light
 </div>
 
 <div class="foot">analysis/results/lte-measured-noise (8892fca) · ADR-0036 · results.md (a)</div>
+
+---
+class: topo-light
+---
+
+<div class="kicker">Backup · the hardware we built and flew</div>
+
+# The real payload
+
+<div class="cols" style="grid-template-columns: repeat(4, 1fr); margin-top: 1.2rem; gap: 1.1rem">
+<Media file="payload-inside.jpg" label="Inside the payload" hint="The radios on USB 2, the GPS HAT, the IMU." ratio="3 / 4" />
+<Media file="antenna.jpg" label="The LTE antenna as mounted" hint="Its ground plane mattered more than the antenna: 25 dB." ratio="3 / 4" />
+<Media file="field-capture.jpg" label="A static capture outdoors" hint="Where the real LTE measurements came from." ratio="3 / 4" />
+<Media file="flight.mp4" label="The payload flight" hint="A 10–20 s clip, muted; it loops." ratio="3 / 4" />
+</div>
+
+<div class="foot">hardware/bom.md · hardware/antennas.md · ADR-0057 (Bingfu antenna)</div>
 
 ---
 class: topo-light
