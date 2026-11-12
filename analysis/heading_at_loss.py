@@ -94,7 +94,8 @@ TACTICAL_SPEC = ImuSpec(
 # window whose heading 1-sigma is near 100 deg; from such an error the linearised filter does not
 # recover (it settles on a wrong heading and gates GNSS out). Below it, a window is refused and the
 # next one tried. 60 deg: above the 33-47 deg this leg's S-turn windows give, below the 82-102 deg
-# of the first window, which catches only the start of the weave (seeds 0-2, not a tuning)
+# of the first window, which catches only the start of the weave (seed 0, payload and tactical IMU;
+# tried on seeds 0-2; not a tuning)
 ALIGN = {"imu": {"max_yaw_sigma_deg": 60.0}}
 # Filters on the payload's IMU: (name in the table, estimator, filter options over the registry's)
 MPU_FILTERS = [
