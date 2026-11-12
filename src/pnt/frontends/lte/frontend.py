@@ -29,6 +29,7 @@ from pnt.core.measurement import Measurement
 from pnt.frontends.lte import signals as sig
 from pnt.frontends.lte.capture import Capture, Segment, open_capture
 from pnt.frontends.lte.tracker import (
+    FLOOR_WINDOW_S,
     C,
     CellTrack,
     Config,
@@ -37,6 +38,7 @@ from pnt.frontends.lte.tracker import (
     GapMap,
     State,
     _Track,
+    latency,
     search,
 )
 
@@ -74,27 +76,24 @@ def process_capture(cap: Capture, cfg: Config | None = None, receiver: str = "pa
     return r
 
 
-# Buffers each side of a stamp step whose latency floor is compared (TBC). A real drop moves the
-# floor for good; a stall that catches up does not.
-STALL_WINDOW = 8
-
-
 def _unexplained_stalls(cap: Capture, found: list) -> list[tuple[int, int]]:
-    """Drops the buffer stamps show (latency floor up by at least half a frame) that no gap the
-    tracker found explains, as (file index, samples). The signal saw no jump there, so each is a
-    whole number of frames: the stamps' size, rounded to one. Sizes more than a quarter frame
-    from a whole frame are left out (not a clean frame drop: the tracker should have seen it)."""
+    """Drops the buffer stamps show (latency floor up by at least half a frame, `floor_step`)
+    that no gap the tracker found explains, as (file index, samples). The signal saw no jump
+    there, so each is a whole number of frames: the stamps' size, rounded to one. Sizes more than
+    a quarter frame from a whole frame are left out (not a clean frame drop: the tracker should
+    have seen it)."""
     if cap.buffers is None or len(cap.buffers) < 2:
         return []
     L = sig.half_frame_length(cap.fs)
     frame = 2 * L
     idx = cap.buffers[:, 0]
-    lat = (cap.buffers[:, 1] - cap.buffers[0, 1]) - idx * 1e9 / cap.fs  # ns, minus a constant
+    lat = latency(cap.buffers, cap.fs)
+    w = FLOOR_WINDOW_S * cap.fs
+    lo = np.searchsorted(idx, idx - w, side="left")
+    hi = np.searchsorted(idx, idx + w, side="right")
     out, prev = [], False
     for i in range(1, len(idx)):
-        before = lat[max(0, i - STALL_WINDOW) : i].min()
-        after = lat[i : i + STALL_WINDOW].min()
-        n_host = (after - before) * cap.fs / 1e9
+        n_host = lat[i : hi[i]].min() - lat[lo[i] : i].min()
         step = n_host >= L
         if step and not prev:
             at = int(idx[i])

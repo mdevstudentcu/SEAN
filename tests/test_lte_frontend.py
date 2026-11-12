@@ -421,16 +421,23 @@ def test_cli_says_so_when_a_capture_is_too_short(tmp_path):
     assert not out.exists()
 
 
-def _stamps(n_samples, drop_at=None, n=0, stall_at=None, stall_ns=0, jitter_ns=500_000, seed=5):
+def _stamps(n_samples, drop_at=None, n=0, stall_at=None, stall_ns=0, jitter_ns=500_000, seed=5,
+            drain_ns=None):  # fmt: skip
     """Host stamps per 16384-sample buffer, as the recorder writes them: a drop moves every later
-    stamp; a stall delays some buffers that then catch up (the floor doesn't move)."""
+    stamp; a stall delays some buffers that then catch up (the floor doesn't move). By default
+    three buffers are `stall_ns` late; with `drain_ns`, nothing arrives for `stall_ns` and the
+    queued buffers then arrive `drain_ns` apart until caught up, as on the real captures."""
     rng = np.random.default_rng(seed)
     f = np.arange(0, n_samples, 16384)
     local = f + (np.where(f >= drop_at, n, 0) if drop_at is not None else 0)
     host = local * 1e9 / FS + rng.uniform(0, jitter_ns, f.size)
-    if stall_at is not None:
+    if stall_at is not None and drain_ns is None:
         late = (f >= stall_at) & (f < stall_at + 3 * 16384)
         host = host + np.where(late, stall_ns, 0)
+    elif stall_at is not None:
+        i0 = int(np.searchsorted(f, stall_at))
+        queued = host[i0] + stall_ns + (np.arange(f.size) - i0) * drain_ns
+        host = np.where(f >= stall_at, np.maximum(host, queued), host)
     return {"buffers": [[int(a), int(T0 + b)] for a, b in zip(f, np.round(host), strict=True)]}
 
 
@@ -450,6 +457,31 @@ def test_stamp_stall_that_catches_up_is_not_a_drop(tmp_path):
     extra = _stamps(int(1.3 * FS), stall_at=16384 * 70, stall_ns=40_000_000)  # 40 ms late
     r = process_file(write(tmp_path, "stall", [TOWER], 1.3, 0.0, **extra))
     assert r.gaps == []
+
+
+# 20261111-1806-walk-lte and -0233 (#306): the host stalled 0.48 s (or up to 1.2 s) and caught up
+# over the next 8 (or 20) buffers, the latency floor no higher after; nothing was dropped.
+STALL = dict(stall_at=16384 * 70, stall_ns=103_000_000, drain_ns=1_000_000)  # 103 ms, 1 ms each
+
+
+def test_stall_that_catches_up_slowly_is_not_a_drop(tmp_path):
+    # It takes 14 buffers to catch up. Compared over 8, the floor looked 5 frames up (96,784).
+    extra = _stamps(int(1.3 * FS), **STALL)
+    r = process_file(write(tmp_path, "stall", [TOWER], 1.3, 0.0, **extra))
+    assert r.gaps == []
+
+
+def test_cell_refound_a_little_off_during_a_stall_is_a_path_move(tmp_path):
+    # A strong cell re-found 3 samples early while the host stalled: the stall, sized by the
+    # largest gap between stamps, was taken for a 192,003-sample drop, and every later record's
+    # time moved by 10 frames. The floor did not move, so it is the cell's path that moved.
+    early = replace(TOWER, delay_s=TOWER.delay_s - 3 / FS)
+    extra = _stamps(int(1.3 * FS), **STALL)
+    r = process_file(splice(tmp_path, "early", [TOWER], [early], 0.6, 1.3, 10.0, **extra))
+    assert r.gaps == []
+    pr = [m for m in r.measurements if m.kind == "pseudorange"]
+    assert not any(m.meta["flags"] for m in pr)
+    assert {m.meta["arc"] for m in pr} == {0, 1}
 
 
 OUTAGE_AT = 16384 * 70  # 0.6 s, on a buffer boundary: the recorder appends whole buffers
