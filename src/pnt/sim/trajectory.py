@@ -17,6 +17,15 @@ Types:
   - fixedwing: nose along the velocity, banked so lift carries the turn (coordinated flight)
   - ground: nose along the velocity, no bank
 
+Manoeuvres (#276, opt-in): `manoeuvres: {start_s, end_s, accel_mps2, period_s}` on any type
+`kinematics` takes adds S-turns between start_s and end_s: a sideways weave across the path,
+d(t) = A sin(2 pi t / period_s) sin^2(pi t / (end_s - start_s)) with A = accel_mps2 (period_s /
+2 pi)^2, so the side force alternates every half period and position, velocity and acceleration
+all join the plain path smoothly at both ends. The peak sideways acceleration is about
+accel_mps2. Heading on a multirotor is observable only under horizontal acceleration, so a weave
+while GPS is good is how a drone learns its heading before GPS is lost (report 7.4: 1-3 m/s^2 for
+5-10 s, alternating). Off unless the spec has the key; every value is TBC.
+
 Frames: world ENU; body FLU (x forward, y left, z up). Quaternions are body-to-world,
 scalar first (w, x, y, z).
 
@@ -199,7 +208,43 @@ def _attitude(vel: np.ndarray, acc: np.ndarray, vehicle: str) -> np.ndarray:
     return np.stack([x, y, z], axis=2)  # columns are the body axes in ENU
 
 
+def s_turns(
+    t: np.ndarray, vel_of, start_s: float, end_s: float, accel_mps2: float, period_s: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """The S-turn weave's offset from the plain path and its first two time derivatives, each
+    (N, 3), ENU (module docstring). `vel_of(t)` is the plain path's velocity, whose horizontal
+    normal (left of travel) the weave is along. Derivatives are central differences of the
+    offset (step 10 ms), so the normal's turn in a corner is included."""
+    if not end_s > start_s or period_s <= 0:
+        raise ValueError("manoeuvres need end_s > start_s and period_s > 0")
+    w = 2 * np.pi / period_s
+    amp = accel_mps2 / w**2
+    length = end_s - start_s
+
+    def offset(tt: np.ndarray) -> np.ndarray:
+        tau = tt - start_s
+        inside = (tau > 0.0) & (tau < length)
+        d = np.where(inside, amp * np.sin(w * tau) * np.sin(np.pi * tau / length) ** 2, 0.0)
+        v = vel_of(tt)
+        speed = np.hypot(v[:, 0], v[:, 1])
+        ok = speed > 1e-6
+        n = np.zeros((len(tt), 3))
+        n[ok, 0] = -v[ok, 1] / speed[ok]
+        n[ok, 1] = v[ok, 0] / speed[ok]
+        return n * d[:, None]
+
+    h = 0.01
+    t = np.asarray(t, float)
+    o, op, om = offset(t), offset(t + h), offset(t - h)
+    return o, (op - om) / (2 * h), (op - 2 * o + om) / h**2
+
+
 def _pva(spec: dict, t: np.ndarray):
+    if "manoeuvres" in spec:  # S-turns on top of the plain path (module docstring)
+        plain = {k: v for k, v in spec.items() if k != "manoeuvres"}
+        pos, vel, acc, vehicle = _pva(plain, t)
+        o, od, odd = s_turns(t, lambda tt: _pva(plain, tt)[1], **spec["manoeuvres"])
+        return pos + o, vel + od, acc + odd, vehicle
     kind = spec["type"]
     if kind == "loop":
         r, v = float(spec["radius_m"]), float(spec["speed_mps"])
@@ -233,6 +278,11 @@ TRAJECTORIES = {"loop": loop, "square": square, "waypoints": waypoints}
 
 def make(spec: dict, t: np.ndarray) -> tuple:
     spec = dict(spec)
+    if "manoeuvres" in spec:  # S-turns on top of the plain path (module docstring)
+        man = spec.pop("manoeuvres")
+        pos, vel = make(spec, t)
+        o, od, _ = s_turns(np.asarray(t, float), lambda tt: make(spec, tt)[1], **man)
+        return pos + o, vel + od
     kind = spec.pop("type")
     if kind != "waypoints":
         spec.pop("_origin_llh", None)
