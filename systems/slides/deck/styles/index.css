@@ -126,7 +126,8 @@ figure { margin: 0; min-width: 0; }
 /* rubric and mentor-ask tags, top right of each slide */
 .rubric, .ask { position: absolute; right: 4.2rem; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.06em; color: var(--fg); background: color-mix(in srgb, var(--bg) 80%, transparent); border: 1.5px dashed var(--contour); padding: 0.18rem 0.55rem; border-radius: 4px; max-width: 34rem; text-align: right; }
 .rubric { top: 1.3rem; }
-.ask { top: 2.75rem; border-color: var(--warn); }
+.ask { top: 1.3rem; border-color: var(--warn); }
+.rubric + .ask { top: 2.75rem; }
 .rubric span, .ask span { text-transform: uppercase; letter-spacing: 0.14em; margin-right: 0.4rem; color: var(--contour); }
 .ask span { color: var(--warn); }
 
@@ -180,3 +181,14 @@ ol.legend.tight li::before { width: 1.15rem; height: 1.15rem; font-size: 0.58rem
 .asks .a { font-size: 0.95rem; line-height: 1.35; flex: 1; }
 .asks .a .num { font-family: var(--display); font-size: 1.15rem; }
 .asks .k { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+
+/* lighter main slides */
+table.score.big { font-size: 1.05rem; }
+table.score.big td { padding-top: 0.55rem; padding-bottom: 0.55rem; }
+ul.roomy { font-size: 1.02rem; line-height: 1.6; padding-left: 1.1rem; }
+
+table.score.big td { font-size: 1.12rem !important; padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+table.score.big th { font-size: 0.78rem !important; }
+.three .card { padding: 1.6rem 1.5rem; min-height: 15rem; }
+.three .bigstat { font-size: 4.2rem; }
+.three .statlabel { font-size: 1.15rem; line-height: 1.45; margin-top: 0.9rem; }
