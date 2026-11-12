@@ -1,0 +1,54 @@
+{
+"commit": "712ef2d",
+"whiteness": true,
+"hashes": {
+"ekf|challenge-drone-outage|0": [
+"febb23fc225c603f0e4a0c663f9910258077d63e67d30567a9651cf2416c3c20",
+"40fc083343754eeb3923fa4b60210a5ef1818cc7ec3d2fe636756366698eaf18"
+],
+"ekf|realistic-long-outage|0": [
+"5b35bb4c8734e9473d86cb971dcb7c5deab3c1a788f626fba699d3d4f5d81ff9",
+"19c43f2fc40199d0922967edabeefeb3e18068de94e471a4e8d49c37edfa2b1e"
+],
+"ekf|spoof-jump|0": [
+"94588848bb57e0eaa6e2437f32eae0e0a84af2c758a71fee1f61aef29ba50e68",
+"abda8f9beb057c07ca9787b83a942d1b329bbe81ca39a8d0c01a7fb02ef5988d"
+],
+"ekf-calibrated|challenge-drone-outage|0": [
+"6d27cad8187741fe0e4f8241de661f25aa69f6da2d4a4295c4164ee3a8e99525",
+"40fc083343754eeb3923fa4b60210a5ef1818cc7ec3d2fe636756366698eaf18"
+],
+"ekf-calibrated|realistic-long-outage|0": [
+"6e5b76ce5f1aa5cab70e49c28ae83445a1495f53919766bd607859ca0a651e57",
+"ea9a5622ccec65ee4237a262642efc35b796b1aa0e45cd0069294283c0de1fee"
+],
+"ekf-calibrated|spoof-jump|0": [
+"3b6817c4040c4878575fc94f7dfd598042df7dea42726bb404f5e53f35bea132",
+"ea9a5622ccec65ee4237a262642efc35b796b1aa0e45cd0069294283c0de1fee"
+],
+"ekf-guard|challenge-drone-outage|0": [
+"febb23fc225c603f0e4a0c663f9910258077d63e67d30567a9651cf2416c3c20",
+"40fc083343754eeb3923fa4b60210a5ef1818cc7ec3d2fe636756366698eaf18"
+],
+"ekf-guard|realistic-long-outage|0": [
+"5b35bb4c8734e9473d86cb971dcb7c5deab3c1a788f626fba699d3d4f5d81ff9",
+"19c43f2fc40199d0922967edabeefeb3e18068de94e471a4e8d49c37edfa2b1e"
+],
+"ekf-guard|spoof-jump|0": [
+"e23a1c0071030ea6a84b201d932a3dabaaf3e46c5d35069a76fb213a0aad2f92",
+"abda8f9beb057c07ca9787b83a942d1b329bbe81ca39a8d0c01a7fb02ef5988d"
+],
+"ekf-imu|challenge-drone-outage|0": [
+"eb30cdca604ca4110125b9735aad529e123497b7dad3a5d19292f33df10ecaa0",
+"40fc083343754eeb3923fa4b60210a5ef1818cc7ec3d2fe636756366698eaf18"
+],
+"ekf-imu|realistic-long-outage|0": [
+"0986b36afb84fb296fca1e77495e62bba4ef053e467173b21a8f979ca184b7a9",
+"dc994b4632e598f26416eef7da1931d5ed822ed889d4d77f86a5af74add27d77"
+],
+"ekf-imu|spoof-jump|0": [
+"1b7ac2e4541b1e0e610f76bf459b0cf3eeb8834a718ec22737848c1dfa37a9fe",
+"abda8f9beb057c07ca9787b83a942d1b329bbe81ca39a8d0c01a7fb02ef5988d"
+]
+}
+}
