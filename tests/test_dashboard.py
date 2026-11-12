@@ -573,3 +573,99 @@ def test_banner_is_opt_in_and_reaches_the_page(tmp_path, monkeypatch):
     page = (SRC / "dashboard" / "web" / "index.html").read_text()
     assert 'id="banner" class="banner" hidden' in page  # hidden unless info carries one
     assert "i.banner" in (SRC / "dashboard" / "web" / "app.js").read_text()
+
+
+# ---- GPS trust (health.gps_trust): the panel's answer to "is GPS telling the truth?" ----------
+
+
+def test_gps_trust_reads_the_flags_and_the_spoof_decision():
+    gt, on = health.gps_trust, {"gnss": 1.0}
+    assert gt([], on)["level"] == health.GPS_TRUSTED
+    # Rejected while its trust is still 1 (the estimators keep it for a few seconds): not trusted
+    g = gt(["gnss_excluded"], on)
+    assert g["level"] == health.GPS_NOT_TRUSTED and "disagrees" in g["reasons"][0]
+    assert not health.gps_in_use(["gnss_excluded"], on)
+    # The jump guard (ADR-0038) is named first, whatever order the estimator flags in
+    g = gt(["gnss_unavailable", "gnss_excluded", "gnss_jump_latched"], {"gnss": 0.0})
+    assert g["level"] == health.GPS_NOT_TRUSTED and "jump guard" in g["reasons"][0]
+    assert len(g["reasons"]) == 2  # gnss_unavailable is no reason to distrust
+    for flag in ["spoof_suspected", "time_spoof_suspected", "mhss_excluded:gnss-cm"]:
+        assert gt([flag], on)["level"] == health.GPS_NOT_TRUSTED, flag
+    for flag in ["gnss_alt_excluded", "mhss_alarm:gnss-cm", "adsb_interference"]:
+        assert gt([flag], on)["level"] == health.GPS_CHECKING, flag
+
+
+def test_gps_trust_names_the_sky_cues():
+    # ADR-0041: a held below-horizon satellite is spoofed on its own; a first flat power is a doubt
+    sky = {"level": "spoofed", "cues": ["sky_below_horizon (held)"]}
+    g = health.gps_trust([], {"gnss": 1.0}, sky)
+    assert g["level"] == health.GPS_NOT_TRUSTED and "below the horizon" in g["reasons"][0]
+    sky = {"level": "suspect", "cues": ["power_flat"]}
+    g = health.gps_trust([], {"gnss": 1.0}, sky)
+    assert g["level"] == health.GPS_CHECKING and "same power" in g["reasons"][0]
+    # Flag cues are not repeated from the spoof decision: the flag already gives the reason
+    sky = {"level": "suspect", "cues": ["jump_latched"]}
+    g = health.gps_trust(["gnss_jump_latched"], {"gnss": 1.0}, sky)
+    assert len(g["reasons"]) == 1
+    # Unknown sky (no skyview) says nothing against GPS
+    assert (
+        health.gps_trust([], {"gnss": 1.0}, {"level": "unknown", "cues": []})["level"] == "trusted"
+    )
+
+
+def test_gps_lost_is_absent_not_a_lie():
+    # GPS lost is not GPS lying: the panel says there is no GPS, and for how long
+    g = health.gps_trust(["gnss_unavailable"], {"gnss": 0.0}, None, 12.0)
+    assert g["level"] == health.GPS_ABSENT and g["unused_s"] == 12.0
+    assert "accepted recently" in g["reasons"][0]
+    assert "yet" in health.gps_trust([], {}, None, None)["reasons"][0]  # never used so far
+
+
+def test_every_gps_flag_has_a_trust_reading():
+    # A new GPS flag must not leave the GPS trust saying TRUSTED by default: classify it
+    known = set(health.GPS_DISTRUST) | set(health.GPS_DOUBT) | {"gnss_unavailable"}
+    gps = {f for f in _raised_flags() if f.startswith(("gnss", "spoof", "time_spoof"))}
+    assert gps and gps <= known, gps - known
+
+
+def test_monitor_times_how_long_gps_has_been_unused():
+    m = HealthMonitor(50.0, 1.5e-6)
+    assert m.update(_est(0.0, ["gnss_unavailable"], trust={"gnss": 0.0}))["gps_unused_s"] is None
+    assert m.update(_est(1.0, trust={"gnss": 1.0}))["gps_unused_s"] is None
+    s = m.update(_est(3.5, ["gnss_unavailable"], trust={"gnss": 0.0}))
+    assert s["gps_unused_s"] == pytest.approx(2.5)
+    # rejected while its trust is still 1: not in use either
+    assert m.update(_est(4.0, ["gnss_excluded"], trust={"gnss": 1.0}))["gps_unused_s"] == 3.0
+    assert m.update(_est(5.0, trust={"gnss": 1.0}))["gps_unused_s"] is None
+
+
+def test_frames_carry_the_gps_trust(tmp_path):
+    # SMALL: GPS lost from 12 s to 22 s, nothing lies: trusted, then absent with a growing time
+    out = list(frames(sim_feed(_small(tmp_path), preflight=False), HealthMonitor(50.0, 1.5e-6)))
+    json.dumps([f["gps_trust"] for f in out], allow_nan=False)
+    by_t = {round(f["t_s"], 1): f["gps_trust"] for f in out}
+    assert by_t[5.0]["level"] == health.GPS_TRUSTED
+    lost = [f["gps_trust"] for f in out if 15 <= f["t_s"] <= 20]
+    assert {g["level"] for g in lost} == {health.GPS_ABSENT}
+    assert lost[-1]["unused_s"] > lost[0]["unused_s"] > 0
+    assert out[-1]["gps_trust"]["level"] == health.GPS_TRUSTED
+
+
+def test_page_keeps_the_runbook_cues_and_shows_the_gps_trust():
+    # deploy/demo/RUNBOOK.md points the presenter at these by name: keep them on the page
+    page = (SRC / "dashboard" / "web" / "index.html").read_text()
+    for name in [
+        'id="status-word"',
+        'id="kind"',
+        "Error against truth",
+        "Horizontal protection level against the alert limit",
+        "What is wrong now",
+        "Alerts (latched until acknowledged)",
+        "Sources",
+        "In use",
+        "Not in use",
+    ]:
+        assert name in page, name
+    js = (SRC / "dashboard" / "web" / "app.js").read_text()
+    assert 'id="gps-trust"' in page and "f.gps_trust" in js
+    assert "f.status.toUpperCase()" in js  # NOMINAL / DEGRADED / UNSAFE, as the runbook says

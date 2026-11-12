@@ -18,7 +18,7 @@ import numpy as np
 
 from pnt.core.frames import emitter_enu, enu_to_llh, llh_to_enu
 from pnt.core.measurement import Measurement, Truth
-from pnt.dashboard.health import CONF_AMBER_FRACTION, HealthMonitor
+from pnt.dashboard.health import CONF_AMBER_FRACTION, HealthMonitor, gps_trust
 from pnt.integrity.sky import SpoofDecision
 from pnt.metrics import ALERT_LIMIT_M
 from pnt.nav import cells, estimate
@@ -244,6 +244,7 @@ def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
         heard = sorted(e for e, t in watch.last.items() if est.t_ns - t <= heard_ns)
         if feed.hide_origin:
             new, heard = [], []
+        sp = spoof.decide(est.t_ns, est.flags).to_dict()
         yield {
             "t_s": health["t_s"],
             "pos": [float(v) for v in est.pos_enu],
@@ -262,7 +263,9 @@ def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
             "health": {k: _num(v) if isinstance(v, float) else v for k, v in health.items()},
             "heard": heard,
             "new_emitters": new,
-            "spoof": spoof.decide(est.t_ns, est.flags).to_dict(),
+            "spoof": sp,
+            # the panel's GPS trust (health.gps_trust): presentation of the above, nothing new
+            "gps_trust": gps_trust(est.flags, est.trust, sp, health["gps_unused_s"]),
         }
 
 
