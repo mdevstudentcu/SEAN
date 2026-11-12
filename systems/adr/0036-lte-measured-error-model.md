@@ -71,3 +71,15 @@ The owners accepted these front-end approaches on 2026-11-11, with the defaults 
 | Tracks on a 200 Hz alias; code − carrier spread | 7 of 39; −406 to +223 ppb | 4 of 40; −146 to +222 ppb |
 
 Read with: #245 changed what `meta.snr_db` means (per resource element over the elements combined, the shared PSS weighted per cell), so a bin holds different records before and after: 11 of the 39 cells rose by more than 8 dB, each from about −11 dB, and one cell is new (`1305-lte-outside`, PCI 268). The carrier alias is not gone on the twelve 2026-11-10 sessions that were not among #183's 14 captures: 4 tracks sit on a 200 Hz alias of the strongest cell and 8 cells read code − carrier beyond ±100 ppb (this script's measure). These are the changes consequence 4 names (the white σ, the 8 s arcs, the gap handling); whether they reopen any step is for the owners. `nav/told_sigma.py` (`FLOOR_M`, `SNR_TERM_M`, `BINS`) and `nav/ekf.py` `CALIBRATED_MEASURED` (`init_tower_drift_sigma` 6.6, "up to 6.6 m/s seen") still carry the `e9a9053` values, as do ADR-0043's table and ADR-0044 (2) (49.4 m below −14 dB, a doubling of the old bins); both estimators are opt-in, and changing them is a follow-up for the owners.
+
+## Amendment 2026-11-12 (Proposed, #214): end a track whose peak sits on the interference floor
+
+Proposed for the owners; not decided. A new front-end approach, beside the accepted ones above.
+
+6. **A lock detector against the interference floor** (`lock_window_s` 1 s, `lock_peak_to_floor` 3, both `TBC`):
+   - **What it checks.** Each second of accepted epochs, the mean of peak power over the delay profile's interference floor (the floor of point 3) must reach 3.
+   - **If not.** That second's epochs are dropped and the track ends. The next search starts the cell on a new arc, from the search's carrier offset, and ADR-0050's per-arc bias takes the new arc.
+   - **Why.** An epoch is accepted against the reserved-bin noise only, and that noise does not see the other cells' sync signals. A faded weak cell kept "locked" on that floor and slid at its carrier-aided loop rate, which on weak cells was tens of m/s off (17 m/s or more on 29 to 98 % of their epochs on `20261111-1806-walk-lte`). It went kilometres in one arc.
+   - **Effect on the walk.** The within-arc structure function at 1 / 10 / 100 s went from 47 / 327 / 3,185 m to 16 / 27 / 29 m. Records fell from 71,718 to 42,433, and arcs per minute rose from 5.3 to 9.4.
+   - **Effect on the static sessions.** `-0151` and `-0233` change little (arcs per minute +7 and +11 %).
+   - **End to end.** LTE still makes the walk's GPS cut worse than no LTE (`analysis/results/weak-cell-wander/NOTES.md`).
