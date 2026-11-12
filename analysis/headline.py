@@ -347,7 +347,8 @@ def main(argv=None) -> None:
     p.add_argument("--jobs", type=int, default=3)
     p.add_argument("--estimators", nargs="+", default=SPOOF_ESTIMATORS)
     p.add_argument("--base-estimators", nargs="+", default=BASE_ESTIMATORS)
-    p.add_argument("--guarded", default="ekf-guard", help="the guarded filter drawn in the figure")
+    # The guarded filter drawn: the best T1 statistic and HPL bound of the guarded ones run here
+    p.add_argument("--guarded", default="ekf-honest-guard", help="guarded filter in the figure")
     p.add_argument("--out", default=str(REPO / "analysis" / "results" / "headline"))
     args = p.parse_args(argv)
 
