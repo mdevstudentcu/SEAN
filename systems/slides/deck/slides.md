@@ -32,9 +32,9 @@ layout: default
 
 **Say:**
 
-Hi, we're Team 12. This is our solution: the Signals-of-opportunity, Error-bounded, Assured Navigation module. SEAN, for short.
+Hi, we're Team 12. This is our solution: the Signals-of-opportunity, Error-bounded, Assured Navigation module, or SEAN for short.
 
-We set out to do two things. First, keep a position when GPS goes away, using the cell towers that are already around us. Second, and this is the part we care about most: work out when one of our sources is lying to us, whether that's GPS or even the towers, and say so with a number.
+We set out to do two things: keep a position when GPS goes away, using the cell towers already around us, and, the part we care about most, work out when a source is lying to us, GPS or even the towers, and say so with a number.
 
 ***
 
@@ -84,11 +84,11 @@ class: topo-light
 
 **Say:**
 
-So why does that matter? When GPS gets jammed or spoofed, it usually doesn't go blank. It keeps showing a confident position. It's just wrong.
+So why does that matter? Jammed or spoofed GPS usually doesn't go blank. It keeps showing a confident position that's just wrong.
 
-That hurts three kinds of user: a drone operator flying beyond line of sight, a crew on approach, and anyone who takes their time from GPS.
+That hurts drone operators flying beyond line of sight, crews on approach, and anyone who takes their time from GPS.
 
-We gave ourselves three rules. Only listen, never transmit. Use signals already in the air, cell towers first. And keep it cheap: the radios cost 170 dollars. Each use case turns into a requirement with a number, and we'll show you how we did against every one.
+Our rules: only listen, never transmit; use signals already in the air, cell towers first; and keep it cheap, 170 dollars of radios. Each use case becomes a requirement with a number we test against.
 
 **Point at:** the table, row by row with your hand.
 
@@ -156,9 +156,9 @@ class: topo-light
 
 **Say:**
 
-Here's how it works. The payload is a Raspberry Pi with a cheap LTE radio, GPS with a timing pulse, an IMU and a barometer, and it only listens. [point along the chain] On the laptop we turn the towers' sync signals into distances, fuse everything, and get a position, a bound on how wrong it could be, and a colour.
+Here's how it works. The payload is a Raspberry Pi with a cheap LTE radio, GPS, an IMU and a barometer, and it only listens. [point along the chain] The laptop turns the towers' sync signals into distances, fuses everything, and gives a position, a bound on how wrong it could be, and a colour.
 
-The twist: we don't trust anything blindly. Not GPS, and not the towers either. The towers get their time from GPS, so they're allowed to disagree with it, but never to vouch for it. And each tower's slow error is tracked on its own, so when the towers drift, our confidence drops with them.
+The twist: we don't trust anything blindly, not even the towers. They get their time from GPS, so they can disagree with GPS but never vouch for it. And each tower's slow error is tracked on its own, so when towers drift, our confidence drops.
 
 **Scores:** Technical approach (2) · Innovation (3) · Prototype (4) · communication signals primary.
 
@@ -316,9 +316,9 @@ class: topo-light
 
 **Say:**
 
-The mentors asked us to think about different ways of showing confidence, so the panel gives ten. [sweep the pins] A colour, the protection level against the limit, the radius a pilot would use, a GPS trust word, a spoof check, trust per source, a time bound, the circle on the map, a graph with a forecast, and alerts that stay up until someone acknowledges them.
+The mentors asked for different ways of showing confidence, so the panel gives ten. [sweep the pins] A colour, the protection level, the radius a pilot uses, a GPS trust word, a spoof check, trust per source, a time bound, the map circle, a forecast graph, and alerts that stay up until acknowledged.
 
-But a confidence number is only useful if it's true. [point at the numbers] In simulation the standard filter's bound was wrong about 40 % of the time. Ours, under half a percent. On real recordings the standard one was wrong a third of the time. Ours, never.
+But confidence only helps if it's true. [point at the numbers] In simulation the standard filter's bound was wrong about 40 % of the time; ours, under half a percent. On real recordings: a third of the time, against never.
 
 **Point at:** pins 1, 2, 3 and 7 as you name them, the rest in one sweep; then the two red → green numbers.
 
@@ -377,11 +377,11 @@ class: topo-light
 
 **Say:**
 
-The mentors also asked for the maths behind our accuracy. So we split the error into its pieces, tower clocks, reflections, tower positions, our own clock and noise, and checked the sum against the simulation. On a clean route we stay inside 50 metres. With realistic towers we don't: reflections alone are over 200.
+The mentors also asked for the maths behind our accuracy. We split the error into its pieces, tower clocks, reflections, tower positions, our clock and noise, and checked the sum against the simulation. A clean route stays inside 50 metres; realistic towers don't, and reflections alone are over 200.
 
-Handover matters too: the filter needs about two and a half minutes of good GPS to learn the towers first.
+Handover matters too: the filter needs two and a half minutes of good GPS to learn the towers.
 
-And we measured our real radio. It's precise, under a metre, but it has a slow 8-metre error it never reports. Our simulation had that wrong, and fixing it is what made the bound honest.
+And we measured our real radio: precise, under a metre, but with a slow 8-metre error it never reports. Fixing that in our model is what made the bound honest.
 
 **Scores:** Technical approach & rigor (2) · Evidence (5) · mentor asks: explain the calculation, handover timing, how the sim aligns to reality.
 
@@ -517,9 +517,9 @@ class: topo-content
 
 **Say:**
 
-Safety was a design rule from day one. It never transmits, so it can't interfere with anything. We only decode what's broadcast for everyone, identifiers are hashed, the link is encrypted, and it only advises; it never steers.
+Safety was a design rule from day one. It never transmits, so it can't interfere with anything. We decode only what's broadcast for everyone, the link is encrypted, and it advises; it never steers.
 
-Where this goes: a small receive-only box that warns the autopilot when GPS can't be trusted. Next is accuracy, heading, velocity, carrier phase and real flights, then low-orbit satellites as one more source. Everything you've seen traces back to a commit in our repo. Thank you, we're happy to take questions.
+Where it goes: a small receive-only box that warns the autopilot when GPS can't be trusted. Next is accuracy and real flights, then low-orbit satellites as one more source. Everything you've seen traces to a commit in our repo. Thank you, we're happy to take questions.
 
 **Do:** stop on "thank you". Leave this slide up; press **O** to jump to a backup.
 
