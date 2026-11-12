@@ -83,7 +83,16 @@ SINGLE: dict[str, dict] = {
     # 6. one shared bias when cells restart together (our timing step)
     "common-step": {"common_step_s": 1.5},
 }
-STATIONARY: dict[str, dict] = {"zupt": {"zupt_sigma_mps": 0.1}}
+STATIONARY: dict[str, dict] = {
+    "zupt": {"zupt_sigma_mps": 0.1},
+    # stationary hold: arms only if GNSS showed rest over the last N s, disarms on the IMU
+    **{
+        f"hold{n}-v{v}-k{k}": {"hold_rest_s": float(n), "hold_speed_mps": v, "hold_k": float(k)}
+        for n in (20, 30)
+        for v in (0.3, 0.5)
+        for k in (2, 3)
+    },
+}
 # Round 2, after the single-arm table on tuning data (summary.md, *Combination round*)
 CURV = {"curvature_inflate": True}  # a too-curved range kept with R grown by the term
 COMBOS: dict[str, dict] = {
@@ -130,9 +139,10 @@ def rows_for(arms: list[str], refs: bool = True) -> list[tuple[str, str, dict, s
     """(label, base estimator, settings, LTE variant) for the references and the arms."""
     out = [(k, est, {}, var) for k, (est, var) in REFERENCES.items()] if refs else []
     for a in arms:
-        if a not in ARMS:
-            raise SystemExit(f"unknown arm {a!r} (known: {', '.join(ARMS)})")
-        out.append((a, CONTROL, ARMS[a], "told-pr"))
+        name, _, nolte = a.partition("@")  # "<arm>@nolte": the arm with LTE withheld
+        if name not in ARMS or nolte not in ("", "nolte"):
+            raise SystemExit(f"unknown arm {a!r} (known: {', '.join(ARMS)}, each @nolte)")
+        out.append((a, CONTROL, ARMS[name], "none" if nolte else "told-pr"))
     return out
 
 
@@ -161,6 +171,25 @@ def sigma_scale(scale: float):
         yield
     finally:
         ts.FLOOR_M, ts.SNR_TERM_M, ts.BINS, ts.SIGMA_CORR_M = saved
+
+
+@contextlib.contextmanager
+def filter_counts():
+    """The last EKF built while the block runs, for its counters (`holder["ekf"]`)."""
+    from pnt.nav import ekf as ekf_module
+
+    holder: dict = {}
+    init = ekf_module.EKF.__init__
+
+    def kept(self, *a, **k):
+        init(self, *a, **k)
+        holder["ekf"] = self
+
+    ekf_module.EKF.__init__ = kept
+    try:
+        yield holder
+    finally:
+        ekf_module.EKF.__init__ = init
 
 
 def strongest_cells(meas, n: int = 2) -> set[str]:
@@ -195,8 +224,20 @@ def real_task(
     if stress.get("cells"):
         keep = strongest_cells(meas, stress["cells"])
         fed = [m for m in fed if m.source != "lte" or m.emitter in keep]
-    with sigma_scale(stress.get("sigma_scale", 1.0)), rgc.count_lte_updates(cut_ns) as lte:
+    with (
+        sigma_scale(stress.get("sigma_scale", 1.0)),
+        rgc.count_lte_updates(cut_ns) as lte,
+        filter_counts() as kf,
+    ):
         est = list(nav.estimate(build(base, settings), fed, origin_llh=origin))
+    k = kf["ekf"]
+    out_counts = {
+        "hold_updates": k.hold_updates,
+        "hold_armed": len(k.hold_armed_at),
+        "hold_disarmed": len(k.hold_disarmed_at),
+        "zupts": k.zupts,
+        "geometry_held": k.geometry_held,
+    }
     est_t = np.array([e.t_ns for e in est], dtype=np.int64)
     est_pos = np.array([e.pos_enu for e in est], dtype=float)
     est_hpl = np.array([e.hpl_m for e in est], dtype=float)
@@ -205,6 +246,7 @@ def real_task(
     v = [math.hypot(*e.vel_enu[:2]) for e in est if cut_ns + 30e9 <= e.t_ns <= cut_ns + 300e9]
     out["speed_median_m_s"] = float(np.median(v)) if v else math.nan
     out["lte_updates"] = lte
+    out["counts"] = out_counts
     out["pre_p95_m"], out["pre_gnss_excluded"] = math.nan, math.nan  # not scored here
     return out
 
@@ -315,6 +357,7 @@ def sim_task(leg: str, seed: int, rows: list[tuple[str, str, dict]]) -> list[dic
         }
         win = t >= start if start is not None else np.ones(len(t), bool)
         r["n_win"], r["above_win"] = int(win.sum()), int(np.sum((err > hpl) & win))
+        r["hash"] = estimate_hash(est)
         if start is not None:
             at = {int(tt): i for i, tt in enumerate(t)}
             idx = [at[start + k * 1_000_000_000] for k in range(sf.HORIZON_S + 1)]
