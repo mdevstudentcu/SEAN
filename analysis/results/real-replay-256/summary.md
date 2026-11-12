@@ -53,3 +53,23 @@ python analysis/real_gps_cut.py data/sessions/20261111-0040-static-fullsuite-lte
   --out analysis/results/real-replay-256/20261111-0040-static-fullsuite --runs-out analysis/results/runs/real-replay-256/20261111-0040-static-fullsuite
 python analysis/real_replay_diagnose.py data/sessions/20261111-0040-static-fullsuite-lte --out analysis/results/real-replay-256/20261111-0040-static-fullsuite/diagnosis.json
 ```
+
+## Second session: `20261111-1937-static-fullsuite3` (recorded 2026-11-12 UTC, #282)
+
+Real, stationary, 600 s, same commands, analysis at `fcafe6b`, front end as above: 18,572 pseudoranges, 4 cells, 3 or more cells heard in 77 % of seconds (17 to 21 % on `0040` after its early cuts). Same five cuts, 1,500 withheld fixes. The error at exactly 300 s is not scored on this session: its fixes fall off the script's 0.05 s matching grid at that instant (#264's nearest-fix change is not on this branch), so the 0–300 s p95 is given instead. GPS error estimates in this session's records are inflated (#284).
+
+![Horizontal error against the withheld GPS fix after the cut, median of five cut times, one line per filter](20261111-1937-static-fullsuite3/error_by_row.png)
+
+| Row | Error at 120 s, median (worst) m | p95 over 0–300 s, worst cut, m | Fixes with error above HPL | Beats no LTE |
+|---|---|---|---|---|
+| no LTE | 1.6 (9.6) | 19.3 | 0 % | – |
+| `ekf` (default, = `ekf-measured-sigma`) | 255 (1,246) | 2,586 | 26.9 % (403 of 1,500) | no |
+| `ekf-learned-noise` | 255 (1,247) | 2,589 | 26.7 % (401) | no |
+| `ekf-honest` | 150 (326) | 696 | **0 %** | no |
+| `ekf` + `arc_settle_s=5` | 217 (433) | 728 | 3.7 % (55) | no |
+| `ekf-as-told` (before #267) | 4.5 (9.6) | 19.3 | 0 % | no |
+
+- **Same picture as `0040`:** no LTE row beats no LTE; `ekf-honest` is again the only row that uses LTE updates and whose HPL covers every withheld fix; the default is overconfident (26.9 % of fixes).
+- With four cells and a 3-cell fix available most of the time, the tower-aided error is several times smaller than on `0040` (255 m against 1,001 m at 120 s for the default), and learned noise makes no difference here.
+- `ekf-honest` learns 63 to 112 m per cell; `ekf-learned-noise` 15 to 39 m.
+- Across both sessions: error above HPL on 1,024 of 3,005 withheld fixes (34.1 %) for the default, 0 of 3,005 for `ekf-honest`.
