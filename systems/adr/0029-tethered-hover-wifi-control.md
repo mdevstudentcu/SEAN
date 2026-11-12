@@ -1,7 +1,7 @@
 # ADR-0029: Tethered indoor hover may be flown from a gamepad through an ESP32 Wi-Fi bridge
 
-- **Status:** Accepted
-- **Date:** 2026-11-09
+- **Status:** Retired 2026-11-11 by its own *Reopen if*: an RC transmitter is in hand (see *Amendment 2026-11-11 (owners)*)
+- **Date:** 2026-11-09, amended 2026-11-11
 - **Deciders:** Shrikar Vempati, M. Elshoubky (the two owners)
 - **Traces to:** REQ-07, REQ-09, RSK-01, ADR-0026, ADR-0028, `safety.md`
 
@@ -49,3 +49,12 @@ Option C, for **tethered, low indoor hover only**:
 - CI does not build `firmware/esp32-rc-bridge/` yet: that needs a `.github/` change with owner sign-off. Its protocol logic is tested on the host with g++ (`tests/test_rc_bridge_cpp.py`).
 - **Limits:** the latency of the Wi-Fi path is `TBD` (measure on the bench). A laptop or OS stall shows up as silence, which INAV handles as RX loss. The kill button is software on the laptop; the loop plug is the hardware kill.
 - **Reopen if:** an RC transmitter becomes available (then use it, and this link is retired), the tether can't be used, or the bench test fails.
+
+## Amendment 2026-11-11 (owners): retired, an RC transmitter is in hand
+
+The first *Reopen if* above has happened: the drone now has a FlySky FS-i6 transmitter and FS-iA6B receiver with a kill switch (ADR-0028, *Amendment 2026-11-11 (owners)*). That link is used and this Wi-Fi link is retired. The *Decision* and *Consequences* above are not edited; they describe the bridge as it was built.
+
+- **The bridge cannot fly the current firmware.** It speaks CRSF, and the flight controller now runs a Betaflight 4.5.5 build with no CRSF receiver driver; its receiver is iBUS. Using the bridge again needs a CRSF-enabled build and the bench test in `firmware/esp32-rc-bridge/README.md`, redone against Betaflight's settings.
+- **The INAV settings above never applied:** INAV was not flashed.
+- The code stays on `main` (`firmware/esp32-rc-bridge/`, `pnt rc`), with its host tests.
+- A tethered hover, if flown, uses the FS-i6 link and its failsafe (`safety.md`, H5).
