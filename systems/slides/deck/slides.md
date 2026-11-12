@@ -121,7 +121,7 @@ class: topo-light
 <div class="arch" style="margin-top: 0.7rem">
   <div class="node payload">
     <div class="nt">Payload</div>
-    <div class="ns">Raspberry Pi 4B · never transmits</div>
+    <div class="ns">Raspberry Pi 4B · receive-only radios</div>
     <ul><li>LTE radio</li><li>GPS + timing pulse</li><li>IMU + barometer</li><li>ADS-B receiver</li></ul>
   </div>
   <div class="arrow"><span>authenticated link<br>or recording</span></div>
@@ -132,13 +132,15 @@ class: topo-light
   <div class="node"><div class="nt">Integrity</div><div class="ns">position and time bounds · jump guard · sky check</div></div>
   <div class="arrow"></div>
   <div class="node panel"><div class="nt">Operator panel</div><div class="ns"><span class="ok">green</span> · <span class="warn">amber</span> · <span class="bad">red</span>, with the number</div></div>
+  <div style="grid-column: 3 / 10; margin-top: 0.45rem; height: 0.55rem; border: 1.5px solid var(--contour); border-top: 0; border-radius: 0 0 8px 8px"></div>
+  <div style="grid-column: 3 / 10; text-align: center; font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.08em; color: var(--muted); margin-top: 0.3rem">GROUND STATION · LAPTOP</div>
 </div>
 
 <div class="cols" style="grid-template-columns: 1fr 1fr 1fr 0.95fr; margin-top: 1rem; gap: 1rem; align-items: stretch">
 <div class="card small"><h3>Towers are checked</h3>A clock jump, a wrong registry entry or a fake tower is a fault the filter tests for, as it tests GPS.</div>
 <div class="card small"><h3>Tower time is GPS time</h3>Towers may <strong>contradict</strong> GPS time, never <strong>confirm</strong> it.</div>
 <div class="card small"><h3>The bound stays honest</h3>Each tower's slow error is its own state, so confidence widens when towers drift.</div>
-<Media file="payload.jpg" label="The payload, lid off" hint="Pi, LTE radio, GPS, IMU, barometer." ratio="4 / 3" />
+<div class="card small" style="border-style: dashed"><h3>Ground reference station</h3>A fixed receiver hears the same towers; subtracting cancels their clocks. Simulated: worst moment <strong>677 → 332 m</strong>, radius honest <strong>100&nbsp;%</strong>.</div>
 </div>
 
 <p class="small muted" style="margin-top: 0.7rem">Prior work (the Kassas group) fuses cell towers for <strong>accuracy</strong>. We build the <strong>integrity</strong> on them. Simulation, recordings and live data run the same code.</p>
@@ -188,76 +190,73 @@ The twist: nothing is trusted blindly, not even the towers. Their errors are tra
 -->
 
 ---
-class: topo-light
+class: topo-content
 ---
 
-<div class="ask"><span>D2</span> real-time monitoring</div>
-<div class="kicker">Live demo · simulated drone, real tower sites</div>
+<div class="ask"><span>D3</span> next layer</div>
+<div class="kicker">Ground reference station · simulation only</div>
 
-# Watch the confidence change
+# A ground station cancels tower clocks, in simulation
 
-<div class="cols cols-3" style="margin-top: 1.1rem; gap: 1.2rem">
-<figure class="shot">
-  <Clip src="/proof/clips/outage-rail.mp4" poster="/proof/outage-3-rail.jpg" label="Panel after GPS loss: UNSAFE, bound 895 m, error 325 m inside it" />
-  <figcaption><span class="n">1</span><span><strong>GPS lost.</strong> Red within 3 s. Forty seconds on: 325 m off, and the bound (895 m) says so.</span></figcaption>
-</figure>
-<figure class="shot">
-  <Clip src="/proof/clips/jump-rail.mp4" poster="/proof/jump-3-rail.jpg" label="Spoofed jump without the guard: NOMINAL, bound 7 m, error 298 m outside it" />
-  <figcaption><span class="n">2</span><span><strong>Spoofed 300 m, no guard.</strong> Caught at the first fake fix, then taken back: <span class="ok">green</span> and 298 m wrong.</span></figcaption>
-</figure>
-<figure class="shot">
-  <Clip src="/proof/clips/guard-rail.mp4" poster="/proof/guard-1-rail.jpg" label="Same attack with the guard: UNSAFE, fake GPS refused, error inside the bound" />
-  <figcaption><span class="n">3</span><span><strong>Same attack, guard on.</strong> Fake GPS refused, stays <span class="bad">red</span>; real GPS back within metres.</span></figcaption>
-</figure>
+<div class="cols" style="grid-template-columns: 1fr 1.1fr 1fr; gap: 1.1rem; margin-top: 0.7rem; align-items: stretch">
+<div class="card small">
+<h3>What it is</h3>
+<p>A second receiver at a surveyed point hears the same towers. The laptop subtracts its readings from the payload's, so each tower's clock error cancels, as GBAS does for aircraft.</p>
+<img src="/proof/error-with-without-base.png" alt="Error after GPS loss with and without the ground station, 50 simulated runs" style="width: 100%; margin-top: 0.4rem; border-radius: 6px; background: #fff" />
+</div>
+<div class="card small">
+<h3>What it buys · long outage, 50 runs</h3>
+<table class="score dense nw">
+<thead><tr><th></th><th>default</th><th>+ station</th><th>+ IMU</th></tr></thead>
+<tbody>
+<tr><td>Error, worst second</td><td class="r">677 m</td><td class="r">500 m</td><td class="r ok">332 m</td></tr>
+<tr><td>Bound covers error, worst run</td><td class="r">69 %</td><td class="r">93 %</td><td class="r ok">100 %</td></tr>
+<tr><td>Time error, p95</td><td class="r">0.46 µs</td><td class="r">0.31 µs</td><td class="r ok">0.29 µs</td></tr>
+</tbody>
+</table>
+<p style="margin-top: 0.5rem">Station faults during the outage (moved 50 m, 1 µs clock step, 60 s link loss): 0 hazardous.</p>
+</div>
+<div class="card small">
+<h3>What it costs, and what's next</h3>
+<p><span class="bad">Follows a held spoof jump in 49 of 50 runs</span> (68,537 hazardous moments against the default's 17,042): there is no guarded station filter yet.</p>
+<p>Parts weren't in hand by the cut-off: our second radio is the ADS-B one, filtered to 1090 MHz, and the only GPS with a timing pulse is on the payload.</p>
+</div>
 </div>
 
-<div class="foot">The panel's status rail, recorded live and looped (main de28b38) · deploy/demo/RUNBOOK.md</div>
+<div class="foot">analysis/results/headline/summary.md (24aa5d1, seeds 0–49, realistic-with-base) · ADR-0020 (Amendment 2026-11-10) · ADR-0038</div>
 
 <!--
-**1:10 → 2:05 · 55 s · LIVE DEMO**
+**Use when:** "what about a ground station?", "differential?", "how would you fix the tower clocks?"
 
-**Before the talk:** terminal open with the demo command typed; the panel in a browser tab beside the slides.
+**Say:** We designed a ground reference station: a second receiver at a known point hearing the same towers. Subtract the two and the towers' clock errors cancel, the way GBAS works for aircraft. In simulation it's our best result for GPS loss: worst-second error 677 → 332 m with the IMU, and its bound covers the error 100 % of the time in the worst run. But it can't defend against spoofing yet: without a jump guard it follows a held jump in 49 of 50 runs. And we didn't build it: the parts weren't in hand by our cut-off.
 
-**Do:** run `deploy/demo/demo.sh jump` (about 55 s, two runs). It starts on the jump **without** the guard. Press **Enter when T+ passes 188** to switch to the guarded run (the panel shows NO DATA for 3–6 s; keep talking). Press **Enter when T+ passes 212** to stop. If anything fails, don't debug: say "here's the recording" and use the clips (script at the bottom).
+**Why we chose this design over the alternatives (ADR-0020, ADR-0022):**
+- *No station, learn tower clocks only:* no hardware, but the error grows with outage length and a lone tower clock can't be tested.
+- *Station on hardware:* real evidence for the strongest part of the integrity story, $92.34 of parts, but set-up, a zero-baseline test and a new single point of failure. Planned, then deferred.
+- *Station in sim only* (**where we are**): free, but no real evidence.
 
-**Say:**
+**Design details if pressed:**
+- The base and payload share GPS time through their own PPS-disciplined clocks over a wired link: NTP gives only milliseconds, and 1 µs is 300 m.
+- A zero-baseline test before each session: both side by side for 5–10 min to measure their receiver bias.
+- The link to the laptop is authenticated; the station is a fault hypothesis of its own (a moved or spoofed base corrupts every correction).
+- The sim assumes the link is always up with no latency; that's the mentors' condition ("if you can reliably communicate") taken as true, not shown.
 
-Let me show you. This is our real operator panel, with a simulated drone flying past real tower sites. Right now GPS is healthy: green, with a 7-metre bound.
-
-[T+150, amber] Now a spoofer pushes GPS 300 metres east. We catch the very first fake fix. [T+155, red] And it goes red.
-
-[T+177, green again] But watch. Half a minute later this normal filter gives in and takes the fake GPS back. Green, a 7-metre bound, and 300 metres wrong. That's exactly the failure we're worried about.
-
-[Enter at T+188; NO DATA for a few seconds] Same flight, same attack, now with our jump guard. [point at "ekf-guard" in the top bar]
-
-[T+150] Caught at the first fake fix again. [T+155 to 200, red] This time the fake GPS stays out. We're flying on the barometer and dead reckoning, so the error grows, but the bound grows faster, and it stays red.
-
-[T+200, green] The spoofer stops, real GPS comes straight back, and we're within a few metres. [Enter at T+212 to stop]
-
-**If you're on the clips instead:** (1) "GPS lost: red in three seconds. Forty seconds on we're 325 metres off, and the bound, 895, says so." (2) "A spoofer jumps GPS 300 metres. Caught, but half a minute later the normal filter takes it back: green and 300 metres wrong." (3) "Same attack with our guard: it stays red, and real GPS comes straight back when the spoofer stops."
-
-**Scores:** Presentation & demo (8) · D2 real-time monitoring · mentor ask: begin with location jumps.
-
-***
-
-**Why the plain filter gets fooled:** once it rejects GPS, its own uncertainty grows, so the same fake fix eventually passes its check. *A spoofer only has to wait.*
-
-**Four ways to handle a detected jump (ADR-0038; sim, 50 runs per leg):**
-- *Gate only* (before): hazardous on 49 of 50 runs, and on the spoofed position at +120 s.
-- *Refuse until GPS steps back* (**chosen**): hazardous epochs on 3 of 50 runs; honest GPS back 0.1 s after the jump ends.
-- *Refuse for the rest of the flight:* as safe, but honest GPS never returns.
-- *Re-admit on a likelihood test against the filter's covariance:* the spoofer waits it out, hazardous on 46 of 50.
-
-**What it costs:** while GPS is refused we dead-reckon: median error 1,263 m at +120 s after a refused jump, shown as unsafe. It's opt-in, not the default.
-
-**Problems still open:**
-- The guard never judges GPS *returning after an outage*, so jam-then-spoof meets only the normal check.
-- After a long outage the normal check can reject honest GPS for good; one simulated run drifted to 54 km (#246).
-
-**If asked:**
-- *Is that real?* A simulated drone (seed 0) past real tower sites, through the same code that runs recordings and live data. Attacks are injected in software because we never transmit. The panel is the real operator panel.
-- *Why not stop the spoof?* We flag, refuse and coast; the warning goes to the autopilot or pilot. Mitigation stays with them.
+**Next:** build it with a guard, and run the zero-baseline test. It's on the roadmap.
 -->
+
+---
+class: topo-content
+---
+
+<div class="kicker">The operator panel, recorded · simulated drone, real tower sites</div>
+
+# Green, amber, red: one glance tells the operator
+
+<div class="cols" style="grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-top: 0.8rem">
+<figure class="fig"><img src="/proof/state-nominal.jpg" alt="Panel in the NOMINAL state"><figcaption><strong>Nominal.</strong> GPS trusted, bound well inside the 50 m limit.</figcaption></figure>
+<figure class="fig"><img src="/proof/state-degraded.jpg" alt="Panel in the DEGRADED state"><figcaption><strong>Degraded.</strong> A 300 m GPS jump is rejected; bound 42 m, still inside the limit, error 9.9 m.</figcaption></figure>
+<figure class="fig"><img src="/proof/state-unsafe.jpg" alt="Panel in the UNSAFE state"><figcaption><strong>Unsafe.</strong> Bound over the alert limit: do not navigate on this position.</figcaption></figure>
+</div>
 
 ---
 class: topo-light
@@ -266,12 +265,12 @@ class: topo-light
 <div class="ask"><span>Use case</span> navigation continuity</div>
 <div class="kicker">Cell-tower positioning after GPS loss · simulation, 50 runs</div>
 
-# The towers do localize, once they're modelled honestly
+# In simulation, the towers localize once they're modelled honestly
 
 <div class="cols" style="grid-template-columns: 1.55fr 1fr; gap: 1.2rem; margin-top: 0.3rem; align-items: start">
 <figure class="fig" style="margin: 0">
   <img src="/proof/ladder.png" alt="Worst-second 95 % error after GPS loss for each fix, from 12,507 m down to 10 m">
-  <figcaption>Each row adds one fix to the same flights. Worst second of the first 5 min, 95 % of runs.</figcaption>
+  <figcaption>Each row adds one fix to the same flights. Worst second of the first 5 min, 95 % of runs. On real data our one-channel receiver rarely hears the 3 towers a fix needs.</figcaption>
 </figure>
 <div class="flex flex-col gap-2">
 <figure class="fig" style="margin: 0">
@@ -335,7 +334,7 @@ class: topo-light
 <div class="ask"><span>Mentor ask</span> several ways to show confidence</div>
 <div class="kicker">The real panel, live as GPS is lost · 6× speed</div>
 
-# Confidence shown ten ways, and it holds up
+# Confidence shown ten ways, checked against the truth
 
 <div class="cols" style="grid-template-columns: 2.75fr 1fr; gap: 1.1rem; margin-top: 0.2rem; align-items: start">
 <div class="annot">
@@ -416,7 +415,7 @@ class: topo-content
 <div class="ask"><span>Mentor asks</span> call of 10 November</div>
 <div class="kicker">What the Honeywell mentors asked for, and what we built</div>
 
-# They asked. We built it, and measured it.
+# They asked. Here is what we built and measured.
 
 <div class="asks">
 <div class="card"><div class="q">Start with location jumps, in the hundreds of metres</div><div class="a"><span class="num ok">1.1 s</span> to flag any jump from 20 m to 500 km; dangerous moments on a held 300 m jump <span class="num">5,244 → 3</span></div><div class="k">sim · 50 runs</div></div>
@@ -513,14 +512,15 @@ class: topo-light
 <tbody>
 <tr><td>GPS jump flagged within 2 s</td><td class="r">1.1 s, 50 of 50 · 0 false alarms</td><td class="muted">sim</td><td><span class="pill ok">Met</span></td></tr>
 <tr><td>No dangerous moment from a held jump</td><td class="r">0 with the guard · 17,042 without</td><td class="muted">sim</td><td><span class="pill ok">Met</span></td></tr>
-<tr><td>Radius always covers the error</td><td class="r">0 of 3,005 misses · standard filter 34 %</td><td><strong>real</strong></td><td><span class="pill ok">Met</span></td></tr>
+<tr><td>Radius covers the error on real recordings</td><td class="r">0 of 3,005 misses · standard filter 34 %</td><td><strong>real</strong></td><td><span class="pill ok">Met</span></td></tr>
 <tr><td>Cell towers carry the solution</td><td class="r">+1,961 m without them</td><td class="muted">sim</td><td><span class="pill ok">Met</span></td></tr>
 <tr><td>Time within 1.5 µs after 10 min</td><td class="r">0.44 µs · drift caught in 3.3 s</td><td class="muted">sim</td><td><span class="pill ok">49 of 50</span></td></tr>
 <tr><td>Position within 25 m for 5 min</td><td class="r">10 m with clean tower signals</td><td class="muted">sim</td><td><span class="pill warn">Met, clean signals</span></td></tr>
+<tr><td>Error inside the radius 99.9 % of the time</td><td class="r">99.55 % · 100 % on real recordings</td><td class="muted">sim</td><td><span class="pill warn">Close</span></td></tr>
 </tbody>
 </table>
 
-<p class="small" style="margin-top: 0.8rem"><span class="tag">Trade-off</span> Our filter is never fooled by a jump and its radius always covers the error; the price is saying "don't trust me" a little more often. Full table: backup.</p>
+<p class="small" style="margin-top: 0.8rem"><span class="tag">Trade-off</span> In our tests the guard kept every held jump out, and on real recordings the radius covered the error every time; the price is saying "don't trust me" a little more often. Full table: backup.</p>
 
 <div class="foot">systems/results.md · analysis/results/headline (24aa5d1, seeds 0–49) · analysis/results/final (d66c929, ablation)</div>
 
@@ -583,7 +583,7 @@ class: topo-content
 </ul>
 </div>
 <div class="cols cols-3" style="gap: 0.9rem">
-<div class="card"><span class="tag">Now</span><p>Detection and an honest radius, on real hardware</p></div>
+<div class="card"><span class="tag">Now</span><p>Detection and an honest radius, shown on real recordings</p></div>
 <div class="card"><span class="tag">Next</span><p>Hear more towers; flight tests</p></div>
 <div class="card"><span class="tag">Product</span><p>A box that warns the autopilot; LEO satellites as one more source</p></div>
 </div>
@@ -634,7 +634,7 @@ title: Backup
 <div class="h-full flex flex-col justify-center">
   <div class="kicker">Backup slides for questions</div>
   <h1 style="font-size: 2.6rem">Backup</h1>
-  <p class="lede">Full evidence: systems/results.md · prepared answers: systems/judge-questions.md</p>
+  <p class="lede">Full evidence: systems/results.md</p>
 </div>
 
 <!--
@@ -652,7 +652,6 @@ title: Backup
 class: topo-content
 ---
 
-<div class="rubric"><span>Rubric</span> Testing, evidence & results</div>
 <div class="kicker">Backup · Every target, in full</div>
 
 # Every target, and where it stands
@@ -666,7 +665,7 @@ class: topo-content
 <tr><td>GPS time drift 50 ns/s within 60 s</td><td class="r">3.3 s median, 50 of 50</td><td class="muted">sim</td><td><span class="pill ok">Met</span></td></tr>
 <tr><td>≤ 1 false alarm per hour</td><td class="r">0.0 per hour; 0 spoof alarms in 40 h clean</td><td class="muted">sim + real</td><td><span class="pill ok">Met</span></td></tr>
 <tr><td>Cell towers carry the solution</td><td class="r">without LTE +1,961 m · barometer +78 m · IMU +0 m</td><td class="muted">sim</td><td><span class="pill ok">Met</span></td></tr>
-<tr><td>Crews warned of interference on approach</td><td class="r">50 of 50, from other aircraft's ADS-B, 48–78 s early</td><td class="muted">sim</td><td><span class="pill ok">Met</span></td></tr>
+<tr><td>Crews warned of interference on approach</td><td class="r">50 of 50, 48–78 s early · 1.94 false warnings per hour (target ≤ 1)</td><td class="muted">sim</td><td><span class="pill warn">Partly met</span></td></tr>
 <tr><td>Time ≤ 1.5 µs after 10 min without GPS</td><td class="r">0.44 µs mean · 1.55 µs worst run</td><td class="muted">sim</td><td><span class="pill ok">49 of 50</span></td></tr>
 <tr><td>Approach position within 556 m</td><td class="r">crew warning verified 50 of 50 · position awaits real airport towers</td><td class="muted">sim</td><td><span class="pill warn">Next</span></td></tr>
 <tr><td>Position ≤ 25 m for 300 s after GPS loss</td><td class="r">10 m with clean tower signals · 105 m with every fix</td><td class="muted">sim</td><td><span class="pill warn">Met with clean signals</span></td></tr>
@@ -685,7 +684,6 @@ class: topo-content
 class: topo-light
 ---
 
-<div class="rubric"><span>Rubric</span> Problem understanding · Documentation</div>
 <div class="ask"><span>Mentor ask</span> requirements tied to the use cases (D1)</div>
 <div class="kicker">Backup · Use case → requirement → measure</div>
 
@@ -717,7 +715,6 @@ class: topo-light
 class: topo-light
 ---
 
-<div class="rubric"><span>Rubric</span> Technical approach & rigor</div>
 <div class="ask"><span>Mentor ask</span> several ways to show confidence</div>
 <div class="kicker">Backup · The real panel, 40 s after GPS loss</div>
 
@@ -763,10 +760,9 @@ class: topo-light
 class: topo-content
 ---
 
-<div class="rubric"><span>Rubric</span> Testing, evidence & results</div>
 <div class="kicker">Backup · Is the confidence true? Sim truth and real recordings</div>
 
-# A bound that does not lie
+# A bound built to stay above the error
 
 <div class="cols" style="grid-template-columns: 0.9fr 1.25fr; margin-top: 0.8rem; gap: 2rem">
 <div>
@@ -805,7 +801,6 @@ $$\mathrm{HPL} = k_H\,\sigma_{\max},\quad k_H=\sqrt{2\ln 10^{7}} = 5.68$$
 class: topo-content
 ---
 
-<div class="rubric"><span>Rubric</span> Technical approach & rigor</div>
 <div class="ask"><span>Mentor ask</span> explain the calculation · handover timing</div>
 <div class="kicker">Backup · Accuracy budget against Monte Carlo</div>
 
@@ -834,7 +829,6 @@ class: topo-content
 class: topo-light
 ---
 
-<div class="rubric"><span>Rubric</span> Testing, evidence & results</div>
 <div class="ask"><span>Mentor ask</span> how the sim aligns to reality</div>
 <div class="kicker">Backup · Simulation against reality</div>
 
@@ -873,7 +867,6 @@ class: topo-light
 class: topo-light
 ---
 
-<div class="rubric"><span>Rubric</span> Testing, evidence & results</div>
 <div class="ask"><span>Challenge</span> position <em>and</em> timing</div>
 <div class="kicker">Backup · UC-03 timing · sim, 50 runs</div>
 
@@ -905,7 +898,6 @@ class: topo-light
 class: topo-content
 ---
 
-<div class="rubric"><span>Rubric</span> Technical approach · trade-offs</div>
 <div class="kicker">Backup · Choosing the filter · 15 attacks × 50 runs each, simulation</div>
 
 # What each defence costs
@@ -939,7 +931,6 @@ class: topo-content
 class: topo-content
 ---
 
-<div class="rubric"><span>Rubric</span> Testing, evidence & results</div>
 <div class="ask"><span>D2</span> quantitative results</div>
 <div class="kicker">Backup · What the defences bought · simulation, 50 runs each unless marked</div>
 
@@ -983,63 +974,6 @@ And the defences pay off. [sweep left to right] Any GPS jump, from 20 metres to 
 class: topo-content
 ---
 
-<div class="rubric"><span>Rubric</span> Technical approach · trade-offs</div>
-<div class="ask"><span>D3</span> next layer</div>
-<div class="kicker">Backup · Ground reference station · ADR-0020 · simulation only</div>
-
-# A ground station cancels tower clocks, in simulation
-
-<div class="cols" style="grid-template-columns: 1fr 1.1fr 1fr; gap: 1.1rem; margin-top: 0.7rem; align-items: stretch">
-<div class="card small">
-<h3>What it is</h3>
-<p>A second receiver at a surveyed point hears the same towers. The laptop subtracts its readings from the payload's, so each tower's clock error cancels, as GBAS does for aircraft.</p>
-<p>The station is its own fault hypothesis. It can't protect against a wide-area GPS time spoof, which pulls the station too.</p>
-</div>
-<div class="card small">
-<h3>What it buys · long outage, 50 runs</h3>
-<table class="score dense nw">
-<thead><tr><th></th><th>default</th><th>+ station</th><th>+ IMU</th></tr></thead>
-<tbody>
-<tr><td>Error, worst second</td><td class="r">677 m</td><td class="r">500 m</td><td class="r ok">332 m</td></tr>
-<tr><td>Bound covers error, worst run</td><td class="r">69 %</td><td class="r">93 %</td><td class="r ok">100 %</td></tr>
-<tr><td>Time error, p95</td><td class="r">0.46 µs</td><td class="r">0.31 µs</td><td class="r ok">0.29 µs</td></tr>
-</tbody>
-</table>
-<p style="margin-top: 0.5rem">Station faults during the outage (moved 50 m, 1 µs clock step, 60 s link loss): 0 hazardous.</p>
-</div>
-<div class="card small">
-<h3>What it costs, and what's next</h3>
-<p><span class="bad">Follows a held spoof jump in 49 of 50 runs</span> (68,537 hazardous moments against the default's 17,042): there is no guarded station filter yet.</p>
-<p>Parts weren't in hand by the cut-off: our second radio is the ADS-B one, filtered to 1090 MHz, and the only GPS with a timing pulse is on the payload.</p>
-</div>
-</div>
-
-<div class="foot">analysis/results/headline/summary.md (24aa5d1, seeds 0–49, realistic-with-base) · ADR-0020 (Amendment 2026-11-10) · ADR-0038</div>
-
-<!--
-**Use when:** "what about a ground station?", "differential?", "how would you fix the tower clocks?"
-
-**Say:** We designed a ground reference station: a second receiver at a known point hearing the same towers. Subtract the two and the towers' clock errors cancel, the way GBAS works for aircraft. In simulation it's our best result for GPS loss: worst-second error 677 → 332 m with the IMU, and its bound covers the error 100 % of the time in the worst run. But it can't defend against spoofing yet: without a jump guard it follows a held jump in 49 of 50 runs. And we didn't build it: the parts weren't in hand by our cut-off.
-
-**Why we chose this design over the alternatives (ADR-0020, ADR-0022):**
-- *No station, learn tower clocks only:* no hardware, but the error grows with outage length and a lone tower clock can't be tested.
-- *Station on hardware:* real evidence for the strongest part of the integrity story, $92.34 of parts, but set-up, a zero-baseline test and a new single point of failure. Planned, then deferred.
-- *Station in sim only* (**where we are**): free, but no real evidence.
-
-**Design details if pressed:**
-- The base and payload share GPS time through their own PPS-disciplined clocks over a wired link: NTP gives only milliseconds, and 1 µs is 300 m.
-- A zero-baseline test before each session: both side by side for 5–10 min to measure their receiver bias.
-- The link to the laptop is authenticated; the station is a fault hypothesis of its own (a moved or spoofed base corrupts every correction).
-- The sim assumes the link is always up with no latency; that's the mentors' condition ("if you can reliably communicate") taken as true, not shown.
-
-**Next:** build it with a guard, and run the zero-baseline test. It's on the roadmap.
--->
-
----
-class: topo-content
----
-
-<div class="rubric"><span>Rubric</span> Safety, regulatory compliance & responsible execution</div>
 <div class="kicker">Backup · Safety, regulation, privacy, security</div>
 
 # Safe and legal by design
@@ -1095,7 +1029,6 @@ Advisory: it warns, it does not steer. No certification claim; we found no stand
 class: topo-content
 ---
 
-<div class="rubric"><span>Rubric</span> Impact, feasibility & next steps</div>
 <div class="ask"><span>D3</span> roadmap to a product · LEO layer</div>
 <div class="kicker">Backup · Roadmap · from hackathon to product</div>
 
@@ -1143,7 +1076,6 @@ Hours of tower data for fault rates; an on-board receiver; the warning output to
 class: topo-content
 ---
 
-<div class="rubric"><span>Rubric</span> Documentation quality</div>
 <div class="kicker">Backup · Documentation · traceable, reproducible, decisions recorded</div>
 
 # Every number here traces to a commit
@@ -1170,7 +1102,7 @@ class: topo-content
 </div>
 
 
-<div class="foot">systems/README.md · systems/results.md · systems/quality.md · AGENTS.md</div>
+<div class="foot">systems/README.md · systems/results.md · systems/quality.md</div>
 
 <!--
 **Use when:** "how would we reproduce this?" or documentation questions.
@@ -1182,11 +1114,10 @@ class: topo-content
 class: topo-light
 ---
 
-<div class="rubric"><span>Rubric</span> Testing & evidence · limitations · next steps</div>
 <div class="ask"><span>Mentor ask</span> how the sim aligns to reality</div>
 <div class="kicker">Backup · Real captures · two 10-min static sessions outdoors, GPS as truth</div>
 
-# In the field, the receiver is the bottleneck, not the method
+# In the field, we think the receiver is the bottleneck
 
 <div class="cols" style="grid-template-columns: 0.9fr 1.25fr; gap: 1.4rem; margin-top: 0.5rem; align-items: start">
 <div class="flex flex-col gap-3">
@@ -1276,15 +1207,19 @@ class: topo-light
 class: topo-light
 ---
 
-<div class="kicker">Backup · the hardware we built and flew</div>
+<div class="kicker">Backup · the hardware we built</div>
 
 # The real payload
 
-<div class="cols" style="grid-template-columns: repeat(4, 1fr); margin-top: 1.2rem; gap: 1.1rem">
-<Media file="payload-inside.jpg" label="Inside the payload" hint="The radios on USB 2, the GPS HAT, the IMU." ratio="3 / 4" />
-<Media file="antenna.jpg" label="The LTE antenna as mounted" hint="Its ground plane mattered more than the antenna: 25 dB." ratio="3 / 4" />
-<Media file="field-capture.jpg" label="A static capture outdoors" hint="Where the real LTE measurements came from." ratio="3 / 4" />
-<Media file="flight.mp4" label="The payload flight" hint="A 10–20 s clip, muted; it loops." ratio="3 / 4" />
+<div class="cols" style="grid-template-columns: repeat(3, 1fr); margin-top: 1.2rem; gap: 1.1rem">
+<Media file="payload-inside.jpg" label="Inside the payload" hint="" ratio="4 / 3" />
+<Media file="antenna.jpg" label="The payload with its LTE antenna" hint="" ratio="4 / 3" />
+<Media file="field-capture.jpg" label="The payload in hand beside the drone" hint="" ratio="4 / 3" />
+</div>
+<div class="cols" style="grid-template-columns: repeat(3, 1fr); gap: 1.1rem; margin-top: 0.5rem">
+<p class="small">Pi 4B, GPS add-on with timing pulse, IMU and barometer.</p>
+<p class="small">LTE and ADS-B radios on USB, receive-only.</p>
+<p class="small">The test drone that carries it: a 5-inch quad, pilot-flown with an RC kill switch.</p>
 </div>
 
 <div class="foot">hardware/bom.md · hardware/antennas.md · ADR-0057 (Bingfu antenna)</div>
@@ -1303,7 +1238,7 @@ class: topo-light
 
 <div class="kicker">Backup · REQ-06 ablation · realistic-long-outage, 50 runs</div>
 
-# The cell towers carry the solution
+# In simulation, the cell towers carry the solution
 
 <div class="cols" style="grid-template-columns: 1.2fr 1fr; margin-top: 0.8rem; gap: 1.6rem">
 <figure class="fig"><img src="/proof/ablation.png" alt="Ablation: error with each source removed"><figcaption>95 % error after GPS loss with each source removed, paired runs.</figcaption></figure>
