@@ -281,12 +281,17 @@ class: topo-light
 </figure>
 <div class="flex flex-col gap-2">
 <figure class="fig" style="margin: 0">
-  <img src="/proof/towers-holding.png" alt="Panel 45 s after GPS loss in the towers study: 17.9 m error, LTE in use, HPL 108.7 m">
+  <img style="max-height: 12.5rem; object-fit: contain" src="/proof/towers-holding.png" alt="Panel 45 s after GPS loss in the towers study: 17.9 m error, LTE in use, HPL 108.7 m">
   <figcaption>The study on the real panel, 45 s after GPS loss: <strong>17.9 m off</strong>, towers in use, bound 109 m.</figcaption>
 </figure>
-<div class="cols cols-2 small" style="gap: 0.5rem">
-<div class="card" style="padding: 0.5rem 0.7rem"><div class="num" style="font-size: 1.15rem"><span class="ok">0.73 m</span></div><div class="muted" style="font-size: 0.72rem">range jitter on our <strong>real</strong> radio, strong cells</div></div>
-<div class="card" style="padding: 0.5rem 0.7rem"><div class="num" style="font-size: 1.15rem"><span class="bad">+1,961 m</span></div><div class="muted" style="font-size: 0.72rem">added error if the towers are removed</div></div>
+<div class="card grounded">
+<h3>Grounded in real measurements</h3>
+<ul>
+<li><strong>Real towers:</strong> every site from the ISED licence database, at its licensed location</li>
+<li><strong>Our radio, measured:</strong> 0.73 m jitter and the hidden 8 m slow error, from 15 real captures</li>
+<li><strong>Our sensors, measured:</strong> motion-sensor noise overnight; payload clock to 35 ns of GPS</li>
+<li><strong>Same code on real data:</strong> faults injected into real recordings are caught (300 m jump in 0.6 s)</li>
+</ul>
 </div>
 </div>
 </div>
@@ -294,13 +299,15 @@ class: topo-light
 <div class="foot">PR #247 · PR #262 (seeds 0–49, ekf) · tower-count #208 (clean ranges, seeds 0–19) · towers demo #266 · lte-measured-noise · final ablation (d66c929)</div>
 
 <!--
-**2:05 → 2:35 · 30 s**
+**2:05 → 2:40 · 35 s**
 
 **Say:**
 
 So can the towers actually navigate? Yes, once they're modelled honestly. [point down the bars] Believe the radio's own accuracy claim and you're 12 kilometres off. Learn each tower's real noise and hear more carriers, and the same flights hold to 132 metres, 105 on our measured noise. With clean ranges from all 17 nearby towers: 10 metres for the full five minutes.
 
 [point at the panel] Here it is on our panel: 45 seconds without GPS, 18 metres off.
+
+[point at the box] And this isn't a toy simulation: it flies over the real licensed towers, with our radio's noise, our motion sensor and our clock all measured on the payload. The same code runs on real recordings.
 
 **Scores:** Technical approach (2) · Evidence (5) · Innovation (3) · use case: navigation continuity · communication signals primary.
 
@@ -325,70 +332,6 @@ So can the towers actually navigate? Yes, once they're modelled honestly. [point
 **If asked:**
 - *Why does believing the radio make it worse than nothing?* Each accepted reading shrinks the filter's uncertainty while pulling the position away, so it stops listening to anything else.
 - *Is 10 m realistic?* It's the ceiling with perfect ranges: it proves the geometry works, not that our radio delivers it today.
--->
-
----
-class: topo-light
----
-
-<div class="rubric"><span>Rubric</span> Testing & evidence · limitations · next steps</div>
-<div class="ask"><span>Mentor ask</span> how the sim aligns to reality</div>
-<div class="kicker">Real captures · two 10-min static sessions outdoors, GPS as truth</div>
-
-# In the field, the receiver is the bottleneck, not the method
-
-<div class="cols" style="grid-template-columns: 0.9fr 1.25fr; gap: 1.4rem; margin-top: 0.5rem; align-items: start">
-<div class="flex flex-col gap-3">
-<div class="card" style="padding: 0.8rem 1rem"><div class="bigstat" style="font-size: 2.3rem">43 %</div><div class="statlabel">of the time our radio has <strong>one</strong> usable tower</div></div>
-<div class="card" style="padding: 0.8rem 1rem"><div class="bigstat bad" style="font-size: 2.3rem">≤ 1.4 %</div><div class="statlabel">of the time it has <strong>two at once</strong>. A position fix needs <strong>three</strong>.</div></div>
-<div class="card" style="padding: 0.8rem 1rem"><div class="bigstat ok" style="font-size: 2.3rem">0.73 m</div><div class="statlabel">range jitter when it does lock: the measurement itself is good</div></div>
-</div>
-<div>
-<table class="score">
-<thead><tr><th></th><th>Our payload today</th><th>What the method needs</th></tr></thead>
-<tbody>
-<tr><td>Radio</td><td>one 8-bit hobby SDR, $78 with antennas</td><td>a wider-band receiver, or several</td></tr>
-<tr><td>LTE carriers heard</td><td class="bad">1</td><td class="ok">many: 13 in our study → 27 masts</td></tr>
-<tr><td>Towers usable at once</td><td class="bad">1, rarely 2</td><td class="ok">3 or more</td></tr>
-<tr><td>Weak cells</td><td>lose lock but keep reporting, km off</td><td>now distrusted in software</td></tr>
-</tbody>
-</table>
-<div class="flex flex-col gap-2 small" style="margin-top: 0.9rem">
-<div><span class="tag">Published</span> a research-grade receiver on a drone, 3 towers: <strong>8.15 m</strong> RMS (Shamaei, Khalife &amp; Kassas, 2018)</div>
-<div><span class="tag">Our sim</span> clean ranges from 17 towers: <strong>10 m</strong> for the full 5 minutes</div>
-</div>
-</div>
-</div>
-
-<div class="foot">analysis/results/lte-gps-truth-20261111 (sessions 0151, 0040) · lte-measured-noise (8892fca) · ADR-0036 · ADR-0050 · systems/research.md §2 · hardware/bom.md</div>
-
-<!--
-**2:35 → 3:05 · 30 s**
-
-**Say:**
-
-So why not on real data yet? The radio: one 8-bit hobby SDR on one LTE frequency. On our real captures it had one usable tower 43 % of the time, and two at once under 1.5 % of the time; a fix needs three. When it does lock, the range is good: under a metre of jitter.
-
-A research-grade receiver on a drone has reached 8 metres with three towers. So our next step is hardware, not a new algorithm.
-
-**Scores:** Testing & evidence, limitations recognised (5) · mentor ask: how the sim aligns to reality · Impact & next steps (10).
-
-***
-
-**Where the numbers come from (real, `lte-gps-truth-20261111`):**
-- Session 0151: the best cell (PCI 92) is above the usable SNR (−8 dB, `TBC`) for 43.1 % of the capture, in runs up to 71 s; every other cell 0.6–6.6 %. Any two cells together: 0–1.4 % (81 epochs at most). Session 0040: best cell 18.9 %, pairs 0–1.5 %.
-- Jitter: 0.73 m on strong cells (ADR-0036, 15 captures); 0.86 m on the best cell at 10 Hz in session 0151. On top of that sits a slow error, median 8 m, that the radio never reports.
-- Weak cells (below −8 dB) lose lock but still report: errors spread 1.5–12.9 km while the records claim 21–31 m. ADR-0050 now gives each re-found track its own bias and tells the filter the measured noise.
-- A 2-D fix with our clock unknown needs 3 towers at once.
-- Published: Shamaei, Khalife & Kassas 2018 (IEEE TWC): a UAV receiver sampling one channel at 3 Msps, 8.15 m RMSE with three eNodeBs. Ours samples 1.92 Msps on a free-running dongle. Their hardware, not ours; say "published".
-
-**If pressed, frame it like this:**
-- "Bottleneck", not "only": reflections while moving are still unmeasured (our captures are static), and part of the early trouble was our own software believing the radio's 2 m claim. That's fixed (ADR-0050), and towers still don't beat no towers on real static data (364–595 m against about 1 m).
-- The 10 m is the sim with ideal ranges: it shows the geometry is enough, not what our radio delivers today.
-
-**If asked:**
-- *Why not just buy a better radio?* We had a week and a CAD 170 budget for radios. The next steps are a second dongle or a hopping front end to hear more towers, then a GPS-disciplined clock for carrier phase.
-- *How do you know the towers are the right ones?* Every heard cell matched one registered ISED site; that's consistent with the registry, not a confirmed identity.
 -->
 
 ---
@@ -437,7 +380,7 @@ class: topo-light
 <div class="foot">HPL = 5.68 × σ<sub>max</sub> (two-dimensional, 10⁻⁷ per epoch, TBC; ADR-0056) · ADR-0046 · analysis/results/honest-bound · real-replay-256</div>
 
 <!--
-**3:05 → 3:25 · 20 s**
+**2:40 → 3:05 · 25 s**
 
 **Say:**
 
@@ -477,42 +420,42 @@ And it's true. [point at the numbers] In simulation the standard bound was wrong
 class: topo-content
 ---
 
-<div class="rubric"><span>Rubric</span> Testing, evidence & results</div>
-<div class="ask"><span>D2</span> quantitative results</div>
-<div class="kicker">What the defences bought · simulation, 50 runs each unless marked</div>
+<div class="rubric"><span>Rubric</span> Problem understanding · Evidence · Answers</div>
+<div class="ask"><span>Mentor asks</span> call of 10 November</div>
+<div class="kicker">What the Honeywell mentors asked for, and what we built</div>
 
-# In simulation, each defence pays
+# They asked. We built it, and measured it.
 
-<div class="cols cols-3 wins" style="margin-top: 0.6rem">
-<div class="card"><div class="bigstat">1.1 s</div><div class="statlabel">to flag a GPS jump, every size from 20 m to 500 km</div></div>
-<div class="card"><div class="bigstat"><span class="bad">5,244</span> → <span class="ok">3</span></div><div class="statlabel">hazardous moments per run on a held 300 m jump, with the guard</div></div>
-<div class="card"><div class="bigstat"><span class="bad">1,995</span> → <span class="ok">0</span></div><div class="statlabel">misleading moments per run from replayed GPS (meaconing), with the guard</div></div>
-<div class="card"><div class="bigstat"><span class="bad">45 %</span> → <span class="ok">0.45 %</span></div><div class="statlabel">error above the bound after GPS loss, honest filter, 200 runs, 0 hazardous</div></div>
-<div class="card"><div class="bigstat"><span class="bad">12.5 km</span> → <span class="ok">132 m</span></div><div class="statlabel">drone study leg, every fix together (worst second, 0–300 s); 105 m on our measured radio noise</div></div>
-<div class="card"><div class="bigstat">3.3 s</div><div class="statlabel">median to catch GPS time drifting 50 ns/s, 50 of 50; 0.44 µs after 10 min</div></div>
-<div class="card"><div class="bigstat">48–78 s</div><div class="statlabel">warning to a crew from other aircraft's ADS-B, before reaching the interference, 50 of 50</div></div>
-<div class="card"><div class="bigstat">59 / 59</div><div class="statlabel"><strong>real</strong> session, fake sky injected: every faked report flagged; 0 false in 120 real ones</div></div>
-<div class="card"><div class="bigstat">0.0 / h</div><div class="statlabel">spoof false alarms on clean runs, every filter, every leg</div></div>
+<div class="asks">
+<div class="card"><div class="q">Start with location jumps, in the hundreds of metres</div><div class="a"><span class="num ok">1.1 s</span> to flag any jump from 20 m to 500 km; dangerous moments on a held 300 m jump <span class="num">5,244 → 3</span></div><div class="k">sim · 50 runs</div></div>
+<div class="card"><div class="q">A satellite received that shouldn't be visible means spoofed</div><div class="a">Sky check built: <span class="num ok">59 of 59</span> faked reports flagged, <span class="num">0 of 120</span> genuine ones</div><div class="k"><strong>real</strong> recording, fake sky injected</div></div>
+<div class="card"><div class="q">Tell spoofing from the signal power you have; detecting matters more than handling</div><div class="a">Flat-power cue in the same check; other aircraft's broadcasts warn <span class="num ok">48–78 s</span> early</div><div class="k">real + sim</div></div>
+<div class="card"><div class="q">A heat map: green confident, red don't trust</div><div class="a">The track is coloured by confidence, beside <span class="num ok">ten</span> confidence readouts, live</div><div class="k">live panel</div></div>
+<div class="card"><div class="q">Explain the calculation: the drifts, how you compensate, how long until</div><div class="a">Error budget term by term, matching the Monte Carlo; <span class="num ok">≥ 150 s</span> of good GPS needed first</div><div class="k">sim · 20 runs</div></div>
+<div class="card"><div class="q">Assume the mission starts with GPS and loses it in one area</div><div class="a">Exactly our concept: learn the towers while GPS is good, then carry on and check GPS</div><div class="k">design</div></div>
+<div class="card"><div class="q">A ground station is valid if you can communicate with it reliably</div><div class="a">Designed and simulated: worst moment <span class="num">677 → 332 m</span>, radius honest <span class="num ok">100 %</span></div><div class="k">sim · 50 runs</div></div>
+<div class="card"><div class="q">Timing is second priority; focus on location</div><div class="a">Still delivered: <span class="num ok">0.44 µs</span> after 10 min; time drag caught in <span class="num">3.3 s</span></div><div class="k">sim · 50 runs</div></div>
 </div>
 
-<div class="foot">systems/results.md (b)–(d) · ADR-0038 · ADR-0039 · ADR-0041 · ADR-0046 · PR #247 · PR #262 · each number names its commit and seeds there</div>
+<div class="foot">systems/mentor-qa.md · call of 2026-11-10 · systems/results.md · ADR-0034 · ADR-0038 · ADR-0041 · ADR-0020</div>
 
 <!--
-**3:25 → 3:45 · 20 s**
+**3:05 → 3:30 · 25 s**
 
 **Say:**
 
-And the defences pay off. [sweep left to right] Any GPS jump, from 20 metres to 500 kilometres, flagged in 1.1 seconds. Our guard cuts hazardous moments on a held jump from over 5,000 per run to 3, and a replayed-GPS attack to zero. Time drift caught in 3.3 seconds, crews warned up to 78 seconds early, and zero false alarms.
+When we spoke to the Honeywell mentors, they told us what they care about, and we built each one. Start with location jumps in the hundreds of metres: caught in 1.1 seconds. Spot a satellite that shouldn't be visible: our sky check flagged every faked report on a real recording. Detecting matters more than handling: that's where we're strongest. A green-to-red heat map: it's on the panel. And they said the rationale matters as much as the result, so here's the calculation.
 
-**Scores:** Testing & results (5) · D2 quantitative results · mentor ask: begin with location jumps.
+**Scores:** Problem understanding (1) · Evidence (5) · Answers (9) · every mentor ask in one place.
 
 ***
 
-**Be exact when pressed:**
-- 132 m is a *study leg* hopping 13 carriers; the payload can't hop yet (ADR-0040). Without hopping, learned noise alone gives 2,474 m. On our measured radio noise the stack gives 105 m. Adding modelled track restarts: about 150 m.
-- 45 % → 0.45 % is pooled over 200 runs; the worst single run still escapes 18.5 %.
-- Learned noise on its own: median error 4,034 → 982 m and hazardous moments 320 → 0 (drone leg).
-- Every number here is sim except the 59 / 59.
+**Source:** the mentors' answers are in `systems/mentor-qa.md` and the call of 10 November. Paraphrase, don't quote word for word.
+
+**If asked:**
+- *How does the sky check work?* Published orbits tell us where each satellite should be; one received from below the horizon twice in a row is a hard cue; signal strengths that are suspiciously equal are a soft cue (§5.4 of D1).
+- *Is 59 of 59 real?* A real 10-minute recording with a fake sky injected in software from 300 s; 120 genuine reports from real sessions, none flagged.
+- *The ground station?* Backup *A ground station cancels tower clocks*.
 -->
 
 ---
@@ -540,7 +483,7 @@ class: topo-light
 <div class="foot">systems/accuracy-budget.md (seeds 0–19) · systems/verification.md (Sim validity) · ADR-0015 · ADR-0036 · lte-measured-noise (8892fca)</div>
 
 <!--
-**3:45 → 4:00 · 15 s**
+**3:30 → 3:50 · 20 s**
 
 **Say:**
 
@@ -590,8 +533,8 @@ class: topo-light
 <tr><td>Cell towers carry the solution</td><td class="r">without LTE +1,961 m · barometer +78 m · IMU +0 m</td><td class="muted">sim</td><td><span class="pill ok">Met</span></td></tr>
 <tr><td>Crews warned of interference on approach</td><td class="r">50 of 50, from other aircraft's ADS-B, 48–78 s early</td><td class="muted">sim</td><td><span class="pill ok">Met</span></td></tr>
 <tr><td>Time ≤ 1.5 µs after 10 min without GPS</td><td class="r">0.44 µs mean · 1.55 µs worst run</td><td class="muted">sim</td><td><span class="pill ok">49 of 50</span></td></tr>
-<tr><td>Approach position within 556 m</td><td class="r">approach towers are synthetic</td><td class="muted">sim</td><td><span class="pill warn">Not scored</span></td></tr>
-<tr><td>Position ≤ 25 m for 300 s after GPS loss</td><td class="r">clean ranges 10 m · every fix 105 m · payload today 449 m</td><td class="muted">sim</td><td><span class="pill warn">Met with clean signals</span></td></tr>
+<tr><td>Approach position within 556 m</td><td class="r">crew warning verified 50 of 50 · position awaits real airport towers</td><td class="muted">sim</td><td><span class="pill warn">Next</span></td></tr>
+<tr><td>Position ≤ 25 m for 300 s after GPS loss</td><td class="r">10 m with clean tower signals · 105 m with every fix</td><td class="muted">sim</td><td><span class="pill warn">Met with clean signals</span></td></tr>
 <tr><td>Slow 2 m/s GPS drag within 30 s</td><td class="r">50 of 50 with carrier hopping, 127 s · not on one carrier</td><td class="muted">sim</td><td><span class="pill warn">Caught, slower</span></td></tr>
 </tbody>
 </table>
@@ -601,13 +544,13 @@ class: topo-light
 <div class="foot">systems/results.md · analysis/results/headline (24aa5d1, seeds 0–49) · analysis/results/final (d66c929, ablation)</div>
 
 <!--
-**4:00 → 4:20 · 20 s**
+**3:50 → 4:15 · 25 s**
 
 **Say:**
 
 Here's every target. Detection, false alarms and crew warnings: met. Timing: 49 of 50 runs, at a third of the allowed error.
 
-Accuracy: with clean tower signals the filter holds 10 metres for five minutes, well inside the 25-metre target; our one-carrier radio is what holds the payload back today. The slow drag is caught in every run once we hear more carriers, just not yet inside 30 seconds. Both point to the same next step: hearing more towers.
+Accuracy: with clean tower signals the filter holds 10 metres for the full five minutes, well inside the 25-metre target. The slow drag is caught in every run once more carriers are heard. Both point to the same next step: hearing more towers.
 
 **Point at:** the green block first, then the two amber rows, and say what they need: more towers heard.
 
@@ -676,7 +619,7 @@ class: topo-content
 <div class="foot">systems/safety.md · systems/roadmap.md (D3) · systems/results.md · ADR-0001 · ADR-0011 · ADR-0013 · ADR-0026</div>
 
 <!--
-**4:20 → 4:45 · 25 s**
+**4:15 → 4:45 · 30 s**
 
 **Say:**
 
@@ -988,6 +931,50 @@ class: topo-content
 class: topo-content
 ---
 
+<div class="rubric"><span>Rubric</span> Testing, evidence & results</div>
+<div class="ask"><span>D2</span> quantitative results</div>
+<div class="kicker">Backup · What the defences bought · simulation, 50 runs each unless marked</div>
+
+# In simulation, each defence pays
+
+<div class="cols cols-3 wins" style="margin-top: 0.6rem">
+<div class="card"><div class="bigstat">1.1 s</div><div class="statlabel">to flag a GPS jump, every size from 20 m to 500 km</div></div>
+<div class="card"><div class="bigstat"><span class="bad">5,244</span> → <span class="ok">3</span></div><div class="statlabel">hazardous moments per run on a held 300 m jump, with the guard</div></div>
+<div class="card"><div class="bigstat"><span class="bad">1,995</span> → <span class="ok">0</span></div><div class="statlabel">misleading moments per run from replayed GPS (meaconing), with the guard</div></div>
+<div class="card"><div class="bigstat"><span class="bad">45 %</span> → <span class="ok">0.45 %</span></div><div class="statlabel">error above the bound after GPS loss, honest filter, 200 runs, 0 hazardous</div></div>
+<div class="card"><div class="bigstat"><span class="bad">12.5 km</span> → <span class="ok">132 m</span></div><div class="statlabel">drone study leg, every fix together (worst second, 0–300 s); 105 m on our measured radio noise</div></div>
+<div class="card"><div class="bigstat">3.3 s</div><div class="statlabel">median to catch GPS time drifting 50 ns/s, 50 of 50; 0.44 µs after 10 min</div></div>
+<div class="card"><div class="bigstat">48–78 s</div><div class="statlabel">warning to a crew from other aircraft's ADS-B, before reaching the interference, 50 of 50</div></div>
+<div class="card"><div class="bigstat">59 / 59</div><div class="statlabel"><strong>real</strong> session, fake sky injected: every faked report flagged; 0 false in 120 real ones</div></div>
+<div class="card"><div class="bigstat">0.0 / h</div><div class="statlabel">spoof false alarms on clean runs, every filter, every leg</div></div>
+</div>
+
+<p class="small muted" style="margin-top: 0.8rem">Simulated flights over the real Ottawa tower sites, with radio, motion-sensor and clock errors set from measurements on our own payload.</p>
+
+<div class="foot">systems/results.md (b)–(d) · ADR-0038 · ADR-0039 · ADR-0041 · ADR-0046 · PR #247 · PR #262 · each number names its commit and seeds there</div>
+
+<!--
+**Use when:** "what did you achieve?", or when the misses come up.
+
+**Say:**
+
+And the defences pay off. [sweep left to right] Any GPS jump, from 20 metres to 500 kilometres, flagged in 1.1 seconds. Our guard cuts hazardous moments on a held jump from over 5,000 per run to 3, and a replayed-GPS attack to zero. Time drift caught in 3.3 seconds, crews warned up to 78 seconds early, and zero false alarms.
+
+**Scores:** Testing & results (5) · D2 quantitative results · mentor ask: begin with location jumps.
+
+***
+
+**Be exact when pressed:**
+- 132 m is a *study leg* hopping 13 carriers; the payload can't hop yet (ADR-0040). Without hopping, learned noise alone gives 2,474 m. On our measured radio noise the stack gives 105 m. Adding modelled track restarts: about 150 m.
+- 45 % → 0.45 % is pooled over 200 runs; the worst single run still escapes 18.5 %.
+- Learned noise on its own: median error 4,034 → 982 m and hazardous moments 320 → 0 (drone leg).
+- Every number here is sim except the 59 / 59.
+-->
+
+---
+class: topo-content
+---
+
 <div class="rubric"><span>Rubric</span> Technical approach · trade-offs</div>
 <div class="ask"><span>D3</span> next layer</div>
 <div class="kicker">Backup · Ground reference station · ADR-0020 · simulation only</div>
@@ -1181,6 +1168,70 @@ class: topo-content
 **Use when:** "how would we reproduce this?" or documentation questions.
 
 **Say:** D1 and D3 are in the repository with the requirements, risks, safety case and verification plan. 57 decision records, each with its options and trade-offs. Every result names its scenario or real session, its seeds and its commit, and one command regenerates every table and figure. 1,485 automated tests run before every merge.
+-->
+
+---
+class: topo-light
+---
+
+<div class="rubric"><span>Rubric</span> Testing & evidence · limitations · next steps</div>
+<div class="ask"><span>Mentor ask</span> how the sim aligns to reality</div>
+<div class="kicker">Backup · Real captures · two 10-min static sessions outdoors, GPS as truth</div>
+
+# In the field, the receiver is the bottleneck, not the method
+
+<div class="cols" style="grid-template-columns: 0.9fr 1.25fr; gap: 1.4rem; margin-top: 0.5rem; align-items: start">
+<div class="flex flex-col gap-3">
+<div class="card" style="padding: 0.8rem 1rem"><div class="bigstat" style="font-size: 2.3rem">43 %</div><div class="statlabel">of the time our radio has <strong>one</strong> usable tower</div></div>
+<div class="card" style="padding: 0.8rem 1rem"><div class="bigstat bad" style="font-size: 2.3rem">≤ 1.4 %</div><div class="statlabel">of the time it has <strong>two at once</strong>. A position fix needs <strong>three</strong>.</div></div>
+<div class="card" style="padding: 0.8rem 1rem"><div class="bigstat ok" style="font-size: 2.3rem">0.73 m</div><div class="statlabel">range jitter when it does lock: the measurement itself is good</div></div>
+</div>
+<div>
+<table class="score">
+<thead><tr><th></th><th>Our payload today</th><th>What the method needs</th></tr></thead>
+<tbody>
+<tr><td>Radio</td><td>one 8-bit hobby SDR, $78 with antennas</td><td>a wider-band receiver, or several</td></tr>
+<tr><td>LTE carriers heard</td><td class="bad">1</td><td class="ok">many: 13 in our study → 27 masts</td></tr>
+<tr><td>Towers usable at once</td><td class="bad">1, rarely 2</td><td class="ok">3 or more</td></tr>
+<tr><td>Weak cells</td><td>lose lock but keep reporting, km off</td><td>now distrusted in software</td></tr>
+</tbody>
+</table>
+<div class="flex flex-col gap-2 small" style="margin-top: 0.9rem">
+<div><span class="tag">Published</span> a research-grade receiver on a drone, 3 towers: <strong>8.15 m</strong> RMS (Shamaei, Khalife &amp; Kassas, 2018)</div>
+<div><span class="tag">Our sim</span> clean ranges from 17 towers: <strong>10 m</strong> for the full 5 minutes</div>
+</div>
+</div>
+</div>
+
+<div class="foot">analysis/results/lte-gps-truth-20261111 (sessions 0151, 0040) · lte-measured-noise (8892fca) · ADR-0036 · ADR-0050 · systems/research.md §2 · hardware/bom.md</div>
+
+<!--
+**Use when:** a judge asks how it does on real data, or why the payload itself doesn't hit 25 m.
+
+**Say:**
+
+So why not on real data yet? The radio: one 8-bit hobby SDR on one LTE frequency. On our real captures it had one usable tower 43 % of the time, and two at once under 1.5 % of the time; a fix needs three. When it does lock, the range is good: under a metre of jitter.
+
+A research-grade receiver on a drone has reached 8 metres with three towers. So our next step is hardware, not a new algorithm.
+
+**Scores:** Testing & evidence, limitations recognised (5) · mentor ask: how the sim aligns to reality · Impact & next steps (10).
+
+***
+
+**Where the numbers come from (real, `lte-gps-truth-20261111`):**
+- Session 0151: the best cell (PCI 92) is above the usable SNR (−8 dB, `TBC`) for 43.1 % of the capture, in runs up to 71 s; every other cell 0.6–6.6 %. Any two cells together: 0–1.4 % (81 epochs at most). Session 0040: best cell 18.9 %, pairs 0–1.5 %.
+- Jitter: 0.73 m on strong cells (ADR-0036, 15 captures); 0.86 m on the best cell at 10 Hz in session 0151. On top of that sits a slow error, median 8 m, that the radio never reports.
+- Weak cells (below −8 dB) lose lock but still report: errors spread 1.5–12.9 km while the records claim 21–31 m. ADR-0050 now gives each re-found track its own bias and tells the filter the measured noise.
+- A 2-D fix with our clock unknown needs 3 towers at once.
+- Published: Shamaei, Khalife & Kassas 2018 (IEEE TWC): a UAV receiver sampling one channel at 3 Msps, 8.15 m RMSE with three eNodeBs. Ours samples 1.92 Msps on a free-running dongle. Their hardware, not ours; say "published".
+
+**If pressed, frame it like this:**
+- "Bottleneck", not "only": reflections while moving are still unmeasured (our captures are static), and part of the early trouble was our own software believing the radio's 2 m claim. That's fixed (ADR-0050), and towers still don't beat no towers on real static data (364–595 m against about 1 m).
+- The 10 m is the sim with ideal ranges: it shows the geometry is enough, not what our radio delivers today.
+
+**If asked:**
+- *Why not just buy a better radio?* We had a week and a CAD 170 budget for radios. The next steps are a second dongle or a hopping front end to hear more towers, then a GPS-disciplined clock for carrier phase.
+- *How do you know the towers are the right ones?* Every heard cell matched one registered ISED site; that's consistent with the registry, not a confirmed identity.
 -->
 
 ---
