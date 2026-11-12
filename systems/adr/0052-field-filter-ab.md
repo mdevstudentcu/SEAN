@@ -73,7 +73,7 @@ The field settings above stay in `nav/ekf.py` as opt-in keywords, unregistered, 
 ## Checks
 
 - **Hashes.** Every field of every estimate, on `challenge-drone-outage`, `challenge-drone-spoof-jump` and `realistic-long-outage`, seeds 0 and 1; `analysis/filter_ab.py hashes`:
-  - Branch head against its base `10d25b4`: 132 of 132 identical.
+  - Branch head against its base `2fbb84f`: 132 of 132 identical.
   - Against today's `origin/main` `8f992ed`: 59 of 108 identical.
   - The 49 that differ also differ between `main`'s merge-base with this branch (`3493cfb`) and `8f992ed`. The merge-base matches this branch on all 108. So every difference comes from `main`'s 21 later commits, whose only change under `src/pnt/nav` is ADR-0045's GNSS-height fallback.
 - **The branch could not be rebased onto `8f992ed`.** The first #156 commit conflicts with ADR-0045 in `nav/ekf.py`.
