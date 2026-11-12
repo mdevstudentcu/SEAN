@@ -1,6 +1,6 @@
 # ICD-measurement: pipeline records
 
-- **Status:** Baselined 2026-11-08 (ADR-0006); `receiver` field added 2026-11-09 (ADR-0020)
+- **Status:** Baselined 2026-11-08 (ADR-0006); `receiver` field added 2026-11-09 (ADR-0020); `mag` source and `heading` kind proposed 2026-11-11 (ADR-0051, Proposed: needs both owners)
 - **Owners:** front-ends/capture (SW 1) ↔ nav/integrity (SW 2). Changes need both.
 - **Code:** `src/pnt/core/measurement.py` (this file wins if they disagree)
 
@@ -21,7 +21,7 @@ Three record types flow through the pipeline. All are msgspec structs, encoded a
 
 ### `source` registry
 
-`gnss`, `imu`, `baro`, `lte`, `nr`, `adsb`, `vor`, `wifi`, `ble`, `fm`, `leo` (simulated), `cam`. Simulated data keeps the same names; the session metadata says it is simulated.
+`gnss`, `imu`, `baro`, `mag` (simulated: the payload has no magnetometer, ADR-0051), `lte`, `nr`, `adsb`, `vor`, `wifi`, `ble`, `fm`, `leo` (simulated), `cam`. Simulated data keeps the same names; the session metadata says it is simulated.
 
 ### `receiver` registry
 
@@ -46,6 +46,7 @@ Three record types flow through the pipeline. All are msgspec structs, encoded a
 | `range` | (r,) true range (e.g. Wi-Fi FTM) | m |
 | `doppler` | (ρ̇,) range rate | m/s |
 | `bearing` | (θ,) from the emitter to us, clockwise from true north (VOR radial) | rad |
+| `heading` | (ψ,) of the body x (forward) axis, clockwise from true north, declination already applied (ADR-0051) | rad |
 | `rssi` | (p,) | dBm |
 | `time` | (Δt,) offset of local clock from the source's time | s |
 | `gnss_health` | (jam_indicator, n_sats, hdop) | — |
