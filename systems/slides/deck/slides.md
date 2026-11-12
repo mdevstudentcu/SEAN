@@ -1,6 +1,6 @@
 ---
 theme: default
-title: A navigation layer that knows when it is wrong
+title: SEAN, a navigation layer that knows when it is wrong
 info: Hack the Horizons 2026, Challenge 2 (resilient navigation in GPS-denied environments). Every number cites its source; systems/results.md lists them all.
 colorSchema: dark
 aspectRatio: 16/9
@@ -17,7 +17,9 @@ layout: default
 
 <div class="h-full flex flex-col justify-center" style="max-width: 44rem">
   <div class="kicker">Hack the Horizons · Challenge 2 · resilient navigation in GPS-denied environments</div>
-  <h1 style="font-size: 3rem">A navigation layer that knows when it is wrong</h1>
+  <div style="font-family: var(--display); font-size: 4.2rem; letter-spacing: 0.08em; line-height: 1; margin-top: 0.6rem">SEAN</div>
+  <div class="small muted" style="font-family: var(--mono); margin-top: 0.5rem; letter-spacing: 0.06em">Signals-of-opportunity · Error-bounded · Assured Navigation</div>
+  <h1 style="font-size: 2.2rem; margin-top: 1.4rem">A navigation layer that knows when it is wrong</h1>
   <p class="lede" style="margin-top: 1.2rem">A receive-only GPS trust monitor. It keeps position and time from the cell towers already in the air, and tells the operator, with a number, how far to trust them.</p>
   <p class="muted small" style="margin-top: 2.2rem">Shrikar Vempati · M. Elshoubky</p>
 </div>
@@ -26,7 +28,7 @@ layout: default
 </div>
 
 <!--
-(0:00, 10 s) The real danger is not losing GPS. It is a display that says "trust me" when it should not. We built a navigation layer that knows when it is wrong, and says so with a number.
+(0:00, 10 s) The real danger is not losing GPS. It is a display that says "trust me" when it should not. We built SEAN: signals-of-opportunity, error-bounded, assured navigation. A navigation layer that knows when it is wrong, and says so with a number.
 -->
 
 ---
