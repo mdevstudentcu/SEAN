@@ -44,6 +44,15 @@ starting velocity drops out). A window that GNSS leaves or an IMU gap breaks sta
 the attitude error gets `tilt_sigma_deg` for roll and pitch, the biases their priors, and the IMU
 takes over.
 
+Start-up calibration (ADR-0053, #214). `ImuSpec`'s biases are what is left after a start-up
+calibration; a real MPU6050 starts degrees per second off (the real walk: -3.95 deg/s gyro,
+-1.37 m/s^2 vertical). Before alignment, a stretch where GNSS steers and the filter's position
+stays within `still_radius_m` for `still_min_s` is that calibration: the mean rate is the gyro
+bias, the mean specific force's excess over gravity the accelerometer bias along it, each with
+the standard error of its 1 s means (at least the spec's). The alignment window integrates the
+corrected samples and the bias states start from them. No window runs while still: heading needs
+motion, and an uncalibrated bias turning the specific force would pass for it.
+
 Velocity lag (#119). In a turn the constant-velocity filter's velocity lags the truth, and a
 lagged velocity looks to the fit like a heading error (6 to 22 deg on a 14 deg-tilt turn with
 1 m GNSS). At steady state that filter's velocity lags by K_p / K_v = 2 P_pv / P_vv, read from
