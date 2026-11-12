@@ -205,6 +205,6 @@ def test_study_ablation_names_the_aid_whose_loss_costs_more():
         "plain / no LTE / ekf-imu-mag": {**row, "t1_worst_m": 30.0},
         "plain / LTE / ekf-imu": {**row, "t1_worst_m": 15.0},
     }
-    assert h.ablation(summary)[-1].endswith("| LTE |")
+    assert h.ablation(summary)[-1].endswith("| LTE | met |")
     summary["plain / LTE / ekf-imu"]["t1_worst_m"] = 40.0
-    assert h.ablation(summary)[-1].endswith("| heading (magnetometer) |")
+    assert h.ablation(summary)[-1].endswith("| heading (magnetometer) | not met |")

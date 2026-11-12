@@ -409,15 +409,17 @@ ABLATION_PATHS = ("plain", "s-turns")
 
 
 def ablation(summary: dict) -> list[str]:
-    """Drop one from (LTE + magnetometer): which loss costs more, per path, on T1's worst second
-    and the fallback's."""
+    """REQ-06's ablation, per path, from `ekf-imu-mag` with LTE: remove one aid and see what T1's
+    worst second (and the fallback's) does. Removing LTE is `no LTE / ekf-imu-mag`, removing the
+    magnetometer `LTE / ekf-imu`. REQ-06 asks that removing the radio costs more than removing
+    any single other aid; a negative change means the run was better without that aid."""
     rows = [
-        "Each row starts from `ekf-imu-mag` with LTE and drops one aid; the larger cost is the "
-        "aid the filter misses more.",
+        "From `ekf-imu-mag` with LTE, one aid removed. Change in the worst p95 second "
+        "(0–300 s / 0–120 s, m); negative: better without it. REQ-06 needs removing LTE to cost "
+        "more than removing the magnetometer.",
         "",
-        "| Path | Both (worst 0–300 s / 0–120 s, m) | Without LTE | Without magnetometer "
-        "| Ranks first |",
-        "| --- | --- | --- | --- | --- |",
+        "| Path | Both aids | Remove LTE | Remove magnetometer | Costs more to remove | REQ-06 |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for path in ABLATION_PATHS:
         both = summary.get(f"{path} / LTE / ekf-imu-mag")
@@ -425,16 +427,24 @@ def ablation(summary: dict) -> list[str]:
         no_mag = summary.get(f"{path} / LTE / ekf-imu")
         if not (both and no_lte and no_mag):
             continue
+
         cost_lte = no_lte["t1_worst_m"] - both["t1_worst_m"]
         cost_mag = no_mag["t1_worst_m"] - both["t1_worst_m"]
         first = "LTE" if cost_lte > cost_mag else "heading (magnetometer)"
         rows.append(
-            f"| {path} | {fmt(both['t1_worst_m'])} / {fmt(both['fallback_worst_m'])} | "
-            f"{fmt(no_lte['t1_worst_m'])} / {fmt(no_lte['fallback_worst_m'])} "
-            f"(+{fmt(cost_lte)}) | {fmt(no_mag['t1_worst_m'])} / "
-            f"{fmt(no_mag['fallback_worst_m'])} (+{fmt(cost_mag)}) | {first} |"
+            f"| {path} | {both['t1_worst_m']:,.0f} / {both['fallback_worst_m']:,.0f} | "
+            f"{_change(no_lte, both)} | {_change(no_mag, both)} | {first} | "
+            f"{'met' if first == 'LTE' else 'not met'} |"
         )
     return rows
+
+
+def _change(row: dict, both: dict) -> str:
+    """'worst 0-300 s / 0-120 s (their changes from `both`)', m."""
+    d300 = row["t1_worst_m"] - both["t1_worst_m"]
+    d120 = row["fallback_worst_m"] - both["fallback_worst_m"]
+    worst = f"{row['t1_worst_m']:,.0f} / {row['fallback_worst_m']:,.0f}"
+    return f"{worst} ({d300:+,.0f} / {d120:+,.0f})"
 
 
 # The filters' colours: the repo's categorical order (analysis/challenge_baseline.py); the
