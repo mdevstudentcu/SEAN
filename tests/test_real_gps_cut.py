@@ -271,3 +271,29 @@ def test_main_with_rows_writes_the_row_table_figure_and_runs(tmp_path):
     rows = json.loads((runs / "runs.json").read_text())
     assert {r["estimator"] for r in rows} == {"ekf", "ekf-honest", "hold"}
     assert all("err_m" in r for r in rows)
+
+
+def test_row_configs_are_registered_estimators_with_their_options():
+    settle = rgc.estimator_fn("ekf-arc-settle")
+    assert settle.keywords == {"arc_settle_s": 5.0}
+    assert rgc.estimator_fn("ekf-as-told").keywords == {
+        "capture_sigma_model": None,
+        "arc_bias": False,
+    }
+    assert rgc.estimator_fn("ekf") == "ekf"  # a registered name passes through
+    assert rgc.parse_rows(["ekf-as-told:told-pr"]) == [("ekf-as-told", "told-pr")]
+    for est, var in rgc.FILTER_ROWS:  # every LTE row says what the filter does with the records
+        assert var == "none" or est in rgc.ROW_DOES
+
+
+def test_a_capture_records_sigma_is_retold_except_in_the_as_told_row():
+    """After ADR-0050 the EKF replaces a real capture's told sigma, so 3.0 m and 1.4 m become one
+    value inside `ekf`; `ekf-as-told` keeps each record's own (#256 review)."""
+    meta = {"snr_db": 5.0, "rx_clock": "sdr_a", "n_epochs": 20, "sample_index": 0}
+    recs = [rgc.msgspec.structs.replace(_lte(1.0, "pseudorange", 5.0, s), meta=meta)
+            for s in (3.0, 1.4)]  # fmt: skip
+    default = rgc.ekf_module.EKF()
+    as_told = rgc.ekf_module.EKF(**rgc.estimator_fn("ekf-as-told").keywords)
+    told = [rgc.ekf_module.told_sigma.retold(m, default._sigma_model(m)).sigma for m in recs]
+    assert told[0] == told[1] and told[0][0] > 3.0
+    assert [as_told._sigma_model(m) for m in recs] == [None, None]

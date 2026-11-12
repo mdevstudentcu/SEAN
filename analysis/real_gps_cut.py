@@ -24,6 +24,14 @@ LTE variants (all opt-in here; nothing under `src/` changes):
   Doppler records are dropped: ADR-0036 gives them no σ and flags carrier aliases (#183).
 - `adr36-cut8`: `adr36`, keeping only records at SNR >= -8 dB (ADR-0036's fit range).
 
+Since ADR-0050 (#267) the EKF retells every real capture's pseudorange (`meta.sample_index`) to
+`told_sigma`'s ADR-0036 model inside the filter, whatever sigma the record carries, unless the
+estimator sets `capture_sigma_model=None` (`ekf-calibrated-measured`, the `ekf-as-told` row). So
+for every other estimator `told`, `told-pr` and `adr36` no longer differ in sigma, only in which
+records are kept: `adr36` drops records below -14 dB, `adr36-cut8` below -8 dB, `told-pr` drops
+doppler (which #245's front end no longer writes). The variant names say what this script feeds;
+`ROW_DOES` says what the filter then does with it.
+
 Per run (estimator, variant, cut): horizontal error at 30, 60, 120 and 300 s after the cut (at
 the withheld fix on that instant, else the nearest one within 0.5 s: 1 Hz fixes need not fall on
 the instant); the
@@ -75,15 +83,35 @@ AT_ON_S, AT_NEAREST_S = 0.05, 0.5
 SLICES_S = (60.0, 120.0, 300.0)  # p95 over [cut, cut + s), as metrics.OUTAGE_SLICES_S
 ESTIMATORS = ("ekf", "ekf-imu", "ekf-calibrated")
 VARIANTS = ("none", "told", "told-pr", "adr36", "adr36-cut8")
-# #256: the opt-in LTE filters against no LTE and the default, all fed the same records:
-# pseudoranges with the front end's told sigma (each filter re-sizes the sigma its own way)
+# Rows that are a registered estimator with options, named here only (#256). `ekf-arc-settle` is
+# ADR-0050's opt-in (c2) on top of the default, at ADR-0050's 5 s (TBC, not tuned here);
+# `ekf-as-told` is `ekf` before ADR-0050: the front end's own sigma and no bias per arc.
+ROW_CONFIGS: dict[str, tuple[str, dict]] = {
+    "ekf-arc-settle": ("ekf", {"arc_settle_s": 5.0}),
+    "ekf-as-told": ("ekf", {"capture_sigma_model": None, "arc_bias": False}),
+}
+# #256: the opt-in LTE filters against no LTE and the default, all fed the same records: the
+# front end's pseudoranges (`told-pr`). What each filter then does with a real capture's records:
 FILTER_ROWS = (
     ("ekf", "none"),
     ("ekf", "told-pr"),
-    ("ekf-measured-sigma", "told-pr"),  # ADR-0044: ADR-0036's sigma from the record's SNR
-    ("ekf-learned-noise", "told-pr"),  # ADR-0039 (Proposed): noise learned from innovations
-    ("ekf-honest", "told-pr"),  # ADR-0046 (Proposed): learned noise + slow error state + clock
+    ("ekf-measured-sigma", "told-pr"),
+    ("ekf-learned-noise", "told-pr"),
+    ("ekf-honest", "told-pr"),
+    ("ekf-arc-settle", "told-pr"),
+    ("ekf-as-told", "told-pr"),
 )
+ROW_DOES = {
+    "ekf": "ADR-0050 default: sigma retold to ADR-0036's model, a range bias per new arc",
+    "ekf-measured-sigma": "the same as `ekf` on a real capture (ADR-0044's retelling is what "
+    "ADR-0050 made the default there)",
+    "ekf-learned-noise": "`ekf` + range noise learned from innovations (tau 60 s), starting "
+    "from the retold sigma (ADR-0039 amendment, #156)",
+    "ekf-honest": "`ekf-learned-noise` + the slow range error as a state per cell (30 s) + "
+    "our clock in the ranges (ADR-0046 Proposed, #251)",
+    "ekf-arc-settle": "`ekf` + a new arc's first 5 s told 10 x sigma (ADR-0050 opt-in c2)",
+    "ekf-as-told": "`ekf` before ADR-0050: the front end's own sigma, no bias per arc",
+}
 LTE_COUNTS = ("accepted", "unchecked", "rejected")
 SETTLE_S = 30.0  # s of start-up left out of the before-cut statistics
 T1_M, T1_S = 25.0, 300.0  # ADR-0034 T1 (TBC): 95 % <= 25 m for >= 300 s
@@ -231,6 +259,16 @@ def load(path: str) -> tuple[list[Measurement], int, list | None]:
     return meas, meas[0].t_ns, session.read_meta(path).get("origin_llh")
 
 
+def estimator_fn(name: str):
+    """A registered estimator's name, or a `ROW_CONFIGS` row: the registered one with options."""
+    if name not in ROW_CONFIGS:
+        return name
+    base, config = ROW_CONFIGS[name]
+    fn = nav.ESTIMATORS[base]
+    keywords = dict(getattr(fn, "keywords", {}))
+    return nav.configured(getattr(fn, "func", fn), **{**keywords, **config})
+
+
 def run_one(path: str, estimator: str, variant: str, cut_s: float) -> dict:
     """One replay with GNSS cut at `cut_s`, scored after the cut and before it."""
     meas, t0, origin = load(path)
@@ -238,7 +276,7 @@ def run_one(path: str, estimator: str, variant: str, cut_s: float) -> dict:
     cut_ns = t0 + round(cut_s * 1e9)
     fed = lte_variant(cut_gnss(meas, t0, cut_s), variant)
     with count_lte_updates(cut_ns) as lte_updates:
-        est = list(nav.estimate(estimator, fed, origin_llh=origin))
+        est = list(nav.estimate(estimator_fn(estimator), fed, origin_llh=origin))
     est_t = np.array([e.t_ns for e in est], dtype=np.int64)
     est_pos = np.array([e.pos_enu for e in est], dtype=float)
     est_hpl = np.array([e.hpl_m for e in est], dtype=float)
@@ -431,9 +469,9 @@ def markdown(summary: dict) -> str:
         "cuts: accepted through the gate / taken unchecked (a cell's first record or a new arc) / "
         "rejected by the gate.",
         "",
-        "| Estimator | LTE | 120 s | 300 s | Error > HPL | HPL held | LTE after the cut: "
-        "accepted / unchecked / rejected |",
-        "|---|---|---|---|---|---|---|",
+        "| Estimator | LTE | What the filter does with a real capture's LTE | 120 s | 300 s | "
+        "Error > HPL | HPL held | LTE after the cut: accepted / unchecked / rejected |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for key, a in s["aggregate"].items():
         if "lte_updates" not in a:
@@ -446,8 +484,10 @@ def markdown(summary: dict) -> str:
         u = a["lte_updates"]["after"]
         counts = " / ".join(f"{u[k]:,}" for k in LTE_COUNTS)
         held = "yes" if a["hpl_held"] else "no"
+        does = "no LTE" if var == "none" else ROW_DOES.get(est, "—")
         lines.append(
-            f"| {est} | {var} | {' | '.join(cells)} | {a['above_hpl']:.1%} | {held} | {counts} |"
+            f"| {est} | {var} | {does} | {' | '.join(cells)} | {a['above_hpl']:.1%} | {held} | "
+            f"{counts} |"
         )
     lines += [
         "",
@@ -621,7 +661,11 @@ def parse_rows(specs: list[str]) -> list[tuple[str, str]]:
             out += FILTER_ROWS
             continue
         est, sep, var = spec.partition(":")
-        if not sep or est not in nav.ESTIMATORS or var not in VARIANTS:
+        if (
+            not sep
+            or (est not in nav.ESTIMATORS and est not in ROW_CONFIGS)
+            or var not in VARIANTS
+        ):
             raise SystemExit(f"--rows wants filters or EST:VARIANT, not {spec!r}")
         out.append((est, var))
     return out
