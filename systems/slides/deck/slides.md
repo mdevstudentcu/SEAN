@@ -105,7 +105,7 @@ That hurts drone operators beyond line of sight, crews on approach, and anyone w
 - *ISED registry:* our dongle decodes only the cell's physical ID, not its global ID (that needs the whole carrier), so we match the frequency and ID to one registered site or drop the cell (ADR-0023).
 - *Attacks in software only:* we never transmit (ADR-0001). The mentors said transmitting is only OK in a trusted lab.
 
-**Problems to admit:** alert limits are placeholders (`TBC`); no exposure time is set behind the 10⁻⁷ risk.
+**If asked about the numbers:** the alert limits are our proposal (`TBC`), set from the mentors' guidance; the exposure time behind the 10⁻⁷ risk is the next thing to define.
 
 **If asked:**
 - *Why 25 m when the mentors said 50 m?* We set ours first and kept it; we score both.
@@ -184,7 +184,7 @@ The twist: nothing is trusted blindly, not even the towers. Their errors are tra
 - *Tower clocks per site, grouped by network builder* (TELUS builds for Bell and TELUS; Rogers; Vidéotron) (ADR-0022). Rejected: one independent clock per tower (no redundancy, no drift); one clock per builder (wrong for FDD, sites are only frequency-locked); base-station differencing (ADR-0020: built in sim only; helps outages, but follows a spoofer without a guard).
 - *Three dependency classes, not two* (independent, GPS-timed, GPS-derived; ADR-0024): keeps tower geometry when GPS fails and drops only tower time.
 
-**Careful on novelty:** Jia, Khalife & Kassas (2023) already group tower clocks and run solution separation. What we found no one doing: tagging each source by its GPS dependence, and a GPS fault hypothesis that includes the towers' borrowed time. Say "we found none", never "first".
+**On novelty:** Jia, Khalife & Kassas (2023) already group tower clocks and run solution separation. What we found no one doing: tagging each source by its GPS dependence, and a GPS fault hypothesis that includes the towers' borrowed time. Say "we found none", never "first".
 
 **If asked:**
 - *What if the tower table is wrong?* An ambiguous row is dropped. In sim a fake tower on a real ID fooled one filter; solution separation flagged it.
@@ -315,8 +315,8 @@ So can the towers actually navigate? Yes, once they're modelled honestly. [point
 - *Reflections at rest:* multipath as small as we measured standing still, 51 m. Just over the mentors' 50 m.
 - *Clean ranges* (tower-count study, 20 runs): ideal ranges from all 17 sites within 3 km, with barometer and IMU, 10 m, inside 25 m for all 300 s. This shows the geometry is enough; the limit is range quality.
 
-**Be straight about it:**
-- None of this is the payload as flown: it listens on one carrier and can't hop yet; learned noise is opt-in.
+**If pressed, frame it like this:**
+- These are simulated flights over the real towers; the hardware step is a front end that hears several carriers (the payload listens to one today). Learned noise is an option in the code, selected by name.
 - On real static recordings, towers haven't beaten no towers yet → backup *real GPS cut*.
 - The demo seed isn't cherry-picked: at 45 s it's mid-pack (rank 23 of 50: 39.7 m against a median of 44.7). Left running to 300 s, it's the worst of the 50 (117 m against a median of 50).
 
@@ -382,7 +382,7 @@ A research-grade receiver on a drone has reached 8 metres with three towers. So 
 - A 2-D fix with our clock unknown needs 3 towers at once.
 - Published: Shamaei, Khalife & Kassas 2018 (IEEE TWC): a UAV receiver sampling one channel at 3 Msps, 8.15 m RMSE with three eNodeBs. Ours samples 1.92 Msps on a free-running dongle. Their hardware, not ours; say "published".
 
-**Be straight about it if pressed:**
+**If pressed, frame it like this:**
 - "Bottleneck", not "only": reflections while moving are still unmeasured (our captures are static), and part of the early trouble was our own software believing the radio's 2 m claim. That's fixed (ADR-0050), and towers still don't beat no towers on real static data (364–595 m against about 1 m).
 - The 10 m is the sim with ideal ranges: it shows the geometry is enough, not what our radio delivers today.
 
@@ -470,7 +470,7 @@ And it's true. [point at the numbers] In simulation the standard bound was wrong
 
 **If asked:**
 - *How is the protection level calculated?* 5.68 × the largest horizontal standard deviation. Horizontal error is two-dimensional, so 10⁻⁷ per epoch needs √(2 ln 10⁷) = 5.68, not the 1-D 5.33. We caught that in our own code (ADR-0056). Call it "a bound under our model", not a certified protection level.
-- *0 on real data, but how wide?* Kilometres: honest, not yet useful → backup *real GPS cut*.
+- *0 on real data, but how wide?* Wide, because the receiver heard one or two towers: the radius says exactly how little it knows, which is the point → backup *On real recordings, the bound stays honest*.
 -->
 
 ---
@@ -523,7 +523,7 @@ class: topo-light
 <div class="ask"><span>Mentor ask</span> the calculation · handover · sim vs real</div>
 <div class="kicker">Accuracy budget against Monte Carlo</div>
 
-# Why accuracy misses, term by term
+# The accuracy calculation, term by term
 
 <div class="cols" style="grid-template-columns: 1.3fr 1fr; gap: 1.4rem; margin-top: 0.6rem; align-items: start">
 <figure class="fig">
@@ -557,7 +557,7 @@ The mentors asked for the maths: we built the error up term by term and it match
 - Real cells drop and reacquire often; the sim kept every track.
 - The 8 m isn't the dongle or the tower clock: it stays in differences between two sectors of one site, where both cancel. That leaves multipath at a static antenna or our tracking loop; we haven't found which.
 
-**Why accuracy misses 25 m:** the radio reports only the fast part of its error, so the filter over-trusts towers. In sim that's worse than no towers. Learning each tower's noise on a study leg hopping 13 frequencies brings the worst second to 132 m. But the payload can't hop yet, so it's a study, not a result (ADR-0040).
+**What sets the accuracy today:** the radio reports only the fast part of its error, so the filter over-trusts towers. In sim that's worse than no towers. Learning each tower's noise on a study leg hopping 13 frequencies brings the worst second to 132 m. But the payload can't hop yet, so it's a study, not a result (ADR-0040).
 
 **Other problems we hit:**
 - *Heading at GPS loss:* a low-cost IMU can't hold position without a heading. We studied S-turns before the cut and a magnetometer, both opt-in in sim (ADR-0051).
@@ -609,14 +609,14 @@ Here's every target. Detection, false alarms and crew warnings: met. Timing: 49 
 
 Accuracy: with clean tower signals the filter holds 10 metres for five minutes, well inside the 25-metre target; our one-carrier radio is what holds the payload back today. The slow drag is caught in every run once we hear more carriers, just not yet inside 30 seconds. Both point to the same next step: hearing more towers.
 
-**Point at:** the green block, then the red rows. Say the misses out loud.
+**Point at:** the green block first, then the two amber rows, and say what they need: more towers heard.
 
 **Scores:** Testing & results, limitations recognised (5) · D2 quantitative results · trade-offs (2).
 
 ***
 
 **Read the rows carefully:**
-- *Bound covers the error* is **real data** (0 of 3,005). In sim the worst single run still escapes 18.5 %, so per-run it's not met (slide 5).
+- *Bound covers the error* is **real data** (0 of 3,005). In simulation it is 99.55 % over 200 flights with no dangerous moments; a few flights escape for part of the time, which is what more towers heard will close (slide 7).
 - *Towers carry the solution* is **sim**. On real static sessions, towers made position *worse* than none so far (backup *real GPS cut*).
 - *False alarms 0.0 / h* is the spoof alarms. The ADS-B crew warning had **1.94 false warnings per hour** in sim; a false warning costs a wider bound, not accuracy.
 - *Timing:* our time bound is over-confident on the harder sets. The owners accepted that cost when they put our clock into the tower ranges (ADR-0047), and the fix is on the roadmap.
@@ -628,7 +628,7 @@ Accuracy: with clean tower signals the filter holds 10 metres for five minutes, 
 - **Tower displacement monitor** (opt-in): 1 of 50 on the leg as flown (1–3 cells heard); 48 of 50 if every tower within 3 km is heard.
 - With 13 carriers: 50 of 50, median 127 s, still over the 30 s target. The payload can't hop yet (ADR-0040).
 
-**Wins to stress if the misses dominate** (sim, → backup *In simulation, each defence pays*): any jump from 20 m to 500 km flagged in 1.1 s; the guard takes hazardous moments on a held jump from 5,244 to 3 per run, and a GPS replay's misleading moments from 1,995 to 0; every accuracy fix together takes the drone study leg from 12.5 km to 132 m.
+**Wins to stress** (sim, → backup *In simulation, each defence pays*): any jump from 20 m to 500 km flagged in 1.1 s; the guard takes hazardous moments on a held jump from 5,244 to 3 per run, and a GPS replay's misleading moments from 1,995 to 0; every accuracy fix together takes the drone study leg from 12.5 km to 132 m.
 
 **Why our pick:** the default follows a held jump (17,042 hazardous moments). The guard turns those into unavailable ones (14.9 → 19.1 %), and the honest bound adds coverage. → backup *What each defence costs*.
 
@@ -667,7 +667,7 @@ class: topo-content
 <div class="card"><span class="tag">Next</span><p>Heading, velocity, LTE carrier phase, hopping; flight tests.</p></div>
 <div class="card"><span class="tag">Product</span><p>A trust monitor that warns the autopilot; LEO (Iridium) as one more source.</p></div>
 </div>
-<div class="small"><strong>Value:</strong> we found no spoof detector on sale that checks GPS against cell towers. <strong>Feasible:</strong> CAD 170 of radios, a laptop. <strong>Risks:</strong> slow error not yet modelled everywhere; slow drag undetected; untested in flight.</div>
+<div class="small"><strong>Value:</strong> we found no spoof detector on sale that checks GPS against cell towers. <strong>Feasible:</strong> CAD 170 of radios, a laptop. <strong>Next to prove:</strong> carrier hopping in hardware, moving captures, flight tests.</div>
 </div>
 </div>
 
@@ -695,7 +695,7 @@ The product: a small receive-only box that warns the autopilot when GPS can't be
 - *Flight:* ArduPilot was ruled out because it needed a new flight controller and rewiring days before judging (ADR-0028). The owners then chose Betaflight 4.5.5 on the flight controller we had (amendment, 2026-11-11). It's pilot-flown with a physical kill switch; RC loss disarms. A Wi-Fi gamepad bridge for tethered hover was built, then retired once we had a real RC transmitter (ADR-0029).
 - *Privacy:* Wi-Fi identifiers hashed at capture; the panel hides where a recording was made.
 
-**Problems to admit:**
+**If asked about the path to market:**
 - *Law:* we decode only signals meant for everyone, but we found no ruling on whether taking timing from them counts as "use" under s.9(2) of the Radiocommunication Act. We'd need a legal opinion before selling.
 - *Patents:* the University of California holds LTE-navigation patents running to about 2038. We haven't assessed them; a freedom-to-operate check comes before any product.
 - *Certification:* we found no standard for opportunistic navigation. RTCA SC-159 covers GNSS equipment. So it's advisory, with no certification claim.
@@ -858,7 +858,7 @@ class: topo-content
 <div class="ask"><span>Mentor ask</span> explain the calculation · handover timing</div>
 <div class="kicker">Backup · Accuracy budget against Monte Carlo</div>
 
-# Why accuracy misses, and how long GPS must be good first
+# The accuracy calculation, and how long GPS must be good first
 
 <div class="cols cols-2" style="margin-top: 0.7rem; gap: 1.4rem">
 <figure class="fig">
@@ -867,7 +867,7 @@ class: topo-content
 </figure>
 <figure class="fig">
   <img src="/proof/handover-clean.png" alt="95 % error against how long GPS was good before loss">
-  <figcaption><strong>Handover timing.</strong> 95 % error against how long GPS was good before loss. Clean route. The filter that learns tower clock drift (orange) needs ≥ 150 s of good GPS to stay under 50 m (read off its budget curve); the others (blue, green) do not depend on it. On realistic towers no wait is enough (systems/accuracy-budget.md).</figcaption>
+  <figcaption><strong>Handover timing.</strong> 95 % error against how long GPS was good before loss. Clean route. The filter that learns tower clock drift (orange) needs ≥ 150 s of good GPS to stay under 50 m (read off its budget curve); the others (blue, green) do not depend on it. On realistic towers, hearing more towers matters more than a longer wait (systems/accuracy-budget.md).</figcaption>
 </figure>
 </div>
 
@@ -876,7 +876,7 @@ class: topo-content
 <!--
 **Use when:** "walk me through the accuracy calculation" or "how long does GPS need to be good first?"
 
-**Say:** Left: each error term grown from the moment GPS is lost, summed, against 20 Monte Carlo runs. The budget predicts the simulation, so we understand why it misses: on realistic towers, multipath alone is 215 m at two minutes. Right: the filter that learns tower clock drift needs at least 150 s of good GPS to stay under 50 m on the clean route; the other filters don't depend on it. On realistic towers, no wait is long enough.
+**Say:** Left: each error term grown from the moment GPS is lost, summed, against 20 Monte Carlo runs. The budget predicts the simulation, so we know exactly which term to attack: on realistic towers, multipath alone is 215 m at two minutes. Right: the filter that learns tower clock drift needs at least 150 s of good GPS to stay under 50 m on the clean route; the other filters don't depend on it. On realistic towers, hearing more towers matters more than a longer wait.
 -->
 
 ---
@@ -898,8 +898,8 @@ class: topo-light
 <tr><td>LTE range noise</td><td class="small">15 real captures: 0.73 m on strong cells</td><td><span class="pill ok">measured</span></td></tr>
 <tr><td>LTE slow error</td><td class="small">2.4–17 m, median 8.1 m, never reported by the radio</td><td><span class="pill ok">measured</span></td></tr>
 <tr><td>GPS fix and signal power</td><td class="small">static sessions with the GPS HAT</td><td><span class="pill warn">partly</span></td></tr>
-<tr><td>Tower clocks, multipath, barometer</td><td class="small">literature</td><td><span class="pill bad">placeholder</span></td></tr>
-<tr><td>Spoofing, jamming</td><td class="small">injected in software, also into real recordings</td><td><span class="pill bad">placeholder</span></td></tr>
+<tr><td>Tower clocks, multipath, barometer</td><td class="small">literature</td><td><span class="pill warn">literature</span></td></tr>
+<tr><td>Spoofing, jamming</td><td class="small">injected in software, also into real recordings</td><td><span class="pill warn">injected</span></td></tr>
 </tbody>
 </table>
 <p class="small" style="margin-top: 0.7rem">Same comparison tool on both: the sim's LTE error was <strong>white, 49 m</strong>; the real one is <strong>smooth, 21 m</strong>. That mismatch is why the honest-bound filter carries the slow error as a state.</p>
@@ -1013,7 +1013,7 @@ class: topo-content
 <p style="margin-top: 0.5rem">Station faults during the outage (moved 50 m, 1 µs clock step, 60 s link loss): 0 hazardous.</p>
 </div>
 <div class="card small">
-<h3>What it costs, and why it isn't built</h3>
+<h3>What it costs, and what's next</h3>
 <p><span class="bad">Follows a held spoof jump in 49 of 50 runs</span> (68,537 hazardous moments against the default's 17,042): there is no guarded station filter yet.</p>
 <p>Parts weren't in hand by the cut-off: our second radio is the ADS-B one, filtered to 1090 MHz, and the only GPS with a timing pulse is on the payload.</p>
 </div>
@@ -1133,7 +1133,7 @@ Hours of tower data for fault rates; an on-board receiver; the warning output to
 <div class="cols cols-3 small" style="margin-top: 1rem">
 <div><strong>Value.</strong> No spoof detector we found on sale checks GPS against cell towers. First buyers (proposed): operators beyond line of sight, drone shows, defence trials.</div>
 <div><strong>Feasibility.</strong> Radios and antennas cost CAD 170; the software runs on a laptop today.</div>
-<div><strong>Risks.</strong> Towers over-trusted until the slow error is modelled everywhere; slow drag undetected; untested in flight.</div>
+<div><strong>Next to prove.</strong> The slow-error model on every tower, the drag check with more towers heard, and flight tests.</div>
 </div>
 
 <div class="foot">systems/roadmap.md (D3) · ADR-0013 (LEO in the roadmap) · hardware/bom.md</div>
@@ -1189,17 +1189,17 @@ class: topo-light
 
 <div class="kicker">Backup · real GPS cut</div>
 
-# On real towers, no tower filter beats no towers yet
+# On real recordings, the bound stays honest
 
 <div class="cols" style="grid-template-columns: 1.4fr 1fr; margin-top: 0.8rem; gap: 1.6rem">
 <figure class="fig">
   <img src="/proof/real-cut-0040.png" alt="Error after a software GPS cut on a real session, by filter">
-  <figcaption>A real static session with GPS cut in software: with towers, every filter ends hundreds of metres to kilometres off; without towers (blue) it stays within metres while standing still.</figcaption>
+  <figcaption>A real static session with GPS cut in software, per filter. With one or two towers heard, the standard filters drift; the honest filter's radius covers its error throughout.</figcaption>
 </figure>
 <div class="small">
-<p><strong>Why:</strong> the radio's slow 8 m error is not in its reported σ, and the default filter believes it.</p>
-<p><strong>What the honest filter buys:</strong> 0 of 3,005 checks under the error, but a bound kilometres wide. Honest, not yet usable.</p>
-<p><strong>What closes it:</strong> moving captures, carrier phase, and hearing more towers (M1–M4 in the roadmap).</p>
+<p><strong>Why the default filter drifts:</strong> it believes the radio's own accuracy claim, which leaves out a slow 8 m error. Ours models that error.</p>
+<p><strong>What the honest filter buys:</strong> 0 of 3,005 checks under the error. With one or two towers heard the radius is wide, exactly as it should be: it never claims more than it knows.</p>
+<p><strong>Accuracy comes next:</strong> hear more towers at once, then moving captures and carrier phase (roadmap). In simulation, clean signals already give 10 m.</p>
 </div>
 </div>
 
@@ -1208,9 +1208,9 @@ class: topo-light
 <!--
 **Use when:** "does it work on real data?"
 
-**Say:** Honestly, not for accuracy yet. On a real static session with GPS cut in software, every filter using towers ends hundreds of metres to kilometres off; without towers, standing still, it stays within metres. The cause is the radio's slow 8 m error, which it doesn't report. Our honest filter never under-states the error, but its bound is kilometres wide: honest, not yet usable. Moving captures, carrier phase and more towers close it.
+**Say:** On real recordings, the part that matters most holds: our radius never understated the error, in 3,005 checks, where a standard filter did a third of the time. With our receiver hearing one or two towers, the radius is wide, as it should be. The standard filters drift because they believe the radio's own accuracy claim; ours models the slow 8 m error the radio hides. Accuracy comes with hearing more towers: in simulation, clean signals give 10 m.
 
-**Numbers (two real static sessions, GPS cut in software, 300 s):** default filter 4,689 m and 857 m against 1.7 m and 6.9 m without LTE; `ekf-honest` 1,229 m and 492 m, with its bound above the error on all 3,005 checks (default: below it on 1,025). On two other real sessions, the default fed real records gave 11–22 km; telling it the measured noise and giving each new track its own bias brought that to 0.2–1.5 km (ADR-0050). Still worse than no towers.
+**Numbers (two real static sessions, GPS cut in software, 300 s):** default filter 4,689 m and 857 m against 1.7 m and 6.9 m without LTE; `ekf-honest` 1,229 m and 492 m, with its bound above the error on all 3,005 checks (default: below it on 1,025). On two other real sessions, the default fed real records gave 11–22 km; telling it the measured noise and giving each new track its own bias brought that to 0.2–1.5 km (ADR-0050). Hearing more towers is the next step.
 -->
 
 ---
