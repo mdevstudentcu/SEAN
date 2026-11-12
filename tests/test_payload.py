@@ -463,6 +463,20 @@ def test_gpsd_fix_becomes_enu_with_95pct_errors_as_sigma():
     assert tpv_measurements({**tpv, "mode": 2}, ORIGIN) == []  # 2D fix: no height, not used
 
 
+def test_gpsd_horizontal_sigma_follows_eph_not_frozen_xdop_ydop():
+    # #284: gpsd 3.25 on the MediaTek HAT sent epx 41.577 / epy 33.918 (xdop 2.77, ydop 2.26
+    # frozen since gpsd started) next to eph 16.53 (the receiver's HDOP 0.87 x 19 m).
+    lat, lon, h = frames.enu_to_llh(np.array([0.0, 0.0, 0.0]), ORIGIN)
+    tpv = {"class": "TPV", "mode": 3, "time": "2026-11-12T01:23:04.000Z", "lat": lat,
+           "lon": lon, "altHAE": h, "epx": 41.577, "epy": 33.918, "epv": 25.99,
+           "eph": 16.53}  # fmt: skip
+    (m,) = tpv_measurements(tpv, ORIGIN)
+    assert m.sigma == pytest.approx((16.53 / 1.96, 16.53 / 1.96, 25.99 / 1.96))
+    no_eph = {k: v for k, v in tpv.items() if k != "eph"}
+    (m,) = tpv_measurements(no_eph, ORIGIN)  # an older gpsd without eph: epx/epy as before
+    assert m.sigma == pytest.approx((41.577 / 1.96, 33.918 / 1.96, 25.99 / 1.96))
+
+
 def test_bssids_are_hashed_at_capture_req08():
     scan = (
         "BSS 00:11:22:33:44:55(on wlan0)\n\tfreq: 2412\n\tsignal: -48.00 dBm\n\tSSID: home\n"
