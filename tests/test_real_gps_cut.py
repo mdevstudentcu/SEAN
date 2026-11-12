@@ -124,6 +124,8 @@ def test_score_cut_takes_the_nearest_fix_when_none_falls_on_an_instant():
     out = rgc.score_cut(est_t, est_pos, np.full(len(est_t), 1e3), sparse, fix_pos[::7], cut)
     assert all(math.isnan(out[f"err_{s:g}s_m"]) for s in rgc.AT_S)
     assert math.isnan(out["hpl_60s_m"])
+
+
 def test_score_cut_takes_the_nearest_fix_when_none_is_on_the_instant():
     # #286 (#264's idea): fixes half a second off the cut's grid, as on session 20261111-1937,
     # had no value at +30 ... +300 s; the nearest fix within 0.5 s now stands for the instant
