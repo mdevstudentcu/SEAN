@@ -1,0 +1,20 @@
+{
+  "name": "pnt-judging-deck",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "slidev --open",
+    "build": "slidev build",
+    "export": "slidev export"
+  },
+  "dependencies": {
+    "@fontsource/krona-one": "5.2.6",
+    "@fontsource/red-hat-mono": "5.2.6",
+    "@fontsource/red-hat-text": "5.2.6",
+    "@slidev/cli": "52.14.1",
+    "@slidev/theme-default": "0.25.0"
+  },
+  "devDependencies": {
+    "playwright-chromium": "^1.55.0"
+  }
+}

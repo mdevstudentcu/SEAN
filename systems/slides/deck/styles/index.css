@@ -1,0 +1,113 @@
+/* Dark slate deck with dithered topographic corners (public/topo-*.png, tools/topo.py).
+   Colour carries state only (as on the operator panel): green met, amber partly, red not met. */
+@import '@fontsource/krona-one/400.css';
+@import '@fontsource/red-hat-text/400.css';
+@import '@fontsource/red-hat-text/500.css';
+@import '@fontsource/red-hat-text/700.css';
+@import '@fontsource/red-hat-mono/400.css';
+@import '@fontsource/red-hat-mono/600.css';
+
+:root {
+  --bg: #1b2128;
+  --surface: #232b33;
+  --surface-2: #2b343d;
+  --line: #3d4853;
+  --contour: #8a96a3;
+  --fg: #eef1f4;
+  --muted: #a3aeb9;
+  --ok: #4cc283;
+  --warn: #e2a64a;
+  --bad: #f06a6a;
+  --display: 'Krona One', 'Arial Black', sans-serif;
+  --body: 'Red Hat Text', 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'Red Hat Mono', ui-monospace, Menlo, monospace;
+}
+
+.slidev-layout {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 1.32rem;
+  line-height: 1.42;
+  padding: 3.2rem 4.2rem;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+}
+.slidev-layout.topo-title { background-image: url('/topo-title.png'); }
+.slidev-layout.topo-content { background-image: url('/topo-content.png'); }
+.slidev-layout.topo-section { background-image: url('/topo-section.png'); }
+.slidev-layout.topo-light { background-image: url('/topo-light.png'); }
+.slidev-layout.topo-cover { background-image: url('/topo-cover.png'); }
+
+.slidev-layout h1 {
+  font-family: var(--display);
+  font-size: 2.3rem;
+  line-height: 1.16;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0 0 0.4rem;
+  text-wrap: balance;
+}
+.slidev-layout h1 + p { margin-top: 0; }
+.slidev-layout h2 {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0 0 0.5rem;
+}
+.slidev-layout h3 { font-size: 1.15rem; font-weight: 700; margin: 0 0 0.3rem; }
+.slidev-layout p { margin: 0.4rem 0; }
+.slidev-layout strong { color: var(--fg); font-weight: 700; }
+.slidev-layout code { font-family: var(--mono); font-size: 0.9em; background: var(--surface-2); padding: 0.05em 0.35em; border-radius: 4px; }
+
+.kicker { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--contour); margin-bottom: 0.9rem; }
+.lede { font-size: 1.3rem; color: var(--muted); max-width: 46ch; }
+.muted { color: var(--muted); }
+.small { font-size: 0.95rem; }
+.foot { position: absolute; left: 4.2rem; bottom: 1.6rem; font-size: 0.78rem; color: var(--muted); font-family: var(--mono); letter-spacing: 0.02em; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* dashed-outline label, the template's scorecard chip */
+.tag { display: inline-block; border: 1.5px dashed var(--contour); padding: 0.15rem 0.6rem; font-family: var(--display); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.pill { display: inline-block; border-radius: 999px; padding: 0.12rem 0.7rem; font-family: var(--mono); font-size: 0.78rem; font-weight: 600; border: 1.5px solid currentColor; white-space: nowrap; }
+.ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+
+.cols { display: grid; gap: 1.6rem; }
+.cols-2 { grid-template-columns: 1fr 1fr; }
+.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.card { background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.2rem; }
+.card h3 { margin-bottom: 0.4rem; }
+.card ul { margin: 0; padding-left: 1.1rem; }
+.card li { margin: 0.25rem 0; }
+
+.bigstat { font-family: var(--display); font-size: 3.4rem; line-height: 1; letter-spacing: -0.01em; }
+.statlabel { color: var(--muted); font-size: 0.95rem; margin-top: 0.4rem; }
+
+table.score { width: 100%; border-collapse: collapse; font-size: 1.05rem; }
+table.score th { text-align: left; font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--contour); font-weight: 400; padding: 0 0.6rem 0.45rem; border-bottom: 1.5px dashed var(--line); }
+table.score td { padding: 0.62rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.score tr:last-child td { border-bottom: 0; }
+table.score td.r { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.bar { height: 1.15rem; border-radius: 3px; background: var(--surface-2); position: relative; overflow: hidden; }
+.bar > span { position: absolute; inset: 0 auto 0 0; display: block; }
+
+.step { display: grid; grid-template-columns: 2.4rem 1fr; gap: 0.8rem; align-items: start; }
+.step .n { width: 2.4rem; height: 2.4rem; border-radius: 50%; border: 1.5px dashed var(--contour); display: grid; place-items: center; font-family: var(--display); font-size: 0.95rem; }
+
+.mermaid svg { max-width: 100%; }
+
+/* architecture: a left-to-right chain of nodes */
+.arch { display: grid; grid-template-columns: 1.25fr auto 1fr auto 1fr auto 1fr auto 1fr; align-items: center; gap: 0; }
+.arch .node { background: var(--surface); border: 1.5px solid var(--contour); border-radius: 10px; padding: 1.1rem 1rem; min-height: 10rem; display: flex; flex-direction: column; justify-content: center; }
+.arch .node.payload { border-style: dashed; min-height: 15rem; }
+.arch .nt { font-family: var(--display); font-size: 0.92rem; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.35rem; }
+.arch .ns { color: var(--muted); font-size: 1.05rem; line-height: 1.35; }
+.arch ul { margin: 0.6rem 0 0; padding-left: 1.1rem; font-size: 1.08rem; }
+.arch .arrow { position: relative; width: 2.6rem; height: 1.5px; background: var(--contour); }
+.arch .arrow::after { content: ''; position: absolute; right: -1px; top: -5px; border: 6px solid transparent; border-left: 8px solid var(--contour); border-right: 0; }
+.arch .arrow span { position: absolute; bottom: 0.5rem; left: 50%; transform: translateX(-50%); white-space: nowrap; font-family: var(--mono); font-size: 0.78rem; color: var(--muted); text-align: center; }
+.arch .payload + .arrow { width: 9rem; }
+.arch-in { margin-top: 1.2rem; font-size: 1.05rem; color: var(--muted); }
