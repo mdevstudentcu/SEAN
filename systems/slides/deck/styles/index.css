@@ -159,6 +159,6 @@ ol.legend.tight li::before { width: 1.15rem; height: 1.15rem; font-size: 0.58rem
 /* backup: simulation wins grid */
 .wins { row-gap: 0.75rem; column-gap: 0.9rem; }
 .wins .card { padding: 1rem 1.1rem; }
-.wins .bigstat { font-size: 2.2rem; line-height: 1.15; }
+.wins .bigstat { font-size: 1.95rem; line-height: 1.15; white-space: nowrap; }
 .wins .statlabel { font-size: 0.86rem; line-height: 1.35; margin-top: 0.35rem; }
 .nw td.r, .nw th { white-space: nowrap; }
