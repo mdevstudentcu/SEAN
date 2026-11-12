@@ -199,21 +199,26 @@ def score_cut(
     horizon_s: float = HORIZON_S,
 ) -> dict:
     """Score one run against the fixes withheld from it: those in [cut, cut + horizon] that
-    fall on an estimate epoch. Errors are horizontal, in metres."""
-    keep = (fix_t >= cut_ns) & (fix_t <= cut_ns + round(horizon_s * 1e9))
-    t, pos = fix_t[keep], fix_pos[keep]
-    i = np.searchsorted(est_t, t)
-    on = (i < len(est_t)) & (est_t[np.minimum(i, len(est_t) - 1)] == t)
-    t, pos, i = t[on], pos[on], i[on]
-    err = np.hypot(*(est_pos[i, :2] - pos[:, :2]).T)
-    hpl = est_hpl[i]
-    after = (t - cut_ns) / 1e9
-    out = {"n_fixes": int(len(t)), "after_s": after.tolist(), "err_m": err.tolist()}
+    fall on an estimate epoch. Errors are horizontal, in metres. The instants (`AT_S`) may also
+    take a fix up to AT_NEAREST_S past the horizon: on session 20261111-1937 the fix that stands
+    for +300 s is 2.6 ms after it (#286)."""
+
+    def matched(end_s: float):
+        keep = (fix_t >= cut_ns) & (fix_t <= cut_ns + round(end_s * 1e9))
+        t, pos = fix_t[keep], fix_pos[keep]
+        i = np.searchsorted(est_t, t)
+        on = (i < len(est_t)) & (est_t[np.minimum(i, len(est_t) - 1)] == t)
+        t, pos, i = t[on], pos[on], i[on]
+        return (t - cut_ns) / 1e9, np.hypot(*(est_pos[i, :2] - pos[:, :2]).T), est_hpl[i]
+
+    after, err, hpl = matched(horizon_s)
+    out = {"n_fixes": int(len(after)), "after_s": after.tolist(), "err_m": err.tolist()}
     out["hpl_m"] = hpl.tolist()
+    at_after, at_err, at_hpl = matched(horizon_s + AT_NEAREST_S)
     for s in AT_S:
-        k = at_instant(after, s)
-        out[f"err_{s:g}s_m"] = float(err[k[0]]) if len(k) else float("nan")
-        out[f"hpl_{s:g}s_m"] = float(hpl[k[0]]) if len(k) else float("nan")
+        k = at_instant(at_after, s)
+        out[f"err_{s:g}s_m"] = float(at_err[k[0]]) if len(k) else float("nan")
+        out[f"hpl_{s:g}s_m"] = float(at_hpl[k[0]]) if len(k) else float("nan")
     for s in SLICES_S:
         w = after < s
         out[f"p95_{s:g}s_m"] = _p95(err[w]) if after.size and after.max() >= s - 1 else math.nan

@@ -140,6 +140,15 @@ def test_score_cut_takes_the_nearest_fix_when_none_is_on_the_instant():
     on = T0 + np.arange(0, 400) * S
     out = rgc.score_cut(est_t, est_pos, np.full(len(est_t), 1e3), on, np.zeros((400, 3)), cut)
     assert out["err_300s_m"] == pytest.approx(300.0)
+    # #286: on session 20261111-1937 the fix for +300 s is 2.6 ms past the horizon; it counts
+    # for the instant (and only for it: the horizon's statistics keep their 300 fixes)
+    late = T0 + np.arange(0, 400) * S + 2_576_270
+    est_l = np.sort(np.concatenate([T0 + np.arange(0, 4000) * (S // 10), late]))
+    pos_l = np.zeros((len(est_l), 3))
+    pos_l[:, 0] = np.clip((est_l - cut) / S, 0, None)
+    out = rgc.score_cut(est_l, pos_l, np.full(len(est_l), 1e3), late, np.zeros((400, 3)), cut)
+    assert out["err_300s_m"] == pytest.approx(300.0026, abs=1e-3)
+    assert out["n_fixes"] == 300
     # nothing within 0.5 s: no value, never a far fix's
     sparse = fix_t[::7]
     out = rgc.score_cut(est_t, est_pos, np.full(len(est_t), 1e3), sparse, np.zeros((58, 3)), cut)
