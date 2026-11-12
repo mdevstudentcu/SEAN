@@ -50,7 +50,7 @@ NIC_RC_M = {
 }  # fmt: skip
 K95 = 2.4477  # 95 % radius of a circular 2-D Gaussian, in sigmas
 # Containment radius in sigmas, a protection-level-like bound (pnt.integrity.protection uses
-# K_H = 5.33 for 1e-7). TBC
+# K_H = 5.68 for 1e-7, ADR-0056). TBC
 K_RC = 6.0
 UNKNOWN_SIGMA_M = 20.0 * NM  # sigma reported for NACp 0 (unknown accuracy): a no-information value
 

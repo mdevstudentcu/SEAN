@@ -128,8 +128,8 @@ class Params:
     #   our GNSS is or soon will be faulted; no measured rate backs it
     p_gnss_cm_warned: float = 1e-1
     adsb: adsb.Params = field(default_factory=adsb.Params)
-    # Integrity budget per epoch, horizontal. 1e-7 matches K_H = 5.33 in protection.py (TBC by
-    # REQ-02).
+    # Integrity budget per epoch, horizontal. 1e-7 matches K_H = 5.68 in protection.py (ADR-0056;
+    # TBC by REQ-02).
     phmi: float = 1e-7
     # Continuity budget per epoch for a false exclusion, shared over hypotheses (TBC by REQ-04).
     p_fa: float = 1e-5

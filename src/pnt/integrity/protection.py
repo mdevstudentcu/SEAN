@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import numpy as np
 
-# Multiplier on the horizontal error ellipse's major-axis sigma. 5.33 is a common choice for a
-# ~1e-7 integrity risk under Gaussian errors. TBC: REQ-02's target sets the real value.
-K_H = 5.33
+# Multiplier on the horizontal error ellipse's major-axis sigma (ADR-0056): the horizontal error
+# is two-dimensional, so the 1e-7 per-epoch integrity risk (mhss.phmi) needs
+# P(r > k sigma_major) <= exp(-k^2 / 2) = 1e-7, k = sqrt(2 ln 1e7) = 5.68 (bounding the ellipse
+# by a circle of its major-axis sigma). The risk is TBC by REQ-02; the exposure time is TBD.
+K_H = 5.68
+# Vertical and time are one-dimensional: the two-sided 1e-7 Gaussian factor, 5.33.
 K_V = 5.33
 
 
@@ -24,8 +27,9 @@ def vpl(pos_cov: np.ndarray, k: float = K_V) -> float:
     return float(k * np.sqrt(max(float(np.asarray(pos_cov)[2, 2]), 0.0)))
 
 
-# Multiplier on the clock 1-sigma for the time protection level, the same as K_H so position and
-# time carry the same nominal integrity risk. TBC: REQ-03's target sets the real value.
+# Multiplier on the clock 1-sigma for the time protection level: the clock is one-dimensional, so
+# the same 1e-7 risk as K_H takes the 1-D factor, 5.33 (ADR-0056). TBC: REQ-03's target sets the
+# real value.
 K_T = 5.33
 
 
