@@ -1,5 +1,7 @@
 # The 5-minute deck
 
+**The slides themselves:** [`slides/deck.pdf`](slides/deck.pdf), seven pages, one per slide; open full screen (see [`slides/README.md`](slides/README.md)).
+
 **The pitch in one line:** a navigation layer that knows when it is wrong, and tells the operator not to trust it.
 
 Seven slides, 255 s, 526 words of script, 16 numbers spoken. Seconds are the words at 2.1 a second, except the demo, which the panel's clock sets at 80 s. Each slide gives the headline, what is on it, the figure, the word-for-word script and where to look if asked. Answers to questions: [`judge-questions.md`](judge-questions.md). Every number and its source: [`results.md`](results.md) (*Numbers the deck speaks or shows*).
