@@ -108,6 +108,18 @@ class Config:
     carrier_lock_hz: float = 20.0  # loop rate 1σ below which carrier aiding starts, TBC
     miss_limit: int = 4  # consecutive misses before re-searching near the prediction
     lost_s: float = 2.0  # give a cell up after this long without it
+    # Lock detector against the interference floor (#214), TBC. An epoch is accepted on its
+    # post-correlation SNR against the reserved-bin noise (`detect_snr_db`), which does not see
+    # the other cells' sync signals; the largest of the code gate's bins on that floor passes it
+    # most epochs. On 20261111-1806-walk-lte a cell that faded kept "locked" there and slid at
+    # its loop rate, kilometres in one arc. Every `lock_window_s` of accepted epochs, their
+    # mean peak power over the profile's interference floor (as `first_path_floor` measures it)
+    # must reach `lock_peak_to_floor`; if not, that window's epochs are dropped and the track
+    # ends, and the next search starts the cell on a new arc. 4: on that walk, 84 % of the
+    # seconds of a sliding track fell below it, 16 % of those of a good one (one track's floor
+    # alone, the gate's largest of a few exponential bins, has a mean near 2). 0: off.
+    lock_window_s: float = 1.0
+    lock_peak_to_floor: float = 4.0
     output_period_s: float = 0.1  # 10 Hz
     # Doppler records, off by default (TBC, until the alias below is resolved and checked on a
     # real capture). The carrier phase is only known modulo the 200 Hz half-frame rate, and
@@ -161,6 +173,7 @@ class Epoch:
     arc: int
     n0: float  # the arc's reference boundary (`CellTrack.n0` moves when a new arc starts)
     n_sync: float = 2 * sig.N_SYNC  # sync elements' worth combined: snr_post / n_sync is per RE
+    peak_floor: float = math.nan  # peak power over the profile's interference floor (linear)
 
 
 @dataclass
@@ -174,6 +187,7 @@ class CellTrack:
     arc: int = 0
     epochs: list[Epoch] = field(default_factory=list)
     snr_db: float = float("nan")
+    unlocked: bool = False  # the lock detector ended its last track: restart on a new arc
 
 
 @dataclass
@@ -618,6 +632,8 @@ class _Track:
         detect = 10 ** (cfg.detect_snr_db / 10)
         noise_ema = snr_ema = re_ema = None
         miss, settled = 0, False
+        lock_n = round(cfg.lock_window_s / sig.HALF_FRAME_S)
+        lock_k0, lock_sum, lock_cnt = None, 0.0, 0  # this lock window: first k, sum, count
         # The PSS is shared by every cell with this N_ID2, and in a frame-synchronised network
         # they all arrive together; eNBs need not send PSS and SSS through one antenna either.
         # Only the SSS is the cell's own, so the PSS is added with a weight per subframe:
@@ -740,9 +756,22 @@ class _Track:
                     arc=cell.arc,
                     n0=cell.n0,
                     n_sync=float(n_sync[r]),
+                    peak_floor=float(b[r] ** 2 / max(float(interf[r]), 1e-30)),
                 )
                 if settled:
                     cell.epochs.append(ep)
+                    if cfg.lock_peak_to_floor > 0:
+                        if lock_k0 is None:
+                            lock_k0 = kk
+                        lock_sum += ep.peak_floor
+                        lock_cnt += 1
+                        if kk - lock_k0 >= lock_n:
+                            if lock_sum / lock_cnt < cfg.lock_peak_to_floor:
+                                _drop_window(cell, lock_k0)
+                                cell.unlocked = True
+                                action = ("unlocked",)
+                                break
+                            lock_k0, lock_sum, lock_cnt = None, 0.0, 0
                 last, good, last_seen = ep, st.copy(), float(bounds[r])
                 prof_acc += power[r]
                 interf_acc += float(interf[r])
@@ -763,8 +792,12 @@ class _Track:
             # New PSS weights for the next block: |w| <= 1, and 1 until both subframes have data.
             if np.all(w_n > 0):
                 w = w_num / np.maximum(w_den, np.abs(w_num) + 1e-30)
+            if action is not None:  # the loop moved or a gap was found: a fresh lock window
+                lock_k0, lock_sum, lock_cnt = None, 0.0, 0
             if action is None:
                 k = int(ks[-1]) + 1
+            elif action[0] == "unlocked":
+                break
             elif action[0] == "continue":
                 k = action[1]
             elif action[0] == "lost":
@@ -987,6 +1020,15 @@ class _Track:
             # Not a drop: the cell came back somewhere else (another path, or a reused PCI).
             return ("found", k_found, theta_at + resid, True)
         return ("gap", Gap(at=at, n=n_drop, until=at, ambiguous=ambiguous))
+
+
+def _drop_window(cell: CellTrack, k0: int) -> None:
+    """Remove the current arc's epochs from half-frame `k0` on (a lock window that failed)."""
+    while cell.epochs:
+        e = cell.epochs[-1]
+        if e.arc != cell.arc or e.n0 != cell.n0 or e.k < k0:
+            break
+        cell.epochs.pop()
 
 
 def _host_gap(buffers: np.ndarray, fs: float, f_lo: int, f_hi: int) -> int | None:

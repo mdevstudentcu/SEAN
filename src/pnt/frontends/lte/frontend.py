@@ -173,6 +173,14 @@ def _start(
 ) -> tuple[CellTrack, State]:
     """A loop state for a found cell: continuing its earlier arc if the timing predicts it."""
     prev = carry.get(key)
+    if prev is not None and prev[0].unlocked:
+        # The lock detector ended its last track: that loop's timing and rate had slid (#214),
+        # so start over from the search, as for a new cell, on a new arc.
+        cell = prev[0]
+        cell.unlocked = False
+        cell.arc += 1
+        cell.n0 = f.boundary
+        return cell, State(0.0, -f.f_hz / fc, 0.3**2, 0.0, (f.sigma_f_hz / fc) ** 2, 0)
     if prev is not None:
         cell, st = prev
         k = 2 * round((f.boundary - cell.n0 - st.theta) / (2 * L))
