@@ -1,4 +1,4 @@
-"""The innovation whiteness test (#275 step 1, ADR-0052 Proposed) on sim and real sessions.
+"""The innovation whiteness test (#275 step 1, ADR-0055 Proposed) on sim and real sessions.
 
     python analysis/whiteness.py study [--jobs 3] --out analysis/results/whiteness-275
     python analysis/whiteness.py real [LABEL=]<session>-lte ... --out DIR

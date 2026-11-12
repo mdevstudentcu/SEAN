@@ -367,7 +367,7 @@ class EKF:
         hold_speed_mps: float = 0.5,  # m/s: largest horizontal speed in that window (TBC)
         hold_k: float = 3.0,  # IMU variance factor over the rest baseline that disarms it (TBC)
         hold_sigma_mps: float = 0.1,  # m/s: the zero-velocity update's sigma (TBC)
-        # innovation whiteness per source, a report-only flag (#275, ADR-0052); True: defaults,
+        # innovation whiteness per source, a report-only flag (#275, ADR-0055); True: defaults,
         # a mapping: WhitenessParams options, None or False: off (`nav.estimate` switches it on)
         whiteness: Mapping | bool | None = False,
     ):

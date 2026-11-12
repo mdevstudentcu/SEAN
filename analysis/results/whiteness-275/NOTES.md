@@ -1,4 +1,4 @@
-# Innovation whiteness flag per source (#275 step 1, ADR-0052 Proposed)
+# Innovation whiteness flag per source (#275 step 1, ADR-0055 Proposed)
 
 Evidence: **sim** (placeholder models, ADR-0015) and **replay of three real sessions**. Script `analysis/whiteness.py` at `8218318` (the commit in `study.json`, `real.json` and the hash and timing files). Statistics only: no position, range or bearing.
 

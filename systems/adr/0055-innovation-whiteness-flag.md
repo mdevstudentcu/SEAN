@@ -1,4 +1,4 @@
-# ADR-0052: Flag a source whose innovations are correlated in time (report only)
+# ADR-0055: Flag a source whose innovations are correlated in time (report only)
 
 - **Status:** Proposed
 - **Date:** 2026-11-11

@@ -82,7 +82,7 @@ ESTIMATORS = {
 
 log = logging.getLogger(__name__)
 
-# Estimators that take `whiteness` (#275, ADR-0052): `ekf.run` and its presets, however wrapped.
+# Estimators that take `whiteness` (#275, ADR-0055): `ekf.run` and its presets, however wrapped.
 # `ekf-base*` run their own loop and are not among them.
 WHITENESS = (ekf.run, ekf.run_calibrated, ekf.run_calibrated_measured)
 
@@ -109,7 +109,7 @@ def estimate(
     receivers it models. Records it drops are counted and logged as a warning when the run ends,
     so they are never lost silently. `reference` is the session's `reference` block; only an
     estimator that models the reference receiver is given it, and only when there is one.
-    `whiteness` switches on the innovation whiteness flag (ADR-0052) for the estimators that
+    `whiteness` switches on the innovation whiteness flag (ADR-0055) for the estimators that
     have it: the panel, live and replay paths do; evals, results and sweeps leave it off."""
     name = estimator if isinstance(estimator, str) else getattr(estimator, "__name__", "?")
     fn = ESTIMATORS[estimator] if isinstance(estimator, str) else estimator

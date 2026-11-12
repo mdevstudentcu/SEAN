@@ -227,7 +227,7 @@ def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
     heard_ns = int(HEARD_S * 1e9)
     run = estimate(
         feed.estimator, watch, origin_llh=feed.origin_llh, reference=feed.reference, whiteness=True
-    )  # the panel shows the whiteness flag (ADR-0052)
+    )  # the panel shows the whiteness flag (ADR-0055)
     for est in run:
         if lock is not None:
             with lock:

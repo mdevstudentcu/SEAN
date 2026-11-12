@@ -40,7 +40,7 @@ _RANK = {CAUTION: 0, WARNING: 1, ALARM: 2}
 #   ekf: gnss_alt_excluded (#227, ADR-0045)
 #   ekf-base (#107): base_excluded, tower_fault:<emitter>:<jump m> (in `describe`)
 #   ekf-mhss (#108): mhss_alarm:<hypothesis>, mhss_excluded:<hypothesis> (in `describe`)
-#   every `ekf.run` estimator (#275, ADR-0052): innovations_correlated:<source> (in `describe`)
+#   every `ekf.run` estimator (#275, ADR-0055): innovations_correlated:<source> (in `describe`)
 FLAGS: dict[str, tuple[str, str]] = {
     "gnss_unavailable": (
         CAUTION,
@@ -233,7 +233,7 @@ def panel_status(est: Estimate, alert_limit_m: float) -> str:
         return est.status
     if est.hpl_m > alert_limit_m:
         return "unsafe"
-    if est.status == "unsafe":  # a report-only flag (ADR-0052) degrades nothing
+    if est.status == "unsafe":  # a report-only flag (ADR-0055) degrades nothing
         return "degraded" if any(not advisory(f) for f in est.flags) else "nominal"
     return est.status
 

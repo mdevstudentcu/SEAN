@@ -55,6 +55,6 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0050](0050-real-lte-records-in-the-default-filter.md) | A real capture's LTE records get ADR-0036's σ and a bias per new arc by default; GNSS re-admission, a settling σ and a heard-cell bound opt-in | Accepted |
 | [0051](0051-heading-at-gps-loss.md) | Heading at GPS loss: S-turns before the cut and a magnetometer `heading` record, opt-in in the sim (`ekf-imu-mag`); changes ICD-measurement | Proposed |
 | [0052](0052-field-filter-ab.md) | Keep `ekf-honest` as the opt-in LTE filter after the field A/B; the field settings stay unregistered | Proposed |
-| [0055](0055-innovation-whiteness-flag.md) | Flag a source whose innovations are correlated in time (innovation whiteness test, report only; on the panel, live and replay paths, off for evals; GNSS position analysis only) | Proposed |
 | [0053](0053-imu-bias-calibration-while-still.md) | The IMU biases are calibrated from a still stretch before alignment, and no alignment window runs while still | Proposed |
 | [0054](0054-numba-for-the-ekf-kernels.md) | numba compiles the EKF's covariance kernels; `pnt eval` workers run one BLAS thread | Proposed |
+| [0055](0055-innovation-whiteness-flag.md) | Flag a source whose innovations are correlated in time (innovation whiteness test, report only; on the panel, live and replay paths, off for evals; GNSS position analysis only) | Proposed |
