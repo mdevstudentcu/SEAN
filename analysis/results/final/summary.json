@@ -1,5 +1,5 @@
 {
-  "commit": "b74010e",
+  "commit": "d66c929",
   "estimator": "ekf",
   "runs": 50,
   "outage_scenario": "realistic-long-outage",
@@ -7,33 +7,33 @@
   "t1": {
     "target_m": 25.0,
     "window_s": 300.0,
-    "worst_p95_m": 677.2812286376952,
+    "worst_p95_m": 677.2784271240233,
     "worst_at_s": 90,
     "met": false
   },
   "fallback": {
     "target_m": 50.0,
     "window_s": 120.0,
-    "worst_p95_m": 677.2812286376952,
+    "worst_p95_m": 677.2784271240233,
     "worst_at_s": 90,
     "met": false
   },
   "outage_summary": {
     "n": 3599.0,
-    "h_rmse_m": 154.4408701876402,
-    "h_p95_m": 317.6372970217455,
-    "h_max_m": 452.7337892004432,
-    "fault_h_p95_m": 331.67853124077965,
-    "fault_h_max_m": 452.7337892004432,
+    "h_rmse_m": 154.4409161530548,
+    "h_p95_m": 317.6380720688427,
+    "h_max_m": 452.73406352550563,
+    "fault_h_p95_m": 331.6789077514326,
+    "fault_h_max_m": 452.73406352550563,
     "hpl_bound_frac": 0.9330036121144762,
     "misleading_epochs": 0.0,
     "detect_delay_s": NaN,
     "spoof_detected": NaN,
     "false_alarms_per_h": 0.0,
-    "h_nees_mean": 12.85094305200334,
-    "time_err_p95_us": 0.44312628873067056,
-    "fault_time_err_p95_us": 0.4617441308602552,
-    "time_1sigma_bound_frac": 0.371764378994165,
+    "h_nees_mean": 12.85053932745409,
+    "time_err_p95_us": 0.443126260441433,
+    "fault_time_err_p95_us": 0.4617439648604805,
+    "time_1sigma_bound_frac": 0.37176993609335923,
     "hazardous_epochs": 0.0,
     "time_pl_bound_frac": 0.9254404001111419,
     "time_misleading_epochs": 268.34,
@@ -44,13 +44,13 @@
     "pos_resilience_level": 2.0,
     "time_resilience_level": 2.98,
     "recovery_tested": 0.0,
-    "outage_h_p95_60s_m": 173.57862769522228,
-    "outage_h_p95_120s_m": 282.84779942548687,
-    "outage_h_p95_300s_m": 331.67853124077965,
+    "outage_h_p95_60s_m": 173.57667208075927,
+    "outage_h_p95_120s_m": 282.84587040760823,
+    "outage_h_p95_300s_m": 331.6789077514326,
     "outage_hpl_bound_300s": 0.9196266666666666,
     "outage_time_err_600s_us": NaN,
     "outage_time_sigma_bound_600s": NaN,
-    "worst_fault_h_max_m": 906.1989455280597,
+    "worst_fault_h_max_m": 906.1888822563294,
     "min_hpl_bound_frac": 0.6924145595998888,
     "tta_median_s": 1.9,
     "tta_worst_s": 1.9,
@@ -64,9 +64,9 @@
     {
       "variant": "all sources",
       "dropped": [],
-      "mean_m": 331.67853124077965,
-      "se_m": 20.52817736031152,
-      "worst_m": 787.4192669110749,
+      "mean_m": 331.6789077514326,
+      "se_m": 20.528084396822116,
+      "worst_m": 787.4108879278087,
       "added_m": 0.0,
       "added_se_m": 0.0
     },
@@ -75,31 +75,31 @@
       "dropped": [
         "lte"
       ],
-      "mean_m": 2292.335727135851,
-      "se_m": 26.520563444908586,
+      "mean_m": 2292.335678619162,
+      "se_m": 26.520567264703335,
       "worst_m": 2757.5429970573527,
-      "added_m": 1960.6571958950715,
-      "added_se_m": 33.34190567483113
+      "added_m": 1960.6567708677294,
+      "added_se_m": 33.34198049441146
     },
     {
       "variant": "no baro",
       "dropped": [
         "baro"
       ],
-      "mean_m": 409.38996822353397,
-      "se_m": 33.93838821368574,
-      "worst_m": 1407.8529310792842,
-      "added_m": 77.71143698275438,
-      "added_se_m": 27.776921746416463
+      "mean_m": 409.3898687981739,
+      "se_m": 33.93836099837018,
+      "worst_m": 1407.8529310792555,
+      "added_m": 77.71096104674152,
+      "added_se_m": 27.776966672819224
     },
     {
       "variant": "no imu",
       "dropped": [
         "imu"
       ],
-      "mean_m": 331.67853124077965,
-      "se_m": 20.52817736031152,
-      "worst_m": 787.4192669110749,
+      "mean_m": 331.6789077514326,
+      "se_m": 20.528084396822116,
+      "worst_m": 787.4108879278087,
       "added_m": 0.0,
       "added_se_m": 0.0
     }
@@ -154,8 +154,8 @@
       "scenario": "realistic-spoof-ramp",
       "epochs": 179950,
       "nominal": 76563,
-      "misleading": 10933,
-      "hazardous": 92354,
+      "misleading": 10929,
+      "hazardous": 92358,
       "unavailable": 100,
       "unavailable_misleading": 0
     },
@@ -189,20 +189,20 @@
     {
       "scenario": "realistic-jamming-zone",
       "epochs": 176150,
-      "nominal": 152181,
+      "nominal": 152183,
       "misleading": 0,
       "hazardous": 0,
-      "unavailable": 23969,
+      "unavailable": 23967,
       "unavailable_misleading": 543
     },
     {
       "scenario": "realistic-baro-drift",
       "epochs": 179950,
-      "nominal": 113227,
+      "nominal": 179850,
       "misleading": 0,
       "hazardous": 0,
-      "unavailable": 66723,
-      "unavailable_misleading": 5311
+      "unavailable": 100,
+      "unavailable_misleading": 0
     },
     {
       "scenario": "realistic-tower-loss",
@@ -242,9 +242,9 @@
     }
   ],
   "holdover": {
-    "time_err_p95_us": 0.44312628873067056,
-    "fault_time_err_p95_us": 0.4617441308602552,
-    "time_1sigma_bound_frac": 0.371764378994165,
+    "time_err_p95_us": 0.443126260441433,
+    "fault_time_err_p95_us": 0.4617439648604805,
+    "time_1sigma_bound_frac": 0.37176993609335923,
     "min_time_pl_bound_frac": 0.6018338427340928
   },
   "real_sessions": [
