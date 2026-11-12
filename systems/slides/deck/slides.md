@@ -28,9 +28,13 @@ layout: default
 </div>
 
 <!--
-**0:00 → 0:10 · 10 s**
+**0:00 → 0:25 · 25 s**
 
-**Say:** We're Team 12. The real danger is not losing GPS. It's a display that says "trust me" when it shouldn't. We built **SEAN**: signals-of-opportunity, error-bounded, assured navigation. A navigation layer that knows when it is wrong, and says so with a number.
+**Say:**
+
+Hi, we're Team 12. This is our solution: the Signals-of-opportunity, Error-bounded, Assured Navigation module. SEAN, for short.
+
+We set out to do two things. First, keep a position when GPS goes away, using the cell towers that are already around us. Second, and this is the part we care about most: work out when one of our sources is lying to us, whether that's GPS or even the towers, and say so with a number.
 
 ***
 
@@ -76,9 +80,15 @@ class: topo-light
 <div class="foot">systems/requirements.md · systems/use-cases.md · systems/assumptions.md · ADR-0034 (targets after the mentors' answers)</div>
 
 <!--
-**0:10 → 0:40 · 30 s**
+**0:25 → 0:55 · 30 s**
 
-**Say:** Three users: drones flown beyond line of sight, crews on approach, and anyone who takes time from GPS. Three constraints: we only listen, we use signals already in the air with cell towers first, and the radios cost **CAD 170**. Each use case maps to a requirement with a number we test against. These targets are ours and still to be confirmed; where the mentors gave one, **50 m for two minutes**, we keep it as the fallback.
+**Say:**
+
+So why does that matter? When GPS gets jammed or spoofed, it usually doesn't go blank. It keeps showing a confident position. It's just wrong.
+
+That hurts three kinds of user: a drone operator flying beyond line of sight, a crew on approach, and anyone who takes their time from GPS.
+
+We gave ourselves three rules. Only listen, never transmit. Use signals already in the air, cell towers first. And keep it cheap: the radios cost 170 dollars. Each use case turns into a requirement with a number, and we'll show you how we did against every one.
 
 **Point at:** the table, row by row with your hand.
 
@@ -142,9 +152,13 @@ class: topo-light
 <div class="foot">systems/architecture.md (D1) · ADR-0021 · ADR-0024 · ADR-0046 · systems/research.md (novelty check)</div>
 
 <!--
-**0:40 → 1:15 · 35 s**
+**0:55 → 1:30 · 35 s**
 
-**Say:** The payload is a Raspberry Pi with a low-cost LTE radio, GPS with a timing pulse, an IMU and a barometer. It only listens. The laptop turns tower sync signals into ranges, fuses them with every tower's clock and our own, and turns that into a bound and a colour. Three things are new. Towers are checked like GPS. Tower time comes from GPS, so it can contradict GPS time but never confirm it. And each tower's slow error is its own state, so the bound stays honest. Others use towers for **accuracy**; we build the **integrity**.
+**Say:**
+
+Here's how it works. The payload is a Raspberry Pi with a cheap LTE radio, GPS with a timing pulse, an IMU and a barometer, and it only listens. [point along the chain] On the laptop we turn the towers' sync signals into distances, fuse everything, and get a position, a bound on how wrong it could be, and a colour.
+
+The twist: we don't trust anything blindly. Not GPS, and not the towers either. The towers get their time from GPS, so they're allowed to disagree with it, but never to vouch for it. And each tower's slow error is tracked on its own, so when the towers drift, our confidence drops with them.
 
 **Scores:** Technical approach (2) · Innovation (3) · Prototype (4) · communication signals primary.
 
@@ -207,16 +221,27 @@ class: topo-light
 <div class="foot">The panel's status rail, recorded live and looped (main de28b38) · deploy/demo/RUNBOOK.md</div>
 
 <!--
-**1:15 → 2:15 · 60 s · LIVE DEMO**
+**1:30 → 2:30 · 60 s · LIVE DEMO**
 
 **Before the talk:** terminal open with the demo command typed; the panel in a browser tab beside the slides.
 
-**Do:** run `deploy/demo/demo.sh jump` (about 50 s). Press **Enter at T+188**, then at **T+212**. If anything fails, don't debug: say "here's the recording" and talk over these clips.
+**Do:** run `deploy/demo/demo.sh jump` (about 55 s, two runs). It starts on the jump **without** the guard. Press **Enter when T+ passes 188** to switch to the guarded run (the panel shows NO DATA for 3–6 s; keep talking). Press **Enter when T+ passes 212** to stop. If anything fails, don't debug: say "here's the recording" and use the clips (script at the bottom).
 
 **Say:**
-1. GPS lost: within three seconds, **red**. Forty seconds on we're **325 m** off, and the bound, **895 m**, says so.
-2. A spoofer jumps GPS **300 m**. Caught at the first fake fix. Half a minute later the plain filter takes it back: **green, and 300 m wrong**. That's the failure we're here to stop.
-3. Same attack with our jump guard: it stays red, the bound grows faster than the error, and when the spoofer stops, real GPS comes straight back.
+
+Let me show you. This is our real operator panel, with a simulated drone flying past real tower sites. Right now GPS is healthy: green, with a 7-metre bound.
+
+[T+150, amber] Now a spoofer pushes GPS 300 metres east. We catch the very first fake fix. [T+155, red] And it goes red.
+
+[T+177, green again] But watch. Half a minute later this normal filter gives in and takes the fake GPS back. Green, a 7-metre bound, and 300 metres wrong. That's exactly the failure we're worried about.
+
+[Enter at T+188; NO DATA for a few seconds] Same flight, same attack, now with our jump guard. [point at "ekf-guard" in the top bar]
+
+[T+150] Caught at the first fake fix again. [T+155 to 200, red] This time the fake GPS stays out. We're flying on the barometer and dead reckoning, so the error grows, but the bound grows faster, and it stays red. Nobody's told a wrong position is safe.
+
+[T+200, green] The spoofer stops, real GPS comes straight back, and we're within a few metres. [Enter at T+212 to stop]
+
+**If you're on the clips instead:** (1) "GPS lost: red in three seconds. Forty seconds on we're 325 metres off, and the bound, 895, says so." (2) "A spoofer jumps GPS 300 metres. Caught, but half a minute later the normal filter takes it back: green and 300 metres wrong." (3) "Same attack with our guard: it stays red, and real GPS comes straight back when the spoofer stops."
 
 **Scores:** Presentation & demo (8) · D2 real-time monitoring · mentor ask: begin with location jumps.
 
@@ -287,9 +312,13 @@ class: topo-light
 <div class="foot">HPL = 5.68 × σ<sub>max</sub> (two-dimensional, 10⁻⁷ per epoch, TBC; ADR-0056) · ADR-0046 · analysis/results/honest-bound · real-replay-256</div>
 
 <!--
-**2:15 → 2:50 · 35 s**
+**2:30 → 3:05 · 35 s**
 
-**Say:** The mentors asked us to consider several ways of showing confidence. The panel gives ten, and they agree: a state colour, the protection level against the limit, the aviation 95 % radius, a GPS trust word, a spoof check, per-source trust, a time bound, the map circle, the bound over time with a forecast, and latched alerts. Is the number true? In simulation the default bound was escaped **42 %** of the time; ours, **under half a percent**. On real recordings: **a third of the time, against never**.
+**Say:**
+
+The mentors asked us to think about different ways of showing confidence, so the panel gives ten. [sweep the pins] A colour, the protection level against the limit, the radius a pilot would use, a GPS trust word, a spoof check, trust per source, a time bound, the circle on the map, a graph with a forecast, and alerts that stay up until someone acknowledges them.
+
+But a confidence number is only useful if it's true. [point at the numbers] In simulation the standard filter's bound was wrong about 40 % of the time. Ours, under half a percent. On real recordings the standard one was wrong a third of the time. Ours, never.
 
 **Point at:** pins 1, 2, 3 and 7 as you name them, the rest in one sweep; then the two red → green numbers.
 
@@ -344,9 +373,15 @@ class: topo-light
 <div class="foot">systems/accuracy-budget.md (seeds 0–19) · systems/verification.md (Sim validity) · ADR-0015 · ADR-0036 · lte-measured-noise (8892fca)</div>
 
 <!--
-**2:50 → 3:25 · 35 s**
+**3:05 → 3:40 · 35 s**
 
-**Say:** The mentors asked for the calculation. Each error term is grown from the moment GPS is lost and checked against the Monte Carlo. A clean route stays inside the 50 m fallback; realistic towers don't, and multipath alone is over **200 m**. Handover: the filter that learns tower drift needs **two and a half minutes** of good GPS first. And we measured our radio: precise, **0.73 m**, but with a slow **8 m** error it never reports. The sim had that wrong, and fixing it is what made the bound honest.
+**Say:**
+
+The mentors also asked for the maths behind our accuracy. So we split the error into its pieces, tower clocks, reflections, tower positions, our own clock and noise, and checked the sum against the simulation. On a clean route we stay inside 50 metres. With realistic towers we don't: reflections alone are over 200.
+
+Handover matters too: the filter needs about two and a half minutes of good GPS to learn the towers first.
+
+And we measured our real radio. It's precise, under a metre, but it has a slow 8-metre error it never reports. Our simulation had that wrong, and fixing it is what made the bound honest.
 
 **Scores:** Technical approach & rigor (2) · Evidence (5) · mentor asks: explain the calculation, handover timing, how the sim aligns to reality.
 
@@ -403,9 +438,13 @@ class: topo-light
 <div class="foot">systems/results.md · analysis/results/headline (24aa5d1, seeds 0–49) · analysis/results/final (d66c929, ablation)</div>
 
 <!--
-**3:25 → 4:00 · 35 s**
+**3:40 → 4:10 · 30 s**
 
-**Say:** Every target, including the misses. Detection works, false alarms are zero, the towers carry the solution, and crews get up to a minute's warning from other aircraft. Timing holds in 49 of 50 runs. Not yet: accuracy without GPS, **449 m against 25**, and a slow drag nothing catches in time. The filter we pick is never hazardous on a jump; it pays in availability.
+**Say:**
+
+Here's every target we set, including the ones we missed. Detection is fast, false alarms are zero, the towers carry the solution, and crews get up to a minute's warning from other aircraft.
+
+What we haven't got yet: accuracy without GPS, 449 metres against a 25-metre goal, and a slow, sneaky drag that nothing catches in time. The filter we picked never gets fooled by a jump. The price is that it says "don't trust me" a bit more often.
 
 **Point at:** the green block, then the red rows. Say the misses out loud.
 
@@ -474,9 +513,13 @@ class: topo-content
 <div class="foot">systems/safety.md · systems/roadmap.md (D3) · systems/results.md · ADR-0001 · ADR-0011 · ADR-0013 · ADR-0026</div>
 
 <!--
-**4:00 → 4:40 · 40 s**
+**4:10 → 4:40 · 30 s**
 
-**Say:** It never transmits, so there's no spectrum risk. We decode only broadcast fields; identifiers are hashed; the link is authenticated; it's advisory. The product is a receive-only trust monitor that warns the autopilot. Next is accuracy: heading, velocity, carrier phase and flight tests, then LEO as one more source. Every number you saw traces to a commit in our repository. Thank you.
+**Say:**
+
+Safety was a design rule from day one. It never transmits, so it can't interfere with anything. We only decode what's broadcast for everyone, identifiers are hashed, the link is encrypted, and it only advises; it never steers.
+
+Where this goes: a small receive-only box that warns the autopilot when GPS can't be trusted. Next is accuracy, heading, velocity, carrier phase and real flights, then low-orbit satellites as one more source. Everything you've seen traces back to a commit in our repo. Thank you, we're happy to take questions.
 
 **Do:** stop on "thank you". Leave this slide up; press **O** to jump to a backup.
 

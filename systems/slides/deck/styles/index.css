@@ -162,3 +162,6 @@ ol.legend.tight li::before { width: 1.15rem; height: 1.15rem; font-size: 0.58rem
 .wins .bigstat { font-size: 1.95rem; line-height: 1.15; white-space: nowrap; }
 .wins .statlabel { font-size: 0.86rem; line-height: 1.35; margin-top: 0.35rem; }
 .nw td.r, .nw th { white-space: nowrap; }
+
+/* Slidev bug: closing Goto with G leaves its result list on screen; hide it whenever the dialog is hidden */
+#slidev-goto-dialog[class*="-top-20"] .autocomplete-list { display: none; }
