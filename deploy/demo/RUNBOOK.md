@@ -62,7 +62,7 @@ Ctrl-C stops any segment and frees the port. Each switch may print `ERROR: Cance
 
 ## The stage sequence, second by second
 
-**Wall** is seconds after pressing Enter on `deploy/demo/demo.sh stage`, from the timed runs below (±3 s). **T+** is the panel's own clock, top right: move on by watching T+, not a stopwatch. All values: simulation, seed 0, commit `9aed72b`, except HPL values and the three UNSAFE onsets, which are from ADR-0056's horizontal factor (5.68; HPL 6.6 % above `9aed72b`'s, onsets 0.3 s earlier; estimates and errors unchanged).
+**Wall** is seconds after pressing Enter on `deploy/demo/demo.sh stage`, from the timed runs below (±3 s). **T+** is the panel's own clock, top right: move on by watching T+, not a stopwatch. All values: simulation, seed 0, commit `9aed72b`, except HPL values and the three UNSAFE onsets, which are from ADR-0056's horizontal factor (5.68; HPL 6.5 % above `9aed72b`'s, onsets 0.3 s earlier; estimates and errors unchanged).
 
 Segment 1b was added after the Wall columns of segments 2 and 3 were measured: in today's sequence each of their Wall times is about 22 s later (the jump now starts at wall 46 s, not 24 s) (*Timing* below). T+ values are unchanged.
 
@@ -91,7 +91,7 @@ NO DATA for 2–7 s; talk over the gap: "Same flight, same GPS loss. This one is
 | 25–37 s (T+0–60) | Green **NOMINAL**, HPL about 7 m; the study line under the top bar; Sources: `lte` under *In use* | (Finish the gap line over the clean part.) |
 | 37 s (T+61.8) | Amber **DEGRADED**: *GPS not in use* | "GPS is gone, as before." |
 | 38 s (T+64.7) | Red **UNSAFE**, alert latched *since T+64.7 s* | — |
-| 38–46 s (T+65–105) | Red **UNSAFE** throughout. *Error against truth* moves between 10 and 58 m (T+70: 28.5 m, T+90: 42.4 m, T+104.7: 39.2 m, T+105.3: 17.9 m); HPL 80–170 m (T+104.7: 149.5 m, T+105.3: 115.8 m); `lte 1.00` under *In use*; the HPL chart's green line stays under the blue | "Now the towers carry us. At this moment in the last run we were nearly 400 metres off; here, tens of metres. It is still red, and rightly: our bound is over 100 metres, above the 50-metre alert limit, so the panel still says do not navigate on this. Much better, not yet good enough." |
+| 38–46 s (T+65–105) | Red **UNSAFE** throughout. *Error against truth* moves between 10 and 58 m (T+70: 28.5 m, T+90: 42.4 m, T+104.7: 39.2 m, T+105.3: 17.9 m); HPL 80–170 m (T+104.7: 149.4 m, T+105.3: 115.8 m); `lte 1.00` under *In use*; the HPL chart's green line stays under the blue | "Now the towers carry us. At this moment in the last run we were nearly 400 metres off; here, tens of metres. It is still red, and rightly: our bound is over 100 metres, above the 50-metre alert limit, so the panel still says do not navigate on this. Much better, not yet good enough." |
 
 **Press Enter when T+ passes 105.**
 
@@ -211,7 +211,7 @@ When the bound reaches kilometres, add: "The bound is honest but far too wide: t
 
 **Wall** is seconds after pressing Enter on `deploy/demo/demo.sh realcut` (±1 s); **T+** is the panel clock. Measured as for the stage sequence (a script reading the panel stream, no browser, Ctrl-C at T+157): four runs on 2026-11-11, two at the uncommitted change and two at commit `4caf1e4`, clean tree, macOS, this laptop, load average 3–7. Every panel-clock time and value below was the same in all four; first frame 2.3–3.5 s after Enter (slower under load).
 
-HPL values in this table were measured before ADR-0056 (horizontal factor 5.33). With 5.68 each is 6.6 % larger and the UNSAFE onset may come a few tenths of a second earlier: `TBC`, not re-measured, because the session is not on the machine where ADR-0056 was checked. Errors and the other times do not change.
+HPL values in this table were measured before ADR-0056 (horizontal factor 5.33). With 5.68 each is 6.5 % larger and the UNSAFE onset may come a few tenths of a second earlier: `TBC`, not re-measured, because the session is not on the machine where ADR-0056 was checked. Errors and the other times do not change.
 
 | Wall | T+ | Panel | Say |
 | --- | --- | --- | --- |

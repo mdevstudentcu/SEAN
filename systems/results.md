@@ -6,7 +6,7 @@
 - **Commits** are on `main` (or, for an open PR, on its branch). Where the source names a pre-rebase hash that is not on `origin`, its twin on `main` (same commit subject) is given instead.
 - **Two T1 statistics.** **A34**: the 95th percentile of horizontal error across runs at each second after GPS loss, worst second of the window ([ADR-0034](adr/0034-targets-after-mentor-answers.md), *Amendment*). **Per-run**: each run's own 95th percentile over the window, then the median or mean over seeds. Only A34 scores T1; per-run numbers are for comparison only.
 - **Placeholders** `TBD (#NNN)` are filled by that issue's work today. No value is guessed.
-- **HPL** is a bound under our model (5.68 σ of the filter's largest horizontal σ since ADR-0056, or the MHSS bound), not a certified protection level. It is not honest on the worst runs: see T5 below. **Every result on this page was computed at the earlier factor, 5.33** (the one-dimensional value, #265), at the commit it names; at 5.68 each HPL is 6.6 % larger, so HPL coverage can only rise and availability only fall. No exposure time is set (`TBD`).
+- **HPL** is a bound under our model (5.68 σ of the filter's largest horizontal σ since ADR-0056, or the MHSS bound), not a certified protection level. It is not honest on the worst runs: see T5 below. **Every result on this page was computed at the earlier factor, 5.33** (the one-dimensional value, #265), at the commit it names; at 5.68 each HPL is 6.5 % larger, so HPL coverage can only rise and availability only fall. No exposure time is set (`TBD`).
 
 ## (a) What is real
 

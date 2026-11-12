@@ -59,8 +59,9 @@ def test_drone_outage_error_stays_under_hpl_where_learned_noise_alone_escapes_re
     cut = T0_NS + 200 * 1_000_000_000
     records = [m for m in sim.measurements if m.t_ns <= cut]
     loss = T0_NS + 60 * 1_000_000_000
-    # Observed: 74 escaping epochs for ekf-learned-noise, 0 for ekf-honest
-    assert _escapes("ekf-learned-noise", records, sim.truth, loss) > 20
+    # Observed at K_H 5.6777 (ADR-0056): 10 escaping epochs for ekf-learned-noise (74 at the
+    # earlier 5.33), 0 for ekf-honest
+    assert _escapes("ekf-learned-noise", records, sim.truth, loss) > 5
     assert _escapes("ekf-honest", records, sim.truth, loss) == 0
 
 

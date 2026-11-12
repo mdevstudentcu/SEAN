@@ -14,16 +14,16 @@ HPL is `K_H` × the major-axis σ of the horizontal covariance. `K_H` was 5.33, 
 | Option | Pros | Cons |
 | --- | --- | --- |
 | A: keep 5.33, state the per-axis risk | No number moves | The stated 1e-7 stays wrong for a horizontal error; a navigation-integrity reviewer finds it from the code |
-| **B: `K_H` = 5.68** | Factor and stated risk agree; derived, not borrowed | Every HPL grows 6.6 %; committed results computed at 5.33 must say so |
+| **B: `K_H` = 5.68** | Factor and stated risk agree; derived, not borrowed | Every HPL grows 6.5 %; committed results computed at 5.33 must say so |
 | C: SBAS `K_H` 6.0 or 6.18 | A recognised value | Those belong to SBAS's own risk allocation and exposure, not our 1e-7 per epoch |
 
 ## Decision
 
-`K_H` = 5.68; `K_V` and `K_T` stay 5.33.
+`K_H` = √(2 ln 10⁷) = 5.6777 (5.68 in prose), the same tail `mhss` already uses at `phmi` = 1e-7, so the plain bound never exceeds the MHSS bound on a fault-free epoch (`tests/test_mhss.py`). `K_V` and `K_T` stay 5.33.
 
 ## Consequences
 
-- Every HPL is 6.6 % larger. Estimates, errors, flags and every source decision are unchanged (HPL feeds the panel's status and the metrics, not the filter).
+- Every HPL is 6.5 % larger (5.6777 / 5.33). Estimates, errors, flags and every source decision are unchanged (HPL feeds the panel's status and the metrics, not the filter).
 - Demo, simulation, seed 0, checked segment by segment against `main` (`b2b0a5d`): the UNSAFE onsets come 0.3 s earlier (outage T+64.8 → 64.5, towers 65.0 → 64.7, jump and guard 154.8 → 154.5); no other status change or alert moves; HPL still covers the error wherever it did, and the unguarded jump still escapes it at T+176.8. `deploy/demo/RUNBOOK.md` carries the new values.
 - Committed results computed at 5.33 (`analysis/results/final/`, `headline/` and the studies) keep their commits and stay reproducible there (REQ-10); `systems/results.md` says which factor they used. Regenerating them at 5.68 is follow-up work: HPL coverage can only rise, availability can only fall, and hazardous epochs can only fall.
 - Still open: the exposure time behind the 1e-7 (`TBD`), and REQ-02's own risk target (`TBC`). The covariance, not the factor, causes the large escapes after GPS loss (#251, ADR-0046); this ADR does not change that.

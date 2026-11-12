@@ -11,7 +11,7 @@ def test_horizontal_factor_bounds_a_two_dimensional_error_at_the_stated_risk():
     # A horizontal error is two-dimensional: on the major-axis sigma, P(r > k sigma) <= exp(-k^2/2)
     risk = mhss.Params().phmi
     assert math.exp(-(protection.K_H**2) / 2) <= risk
-    assert protection.K_H == round(math.sqrt(2 * math.log(1 / risk)), 2)  # 5.68, no larger
+    assert math.isclose(protection.K_H, math.sqrt(2 * math.log(1 / risk)))  # 5.6777, no larger
 
 
 def test_vertical_and_time_factors_are_the_one_dimensional_value():
