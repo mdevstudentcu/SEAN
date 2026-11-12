@@ -247,7 +247,7 @@ def cmd_replay(args) -> None:
         meas = (r for _, r in read_session(mcap, topics=["/meas/"]) if isinstance(r, Measurement))
     estimates = list(
         estimate(args.estimator, meas, origin_llh=origin, reference=reference, whiteness=True)
-    )  # replay shows the whiteness flag (ADR-0052)
+    )  # replay shows the whiteness flag (ADR-0055)
     print(f"replayed {args.path}: {len(estimates)} estimates")
     if truth:
         print(_fmt(score(estimates, truth, spec, t0).as_dict()))
@@ -810,7 +810,7 @@ def cmd_live(args) -> None:
     last = 0
     n = 0
     try:
-        live = estimate(  # live shows the whiteness flag (ADR-0052)
+        live = estimate(  # live shows the whiteness flag (ADR-0055)
             args.estimator, tee(), origin_llh=origin, reference=reference, whiteness=True
         )
         for e in live:

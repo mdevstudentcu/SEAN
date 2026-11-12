@@ -1,4 +1,4 @@
-"""Innovation whiteness test per source (#275, ADR-0052): report only."""
+"""Innovation whiteness test per source (#275, ADR-0055): report only."""
 
 import msgspec
 import numpy as np
@@ -132,7 +132,7 @@ def test_the_eval_path_runs_without_the_test():
 
 
 def test_gnss_position_is_analysis_only():
-    """Receivers smooth their fixes, so GNSS position is never flagged (owners, ADR-0052); its
+    """Receivers smooth their fixes, so GNSS position is never flagged (owners, ADR-0055); its
     statistic is still computed."""
     w = Whiteness()
     z = _ar1(np.random.default_rng(4), 120, 3, phi=0.95)

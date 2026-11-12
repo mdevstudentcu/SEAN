@@ -1,4 +1,4 @@
-"""Innovation whiteness test per source (#275 step 1, ADR-0052 Proposed): a health flag that a
+"""Innovation whiteness test per source (#275 step 1, ADR-0055 Proposed): a health flag that a
 source's errors are correlated in time while the filter takes them as white.
 
 A Kalman filter whose model is right has white innovations: any two of them, at different
@@ -23,7 +23,7 @@ Report only. It never changes an estimate: the flag is added to each Estimate af
 estimator and any integrity monitor have made it (`ekf.run`), so status, trust and every other
 flag are as without it. Off by default (`EKF(whiteness=False)`): the panel's paths switch it on
 through `nav.estimate(..., whiteness=True)`; Monte Carlo evals, results and sweeps leave it off,
-as it costs about a fifth of `ekf`'s run time. Every value here is TBC (ADR-0052), chosen on
+as it costs about a fifth of `ekf`'s run time. Every value here is TBC (ADR-0055), chosen on
 sim seeds 0-9 (`analysis/whiteness.py`).
 """
 
@@ -43,11 +43,11 @@ FLAG = "innovations_correlated"  # the flag is f"{FLAG}:{source}"
 
 @dataclass(frozen=True)
 class WhitenessParams:
-    window_s: float = 60.0  # s: sliding window of lag-1 pairs per source (TBC, ADR-0052)
-    threshold: float = 3.0  # T above this raises the flag (TBC, ADR-0052)
+    window_s: float = 60.0  # s: sliding window of lag-1 pairs per source (TBC, ADR-0055)
+    threshold: float = 3.0  # T above this raises the flag (TBC, ADR-0055)
     min_pairs: int = 30  # fewer pairs in the window: no opinion (TBC)
     max_gap_s: float = 5.0  # s: a record pairs with its stream's previous one this close (TBC)
-    # Sources whose statistic is computed but never flagged (owners, 2026-11-11, ADR-0052): GNSS
+    # Sources whose statistic is computed but never flagged (owners, 2026-11-11, ADR-0055): GNSS
     # position, as receivers smooth their fixes, so consecutive fixes correlate by design
     report_only: tuple[str, ...] = ("gnss",)
 
