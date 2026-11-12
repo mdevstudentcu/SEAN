@@ -53,3 +53,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0049](0049-measured-ladder-study-sizes.md) | Sizes of the measured-noise ladder study (#257): only the white part measured, every other size assumed and swept; a study-only arc model | Proposed |
 | [0050](0050-real-lte-records-in-the-default-filter.md) | A real capture's LTE records get ADR-0036's σ and a bias per new arc by default; GNSS re-admission, a settling σ and a heard-cell bound opt-in | Accepted |
 | [0051](0051-heading-at-gps-loss.md) | Heading at GPS loss: S-turns before the cut and a magnetometer `heading` record, opt-in in the sim (`ekf-imu-mag`); changes ICD-measurement | Proposed |
+| [0053](0053-imu-bias-calibration-while-still.md) | The IMU biases are calibrated from a still stretch before alignment, and no alignment window runs while still | Proposed |
