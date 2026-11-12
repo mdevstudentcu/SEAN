@@ -44,7 +44,7 @@ FLAG = "innovations_correlated"  # the flag is f"{FLAG}:{source}"
 @dataclass(frozen=True)
 class WhitenessParams:
     window_s: float = 60.0  # s: sliding window of lag-1 pairs per source (TBC, ADR-0052)
-    threshold: float = 6.0  # T above this raises the flag (TBC, ADR-0052)
+    threshold: float = 3.0  # T above this raises the flag (TBC, ADR-0052)
     min_pairs: int = 30  # fewer pairs in the window: no opinion (TBC)
     max_gap_s: float = 5.0  # s: a record pairs with its stream's previous one this close (TBC)
     # Sources whose statistic is computed but never flagged (owners, 2026-11-11, ADR-0052): GNSS
