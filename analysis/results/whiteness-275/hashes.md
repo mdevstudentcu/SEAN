@@ -10,3 +10,14 @@ Each run's estimates are hashed by `analysis/whiteness.py hash`: time, position,
 Not hashed on real sessions: the other 15 estimators. A run of all of them on the three sessions had not finished in 30 min per side; all 21 are in the sim rows. `challenge-drone-hop-*`: not run.
 
 Files: `hash-sim-main.json`, `hash-sim-eval-path.json`, `hash-sim-panel-path.json`, `hash-real-main.json`, `hash-real-panel-path.json`. Eval-path timing against `main`: `timing-main-{1,2}.json`, `timing-branch-{1,2}.json`.
+
+## After the rebase onto `69a8454` (reduced set)
+
+`main` moved after the set above (`nav/ekf.py`, `nav/imu.py`, `dashboard/feed.py`), so a reduced set was rerun on the rebased branch (`712ef2d`) against `main` `69a8454`: `ekf`, `ekf-imu`, `ekf-calibrated`, `ekf-guard` × `challenge-drone-outage`, `realistic-long-outage`, `spoof-jump` × seed 0.
+
+| Path | Identical to `main` | Runs where the branch adds the flag |
+|---|---|---|
+| Eval path | **12 of 12**, this flag's hash too | 0 |
+| Panel path (`--whiteness`), this flag left out | **12 of 12** | 10 |
+
+Files: `hash-rebase-main.json`, `hash-rebase-eval-path.json`, `hash-rebase-panel-path.json`. The 420-run sim set, the real-session set and the eval-path timing above are at `c62255d` / `8218318`, before this rebase.
