@@ -12,7 +12,7 @@ PYTHONPATH=<main 3493cfb + PR #241's 0e46d23, 18d33fe, d21b7bb cherry-picked>/sr
 python analysis/false_alarm_rate.py report .../main.json .../pr241.json
 ```
 
-Seeds 0-49 on every entry (no seed cut: 235 s with 3 workers on this Mac). The `7a841db` commit of the second run is a local throwaway branch, not on GitHub: it is `origin/main` `3493cfb` with the three commits of open PR #241 cherry-picked, run to show the real session with that fix.
+Seeds 0-49 on every entry (no seed cut: 235 s with 3 workers on this Mac). The `7a841db` commit of the second run is a local throwaway branch, not on GitHub: it is `origin/main` `3493cfb` with the three commits of PR #241 (open then, merged since) cherry-picked, run to show the real session with that fix.
 
 ## What it says
 
@@ -20,18 +20,18 @@ Seeds 0-49 on every entry (no seed cut: 235 s with 3 workers on this Mac). The `
 | --- | --- | --- | --- | --- | --- |
 | Sim, challenge legs + realistic (`nominal` entries) | 35.0 | 0 (95 % bound 0.086/h) | 0 (0.086/h) | 0 (0.086/h) | 0 (0.086/h) |
 | Sim, square circuit (`nominal` scenario) | 5.0 | 0 (0.60/h) | **21** (4.2/h, bound 6.1/h) | **1** (0.2/h, bound 0.95/h) | 0 (0.60/h) |
-| Real, static, `main` (`20261111-0845-live-laptop-gps`, 601 s) | 0.17 | 0 (18/h) | **10** (60/h, bound 102/h) | 0 (18/h) | **10** (60/h) |
+| Real, static, `main` before #241 (`20261111-0845-live-laptop-gps`, 601 s) | 0.17 | 0 (18/h) | **10** (60/h, bound 102/h) | 0 (18/h) | **10** (60/h) |
 | Real, static, `main` + PR #241 (same session) | 0.17 | 0 (18/h) | 0 (18/h) | 0 (18/h) | 0 (18/h) |
 | **All clean data on `main`** (sky run excluded, see below) | **40.2** | **0 (0.075/h)** | **31** (0.77/h, bound 1.04/h) | **1** (0.025/h, bound 0.12/h) | **10** (0.25/h, bound 0.42/h) |
 
 Counts are the same for `ekf`, `ekf-guard` and `ekf-spoof` except the latch, which only `ekf-guard` has. `time PL > limit` fired nowhere.
 
-**Sentence a presenter can say (only this, as it stands on `main`):** "In 40 hours of clean data, 35 of them simulated flight on the challenge and realistic legs and 10 minutes real and static, no spoofing alarm fired, which bounds that rate at 0.075 per hour at 95 %. Our GPS-rejection alarm did fire: on a simulated circuit with instant right-angle turns, and on our one real session from a barometer fault whose fix is in review." Do not say "no false alarms" without the second sentence, and do not say "real flight".
+**Sentence a presenter can say (only this, as it stands on `main`):** "In 40 hours of clean data, 35 of them simulated flight on the challenge and realistic legs and 10 minutes real and static, no spoofing alarm fired, which bounds that rate at 0.075 per hour at 95 %. Our GPS-rejection alarm did fire: on a simulated circuit with instant right-angle turns, and on our one real session from a barometer fault, before its fix (#241) was merged." Do not say "no false alarms" without the second sentence, and do not say "real flight".
 
 ## Every false alarm, and its cause
 
 - **Square circuit, 21 `gnss_excluded` (15 of 50 seeds), all three estimators alike.** Every onset is 1.4 to 3.0 s after a corner of the `square` trajectory (corners every 25 s: side 200 m at 8 m/s), so the rejection starts 0.4 to 2.0 s after the corner. `square` turns 90 degrees instantly, which `sim/trajectory.py` says no vehicle can fly; the constant-velocity filter's GNSS gate rejects about a second of fixes through the turn. A real hard manoeuvre would do the same (`guard_manoeuvre.py`), so this is a property of the gate, not only of the sim. One of them (seed 38, 77.2 s) also latched the jump guard, which makes the sky decision `suspect` (not `spoofed`).
-- **Real session on `main`, 10 `gnss_excluded` and 10 do-not-navigate onsets, from 204 s to the end.** Issue #227: the barometer wanders, the 3-D GNSS gate fails on height, honest GPS is refused, HPL grows past 50 m. Shown, not guessed: with PR #241 the same 2602 epochs flagged `gnss_excluded` on `main` are flagged `gnss_alt_excluded` instead (identical epoch list), i.e. each refused fix passes the horizontal gate and only its height fails; then 0 alarms and 0 do-not-navigate onsets. (`gnss_alt_excluded` is a caution, not an alarm, and is not counted.) By `pnt.metrics`' rule the one lock-out counts as 10 onsets, because single accepted fixes break it up.
+- **Real session on `main` before #241, 10 `gnss_excluded` and 10 do-not-navigate onsets, from 204 s to the end.** These "main" real-session numbers were measured before #241 (ADR-0045) was merged; `main` now carries that fix, and this row has not been re-run on it. Issue #227: the barometer wanders, the 3-D GNSS gate fails on height, honest GPS is refused, HPL grows past 50 m. Shown, not guessed: with PR #241 the same 2602 epochs flagged `gnss_excluded` on `main` are flagged `gnss_alt_excluded` instead (identical epoch list), i.e. each refused fix passes the horizontal gate and only its height fails; then 0 alarms and 0 do-not-navigate onsets. (`gnss_alt_excluded` is a caution, not an alarm, and is not counted.) By `pnt.metrics`' rule the one lock-out counts as 10 onsets, because single accepted fixes break it up.
 
 ## Definitions
 

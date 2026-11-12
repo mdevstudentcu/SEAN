@@ -18,9 +18,9 @@ Use cases: [`use-cases.md`](use-cases.md) (UC-01 drone, UC-02 approach, UC-03 ti
 | **Status and confidence monitoring**: tell the operator whether to trust position and time, and why | REQ-02, REQ-04, REQ-05 | T4 (jump target Accepted, ADR-0034 *Amendment 2026-11-11*; ramps; ≤ 1 false alarm/h), T5 (HPL bounds ≥ 99.9 % of epochs) | Sim: jumps detected in 1.1 s and refused by the opt-in guard; time ramp detected; false-alarm rate met; T5 missed |
 | All | REQ-07 receive-only, REQ-08 privacy, REQ-09 platform-agnostic, REQ-10 reproducible | — | REQ-07, REQ-08 by design and inspection (`tests/test_hard_rules.py`) |
 
-**Towers are meant to be primary (REQ-06); today they are not.** The front end reports only the fast part of its range noise, so on the real-shaped `challenge` legs the filter's gate rejects nearly every tower reading (the guard demo's panel lists LTE as not in use), and each reading it does accept is believed to 2 m and collapses the covariance (#251's diagnosis): in simulation that is worse than no towers (12,507 m against 2,909 m, draft PR #247). After GPS loss the default filter flies on the barometer and dead reckoning. Learning each tower's noise (ADR-0039, proposed in PR #156, open, not on `main`; opt-in) is the fix in review; with 13 carriers hopped on a study leg it reaches 132 m (draft PR #247); telling the filter ADR-0036's measured σ (`ekf-measured-sigma`, ADR-0044, Accepted, opt-in) is merged; [`results.md`](results.md) (c).
+**Towers are meant to be primary (REQ-06); today they are not.** The front end reports only the fast part of its range noise, so on the real-shaped `challenge` legs the filter's gate rejects nearly every tower reading (the guard demo's panel lists LTE as not in use), and each reading it does accept is believed to 2 m and collapses the covariance (#251's diagnosis): in simulation that is worse than no towers (12,507 m against 2,909 m, PR #247 (merged)). After GPS loss the default filter flies on the barometer and dead reckoning. Learning each tower's noise (ADR-0039, Proposed, PR #156, merged; opt-in) is the fix, merged as opt-in; with 13 carriers hopped on a study leg it reaches 132 m (PR #247 (merged)); telling the filter ADR-0036's measured σ (`ekf-measured-sigma`, ADR-0044, Accepted, opt-in) is merged; [`results.md`](results.md) (c).
 
-**The bound holds under our model, not always.** It held throughout the demo except where the plain filter followed a spoof, and on some simulated flights the error escapes it (T5 missed): after GPS loss on `challenge-drone-outage`, 45.3 % of `ekf`'s epochs are above HPL, 0.45 % for the opt-in `ekf-honest` in draft PR #251, whose worst run still escapes 18.5 % (sim, seeds 0–199). We call it a bound under our model, not a certified protection level.
+**The bound holds under our model, not always.** It held throughout the demo except where the plain filter followed a spoof, and on some simulated flights the error escapes it (T5 missed): after GPS loss on `challenge-drone-outage`, 45.3 % of `ekf`'s epochs are above HPL, 0.45 % for the opt-in `ekf-honest` in PR #251 (merged), whose worst run still escapes 18.5 % (sim, seeds 0–199). We call it a bound under our model, not a certified protection level.
 
 The integrity level is ours to choose, shown several ways (mentor Q2; ADR-0034): the bound against the alert limit, error ellipse, NEES/NIS, per-source trust, time to alert.
 
@@ -97,7 +97,7 @@ Registry: `pnt.nav.ESTIMATORS`.
 | `ekf-honest`, `ekf-honest-guard` | `ekf-learned-noise` plus the slow part of each emitter's range error as a filter state, so the HPL bounds the error after GPS loss; `-guard` adds the jump guard ([ADR-0046](adr/0046-honest-bound-slow-lte-error-state.md), Proposed, #226; opt-in) |
 | `ekf-measured-sigma`, `ekf-calibrated-measured-sigma` | `ekf` and `ekf-calibrated` that tell a radio's LTE records ADR-0036's measured sigma from their SNR instead of the front end's ([ADR-0044](adr/0044-told-sigma-for-radio-records.md), Accepted, #147; opt-in) |
 
-Also opt-in: the tower spoof monitor (`ekf-spoof`, `ekf-imu-spoof`, `ekf-calibrated-spoof`, ADR-0037) and carrier hopping in the sim (ADR-0040), both merged through #250. In review: the tower monitor's hop rule, which counts a site against the epochs its own carriers were on air (PR #263, open; ADR-0037 amendment there). ADR-0037 and ADR-0040 are Proposed.
+Also opt-in: the tower spoof monitor (`ekf-spoof`, `ekf-imu-spoof`, `ekf-calibrated-spoof`, ADR-0037) and carrier hopping in the sim (ADR-0040), both merged through #250. Also merged: the tower monitor's hop rule, which counts a site against the epochs its own carriers were on air (PR #263; ADR-0037 amendment there). ADR-0037 and ADR-0040 are Proposed.
 
 ## Integrity layer
 
@@ -118,7 +118,7 @@ Design: [`verification.md`](verification.md) *Integrity monitor: solution separa
 
 **Where it stops** ([`results.md`](results.md) (b), (d)):
 - A detected jump is followed by default; only the opt-in guard refuses it, at the cost of dead reckoning afterwards.
-- A slow position ramp (2 m/s) is not detected by the default filters (0 of 50). The opt-in tower monitor catches it on 1 of 50 seeds on the drone leg as flown (1 to 3 cells), 48 of 50 where every tower within 3 km is heard continuously (131 s median, 313 s worst, #180), and, on 13 hopped carriers, 0 of 50 with the committed site rule (draft PR #254) but 50 of 50 with the hop rule in PR #263 (open; 127 s median, 276 s worst, 0 added false alarms). Every case is sim, all miss T4's 30 s, and hopping is a study leg: the payload cannot hop yet.
+- A slow position ramp (2 m/s) is not detected by the default filters (0 of 50). The opt-in tower monitor catches it on 1 of 50 seeds on the drone leg as flown (1 to 3 cells), 48 of 50 where every tower within 3 km is heard continuously (131 s median, 313 s worst, #180), and, on 13 hopped carriers, 0 of 50 with the committed site rule (draft PR #254) but 50 of 50 with the hop rule in PR #263 (merged; 127 s median, 276 s worst, 0 added false alarms). Every case is sim, all miss T4's 30 s, and hopping is a study leg: the payload cannot hop yet.
 - MHSS is safe but unavailable with the `realistic` error sizes: the filter's tower model is not honest for that sim.
 - `ekf-calibrated` can stay confident on a wrong tower table.
 - Two faults in different groups at once, and a wide-area time spoof that also captures tower timing, are not covered by design.
@@ -137,7 +137,7 @@ The mentors accept simulated attacks if the architecture says how the sim aligns
 | GNSS position | `placeholder` | Static sessions with a PPS-locked fix; GPS cut in software on two of them: 0.6 and 1.3 m without LTE, hundreds of metres with it since ADR-0050 ([`results.md`](results.md) (e)) |
 | Barometer, VOR, ADS-B, Wi-Fi | `placeholder` | ADS-B frames; VOR no lock |
 | LEO, reference station, hostile emitter | `placeholder`, sim only | None possible this week ([ADR-0013](adr/0013-no-iridium-hardware.md), ADR-0020, ADR-0025) |
-| Attacks | Software injection only ([ADR-0001](adr/0001-receive-only-payload.md)) | Injection into a real recording works: a 300 m jump injected into a real static session was flagged 0.6 s after onset (PR #241, open); a fake sky injected into one was flagged in 59 of 59 skyviews (#239) |
+| Attacks | Software injection only ([ADR-0001](adr/0001-receive-only-payload.md)) | Injection into a real recording works: a 300 m jump injected into a real static session was flagged 0.6 s after onset (PR #241, merged); a fake sky injected into one was flagged in 59 of 59 skyviews (#239) |
 
 ## Safety, security and regulation
 
