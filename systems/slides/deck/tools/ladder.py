@@ -16,7 +16,7 @@ ROWS = [  # label, metres, colour, note
     ("No towers (barometer + dead reckoning)", 2909, GREY, ""),
     ("Towers, believing the radio's 2 m claim", 12507, BAD, ""),
     ("+ learn each tower's noise", 2474, WARN, ""),
-    ("+ hop 13 LTE carriers (study)", 132, WARN, "payload can't hop yet"),
+    ("+ hop 13 LTE carriers (study)", 132, WARN, ""),
     ("  … on our measured radio noise", 105, WARN, ""),
     ("  … reflections as small as measured at rest", 51, OK, ""),
     ("Clean ranges, all 17 towers within 3 km", 10, OK, "holds ≤ 25 m for all 300 s"),

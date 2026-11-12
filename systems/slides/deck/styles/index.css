@@ -165,3 +165,18 @@ ol.legend.tight li::before { width: 1.15rem; height: 1.15rem; font-size: 0.58rem
 
 /* Slidev bug: closing Goto with G leaves its result list on screen; hide it whenever the dialog is hidden */
 #slidev-goto-dialog[class*="-top-20"] .autocomplete-list { display: none; }
+
+/* slide 5: grounding box */
+.grounded { padding: 0.45rem 0.75rem; }
+.grounded h3 { font-size: 0.82rem; margin: 0 0 0.3rem; }
+.grounded ul { margin: 0; padding-left: 1rem; font-size: 0.68rem; line-height: 1.22; }
+.grounded li { margin-bottom: 0.15rem; }
+
+/* mentor asks slide */
+.asks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.9rem; margin-top: 0.8rem; }
+.asks .card { padding: 1rem 1rem; min-height: 13.5rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.asks .q { font-size: 0.84rem; color: var(--warn); line-height: 1.3; font-style: italic; }
+.asks .q::before { content: "Mentor: "; font-style: normal; font-family: var(--mono); font-size: 0.62rem; letter-spacing: .08em; text-transform: uppercase; }
+.asks .a { font-size: 0.95rem; line-height: 1.35; flex: 1; }
+.asks .a .num { font-family: var(--display); font-size: 1.15rem; }
+.asks .k { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
