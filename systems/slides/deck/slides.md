@@ -32,9 +32,9 @@ layout: default
 
 **Say:**
 
-Hi, we're Team 12, and this is SEAN: the Signals-of-opportunity, Error-bounded, Assured Navigation module.
+Hi everyone, we're Team 12, and this is SEAN. It stands for Signals-of-opportunity, Error-bounded, Assured Navigation. That's a mouthful, so: SEAN.
 
-It does two jobs: keep a position from cell towers when GPS goes away, and catch any source that's lying to us, GPS or even the towers, with a number that says how far to trust it.
+It does two jobs. One: keep an aircraft navigating when GPS goes away, using the cell towers that are already around it. Two, and this is the one we care about most: notice when something is lying to us, GPS or even the towers, and say so with a number.
 
 ***
 
@@ -81,9 +81,11 @@ class: topo-light
 
 **Say:**
 
-Jammed or spoofed GPS rarely goes blank. It keeps showing a confident position that's simply wrong.
+Here's the thing about GPS. When it's jammed or faked, it usually doesn't just go blank. It keeps showing you a position, confidently, and it's wrong.
 
-That hurts drone operators beyond line of sight, crews on approach, and anyone who takes time from GPS. Our rules: only listen; use signals already in the air, cell towers first; and keep it cheap, 170 dollars of radios. Every use case maps to a requirement with a number.
+That's a real problem for three kinds of people: someone flying a drone they can't see, a crew landing a plane, and anything that takes its clock from GPS, like a radio terminal.
+
+So we gave ourselves three rules. We only listen; we never transmit. We use signals that are already in the air, cell towers first. And we keep it cheap: about 170 dollars of radios. [point at the table] Each user gets a target we test against.
 
 **Point at:** the table, row by row with your hand.
 
@@ -150,9 +152,9 @@ class: topo-light
 
 **Say:**
 
-The payload is a Raspberry Pi with an LTE radio, GPS, an IMU and a barometer; it only listens. [point along the chain] The laptop turns tower signals into distances and outputs a position, a bound on how wrong it could be, and a colour.
+So how does it work? [point at the left box] The payload is a Raspberry Pi with a cheap radio, a GPS, a motion sensor and an altimeter, and it only listens. [sweep left to right] Everything goes to a laptop, which turns the towers' timing signals into distances, combines everything, and gives you a position, a circle saying how wrong it might be, and a colour.
 
-The twist: nothing is trusted blindly, not even the towers. Their errors are tracked, and since they take their time from GPS, they can contradict GPS but never vouch for it.
+The twist is that we don't trust anything blindly, not even the towers. Towers set their clocks from GPS, so if GPS is faked, tower time can get dragged along with it. So the towers are allowed to catch GPS lying, but never to vouch for it.
 
 **Scores:** Technical approach (2) · Innovation (3) · Prototype (4) · communication signals primary.
 
@@ -222,17 +224,17 @@ class: topo-light
 
 **Say:**
 
-Let me show you. This is our real operator panel, with a simulated drone flying past real tower sites. Right now GPS is healthy: green, with a 7-metre bound.
+[start demo.sh jump; switch to the panel tab] Let me show you. This is our actual operator panel, with a simulated drone flying past the real cell towers in Ottawa. Right now GPS is fine: green, and the circle is about 7 metres.
 
-[T+150, amber] Now a spoofer pushes GPS 300 metres east. We catch the very first fake fix. [T+155, red] And it goes red.
+[T+150, goes amber] Now someone starts faking GPS and jumps our position 300 metres east. We catch the very first fake reading. [T+155, red] And it turns red.
 
-[T+177, green again] But watch. Half a minute later this normal filter gives in and takes the fake GPS back. Green, a 7-metre bound, and 300 metres wrong. That's exactly the failure we're worried about.
+[T+177, green again] But watch this. About half a minute later, the normal software gives up and accepts the fake GPS. Green, a tiny circle, and 300 metres wrong. That is exactly the failure we're here to stop.
 
-[Enter at T+188; NO DATA for a few seconds] Same flight, same attack, now with our jump guard. [point at "ekf-guard" in the top bar]
+[press Enter after T+188; screen says NO DATA for a few seconds, keep talking] Same flight, same attack, now with our jump guard. [point at "ekf-guard" in the top bar]
 
-[T+150] Caught at the first fake fix again. [T+155 to 200, red] This time the fake GPS stays out. We're flying on the barometer and dead reckoning, so the error grows, but the bound grows faster, and it stays red.
+[T+150 to 200, stays red] Caught again, and this time it stays red. We're getting by on the altimeter and motion sensor, so the error grows, but the circle grows faster. It never tells you a wrong position is safe.
 
-[T+200, green] The spoofer stops, real GPS comes straight back, and we're within a few metres. [Enter at T+212 to stop]
+[T+200, green] And the moment the spoofer stops, real GPS comes straight back. [press Enter after T+212 to stop]
 
 **If you're on the clips instead:** (1) "GPS lost: red in three seconds. Forty seconds on we're 325 metres off, and the bound, 895, says so." (2) "A spoofer jumps GPS 300 metres. Caught, but half a minute later the normal filter takes it back: green and 300 metres wrong." (3) "Same attack with our guard: it stays red, and real GPS comes straight back when the spoofer stops."
 
@@ -297,11 +299,9 @@ class: topo-light
 
 **Say:**
 
-So can the towers actually navigate? Yes, once they're modelled honestly. [point down the bars] Believe the radio's own accuracy claim and you're 12 kilometres off. Learn each tower's real noise and hear more carriers, and the same flights hold to 132 metres, 105 on our measured noise. With clean ranges from all 17 nearby towers: 10 metres for the full five minutes.
+So can cell towers actually get you a position? Yes, if you model them honestly. [point down the bars] If you just believe what our radio says about its own accuracy, you end up 12 kilometres off: it claims 2 metres, and it's really tens. Learn how noisy each tower really is, listen on more channels, and the same flight holds to about 100 metres. With clean signals from the 17 towers nearby: 10 metres for the full five minutes, well inside our 25-metre goal.
 
-[point at the panel] Here it is on our panel: 45 seconds without GPS, 18 metres off.
-
-[point at the box] And this isn't a toy simulation: it flies over the real licensed towers, with our radio's noise, our motion sensor and our clock all measured on the payload. The same code runs on real recordings.
+[point at the box] And this isn't a made-up simulation. It flies over the real licensed towers, with the noise we measured on our own radio, and the same code runs on our real recordings.
 
 **Scores:** Technical approach (2) · Evidence (5) · Innovation (3) · use case: navigation continuity · communication signals primary.
 
@@ -377,9 +377,9 @@ class: topo-light
 
 **Say:**
 
-As the mentors asked, the panel shows confidence ten ways [sweep the pins], from a colour to a pilot's 95 % radius to latched alerts.
+The mentors asked us to think about different ways of showing confidence, so the panel shows it ten ways, [sweep the numbered pins] from a simple colour to the kind of number a pilot uses.
 
-And it's true. [point at the numbers] In simulation the standard bound was wrong 40 % of the time; ours, under half a percent. On real recordings: a third of the time, against never.
+But a confidence number only matters if it's true. [point at the red-to-green numbers] In simulation, a standard approach was wrong about 40 percent of the time. Ours: under half a percent. And on real recordings, the standard one was wrong a third of the time. Ours: never.
 
 **Point at:** pins 1, 2, 3 and 7 as you name them, the rest in one sweep; then the two red → green numbers.
 
@@ -436,7 +436,9 @@ class: topo-content
 
 **Say:**
 
-When we spoke to the Honeywell mentors, they told us what they care about, and we built each one. Start with location jumps in the hundreds of metres: caught in 1.1 seconds. Spot a satellite that shouldn't be visible: our sky check flagged every faked report on a real recording. Detecting matters more than handling: that's where we're strongest. A green-to-red heat map: it's on the panel. And they said the rationale matters as much as the result, so here's the calculation.
+When we talked to the Honeywell mentors, they told us what they care about, so we built each one and measured it. [sweep the cards] Start with location jumps in the hundreds of metres: we catch them in about a second. If a satellite shows up that should be below the horizon, it's fake: we built that check, and on a real recording it caught every fake report.
+
+They said detecting matters more than handling: that's our strongest area. They wanted a green-to-red heat map: it's on the panel. And they said the reasoning matters as much as the result, which brings me to the maths.
 
 **Scores:** Problem understanding (1) · Evidence (5) · Answers (9) · every mentor ask in one place.
 
@@ -474,7 +476,9 @@ class: topo-light
 
 **Say:**
 
-The mentors asked for the maths: we built the error up term by term and it matches the Monte Carlo, with reflections the biggest piece. The filter needs two and a half minutes of good GPS to learn the towers first.
+We broke the error into its five sources, things like tower clocks and signal reflections, grew each one from the moment GPS is lost, and added them up. The total matches our simulation, so we know exactly which one to go after.
+
+[point at each number] The biggest is reflections, about 215 metres after two minutes. The filter needs about two and a half minutes of good GPS to learn the towers first. And our radio is actually precise, under a metre of jitter; it just hides a slow 8-metre drift, which we now model.
 
 **Scores:** Technical approach & rigor (2) · Evidence (5) · mentor asks: explain the calculation, handover timing, how the sim aligns to reality.
 
@@ -529,9 +533,9 @@ class: topo-light
 
 **Say:**
 
-The headline targets. Jumps caught in 1.1 seconds with zero false alarms, and with our guard zero dangerous moments. On real recordings our radius never understated the error. The towers carry the solution. Timing holds in 49 of 50 runs.
+Here are the headline results. [down the rows] Fake GPS jumps caught in 1.1 seconds, with zero false alarms. With our guard, zero moments where it called a wrong position safe. On real recordings, our circle never understated the error. The towers do the heavy lifting. Timing holds in 49 out of 50 runs.
 
-And with clean tower signals the filter holds 10 metres for the full five minutes, well inside the 25-metre target; the next step is hearing more towers. Every other target is in the backup.
+And with clean tower signals, 10 metres for five minutes. The next step is a radio that hears more towers at once.
 
 **Point at:** down the green rows, then the amber one, and say what it needs: more towers heard.
 
@@ -598,9 +602,9 @@ class: topo-content
 
 **Say:**
 
-It never transmits, so it can't interfere with anything. We decode only what's broadcast for everyone, the link is encrypted, and it advises; it never steers.
+Safety was a rule from day one. It never transmits, so it can't interfere with anything. It only reads public signals, never anyone's content. The link is encrypted, and it only advises: it never flies the aircraft.
 
-The product: a small receive-only box that warns the autopilot when GPS can't be trusted. Next: a better receiver to hear more towers, real flights, then low-orbit satellites. Every number here traces to a commit. Thank you, happy to take questions.
+Where this goes: a small box that warns the autopilot when GPS can't be trusted. Next, a radio that hears more towers, real flight tests, then satellites as one more source. And every number you've seen today traces back to our code. Thank you, we'd love your questions.
 
 **Do:** stop on "thank you". Leave this slide up; press **O** to jump to a backup.
 
