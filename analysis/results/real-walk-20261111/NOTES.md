@@ -67,3 +67,15 @@ No variant beats no LTE. A slow per-cell error state of the measured size makes 
 | 0.6 | 30 | 11 | 13 |
 
 Proposed (TBC): `MIN_MOVING` 0.6 and `WALK_BEFORE_S` 60, giving 9 cuts at 100, 160, 220, 418, 478, 818, 878, 938, 998 s. 120 s of walking was asked because the sim walk's IMU aligned 114 s in; with ADR-0053 the real walk's IMU does not align at all, so it buys nothing here. `relaxed/summary.md`: the 9 cuts given with `--cut-at`.
+
+Median (worst) horizontal error, m, at both settings on this branch:
+
+| Config | Cuts | 60 s | 120 s | 300 s | HPL ≥ error | Before cut p95 |
+|---|---|---|---|---|---|---|
+| no LTE, `ekf` | 3 (now) | 22.8 (89.6) | 107 (223) | 503 (557) | 100 % | 1.2 |
+| no LTE, `ekf` | 9 (relaxed) | 22.8 (89.6) | 76.3 (223) | 358 (557) | 100 % | 1.5 |
+| no LTE, `ekf-imu` | 3 / 9 | same as `ekf` | | | | |
+| LTE, `ekf` | 3 (now) | 103 (538) | 598 (642) | 1,629 (1,812) | 70 % | 6.3 |
+| LTE, `ekf` | 9 (relaxed) | 103 (538) | 642 (3,496) | 1,629 (7,409) | 49 % | 9.5 |
+
+The relaxed cuts include the stops (minute 4 and minutes 11 to 12) inside some windows; the cuts share one recording, so they are not independent draws.
