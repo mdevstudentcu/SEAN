@@ -32,10 +32,10 @@ records are kept: `adr36` drops records below -14 dB, `adr36-cut8` below -8 dB, 
 doppler (which #245's front end no longer writes). The variant names say what this script feeds;
 `ROW_DOES` says what the filter then does with it.
 
-Per run (estimator, variant, cut): horizontal error at 30, 60, 120 and 300 s after the cut (at
-the withheld fix on that instant, else the nearest one within 0.5 s: 1 Hz fixes need not fall on
-the instant); the
-p95 over [cut, cut + s) for s in 60, 120 and 300 (as `pnt.metrics` scores outage slices for T1);
+Per run (estimator, variant, cut): horizontal error at 30, 60, 120 and 300 s after the cut (the
+withheld fix on that instant, else the nearest within half a fix interval: a 1 Hz receiver's fixes
+need not fall on the instant, #264, #286); the p95 over [cut, cut + s) for s in 60, 120 and 300
+(as `pnt.metrics` scores outage slices for T1);
 the share of withheld fixes with HPL >= error, and how many have error > HPL; and, before the cut
 while GNSS is fed, the p95 error and the share of epochs flagged `gnss_excluded`. `hold` is the
 last fix before the cut held: the error a receiver that never moves gets for free.
@@ -76,9 +76,9 @@ from pnt.sim import attacks
 CUTS_S = (100.0, 150.0, 200.0, 250.0, 300.0)
 HORIZON_S = 300.0  # s of coast scored after each cut (T1's 300 s, ADR-0034)
 AT_S = (30.0, 60.0, 120.0, 300.0)  # s after the cut: errors reported at these instants
-# A withheld fix this close to an instant is taken as on it (the first such fix); otherwise the
-# nearest fix within AT_NEAREST_S stands in. 0.5 s is half the 1 Hz fix interval, so a receiver
-# whose fixes fall anywhere in the second still has one (#264: fixes at x.54 s had none).
+# A withheld fix within AT_ON_S of an instant is on it (the first such); otherwise the nearest fix
+# within AT_NEAREST_S, half the 1 Hz fix interval, stands in. Session 20261111-1937's fixes fall
+# about half a second off the cut's grid, so +300 s had no value (#264's idea, #286)
 AT_ON_S, AT_NEAREST_S = 0.05, 0.5
 SLICES_S = (60.0, 120.0, 300.0)  # p95 over [cut, cut + s), as metrics.OUTAGE_SLICES_S
 ESTIMATORS = ("ekf", "ekf-imu", "ekf-calibrated")
@@ -179,6 +179,16 @@ def _p95(x: np.ndarray) -> float:
     return float(np.percentile(x, 95)) if len(x) else float("nan")
 
 
+def at_instant(after: np.ndarray, s: float) -> np.ndarray:
+    """Index (0 or 1 of them) of the withheld fix that stands for `s` s after the cut: the first
+    within AT_ON_S of it, else the nearest within AT_NEAREST_S, else none."""
+    k = np.flatnonzero(np.isclose(after, s, atol=AT_ON_S))
+    if len(k) or not after.size:
+        return k[:1]
+    near = int(np.argmin(np.abs(after - s)))
+    return np.array([near]) if abs(after[near] - s) <= AT_NEAREST_S + 1e-9 else k
+
+
 def score_cut(
     est_t: np.ndarray,
     est_pos: np.ndarray,
@@ -201,11 +211,7 @@ def score_cut(
     out = {"n_fixes": int(len(t)), "after_s": after.tolist(), "err_m": err.tolist()}
     out["hpl_m"] = hpl.tolist()
     for s in AT_S:
-        k = np.flatnonzero(np.isclose(after, s, atol=AT_ON_S))
-        if not len(k) and after.size:
-            near = int(np.argmin(np.abs(after - s)))
-            if abs(after[near] - s) <= AT_NEAREST_S + 1e-9:
-                k = np.array([near])
+        k = at_instant(after, s)
         out[f"err_{s:g}s_m"] = float(err[k[0]]) if len(k) else float("nan")
         out[f"hpl_{s:g}s_m"] = float(hpl[k[0]]) if len(k) else float("nan")
     for s in SLICES_S:
