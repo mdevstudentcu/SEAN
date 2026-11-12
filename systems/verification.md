@@ -85,7 +85,7 @@ How estimator `ekf-mhss` computes its HPL (REQ-02) and excludes faults (REQ-04).
 ## Results
 
 <!-- results:start -->
-Estimator: `ekf`. Commit `b74010e`, 2026-11-11 16:54. Regenerate with `just results`.
+Estimator: `ekf`. Commit `d66c929`, 2026-11-12 04:34. Regenerate with `just results`.
 
 | Scenario | Runs | H RMSE (m) | Fault H p95 (m) | Fault H max (m) | HPL bounds error | Misleading epochs | Spoof detect (s) | False alarms (/h) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -114,53 +114,55 @@ Estimator: `ekf`. Commit `b74010e`, 2026-11-11 16:54. Regenerate with `just resu
 | `uc01-drone-circuit-with-base` | 50 | 6.5 | 19.3 | 37.9 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `uc02-yow-approach` | 50 | 17.9 | 45.6 | 102.9 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `uc02-yow-approach-adsb` | 50 | 1.7 | nan | nan | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
-| `uc02-yow-approach-adsb-jammed` | 50 | 15.8 | 37.6 | 144.9 | 100.0 % (worst run) | 0 (mean) | — | 0.3 |
+| `uc02-yow-approach-adsb-jammed` | 50 | 15.8 | 37.6 | 144.9 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `uc02-yow-approach-adsb-spoofed` | 50 | 15.1 | 39.0 | 144.9 | 100.0 % (worst run) | 0 (mean) | — | 12.9 |
 | `uc02-yow-approach-vor` | 50 | 17.3 | 44.1 | 92.8 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `vehicle-street-grid` | 50 | 13.2 | 38.0 | 76.1 | 97.6 % (worst run) | 4 (mean) | — | 0.0 |
 | `challenge-approach-nominal` | 50 | 1.6 | nan | nan | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
-| `challenge-approach-outage` | 50 | 1705.0 | 3750.9 | 10283.5 | 60.3 % (worst run) | 0 (mean) | — | 3.9 |
+| `challenge-approach-outage` | 50 | 1704.8 | 3750.7 | 10283.5 | 60.3 % (worst run) | 0 (mean) | — | 3.9 |
 | `challenge-approach-spoof-ramp` | 50 | 585.6 | 1082.9 | 1142.8 | 21.2 % (worst run) | 5664 (mean) | — | 0.0 |
 | `challenge-approach-spoof-jump` | 50 | 505.1 | 1148.0 | 3060.8 | 27.0 % (worst run) | 331 (mean) | 1.1 (100 % of runs) | 0.0 |
 | `challenge-approach-time-spoof` | 50 | 1.6 | 2.8 | 5.9 | 100.0 % (worst run) | 0 (mean) | 3.3 (100 % of runs) | 0.0 |
-| `challenge-approach-meaconing` | 50 | 439.2 | 900.4 | 2876.2 | 33.0 % (worst run) | 3746 (mean) | 1.1 (100 % of runs) | 0.0 |
+| `challenge-approach-meaconing` | 50 | 398.9 | 795.9 | 2876.2 | 28.1 % (worst run) | 4454 (mean) | 1.1 (100 % of runs) | 0.0 |
 | `challenge-approach-jamming-zone` | 50 | 91.5 | 247.4 | 1278.5 | 88.1 % (worst run) | 0 (mean) | — | 1.7 |
-| `challenge-approach-outage-tower-clock-step` | 50 | 2881.9 | 6279.1 | 15843.5 | 50.1 % (worst run) | 2 (mean) | — | 4.8 |
-| `challenge-approach-outage-tower-holdover` | 50 | 1886.9 | 4380.9 | 10727.9 | 63.1 % (worst run) | 0 (mean) | — | 4.0 |
-| `challenge-approach-outage-imu-bias` | 50 | 1705.0 | 3886.2 | 10283.5 | 60.3 % (worst run) | 0 (mean) | — | 3.9 |
-| `challenge-approach-outage-baro-drift` | 50 | 1722.0 | 3943.9 | 10174.1 | 60.3 % (worst run) | 0 (mean) | — | 5.0 |
+| `challenge-approach-outage-tower-clock-step` | 50 | 2881.8 | 6279.1 | 15843.5 | 50.1 % (worst run) | 2 (mean) | — | 4.8 |
+| `challenge-approach-outage-tower-holdover` | 50 | 1886.7 | 4380.5 | 10727.9 | 63.1 % (worst run) | 0 (mean) | — | 3.9 |
+| `challenge-approach-outage-imu-bias` | 50 | 1704.8 | 3886.0 | 10283.5 | 60.3 % (worst run) | 0 (mean) | — | 3.9 |
+| `challenge-approach-outage-baro-drift` | 50 | 1706.0 | 3887.8 | 10174.1 | 60.3 % (worst run) | 0 (mean) | — | 4.1 |
 | `challenge-drone-nominal` | 50 | 1.7 | nan | nan | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
-| `challenge-drone-outage` | 50 | 8140.8 | 14176.1 | 46828.0 | 12.8 % (worst run) | 7 (mean) | — | 4.1 |
+| `challenge-drone-outage` | 50 | 8138.7 | 14172.0 | 46828.0 | 12.8 % (worst run) | 7 (mean) | — | 4.0 |
 | `challenge-drone-spoof-ramp` | 50 | 585.6 | 1082.9 | 1143.3 | 21.2 % (worst run) | 5662 (mean) | — | 0.0 |
 | `challenge-drone-spoof-jump` | 50 | 431.4 | 646.5 | 15380.8 | 24.2 % (worst run) | 5244 (mean) | 1.1 (100 % of runs) | 0.0 |
+| `challenge-drone-gps-return` | 50 | 851.4 | 328.5 | 838.2 | 28.6 % (worst run) | 252 (mean) | 1.1 (100 % of runs) | 4.9 |
 | `challenge-drone-time-spoof` | 50 | 1.7 | 2.9 | 6.0 | 100.0 % (worst run) | 0 (mean) | 3.3 (100 % of runs) | 0.0 |
 | `challenge-drone-meaconing` | 50 | 35.5 | 41.9 | 47.1 | 21.3 % (worst run) | 5650 (mean) | 1.1 (100 % of runs) | 0.0 |
-| `challenge-drone-jamming-zone` | 50 | 172.6 | 402.3 | 11428.5 | 62.6 % (worst run) | 23 (mean) | — | 0.6 |
-| `challenge-drone-outage-tower-clock-step` | 50 | 7659.1 | 15091.9 | 54099.7 | 12.8 % (worst run) | 7 (mean) | — | 3.9 |
-| `challenge-drone-outage-tower-holdover` | 50 | 8140.4 | 16108.7 | 55473.7 | 12.8 % (worst run) | 8 (mean) | — | 3.9 |
-| `challenge-drone-outage-imu-bias` | 50 | 8140.8 | 16139.6 | 54190.4 | 12.8 % (worst run) | 7 (mean) | — | 4.1 |
-| `challenge-drone-outage-baro-drift` | 50 | 8243.6 | 16517.1 | 54152.1 | 12.8 % (worst run) | 6 (mean) | — | 5.0 |
+| `challenge-drone-jamming-zone` | 50 | 172.4 | 401.7 | 11428.5 | 62.6 % (worst run) | 22 (mean) | — | 0.5 |
+| `challenge-drone-outage-tower-clock-step` | 50 | 7657.0 | 15087.7 | 54099.7 | 12.8 % (worst run) | 7 (mean) | — | 3.8 |
+| `challenge-drone-outage-tower-holdover` | 50 | 8138.4 | 16104.6 | 55473.7 | 12.8 % (worst run) | 8 (mean) | — | 3.8 |
+| `challenge-drone-outage-imu-bias` | 50 | 8138.7 | 16135.5 | 54190.4 | 12.8 % (worst run) | 7 (mean) | — | 4.0 |
+| `challenge-drone-outage-baro-drift` | 50 | 8093.4 | 16093.5 | 54152.1 | 12.8 % (worst run) | 6 (mean) | — | 3.7 |
 | `challenge-drone-hop-nominal` | 50 | 1.7 | nan | nan | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `challenge-drone-hop-outage` | 50 | 8544.3 | 14647.2 | 37160.0 | 10.0 % (worst run) | 23 (mean) | — | 3.6 |
 | `challenge-drone-hop-spoof-ramp` | 50 | 585.6 | 1082.9 | 1143.3 | 21.2 % (worst run) | 5662 (mean) | — | 0.0 |
 | `challenge-drone-hop-spoof-jump` | 50 | 960.9 | 1795.1 | 28597.2 | 21.7 % (worst run) | 4621 (mean) | 1.1 (100 % of runs) | 0.0 |
+| `challenge-drone-hop-gps-return` | 50 | 1160.6 | 353.6 | 899.1 | 21.7 % (worst run) | 217 (mean) | 1.1 (100 % of runs) | 4.3 |
 | `challenge-drone-hop-time-spoof` | 50 | 1.7 | 2.9 | 5.8 | 100.0 % (worst run) | 0 (mean) | 3.3 (100 % of runs) | 0.0 |
 | `challenge-drone-hop-meaconing` | 50 | 359.7 | 725.0 | 28597.2 | 21.3 % (worst run) | 5428 (mean) | 1.1 (100 % of runs) | 0.0 |
 | `challenge-drone-hop-jamming-zone` | 50 | 754.5 | 1454.5 | 39088.8 | 2.5 % (worst run) | 28 (mean) | — | 0.9 |
-| `challenge-drone-hop-outage-tower-clock-step` | 50 | 8666.7 | 16986.2 | 43100.6 | 10.0 % (worst run) | 20 (mean) | — | 3.7 |
+| `challenge-drone-hop-outage-tower-clock-step` | 50 | 8666.7 | 16986.1 | 43100.6 | 10.0 % (worst run) | 20 (mean) | — | 3.7 |
 | `challenge-drone-hop-outage-tower-holdover` | 50 | 7770.9 | 15016.4 | 42919.6 | 10.0 % (worst run) | 20 (mean) | — | 3.7 |
-| `challenge-drone-hop-outage-imu-bias` | 50 | 8544.3 | 16758.6 | 43100.6 | 10.0 % (worst run) | 23 (mean) | — | 3.6 |
-| `challenge-drone-hop-outage-baro-drift` | 50 | 8461.6 | 16659.1 | 43092.3 | 10.0 % (worst run) | 22 (mean) | — | 5.0 |
+| `challenge-drone-hop-outage-imu-bias` | 50 | 8544.3 | 16758.7 | 43100.6 | 10.0 % (worst run) | 23 (mean) | — | 3.6 |
+| `challenge-drone-hop-outage-baro-drift` | 50 | 8275.0 | 16156.8 | 43092.3 | 10.0 % (worst run) | 22 (mean) | — | 3.5 |
 | `challenge-timing-nominal` | 50 | 1.6 | nan | nan | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
-| `challenge-timing-outage` | 50 | 6259.6 | 11041.3 | 36429.7 | 14.0 % (worst run) | 0 (mean) | — | 3.2 |
+| `challenge-timing-outage` | 50 | 6275.7 | 11072.5 | 36429.7 | 14.0 % (worst run) | 0 (mean) | — | 3.2 |
 | `challenge-timing-spoof-ramp` | 50 | 585.6 | 1082.9 | 1142.8 | 21.2 % (worst run) | 5664 (mean) | — | 0.0 |
 | `challenge-timing-spoof-jump` | 50 | 305.7 | 455.1 | 5755.9 | 23.7 % (worst run) | 5317 (mean) | 1.1 (100 % of runs) | 0.0 |
 | `challenge-timing-time-spoof` | 50 | 1.6 | 2.8 | 5.8 | 100.0 % (worst run) | 0 (mean) | 3.3 (100 % of runs) | 0.0 |
 | `challenge-timing-meaconing` | 50 | 1.6 | 2.8 | 5.8 | 100.0 % (worst run) | 0 (mean) | 1.1 (100 % of runs) | 0.0 |
-| `challenge-timing-outage-tower-clock-step` | 50 | 6293.7 | 12396.4 | 35206.2 | 13.8 % (worst run) | 0 (mean) | — | 3.2 |
-| `challenge-timing-outage-tower-holdover` | 50 | 6222.0 | 12364.4 | 37092.1 | 18.9 % (worst run) | 0 (mean) | — | 3.2 |
-| `challenge-timing-outage-imu-bias` | 50 | 6259.6 | 12600.2 | 41169.0 | 14.0 % (worst run) | 0 (mean) | — | 3.2 |
-| `challenge-timing-outage-baro-drift` | 50 | 6738.7 | 13339.8 | 41220.3 | 14.0 % (worst run) | 0 (mean) | — | 5.0 |
+| `challenge-timing-outage-tower-clock-step` | 50 | 6310.1 | 12439.8 | 35206.2 | 13.8 % (worst run) | 0 (mean) | — | 3.2 |
+| `challenge-timing-outage-tower-holdover` | 50 | 6238.2 | 12407.4 | 37092.1 | 18.9 % (worst run) | 0 (mean) | — | 3.2 |
+| `challenge-timing-outage-imu-bias` | 50 | 6275.7 | 12643.0 | 41169.0 | 14.0 % (worst run) | 0 (mean) | — | 3.2 |
+| `challenge-timing-outage-baro-drift` | 50 | 6481.7 | 12978.6 | 41220.3 | 14.0 % (worst run) | 0 (mean) | — | 3.2 |
 | `easy-nominal` | 50 | 1.7 | nan | nan | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `easy-outage` | 50 | 7.4 | 22.2 | 59.9 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `easy-gps-no-fix` | 50 | 7.4 | 22.2 | 59.9 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
@@ -171,7 +173,7 @@ Estimator: `ekf`. Commit `b74010e`, 2026-11-11 16:54. Regenerate with `just resu
 | `easy-time-spoof` | 50 | 1.7 | 2.9 | 5.6 | 100.0 % (worst run) | 0 (mean) | 3.2 (100 % of runs) | 0.0 |
 | `easy-meaconing` | 50 | 29.7 | 41.7 | 46.6 | 42.9 % (worst run) | 1996 (mean) | 1.1 (100 % of runs) | 0.0 |
 | `easy-jamming-zone` | 50 | 6.1 | 12.8 | 85.4 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
-| `easy-baro-drift` | 50 | 7.2 | 18.1 | 39.7 | 100.0 % (worst run) | 0 (mean) | — | 85.6 |
+| `easy-baro-drift` | 50 | 1.7 | 2.9 | 5.6 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `easy-tower-loss` | 50 | 1.7 | 2.9 | 5.6 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `easy-tower-clock-step` | 50 | 1.7 | 2.9 | 5.6 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `easy-long-outage` | 50 | 11.7 | 22.6 | 65.7 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
@@ -186,7 +188,7 @@ Estimator: `ekf`. Commit `b74010e`, 2026-11-11 16:54. Regenerate with `just resu
 | `realistic-time-spoof` | 50 | 1.7 | 3.0 | 5.7 | 100.0 % (worst run) | 0 (mean) | 3.2 (100 % of runs) | 0.0 |
 | `realistic-meaconing` | 50 | 30.7 | 45.4 | 244.6 | 42.7 % (worst run) | 2041 (mean) | 1.1 (100 % of runs) | 0.0 |
 | `realistic-jamming-zone` | 50 | 19.5 | 47.5 | 226.5 | 94.4 % (worst run) | 0 (mean) | — | 0.4 |
-| `realistic-baro-drift` | 50 | 71.8 | 200.8 | 976.2 | 78.1 % (worst run) | 0 (mean) | — | 78.2 |
+| `realistic-baro-drift` | 50 | 1.7 | 3.0 | 5.7 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `realistic-tower-loss` | 50 | 1.7 | 2.9 | 5.6 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `realistic-tower-clock-step` | 50 | 1.7 | 3.0 | 5.6 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `realistic-long-outage` | 50 | 154.4 | 331.7 | 906.2 | 69.2 % (worst run) | 0 (mean) | — | 0.0 |
@@ -201,7 +203,7 @@ Estimator: `ekf`. Commit `b74010e`, 2026-11-11 16:54. Regenerate with `just resu
 | `realistic-with-base-time-spoof` | 50 | 1.7 | 3.0 | 5.7 | 100.0 % (worst run) | 0 (mean) | 3.2 (100 % of runs) | 0.0 |
 | `realistic-with-base-meaconing` | 50 | 30.7 | 45.4 | 244.6 | 42.7 % (worst run) | 2041 (mean) | 1.1 (100 % of runs) | 0.0 |
 | `realistic-with-base-jamming-zone` | 50 | 19.5 | 47.5 | 226.5 | 94.4 % (worst run) | 0 (mean) | — | 0.4 |
-| `realistic-with-base-baro-drift` | 50 | 71.8 | 200.8 | 976.2 | 78.1 % (worst run) | 0 (mean) | — | 78.2 |
+| `realistic-with-base-baro-drift` | 50 | 1.7 | 3.0 | 5.7 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `realistic-with-base-tower-loss` | 50 | 1.7 | 2.9 | 5.6 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `realistic-with-base-tower-clock-step` | 50 | 1.7 | 3.0 | 5.6 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `realistic-with-base-long-outage` | 50 | 154.4 | 331.7 | 906.2 | 69.2 % (worst run) | 0 (mean) | — | 0.0 |
@@ -220,7 +222,7 @@ Estimator: `ekf`. Commit `b74010e`, 2026-11-11 16:54. Regenerate with `just resu
 | `worst-time-spoof` | 50 | 1.7 | 3.0 | 5.7 | 100.0 % (worst run) | 0 (mean) | 3.2 (100 % of runs) | 0.0 |
 | `worst-meaconing` | 50 | 30.2 | 42.0 | 54.6 | 42.7 % (worst run) | 2043 (mean) | 1.1 (100 % of runs) | 0.0 |
 | `worst-jamming-zone` | 50 | 103.3 | 212.4 | 2541.9 | 46.6 % (worst run) | 0 (mean) | — | 3.3 |
-| `worst-baro-drift` | 50 | 394.6 | 1058.1 | 3260.0 | 66.7 % (worst run) | 0 (mean) | — | 77.2 |
+| `worst-baro-drift` | 50 | 1.7 | 3.0 | 5.6 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `worst-tower-loss` | 50 | 1.7 | 2.9 | 5.6 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `worst-tower-clock-step` | 50 | 1.7 | 3.0 | 5.6 | 100.0 % (worst run) | 0 (mean) | — | 0.0 |
 | `worst-long-outage` | 50 | 1063.3 | 2067.9 | 5465.2 | 27.2 % (worst run) | 0 (mean) | — | 0.0 |
@@ -244,11 +246,11 @@ Report card. Alert limits (TBC): position 50 m, time 1.5 µs. Hazardous: error o
 | `ottawa-towers` | jamming / denial | 0 | — | — | 1.9 / 1.9 (100 % of runs) | 0 (3 / 0) |
 | `p12-drone-map-handoff` | none | 0 | 100.0 % | 0 / 0 | — | — |
 | `p12-drone-map-handoff-spoof-jump` | position spoof | 2278 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 1 (1 / —), recovery untested |
-| `p12-drone-map-handoff-spoof-ramp` | position spoof | 4850 | 100.0 % | 0 / 0 | 68.6 / 459.7 (96 % of runs) | 1 (1 / —), recovery untested |
+| `p12-drone-map-handoff-spoof-ramp` | position spoof | 4850 | 100.0 % | 0 / 0 | 86.8 / 459.7 (96 % of runs) | 1 (1 / —), recovery untested |
 | `residual-map` | jamming / denial | 5 | — | — | 1.9 / 1.9 (100 % of runs) | 0 (1 / 0) |
 | `spoof-jump` | position spoof | 0 | — | — | 0.1 / 0.1 (100 % of runs) | 1 (1 / —), recovery untested |
 | `spoof-jump-sky` | position spoof, sky spoof (advisory check) | 0 | — | — | 0.1 / 0.1 (100 % of runs) | 1 (1 / —), recovery untested |
-| `spoof-ramp` | position spoof | 1621 | — | — | 27.0 / 126.7 (100 % of runs) | 1 (1 / —), recovery untested |
+| `spoof-ramp` | position spoof | 1621 | — | — | 31.2 / 175.7 (100 % of runs) | 1 (1 / —), recovery untested |
 | `starlink-outage` | jamming / denial | 0 | — | — | 1.9 / 1.9 (100 % of runs) | 0 (3 / 0) |
 | `time-spoof` | time spoof | 0 | 98.5 % | 5 / 0 | 1.5 / 2.5 (100 % of runs) | 3 (— / 3), recovery untested |
 | `uc01-drone-circuit` | jamming / denial | 0 | — | — | 1.9 / 1.9 (100 % of runs) | 0 (3 / 0) |
@@ -260,61 +262,63 @@ Report card. Alert limits (TBC): position 50 m, time 1.5 µs. Hazardous: error o
 | `uc02-yow-approach-vor` | jamming / denial | 0 | — | — | 1.9 / 1.9 (100 % of runs) | 0 (2 / 0), recovery untested |
 | `vehicle-street-grid` | jamming / denial | 1 | — | — | 1.9 / 1.9 (100 % of runs) | 0 (1 / 0) |
 | `challenge-approach-nominal` | none | 0 | 100.0 % | 0 / 0 | — | — |
-| `challenge-approach-outage` | jamming / denial | 0 | 69.0 % | 22 / 19 | 1.9 / 1.9 (98 % of runs) | 0 (0 / 0) |
-| `challenge-approach-spoof-ramp` | position spoof | 5450 | 100.0 % | 0 / 0 | 71.0 / 422.5 (96 % of runs) | 1 (1 / —), recovery untested |
+| `challenge-approach-outage` | jamming / denial | 0 | 69.0 % | 22 / 19 | 1.9 / 1.9 (100 % of runs) | 0 (0 / 0) |
+| `challenge-approach-spoof-ramp` | position spoof | 5450 | 100.0 % | 0 / 0 | 77.3 / 422.5 (96 % of runs) | 1 (1 / —), recovery untested |
 | `challenge-approach-spoof-jump` | position spoof | 331 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 1 (1 / —), recovery untested |
-| `challenge-approach-time-spoof` | time spoof | 0 | 51.3 % | 801 / 0 | 1.5 / 2.5 (100 % of runs) | 3 (— / 3), recovery untested |
-| `challenge-approach-meaconing` | meaconing / replay | 3746 | 33.0 % | 4116 / 72 | 0.1 / 0.1 (100 % of runs) | 1 (1 / 1), recovery untested |
+| `challenge-approach-time-spoof` | time spoof | 0 | 51.2 % | 801 / 0 | 1.5 / 2.5 (100 % of runs) | 3 (— / 3), recovery untested |
+| `challenge-approach-meaconing` | meaconing / replay | 4454 | 28.4 % | 4476 / 7 | 0.1 / 0.1 (100 % of runs) | 1 (1 / 1), recovery untested |
 | `challenge-approach-jamming-zone` | jamming / denial | 0 | 100.0 % | 0 / 0 | — | 2 (2 / 3), recovery untested |
-| `challenge-approach-outage-tower-clock-step` | SoOP fault, jamming / denial | 0 | 65.0 % | 106 / 102 | 1.9 / 1.9 (98 % of runs) | 1 (1 / 1), recovery untested |
-| `challenge-approach-outage-tower-holdover` | SoOP fault, jamming / denial | 0 | 69.7 % | 24 / 12 | 1.9 / 484.5 (100 % of runs) | 1 (2 / 1), recovery untested |
-| `challenge-approach-outage-imu-bias` | jamming / denial, sensor degradation | 0 | 69.0 % | 22 / 19 | 1.9 / 1.9 (98 % of runs) | 1 (2 / 1), recovery untested |
-| `challenge-approach-outage-baro-drift` | jamming / denial, sensor degradation | 0 | 69.0 % | 20 / 20 | 1.9 / 1.9 (98 % of runs) | 1 (2 / 1), recovery untested |
+| `challenge-approach-outage-tower-clock-step` | SoOP fault, jamming / denial | 0 | 65.0 % | 106 / 102 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 1), recovery untested |
+| `challenge-approach-outage-tower-holdover` | SoOP fault, jamming / denial | 0 | 69.7 % | 24 / 12 | 1.9 / 1.9 (100 % of runs) | 1 (2 / 1), recovery untested |
+| `challenge-approach-outage-imu-bias` | jamming / denial, sensor degradation | 0 | 69.0 % | 22 / 19 | 1.9 / 1.9 (100 % of runs) | 1 (2 / 1), recovery untested |
+| `challenge-approach-outage-baro-drift` | jamming / denial, sensor degradation | 0 | 69.0 % | 20 / 17 | 1.9 / 1.9 (100 % of runs) | 1 (2 / 1), recovery untested |
 | `challenge-drone-nominal` | none | 0 | 100.0 % | 0 / 0 | — | — |
-| `challenge-drone-outage` | jamming / denial | 6 | 100.0 % | 0 / 0 | 1.9 / 1.9 (98 % of runs) | 0 (0 / 2) |
-| `challenge-drone-spoof-ramp` | position spoof | 5449 | 100.0 % | 0 / 0 | 78.9 / 562.3 (98 % of runs) | 1 (1 / —), recovery untested |
+| `challenge-drone-outage` | jamming / denial | 6 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 0 (0 / 2) |
+| `challenge-drone-spoof-ramp` | position spoof | 5449 | 100.0 % | 0 / 0 | 83.4 / 562.3 (96 % of runs) | 1 (1 / —), recovery untested |
 | `challenge-drone-spoof-jump` | position spoof | 5244 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 1 (1 / —), recovery untested |
+| `challenge-drone-gps-return` | position spoof | 252 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 0 (0 / —) |
 | `challenge-drone-time-spoof` | time spoof | 0 | 98.5 % | 15 / 0 | 1.5 / 2.5 (100 % of runs) | 2 (— / 2), recovery untested |
 | `challenge-drone-meaconing` | meaconing / replay | 0 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 3 (3 / 3), recovery untested |
-| `challenge-drone-jamming-zone` | jamming / denial | 10 | 100.0 % | 0 / 0 | — | 1 (1 / 3), recovery untested |
-| `challenge-drone-outage-tower-clock-step` | SoOP fault, jamming / denial | 6 | 100.0 % | 0 / 0 | 1.9 / 484.5 (100 % of runs) | 1 (1 / 2), recovery untested |
-| `challenge-drone-outage-tower-holdover` | SoOP fault, jamming / denial | 7 | 100.0 % | 0 / 0 | 1.9 / 484.5 (100 % of runs) | 1 (1 / 2), recovery untested |
-| `challenge-drone-outage-imu-bias` | jamming / denial, sensor degradation | 6 | 100.0 % | 0 / 0 | 1.9 / 484.5 (100 % of runs) | 1 (1 / 2), recovery untested |
-| `challenge-drone-outage-baro-drift` | jamming / denial, sensor degradation | 6 | 100.0 % | 0 / 0 | 1.9 / 1.9 (98 % of runs) | 1 (1 / 2), recovery untested |
+| `challenge-drone-jamming-zone` | jamming / denial | 8 | 100.0 % | 0 / 0 | — | 1 (1 / 3), recovery untested |
+| `challenge-drone-outage-tower-clock-step` | SoOP fault, jamming / denial | 6 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 2), recovery untested |
+| `challenge-drone-outage-tower-holdover` | SoOP fault, jamming / denial | 7 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 2), recovery untested |
+| `challenge-drone-outage-imu-bias` | jamming / denial, sensor degradation | 6 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 2), recovery untested |
+| `challenge-drone-outage-baro-drift` | jamming / denial, sensor degradation | 6 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 2), recovery untested |
 | `challenge-drone-hop-nominal` | none | 0 | 100.0 % | 0 / 0 | — | — |
-| `challenge-drone-hop-outage` | jamming / denial | 22 | 100.0 % | 0 / 0 | 1.9 / 1.9 (98 % of runs) | 0 (0 / 2) |
-| `challenge-drone-hop-spoof-ramp` | position spoof | 5449 | 100.0 % | 0 / 0 | 78.9 / 562.3 (98 % of runs) | 1 (1 / —), recovery untested |
+| `challenge-drone-hop-outage` | jamming / denial | 22 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 0 (0 / 2) |
+| `challenge-drone-hop-spoof-ramp` | position spoof | 5449 | 100.0 % | 0 / 0 | 83.4 / 562.3 (96 % of runs) | 1 (1 / —), recovery untested |
 | `challenge-drone-hop-spoof-jump` | position spoof | 4620 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 1 (1 / —), recovery untested |
+| `challenge-drone-hop-gps-return` | position spoof | 217 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 0 (0 / —) |
 | `challenge-drone-hop-time-spoof` | time spoof | 0 | 98.5 % | 15 / 0 | 1.5 / 2.5 (100 % of runs) | 2 (— / 2), recovery untested |
 | `challenge-drone-hop-meaconing` | meaconing / replay | 4 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 1 (1 / 3), recovery untested |
 | `challenge-drone-hop-jamming-zone` | jamming / denial | 21 | 100.0 % | 0 / 0 | — | 1 (1 / 3), recovery untested |
-| `challenge-drone-hop-outage-tower-clock-step` | SoOP fault, jamming / denial | 20 | 100.0 % | 0 / 0 | 1.9 / 1.9 (98 % of runs) | 1 (1 / 2), recovery untested |
-| `challenge-drone-hop-outage-tower-holdover` | SoOP fault, jamming / denial | 20 | 100.0 % | 0 / 0 | 1.9 / 1.9 (98 % of runs) | 1 (1 / 2), recovery untested |
-| `challenge-drone-hop-outage-imu-bias` | jamming / denial, sensor degradation | 22 | 100.0 % | 0 / 0 | 1.9 / 1.9 (98 % of runs) | 1 (1 / 2), recovery untested |
-| `challenge-drone-hop-outage-baro-drift` | jamming / denial, sensor degradation | 21 | 100.0 % | 0 / 0 | 1.9 / 1.9 (98 % of runs) | 1 (1 / 2), recovery untested |
+| `challenge-drone-hop-outage-tower-clock-step` | SoOP fault, jamming / denial | 20 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 2), recovery untested |
+| `challenge-drone-hop-outage-tower-holdover` | SoOP fault, jamming / denial | 20 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 2), recovery untested |
+| `challenge-drone-hop-outage-imu-bias` | jamming / denial, sensor degradation | 22 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 2), recovery untested |
+| `challenge-drone-hop-outage-baro-drift` | jamming / denial, sensor degradation | 21 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 2), recovery untested |
 | `challenge-timing-nominal` | none | 0 | 100.0 % | 0 / 0 | — | — |
-| `challenge-timing-outage` | jamming / denial | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (98 % of runs) | 0 (0 / 2) |
-| `challenge-timing-spoof-ramp` | position spoof | 5450 | 100.0 % | 0 / 0 | 78.9 / 562.3 (98 % of runs) | 1 (1 / —), recovery untested |
+| `challenge-timing-outage` | jamming / denial | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 0 (0 / 2) |
+| `challenge-timing-spoof-ramp` | position spoof | 5450 | 100.0 % | 0 / 0 | 88.4 / 562.3 (96 % of runs) | 1 (1 / —), recovery untested |
 | `challenge-timing-spoof-jump` | position spoof | 5317 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 1 (1 / —), recovery untested |
 | `challenge-timing-time-spoof` | time spoof | 0 | 98.5 % | 15 / 0 | 1.5 / 2.5 (100 % of runs) | 2 (— / 2), recovery untested |
 | `challenge-timing-meaconing` | meaconing / replay | 0 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 3 (4 / 3), recovery untested |
-| `challenge-timing-outage-tower-clock-step` | SoOP fault, jamming / denial | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (98 % of runs) | 1 (1 / 2), recovery untested |
-| `challenge-timing-outage-tower-holdover` | SoOP fault, jamming / denial | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (98 % of runs) | 1 (1 / 2), recovery untested |
-| `challenge-timing-outage-imu-bias` | jamming / denial, sensor degradation | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (98 % of runs) | 1 (1 / 2), recovery untested |
-| `challenge-timing-outage-baro-drift` | jamming / denial, sensor degradation | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (98 % of runs) | 1 (1 / 2), recovery untested |
+| `challenge-timing-outage-tower-clock-step` | SoOP fault, jamming / denial | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 2), recovery untested |
+| `challenge-timing-outage-tower-holdover` | SoOP fault, jamming / denial | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 2), recovery untested |
+| `challenge-timing-outage-imu-bias` | jamming / denial, sensor degradation | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 2), recovery untested |
+| `challenge-timing-outage-baro-drift` | jamming / denial, sensor degradation | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 1 (1 / 2), recovery untested |
 | `easy-nominal` | none | 0 | 100.0 % | 0 / 0 | — | — |
 | `easy-outage` | jamming / denial | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 2 (2 / 3) |
 | `easy-gps-no-fix` | receiver fault | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 2 (2 / 3) |
 | `easy-gps-low-sats` | nuisance (false-alarm check) | 0 | 100.0 % | 0 / 0 | — | — |
 | `easy-gps-return` | position spoof | 0 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 3 (3 / —) |
-| `easy-spoof-ramp` | position spoof | 1846 | 100.0 % | 0 / 0 | 79.7 / 206.7 (86 % of runs) | 1 (1 / —), recovery untested |
+| `easy-spoof-ramp` | position spoof | 1846 | 100.0 % | 0 / 0 | 86.9 / 206.7 (82 % of runs) | 1 (1 / —), recovery untested |
 | `easy-spoof-jump` | position spoof | 0 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 3 (3 / —), recovery untested |
 | `easy-time-spoof` | time spoof | 0 | 98.5 % | 5 / 0 | 1.5 / 2.5 (100 % of runs) | 3 (— / 3), recovery untested |
 | `easy-meaconing` | meaconing / replay | 0 | 64.3 % | 292 / 0 | 0.1 / 0.1 (100 % of runs) | 3 (3 / 3), recovery untested |
 | `easy-jamming-zone` | jamming / denial | 0 | 100.0 % | 0 / 0 | — | 2 (2 / 3), recovery untested |
-| `easy-baro-drift` | sensor degradation | 0 | 100.0 % | 0 / 0 | 27.2 / 45.9 (100 % of runs) | 3 (3 / —), recovery untested |
-| `easy-tower-loss` | SoOP fault | 0 | 100.0 % | 0 / 0 | 41.5 / 118.3 (60 % of runs) | 4 (4 / —) |
-| `easy-tower-clock-step` | SoOP fault | 0 | 100.0 % | 0 / 0 | 79.7 / 206.7 (86 % of runs) | 4 (4 / —), recovery untested |
+| `easy-baro-drift` | sensor degradation | 0 | 100.0 % | 0 / 0 | 46.9 / 224.7 (98 % of runs) | 4 (4 / —), recovery untested |
+| `easy-tower-loss` | SoOP fault | 0 | 100.0 % | 0 / 0 | 41.5 / 118.3 (52 % of runs) | 4 (4 / —) |
+| `easy-tower-clock-step` | SoOP fault | 0 | 100.0 % | 0 / 0 | 87.6 / 206.7 (84 % of runs) | 4 (4 / —), recovery untested |
 | `easy-long-outage` | jamming / denial | 0 | 100.0 % | 0 / 0 | 1.9 / 1.9 (100 % of runs) | 2 (2 / 3), recovery untested |
 | `easy-capture-pi4b` | board capture (false-alarm check) | 0 | 100.0 % | 0 / 0 | — | — |
 | `realistic-nominal` | none | 0 | 100.0 % | 0 / 0 | — | — |
@@ -322,14 +326,14 @@ Report card. Alert limits (TBC): position 50 m, time 1.5 µs. Hazardous: error o
 | `realistic-gps-no-fix` | receiver fault | 0 | 80.3 % | 81 / 0 | 1.9 / 1.9 (100 % of runs) | 0 (0 / 3) |
 | `realistic-gps-low-sats` | nuisance (false-alarm check) | 0 | 100.0 % | 0 / 0 | — | — |
 | `realistic-gps-return` | position spoof | 0 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 0 (0 / —) |
-| `realistic-spoof-ramp` | position spoof | 1847 | 100.0 % | 0 / 0 | 67.4 / 206.7 (84 % of runs) | 1 (1 / —), recovery untested |
+| `realistic-spoof-ramp` | position spoof | 1847 | 100.0 % | 0 / 0 | 82.1 / 206.7 (82 % of runs) | 1 (1 / —), recovery untested |
 | `realistic-spoof-jump` | position spoof | 341 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 1 (1 / —), recovery untested |
 | `realistic-time-spoof` | time spoof | 0 | 65.9 % | 231 / 0 | 1.5 / 2.7 (100 % of runs) | 3 (— / 3), recovery untested |
 | `realistic-meaconing` | meaconing / replay | 0 | 71.1 % | 325 / 0 | 0.1 / 0.1 (100 % of runs) | 2 (2 / 3), recovery untested |
 | `realistic-jamming-zone` | jamming / denial | 0 | 100.0 % | 0 / 0 | — | 2 (2 / 3), recovery untested |
-| `realistic-baro-drift` | sensor degradation | 0 | 100.0 % | 0 / 0 | 29.9 / 45.9 (100 % of runs) | 2 (2 / —), recovery untested |
-| `realistic-tower-loss` | SoOP fault | 0 | 100.0 % | 0 / 0 | 41.5 / 118.3 (60 % of runs) | 4 (4 / —) |
-| `realistic-tower-clock-step` | SoOP fault | 0 | 100.0 % | 0 / 0 | 79.7 / 206.7 (86 % of runs) | 4 (4 / —), recovery untested |
+| `realistic-baro-drift` | sensor degradation | 0 | 100.0 % | 0 / 0 | 44.3 / 224.7 (98 % of runs) | 4 (4 / —), recovery untested |
+| `realistic-tower-loss` | SoOP fault | 0 | 100.0 % | 0 / 0 | 41.5 / 118.3 (52 % of runs) | 4 (4 / —) |
+| `realistic-tower-clock-step` | SoOP fault | 0 | 100.0 % | 0 / 0 | 87.6 / 206.7 (84 % of runs) | 4 (4 / —), recovery untested |
 | `realistic-long-outage` | jamming / denial | 0 | 60.2 % | 268 / 0 | 1.9 / 1.9 (100 % of runs) | 2 (2 / 2), recovery untested |
 | `realistic-capture-pi4b` | board capture (false-alarm check) | 0 | 100.0 % | 0 / 0 | — | — |
 | `realistic-with-base-nominal` | none | 0 | 100.0 % | 0 / 0 | — | — |
@@ -337,14 +341,14 @@ Report card. Alert limits (TBC): position 50 m, time 1.5 µs. Hazardous: error o
 | `realistic-with-base-gps-no-fix` | receiver fault | 0 | 80.3 % | 81 / 0 | 1.9 / 1.9 (100 % of runs) | 0 (0 / 3) |
 | `realistic-with-base-gps-low-sats` | nuisance (false-alarm check) | 0 | 100.0 % | 0 / 0 | — | — |
 | `realistic-with-base-gps-return` | position spoof | 0 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 0 (0 / —) |
-| `realistic-with-base-spoof-ramp` | position spoof | 1847 | 100.0 % | 0 / 0 | 67.4 / 206.7 (84 % of runs) | 1 (1 / —), recovery untested |
+| `realistic-with-base-spoof-ramp` | position spoof | 1847 | 100.0 % | 0 / 0 | 82.1 / 206.7 (82 % of runs) | 1 (1 / —), recovery untested |
 | `realistic-with-base-spoof-jump` | position spoof | 341 | 100.0 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 1 (1 / —), recovery untested |
 | `realistic-with-base-time-spoof` | time spoof | 0 | 65.9 % | 231 / 0 | 1.5 / 2.7 (100 % of runs) | 3 (— / 3), recovery untested |
 | `realistic-with-base-meaconing` | meaconing / replay | 0 | 71.1 % | 325 / 0 | 0.1 / 0.1 (100 % of runs) | 2 (2 / 3), recovery untested |
 | `realistic-with-base-jamming-zone` | jamming / denial | 0 | 100.0 % | 0 / 0 | — | 2 (2 / 3), recovery untested |
-| `realistic-with-base-baro-drift` | sensor degradation | 0 | 100.0 % | 0 / 0 | 29.9 / 45.9 (100 % of runs) | 2 (2 / —), recovery untested |
-| `realistic-with-base-tower-loss` | SoOP fault | 0 | 100.0 % | 0 / 0 | 41.5 / 118.3 (60 % of runs) | 4 (4 / —) |
-| `realistic-with-base-tower-clock-step` | SoOP fault | 0 | 100.0 % | 0 / 0 | 79.7 / 206.7 (86 % of runs) | 4 (4 / —), recovery untested |
+| `realistic-with-base-baro-drift` | sensor degradation | 0 | 100.0 % | 0 / 0 | 44.3 / 224.7 (98 % of runs) | 4 (4 / —), recovery untested |
+| `realistic-with-base-tower-loss` | SoOP fault | 0 | 100.0 % | 0 / 0 | 41.5 / 118.3 (52 % of runs) | 4 (4 / —) |
+| `realistic-with-base-tower-clock-step` | SoOP fault | 0 | 100.0 % | 0 / 0 | 87.6 / 206.7 (84 % of runs) | 4 (4 / —), recovery untested |
 | `realistic-with-base-long-outage` | jamming / denial | 0 | 60.2 % | 268 / 0 | 1.9 / 1.9 (100 % of runs) | 2 (2 / 2), recovery untested |
 | `realistic-with-base-capture-pi4b` | board capture (false-alarm check) | 0 | 100.0 % | 0 / 0 | — | — |
 | `realistic-with-base-long-outage-tower-clock-step` | SoOP fault, jamming / denial | 0 | 35.6 % | 1399 / 4 | 1.9 / 1.9 (100 % of runs) | 1 (2 / 1), recovery untested |
@@ -356,14 +360,14 @@ Report card. Alert limits (TBC): position 50 m, time 1.5 µs. Hazardous: error o
 | `worst-gps-no-fix` | receiver fault | 1 | 58.1 % | 247 / 13 | 1.9 / 1.9 (100 % of runs) | 0 (0 / 0) |
 | `worst-gps-low-sats` | nuisance (false-alarm check) | 0 | 99.9 % | 0 / 0 | — | — |
 | `worst-gps-return` | position spoof | 35 | 99.9 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 0 (0 / —) |
-| `worst-spoof-ramp` | position spoof | 1848 | 99.9 % | 0 / 0 | 68.9 / 206.7 (88 % of runs) | 1 (1 / —), recovery untested |
+| `worst-spoof-ramp` | position spoof | 1848 | 99.9 % | 0 / 0 | 81.1 / 206.7 (88 % of runs) | 1 (1 / —), recovery untested |
 | `worst-spoof-jump` | position spoof | 759 | 99.9 % | 0 / 0 | 0.1 / 0.1 (100 % of runs) | 1 (1 / —), recovery untested |
 | `worst-time-spoof` | time spoof | 0 | 49.2 % | 1112 / 40 | 1.5 / 2.7 (100 % of runs) | 1 (— / 1), recovery untested |
 | `worst-meaconing` | meaconing / replay | 0 | 50.3 % | 1092 / 8 | 0.1 / 0.1 (100 % of runs) | 1 (2 / 1), recovery untested |
 | `worst-jamming-zone` | jamming / denial | 0 | 99.9 % | 0 / 0 | — | 2 (2 / 3), recovery untested |
-| `worst-baro-drift` | sensor degradation | 0 | 99.9 % | 0 / 0 | 29.9 / 45.9 (100 % of runs) | 2 (2 / —), recovery untested |
-| `worst-tower-loss` | SoOP fault | 0 | 99.8 % | 0 / 0 | 47.6 / 118.3 (68 % of runs) | 4 (4 / —) |
-| `worst-tower-clock-step` | SoOP fault | 0 | 99.9 % | 0 / 0 | 68.9 / 206.7 (92 % of runs) | 4 (4 / —), recovery untested |
+| `worst-baro-drift` | sensor degradation | 0 | 99.9 % | 0 / 0 | 42.7 / 224.7 (100 % of runs) | 4 (4 / —), recovery untested |
+| `worst-tower-loss` | SoOP fault | 0 | 99.8 % | 0 / 0 | 47.6 / 118.3 (60 % of runs) | 4 (4 / —) |
+| `worst-tower-clock-step` | SoOP fault | 0 | 99.9 % | 0 / 0 | 80.0 / 206.7 (92 % of runs) | 4 (4 / —), recovery untested |
 | `worst-long-outage` | jamming / denial | 0 | 37.1 % | 316 / 44 | 1.9 / 1.9 (100 % of runs) | 1 (2 / 1), recovery untested |
 | `worst-capture-pi4b` | board capture (false-alarm check) | 0 | 99.9 % | 0 / 0 | — | — |
 

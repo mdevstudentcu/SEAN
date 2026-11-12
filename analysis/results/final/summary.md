@@ -1,6 +1,6 @@
 # Results figures: `ekf`
 
-Commit `b74010e`, seeds 0-49, sim (each model's status is in the *Sim validity* table of `systems/verification.md`). Regenerate with `just figures ekf 50` (or `just results 50 ekf` for `results/final/`).
+Commit `d66c929`, seeds 0-49, sim (each model's status is in the *Sim validity* table of `systems/verification.md`). Regenerate with `just figures ekf 50` (or `just results 50 ekf` for `results/final/`).
 
 Figures: `error_after_gps_loss.png`, `stanford.png`, `ablation.png`, `holdover.png`
 
@@ -30,12 +30,12 @@ Scored as ADR-0034's amendment says: at each second after GPS loss, the 95th per
 | `realistic-gps-no-fix` | 179950 | 120086 | 0 | 0 | 59864 |
 | `realistic-gps-low-sats` | 179950 | 179850 | 0 | 0 | 100 |
 | `realistic-gps-return` | 179950 | 155740 | 0 | 0 | 24210 |
-| `realistic-spoof-ramp` | 179950 | 76563 | 10933 | 92354 | 100 |
+| `realistic-spoof-ramp` | 179950 | 76563 | 10929 | 92358 | 100 |
 | `realistic-spoof-jump` | 179950 | 77300 | 0 | 17042 | 85608 |
 | `realistic-time-spoof` | 179950 | 179850 | 0 | 0 | 100 |
 | `realistic-meaconing` | 179950 | 77250 | 102032 | 0 | 668 |
-| `realistic-jamming-zone` | 176150 | 152181 | 0 | 0 | 23969 |
-| `realistic-baro-drift` | 179950 | 113227 | 0 | 0 | 66723 |
+| `realistic-jamming-zone` | 176150 | 152183 | 0 | 0 | 23967 |
+| `realistic-baro-drift` | 179950 | 179850 | 0 | 0 | 100 |
 | `realistic-tower-loss` | 179950 | 179850 | 0 | 0 | 100 |
 | `realistic-tower-clock-step` | 179950 | 179850 | 0 | 0 | 100 |
 | `realistic-long-outage` | 179950 | 32300 | 0 | 0 | 147650 |
