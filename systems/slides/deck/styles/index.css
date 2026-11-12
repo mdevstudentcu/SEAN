@@ -111,3 +111,13 @@ table.score td.r { font-family: var(--mono); font-variant-numeric: tabular-nums;
 .arch .arrow span { position: absolute; bottom: 0.5rem; left: 50%; transform: translateX(-50%); white-space: nowrap; font-family: var(--mono); font-size: 0.78rem; color: var(--muted); text-align: center; }
 .arch .payload + .arrow { width: 9rem; }
 .arch-in { margin-top: 1.2rem; font-size: 1.05rem; color: var(--muted); }
+
+/* evidence: a figure on a white card, and panel screenshots with numbered captions */
+figure { margin: 0; min-width: 0; }
+.fig { background: #f4f6f8; border-radius: 10px; padding: 0.6rem; }
+.fig img { width: 100%; height: auto; display: block; border-radius: 4px; }
+.fig figcaption { color: #3a4550; font-size: 0.82rem; line-height: 1.35; padding: 0.5rem 0.2rem 0.1rem; }
+.shot img { width: 100%; height: auto; display: block; border-radius: 8px; border: 1.5px solid var(--line); }
+.shot figcaption { display: grid; grid-template-columns: 2rem 1fr; gap: 0.6rem; margin-top: 0.7rem; font-size: 0.98rem; line-height: 1.35; color: var(--muted); }
+.shot figcaption strong { color: var(--fg); }
+.shot .n { width: 2rem; height: 2rem; border-radius: 50%; border: 1.5px dashed var(--contour); display: grid; place-items: center; font-family: var(--display); font-size: 0.8rem; color: var(--fg); }
