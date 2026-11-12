@@ -192,3 +192,6 @@ table.score.big th { font-size: 0.78rem !important; }
 .three .card { padding: 1.6rem 1.5rem; min-height: 15rem; }
 .three .bigstat { font-size: 4.2rem; }
 .three .statlabel { font-size: 1.15rem; line-height: 1.45; margin-top: 0.9rem; }
+
+/* submission export: hide the source footers (internal references) */
+.foot { display: none; }
