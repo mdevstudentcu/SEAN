@@ -65,6 +65,9 @@ _MAG_STREAM = 276
 GNSS_ZONES = ("jamming_zone", "spoof_zone")
 # The place-dependent tower error's own random stream (`place_error`, #95), for the same reason
 _PLACE_STREAM = 224
+# Streams of the opt-in error terms of #278, for the same reason: switching one on leaves every
+# other draw as it was, so runs with and without it are paired
+_TROPO_STREAM, _STEERING_STREAM, _TEMPERATURE_STREAM = 250, 251, 252
 
 
 @dataclass
@@ -230,7 +233,9 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
     if spec.get("tower_clocks"):
         rng_clk = np.random.default_rng([seed, _TOWER_CLOCK_STREAM])
         groups = tower_groups(spec, seed)
-        tower_clk = _tower_clocks(spec["tower_clocks"], groups, t_truth, rng_clk)
+        rng_steer = np.random.default_rng([seed, _STEERING_STREAM])
+        tower_clk = _tower_clocks(spec["tower_clocks"], groups, t_truth, rng_clk, rng_steer)
+    board_temp = spec.get("board_temperature")  # {change_k, tau_s}, off by default (#278)
 
     meas: list[Measurement] = []
     emitters: dict[str, list[float]] = {}
@@ -280,9 +285,13 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
                 recs = _with_sky(recs, sky, ts_ns, pos, spec, seed)
             meas += recs
         elif model == "baro":
-            meas += models.baro(ts_ns, pos, rng, **cfg)
+            temp = None if board_temp is None else models.board_temperature(ts, **board_temp)
+            meas += models.baro(ts_ns, pos, rng, temperature_k=temp, **cfg)
         elif model == "imu":
-            meas += _imu(traj, ts, ts_ns, np.random.default_rng([seed, _IMU_STREAM]), cfg)
+            temp = None if board_temp is None else models.board_temperature(ts, **board_temp)
+            rng_temp = np.random.default_rng([seed, _TEMPERATURE_STREAM])
+            rng_imu = np.random.default_rng([seed, _IMU_STREAM])
+            meas += _imu(traj, ts, ts_ns, rng_imu, cfg, temp, rng_temp)
         elif model == "mag":  # opt-in magnetometer heading (#276, ADR-0051 Proposed)
             params = replace(sensors.MAG, **cfg) if cfg else sensors.MAG
             rot = trajectory.kinematics(traj, ts).rot
@@ -304,6 +313,11 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
                 if em_llh is None:
                     raise ValueError("ray_table needs real tower positions (towers_from)")
                 cfg["ray_table"] = load_ray_table(cfg["ray_table"], em_llh, spec["duration_s"])
+            if "troposphere" in cfg:  # {m_per_km}: excess delay per km of range (#278)
+                rng_tropo = np.random.default_rng([seed, _TROPO_STREAM, *source.encode()])
+                cfg["troposphere_m_per_km"] = models.troposphere(
+                    rng_tropo, len(em), **cfg.pop("troposphere")
+                )
             if "place_error" in cfg:  # {sigma_m, corr_m}: same place, same error (#95)
                 rng_place = np.random.default_rng([seed, _PLACE_STREAM, *source.encode()])
                 cfg["place_error_m"] = models.place_error(
@@ -457,13 +471,26 @@ def _cells_file(cfg: dict) -> Path:
     return REFERENCE_DIR / cells_from["file"]
 
 
-def _imu(traj: dict, ts: np.ndarray, ts_ns: np.ndarray, rng, cfg: dict) -> list[Measurement]:
+def _imu(
+    traj: dict,
+    ts: np.ndarray,
+    ts_ns: np.ndarray,
+    rng,
+    cfg: dict,
+    temperature_k=None,
+    rng_temp=None,
+) -> list[Measurement]:
     """`accel_gyro` records from the payload's IMU (`sensors.MPU6050`; any of its `ImuParams`
     fields can be overridden in the scenario, e.g. for a worse grade). Needs a trajectory with
-    finite acceleration (`trajectory.kinematics`), so not `square`."""
+    finite acceleration (`trajectory.kinematics`), so not `square`. `gyro_temp_dps_per_k` needs
+    the scenario's `board_temperature:` (#278)."""
     params = replace(sensors.MPU6050, **cfg) if cfg else sensors.MPU6050
+    if params.gyro_temp_dps_per_k and temperature_k is None:
+        raise ValueError("imu gyro_temp_dps_per_k needs a `board_temperature:` block")
     k = trajectory.kinematics(traj, ts)
-    accel, gyro = sensors.imu(ts, k.specific_force_b, k.omega_b, rng, params)
+    accel, gyro = sensors.imu(
+        ts, k.specific_force_b, k.omega_b, rng, params, temperature_k, rng_temp
+    )
     return sensors.imu_measurements(ts_ns, accel, gyro, params)
 
 
@@ -538,12 +565,22 @@ def builder_of(carrier: str) -> str:
     return match[0]
 
 
-def _tower_clocks(cfg: dict, groups, t: np.ndarray, rng) -> dict[str, np.ndarray]:
+def _tower_clocks(cfg: dict, groups, t: np.ndarray, rng, rng_steer=None) -> dict[str, np.ndarray]:
     """Each tower's clock (m) at times t: its builder's clock + its site's residual + its own
-    (sector) residual, each an independent `models.oscillator` with that level's settings."""
-    unknown = set(cfg) - {"builder", "site", "sector"}
+    (sector) residual, each an independent `models.oscillator` with that level's settings.
+
+    A sector level with `offset_m` alone is a constant range bias per sector, uniform within
+    +-offset_m: it stands for the antenna's place against the filed one and the sector's own
+    transmit delay, which one range cannot tell apart (#278).
+
+    Optionally (off by default, #278) `steering: {jump_rate_hz, drift_ppb}` adds to each site's
+    clock a GNSS-steered clock whose drift jumps (`models.steering`, Lapin et al. 2024), drawn
+    from `rng_steer` so that every other draw stays as it was."""
+    unknown = set(cfg) - {"builder", "site", "sector", "steering"}
     if unknown:
-        raise ValueError(f"tower_clocks levels are builder, site and sector, not {unknown}")
+        raise ValueError(
+            f"tower_clocks levels are builder, site, sector and steering, not {unknown}"
+        )
     sites, builders = groups
 
     def draw(level: str) -> np.ndarray:
@@ -551,6 +588,15 @@ def _tower_clocks(cfg: dict, groups, t: np.ndarray, rng) -> dict[str, np.ndarray
 
     by_builder = {b: draw("builder") for b in dict.fromkeys(builders.values())}
     by_site = {s: by_builder[b] + draw("site") for s, b in builders.items()}
+    if cfg.get("steering"):
+        steer = dict(cfg["steering"])
+        if set(steer) != {"jump_rate_hz", "drift_ppb"}:
+            raise ValueError(f"steering needs jump_rate_hz and drift_ppb, not {sorted(steer)}")
+        drift_mps = float(steer["drift_ppb"]) * 1e-9 * models.C_MPS
+        by_site = {
+            s: c + models.steering(rng_steer, t, float(steer["jump_rate_hz"]), drift_mps)
+            for s, c in by_site.items()
+        }
     return {e: by_site[s] + draw("sector") for e, s in sites.items()}
 
 

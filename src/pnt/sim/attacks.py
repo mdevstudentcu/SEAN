@@ -413,6 +413,20 @@ HOLDOVER_GRADES = {
         # TBC, unsourced: a tenth of the OCXO wander
         "drift_rw_mps": 2.7e-5,
     },
+    # The two ways a tower gets its time (#278; sources-research-20261111.md 18.2, lab tests,
+    # snippets). Used alone or mixed (`grade: mixture`).
+    "network": {
+        # TBC. Fed by a network clock over synchronous Ethernet: "tens of nanoseconds over
+        # hours", read as 30 ns in 3 h: 2.8e-12 x c = 8.3e-4 m/s
+        "drift_mps": 8.3e-4,
+        "drift_rw_mps": 0.0,  # TBD: no source; the network clock's own wander is in drift_mps
+    },
+    "local": {
+        # TBC. Its own GNSS receiver and a plain oven oscillator: "about a microsecond in a few
+        # hours", read as 1 us in 3 h: 9.3e-11 x c = 0.028 m/s
+        "drift_mps": 0.028,
+        "drift_rw_mps": 2.7e-4,  # TBC: the OCXO grade's wander (Shamaei et al. 2018)
+    },
 }
 # TBC: no source gives a builder's share. The variance share of the holdover drift and wander that
 # all towers of one builder have in common (a builder-wide timing source in holdover, ADR-0022),
@@ -450,12 +464,26 @@ def tower_holdover(meas, f, ctx, start, end):
       each tower drifts alone. Each tower's own spread is the same either way.
     - After end_s the error stays where it reached (TBC: relocking and slewing back is not
       modelled). Both receivers hear the same tower, so the reference station's ranges move too.
+    - grade `mixture` (#278) needs `network_share`: each site is network-held with that
+      probability (grade `network`, one oscillator per builder shared by its network-held
+      sites, as they share the builder's network clock) or else locally held (grade `local`,
+      one oscillator per site). builder_share and drift overrides do not apply to it.
+    - reach_probability (#278, default 1): the chance that the jamming reaches the towers at
+      all in this run, drawn once. A jammer aimed at aircraft may deny the receiver while the
+      towers' own receivers stay locked.
     """
     f = {"source": "lte", **f}
     source = f["source"]
     grade = f.get("grade", "ocxo")
-    if grade not in HOLDOVER_GRADES:
+    if grade not in (*HOLDOVER_GRADES, "mixture"):
         raise ValueError(f"tower_holdover grade {grade!r} (known: {sorted(HOLDOVER_GRADES)})")
+    if (grade == "mixture") != ("network_share" in f):
+        raise ValueError("tower_holdover: network_share goes with grade mixture, and only it")
+    reach = float(f.get("reach_probability", 1.0))
+    if reach < 1.0 and ctx.rng.random() >= reach:
+        return meas, [(start, f"tower_holdover: the jamming does not reach the {source} towers")]
+    if grade == "mixture":
+        return _holdover_mixture(meas, f, ctx, start, end)
     size = {**HOLDOVER_GRADES[grade], **{k: f[k] for k in ("drift_mps", "drift_rw_mps") if k in f}}
     towers = _holdover_towers(f, ctx, source)
 
@@ -493,6 +521,47 @@ def tower_holdover(meas, f, ctx, start, end):
     return out, [
         (start, f"{len(towers)} {source} towers drift in {grade} holdover{_window(f, end)}")
     ]
+
+
+def _holdover_mixture(meas, f, ctx, start, end):
+    """`tower_holdover` with `grade: mixture` (its docstring): network-held and locally held
+    sites mixed, `network_share` of them network-held."""
+    source = f["source"]
+    share = float(f["network_share"])
+    if not 0.0 <= share <= 1.0:
+        raise ValueError(f"tower_holdover network_share is within 0 to 1, not {share!r}")
+    towers = _holdover_towers(f, ctx, source)
+    sites, builders = ctx.tower_groups or ({}, {})
+    site_of = {e: sites.get(e, e) for e in towers}
+    hit = [i for i, m in enumerate(meas) if _active(m, f, start, None)]
+    hit = [i for i in hit if meas[i].kind == "pseudorange" and meas[i].emitter in site_of]
+    out = list(meas)
+    n_net = 0
+    if hit:
+        last = max(meas[i].t_ns for i in hit) if end is None else end
+        span = (last - start) / 1e9
+        grid = np.append(np.arange(0.0, span, _HOLDOVER_GRID_S), span)
+
+        def draw(grade: str) -> np.ndarray:
+            return models.oscillator(ctx.rng, grid, **HOLDOVER_GRADES[grade])
+
+        held_by_network = {
+            s: bool(ctx.rng.random() < share) for s in sorted(set(site_of.values()))
+        }
+        n_net = sum(held_by_network.values())
+        builder_of = {s: builders.get(s) for s in held_by_network}
+        network = {b: draw("network") for b in sorted({str(b) for b in builder_of.values()})}
+        clock_of_site = {
+            s: network[str(builder_of[s])] if net else draw("local")
+            for s, net in held_by_network.items()
+        }
+        for i in hit:
+            m = meas[i]
+            clock = clock_of_site[site_of[m.emitter]]
+            err = np.interp(_since(m, start), grid, clock)  # holds after end_s
+            out[i] = _replace(m, value=(m.value[0] + float(err),))
+    text = f"{len(towers)} {source} towers drift in holdover, {n_net} sites network-held"
+    return out, [(start, text + _window(f, end))]
 
 
 # IMU degradation sizes, all TBC. Bias steps default to the raw offsets the MPU-6050 datasheet
