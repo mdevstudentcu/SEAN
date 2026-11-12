@@ -101,23 +101,24 @@ table.score td.r { font-family: var(--mono); font-variant-numeric: tabular-nums;
 
 /* architecture: a left-to-right chain of nodes */
 .arch { display: grid; grid-template-columns: 1.25fr auto 1fr auto 1fr auto 1fr auto 1fr; align-items: center; gap: 0; }
-.arch .node { background: var(--surface); border: 1.5px solid var(--contour); border-radius: 10px; padding: 1.1rem 1rem; min-height: 10rem; display: flex; flex-direction: column; justify-content: center; }
-.arch .node.payload { border-style: dashed; min-height: 15rem; }
+.arch .node { background: var(--surface); border: 1.5px solid var(--contour); border-radius: 10px; padding: 0.9rem 0.9rem; min-height: 8rem; display: flex; flex-direction: column; justify-content: center; }
+.arch .node.payload { border-style: dashed; min-height: 11.5rem; }
 .arch .nt { font-family: var(--display); font-size: 0.92rem; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.35rem; }
 .arch .ns { color: var(--muted); font-size: 1.05rem; line-height: 1.35; }
-.arch ul { margin: 0.6rem 0 0; padding-left: 1.1rem; font-size: 1.08rem; }
+.arch ul { margin: 0.4rem 0 0; padding-left: 1.1rem; font-size: 1rem; }
+.arch ul li { margin: 0; }
 .arch .arrow { position: relative; width: 2.6rem; height: 1.5px; background: var(--contour); }
 .arch .arrow::after { content: ''; position: absolute; right: -1px; top: -5px; border: 6px solid transparent; border-left: 8px solid var(--contour); border-right: 0; }
 .arch .arrow span { position: absolute; bottom: 0.5rem; left: 50%; transform: translateX(-50%); white-space: nowrap; font-family: var(--mono); font-size: 0.78rem; color: var(--muted); text-align: center; }
 .arch .payload + .arrow { width: 9rem; }
-.arch-in { margin-top: 1.2rem; font-size: 1.05rem; color: var(--muted); }
+.arch-in { margin-top: 0.8rem; font-size: 1.05rem; color: var(--muted); }
 
 /* evidence: a figure on a white card, and panel screenshots with numbered captions */
 figure { margin: 0; min-width: 0; }
 .fig { background: #f4f6f8; border-radius: 10px; padding: 0.6rem; }
 .fig img { width: 100%; height: auto; display: block; border-radius: 4px; }
 .fig figcaption { color: #3a4550; font-size: 0.82rem; line-height: 1.35; padding: 0.5rem 0.2rem 0.1rem; }
-.shot img { width: 100%; height: auto; display: block; border-radius: 8px; border: 1.5px solid var(--line); }
+.shot img, .shot video { width: 100%; height: auto; display: block; border-radius: 8px; border: 1.5px solid var(--line); }
 .shot figcaption { display: grid; grid-template-columns: 2rem 1fr; gap: 0.6rem; margin-top: 0.7rem; font-size: 0.98rem; line-height: 1.35; color: var(--muted); }
 .shot figcaption strong { color: var(--fg); }
 .shot .n { width: 2rem; height: 2rem; border-radius: 50%; border: 1.5px dashed var(--contour); display: grid; place-items: center; font-family: var(--display); font-size: 0.8rem; color: var(--fg); }
