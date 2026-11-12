@@ -111,7 +111,14 @@ CONDITIONS = [
 ]
 TAC = {"spec": TACTICAL_SPEC, "max_yaw_sigma_deg": 60.0}
 CONDITIONS += [
-    ("tactical, plain / no LTE / filter tactical", "plain", False, "tactical", "ekf-imu", {"imu": TAC}),
+    (
+        "tactical, plain / no LTE / filter tactical",
+        "plain",
+        False,
+        "tactical",
+        "ekf-imu",
+        {"imu": TAC},
+    ),
     (
         "tactical, s-turns / no LTE / filter MPU6050, align <= 60 deg",
         "s-turns",
@@ -120,7 +127,14 @@ CONDITIONS += [
         "ekf-imu",
         ALIGN,
     ),
-    ("tactical, s-turns / no LTE / filter tactical", "s-turns", False, "tactical", "ekf-imu", {"imu": TAC}),
+    (
+        "tactical, s-turns / no LTE / filter tactical",
+        "s-turns",
+        False,
+        "tactical",
+        "ekf-imu",
+        {"imu": TAC},
+    ),
     (
         "tactical, s-turns / no LTE / filter tactical, floor 0.3 deg",
         "s-turns",
@@ -245,7 +259,9 @@ def one(seed: int, path: str, imu: str) -> dict:
         if (p, grade) != (path, imu):
             continue
         meas = run.measurements if radio else [m for m in run.measurements if m.source != "lte"]
-        e, R, yaw_sigma, mag_state = probed(est, meas, spec["origin_llh"], probe_ns, **(extra or {}))
+        e, R, yaw_sigma, mag_state = probed(
+            est, meas, spec["origin_llh"], probe_ns, **(extra or {})
+        )
         out[label] = {
             "heading_err_deg": None if R is None else math.degrees(heading_error(R, R_true)),
             "heading_sigma_deg": math.degrees(yaw_sigma),
@@ -396,8 +412,8 @@ def ablation(summary: dict) -> list[str]:
     """Drop one from (LTE + magnetometer): which loss costs more, per path, on T1's worst second
     and the fallback's."""
     rows = [
-        "Each row starts from `ekf-imu-mag` with LTE and drops one aid; the larger cost is the aid "
-        "the filter misses more.",
+        "Each row starts from `ekf-imu-mag` with LTE and drops one aid; the larger cost is the "
+        "aid the filter misses more.",
         "",
         "| Path | Both (worst 0–300 s / 0–120 s, m) | Without LTE | Without magnetometer "
         "| Ranks first |",

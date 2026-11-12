@@ -38,7 +38,9 @@ def test_s_turns_add_the_asked_sideways_acceleration_only_inside_their_window():
     assert np.all(np.abs(k.pos - plain.pos)[outside] < 1e-9)
     # About the asked peak, and alternating: the sideways force changes side every half period
     assert 1.8 <= extra.max() <= 2.6
-    side = np.einsum("ij,ij->i", (k.acc - plain.acc)[:, :2], np.c_[-plain.vel[:, 1], plain.vel[:, 0]])
+    side = np.einsum(
+        "ij,ij->i", (k.acc - plain.acc)[:, :2], np.c_[-plain.vel[:, 1], plain.vel[:, 0]]
+    )
     flips = np.sum(np.diff(np.sign(side[(t > 10) & (t < 50)])) != 0)
     assert flips >= 4
 
@@ -127,11 +129,19 @@ def test_ekf_imu_mag_is_registered_opt_in_and_needs_the_imu():
 
 
 def test_every_other_filter_ignores_heading_records():
-    spec, plain, run = _with_mag()
-    for name in ("ekf", "ekf-imu", "baseline"):
+    # 7 Hz: off the 10 Hz epochs, so a stray prediction at a heading record would show
+    spec, plain, run = _with_mag(rate_hz=7)
+    for name in ("ekf", "ekf-imu", "ekf-imu-guard"):
         a = list(estimate(name, plain.measurements, origin_llh=spec["origin_llh"]))
         b = list(estimate(name, run.measurements, origin_llh=spec["origin_llh"]))
         assert a == b, name
+    # The baseline predicts to every record it is given, of any kind it then ignores (as for
+    # `bearing` today): the same constant-velocity prediction in more steps, so rounding only
+    a, b = (
+        np.array([e.pos_enu for e in estimate("baseline", r.measurements, spec["origin_llh"])])
+        for r in (plain, run)
+    )
+    assert np.allclose(a, b, atol=1e-6)
 
 
 def _aligned_filter():
@@ -174,7 +184,7 @@ def test_magnetometer_pulls_a_wrong_heading_back():
     assert abs(math.degrees(err)) < 5.0  # heading plus bias equals the reading; bias prior 3 deg
 
 
-# --- the study script -----------------------------------------------------------------------------
+# --- the study script ------------------------------------------------------------------------
 def test_probed_run_is_the_registry_run():
     """The study reads the filter's attitude through its own copy of `ekf.run`'s loop: it must
     give the registry's estimates exactly."""

@@ -188,8 +188,8 @@ subtracted from later readings in the same grid cell, with its variance added to
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
+from dataclasses import dataclass
 
 import numpy as np
 
