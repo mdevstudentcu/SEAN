@@ -570,8 +570,8 @@ def faded(tmp_path_factory):
     """The weak cell gone at FADE_S; the capture runs on with the strong cell alone."""
     tmp = tmp_path_factory.mktemp("fade")
     path = splice(tmp, "fade", [STRONG, WEAK], [STRONG], FADE_S, 3.0, 20.0)
-    return {name: process_file(path, cfg)
-            for name, cfg in (("off", Config(lock_peak_to_floor=0.0)), ("on", Config()))}  # fmt: skip
+    cfgs = {"off": Config(lock_peak_to_floor=0.0), "on": Config()}
+    return {name: process_file(path, cfg) for name, cfg in cfgs.items()}
 
 
 def _epoch_times(result, tower):
