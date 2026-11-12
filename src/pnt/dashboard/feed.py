@@ -225,7 +225,9 @@ def frames(feed: Feed, monitor: HealthMonitor, lock=None) -> Iterator[dict]:
     spoof = SpoofDecision()  # advisory (ADR-0041): reads the estimates, never changes them
     watch = _Watch(cells.attach(feed.measurements, feed.origin_llh), feed.origin_llh, spoof)
     heard_ns = int(HEARD_S * 1e9)
-    run = estimate(feed.estimator, watch, origin_llh=feed.origin_llh, reference=feed.reference)
+    run = estimate(
+        feed.estimator, watch, origin_llh=feed.origin_llh, reference=feed.reference, whiteness=True
+    )  # the panel shows the whiteness flag (ADR-0052)
     for est in run:
         if lock is not None:
             with lock:

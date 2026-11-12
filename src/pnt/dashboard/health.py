@@ -26,6 +26,8 @@ import numpy as np
 
 from pnt.core.measurement import Estimate
 from pnt.integrity.protection import tpl
+from pnt.integrity.whiteness import FLAG as CORRELATED
+from pnt.integrity.whiteness import advisory
 
 # Severity, worst last: caution (amber, expected in GPS-denied flight), warning (amber, a fault
 # handled), alarm (red, the operator must act or stop trusting something)
@@ -38,6 +40,7 @@ _RANK = {CAUTION: 0, WARNING: 1, ALARM: 2}
 #   ekf: gnss_alt_excluded (#227, ADR-0045)
 #   ekf-base (#107): base_excluded, tower_fault:<emitter>:<jump m> (in `describe`)
 #   ekf-mhss (#108): mhss_alarm:<hypothesis>, mhss_excluded:<hypothesis> (in `describe`)
+#   every `ekf.run` estimator (#275, ADR-0052): innovations_correlated:<source> (in `describe`)
 FLAGS: dict[str, tuple[str, str]] = {
     "gnss_unavailable": (
         CAUTION,
@@ -163,6 +166,13 @@ def describe(flag: str) -> tuple[str, str]:
     kind, _, h = flag.partition(":")
     if kind == "tower_fault" and h:
         return WARNING, _tower_fault_words(h)
+    if kind == CORRELATED:
+        return (
+            CAUTION,
+            f"{h.replace(':', ' ').upper() or 'A source'}: errors look correlated in time "
+            "(innovation whiteness test). The filter takes them as independent, so it may be "
+            "overconfident in them.",
+        )
     if kind == "mhss_alarm" and h:
         return (
             ALARM,
@@ -223,8 +233,8 @@ def panel_status(est: Estimate, alert_limit_m: float) -> str:
         return est.status
     if est.hpl_m > alert_limit_m:
         return "unsafe"
-    if est.status == "unsafe":
-        return "degraded" if est.flags else "nominal"
+    if est.status == "unsafe":  # a report-only flag (ADR-0052) degrades nothing
+        return "degraded" if any(not advisory(f) for f in est.flags) else "nominal"
     return est.status
 
 

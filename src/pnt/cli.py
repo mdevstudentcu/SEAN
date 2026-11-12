@@ -245,7 +245,9 @@ def cmd_replay(args) -> None:
             raise SystemExit("replay: --out saves an injected session; it needs --inject")
         spec, t0 = _replay_spec(args.path), T0_NS
         meas = (r for _, r in read_session(mcap, topics=["/meas/"]) if isinstance(r, Measurement))
-    estimates = list(estimate(args.estimator, meas, origin_llh=origin, reference=reference))
+    estimates = list(
+        estimate(args.estimator, meas, origin_llh=origin, reference=reference, whiteness=True)
+    )  # replay shows the whiteness flag (ADR-0052)
     print(f"replayed {args.path}: {len(estimates)} estimates")
     if truth:
         print(_fmt(score(estimates, truth, spec, t0).as_dict()))
@@ -808,7 +810,10 @@ def cmd_live(args) -> None:
     last = 0
     n = 0
     try:
-        for e in estimate(args.estimator, tee(), origin_llh=origin, reference=reference):
+        live = estimate(  # live shows the whiteness flag (ADR-0052)
+            args.estimator, tee(), origin_llh=origin, reference=reference, whiteness=True
+        )
+        for e in live:
             n += 1
             if writer:
                 writer.write(f"/nav/{args.estimator}", e)
