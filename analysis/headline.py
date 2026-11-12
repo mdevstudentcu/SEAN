@@ -14,11 +14,12 @@ amendment), and the Stanford regions are `pnt.plots.stanford_counts` (as in `jus
 
 - Part 1, spoofing: `--estimators` over the `realistic` set.
 - Part 2, the base station (ADR-0020, sim only): `--base-estimators` over the
-  `realistic-with-base` set, and `ekf` on the `--check` scenarios of that set, which must equal
-  its `realistic` runs exactly (the payload's records are identical, seed for seed).
+  `realistic-with-base` set, and `ekf` on that set's `CHECK` scenarios, which must equal its
+  `realistic` runs exactly (the payload's records are identical, seed for seed).
 
 Per-key results are cached under `analysis/results/runs/headline/` (git-ignored) so a stopped run
-resumes; the cache key holds the commit, so a new commit recomputes.
+resumes. The cache key is the committed content of `src/` and `analysis/figures.py` (`code_key`),
+so any change to the code a run depends on recomputes; nothing is cached while either is dirty.
 """
 
 from __future__ import annotations
