@@ -32,7 +32,7 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0026](0026-ground-link-security.md) | Ground links are signed and authenticated; logs are hash-chained | Accepted (CurveZMQ); MAVLink signing `TBC`; hash chain after judging |
 | [0027](0027-dashboard-sse-canvas.md) | The dashboard streams over Server-Sent Events and draws on canvas | Accepted |
 | [0028](0028-fly-inav.md) | The drone flies INAV on the BLITZ ATF435, pilot-flown with an RC kill switch | Accepted; *Amendment 2026-11-11 (owners)*: Betaflight 4.5.5, not INAV |
-| [0029](0029-tethered-hover-wifi-control.md) | Tethered indoor hover may be flown from a gamepad through an ESP32 Wi-Fi bridge | Accepted |
+| [0029](0029-tethered-hover-wifi-control.md) | Tethered indoor hover may be flown from a gamepad through an ESP32 Wi-Fi bridge | Retired 2026-11-11 (an RC transmitter is in hand) |
 | [0030](0030-challenge-benchmark-set.md) | A challenge benchmark set: one leg per use case, on records shaped like real ones | Proposed |
 | [0031](0031-gnss-jam-indicator.md) | The GNSS jam indicator is the C/N0 drop of the strongest satellites | Proposed |
 | [0032](0032-residual-map.md) | Learn a per-place residual map of each tower while GPS is trusted | Accepted, opt-in only |
