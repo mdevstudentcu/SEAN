@@ -4,7 +4,7 @@
 import { computed, ref } from 'vue'
 
 const props = defineProps<{ file: string; label: string; hint?: string; ratio?: string }>()
-const src = computed(() => `/media/${props.file}`)
+const src = computed(() => `${import.meta.env.BASE_URL}media/${props.file}`)
 const isVideo = computed(() => /\.(mp4|webm|mov)$/i.test(props.file))
 const missing = ref(false)
 </script>
