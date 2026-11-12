@@ -366,7 +366,7 @@ function spoofWhy(sp) {
 
 function renderSpoof(sp) {
   if (!sp) return;
-  $("spoof").className = `trust-sky ${sp.level}`;
+  $("spoof").className = `card spoof ${sp.level}`;
   $("spoof-word").textContent = SPOOF_WORD[sp.level] || sp.level;
   $("spoof-why").textContent = spoofWhy(sp);
 }

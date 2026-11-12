@@ -25,7 +25,6 @@
       <h2>GPS trust: is GPS telling the truth?</h2>
       <div class="trust-line"><span class="trust-word" id="trust-word">—</span><span class="trust-since" id="trust-since"></span></div>
       <ul class="trust-why" id="trust-why"><li class="muted">Waiting for the first estimate.</li></ul>
-      <div id="spoof" class="trust-sky unknown" title="ADR-0041: advisory, it never changes the estimate">Sky and power check: <b id="spoof-word">UNKNOWN</b> <span id="spoof-why" class="muted">No GPS sky data yet.</span></div>
     </section>
 
     <section id="bound" class="card bound" title="HPL: our bound on the horizontal error. Green under 80 % of the alert limit, amber up to it, red over it (thresholds TBC)">
@@ -36,10 +35,17 @@
       <div class="bound-sub" id="big-tta">—</div>
     </section>
 
-    <section id="status" class="card status nominal">
-      <div class="status-word" id="status-word">—</div>
-      <div class="status-text" id="headline">Waiting for the first estimate.</div>
-    </section>
+    <div class="hero-right">
+      <section id="status" class="card status nominal">
+        <div class="status-word" id="status-word">—</div>
+        <div class="status-text" id="headline">Waiting for the first estimate.</div>
+      </section>
+      <!-- ADR-0041: the spoof decision's card, under the status -->
+      <section id="spoof" class="card spoof unknown" title="ADR-0041: advisory, it never changes the estimate">
+        <div class="spoof-head"><h2>GPS spoofing (sky, power and cues)</h2><span class="spoof-word" id="spoof-word">UNKNOWN</span></div>
+        <div class="spoof-why" id="spoof-why">No GPS sky data yet.</div>
+      </section>
+    </div>
   </section>
 
   <section class="map card">

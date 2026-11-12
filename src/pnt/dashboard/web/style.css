@@ -63,10 +63,10 @@ main {
 .hero .card h2 { margin-bottom: 4px; }
 .hero {
   grid-area: hero; display: grid; gap: 12px;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 440px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 560px);
 }
 .map { grid-area: map; display: flex; flex-direction: column; min-height: 460px; }
-.side { grid-area: side; display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; }
+.side { grid-area: side; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
 .charts { grid-area: charts; display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
 .card { background: var(--surface); border: 1px solid var(--grid); border-radius: 8px; padding: 12px; }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
@@ -108,8 +108,8 @@ button.on { border-color: var(--est); color: var(--est); }
 
 .status { border-left: 6px solid var(--good); }
 .status { border-left-width: 10px; }
-.status-word { font-size: 52px; line-height: 1.05; font-weight: 800; letter-spacing: .06em; }
-.status-text { margin-top: 6px; color: var(--ink); font-size: 16px; line-height: 1.35; }
+.status-word { font-size: 48px; line-height: 1.05; font-weight: 800; letter-spacing: .06em; }
+.status-text { margin-top: 4px; color: var(--ink); font-size: 15px; line-height: 1.35; }
 .status.nominal { border-left-color: var(--good); }
 .status.nominal .status-word { color: var(--good); }
 .status.degraded { border-left-color: var(--warning); }
@@ -133,11 +133,20 @@ button.on { border-color: var(--est); color: var(--est); }
 .trust.checking .trust-word { color: var(--warning); }
 .trust.not_trusted { border-left-color: var(--critical); background: #2a1515; }
 .trust.not_trusted .trust-word { color: #ff6b6b; }
-.trust-sky { margin-top: 8px; font-size: 13px; color: var(--ink-2); line-height: 1.35; }
-.trust-sky b { letter-spacing: .05em; }
-.trust-sky.not_spoofed b { color: var(--good); }
-.trust-sky.suspect b { color: var(--warning); }
-.trust-sky.spoofed b { color: #ff6b6b; }
+/* ADR-0041 spoof decision: a compact card under the status */
+.hero-right { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.hero-right .status { flex: 1; }
+.spoof { border-left: 10px solid var(--muted); padding: 8px 12px; }
+.spoof-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.spoof-head h2 { margin: 0; }
+.spoof-word { font-size: 18px; font-weight: 800; letter-spacing: .06em; color: var(--muted); }
+.spoof-why { margin-top: 2px; font-size: 13px; color: var(--ink-2); line-height: 1.3; }
+.spoof.not_spoofed { border-left-color: var(--good); }
+.spoof.not_spoofed .spoof-word { color: var(--good); }
+.spoof.suspect { border-left-color: var(--warning); }
+.spoof.suspect .spoof-word { color: var(--warning); }
+.spoof.spoofed { border-left-color: var(--critical); background: #2a1515; }
+.spoof.spoofed .spoof-word { color: #ff6b6b; }
 
 /* The error bound against the alert limit, with the confidence colours of the map */
 .bound { border-left: 10px solid var(--muted); }
