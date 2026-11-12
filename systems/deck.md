@@ -27,7 +27,7 @@ Numbers spoken: three hundred metres (1); five seconds, three hundred metres, ha
 
 **On the slide:** one screenshot, green NOMINAL with a 7 m bound and a 300 m true error (simulation). One line under it: "A navigation layer that knows when it is wrong."
 
-**Figure:** `jump-3-followed.png` in the guard demo evidence (`analysis/pr-evidence/elshoubky-docs-28-demo-guard/`, PR #220 (open)); until it merges, [`analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/jump-3-followed.png`](../analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/jump-3-followed.png) shows the same moment.
+**Figure:** `jump-3-followed.png` in the guard demo evidence (`analysis/pr-evidence/elshoubky-docs-28-demo-guard/`, PR #220 (merged)); until it merges, [`analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/jump-3-followed.png`](../analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/jump-3-followed.png) shows the same moment.
 
 **Script (44 words, 21 s):**
 > Picture a drone whose display is green, with a tight error bound, while it is three hundred metres off course. That is worse than losing GPS: nobody knows to stop. We built a navigation layer that knows when it is wrong, and says so.
@@ -56,7 +56,7 @@ Fallback: the script no longer says the laptop "fuses everything": today the def
 
 **Headline:** In simulation: GPS lost, red within 5 s; a 300 m jump without the guard ends green and wrong; with the guard it stays red and recovers when the spoof ends.
 
-**On the slide:** the live panel. Run `deploy/demo/demo.sh stage` from the guard demo runbook (`deploy/demo/RUNBOOK.md` in PR #220 (open); pre-flight first). Press Enter when T+ passes 105, then 188, then 212 (stops). The stage run takes 73 to 76 s.
+**On the slide:** the live panel. Run `deploy/demo/demo.sh stage` from the guard demo runbook (`deploy/demo/RUNBOOK.md` in PR #220 (merged); pre-flight first). Press Enter when T+ passes 105, then 188, then 212 (stops). The stage run takes 73 to 76 s.
 
 **Figure:** the live panel. If the laptop fails: the nine screenshots in the guard demo evidence folder, with the runbook's 60-second screenshot path.
 
@@ -161,4 +161,4 @@ Source: `reports/sources-research-20261111.md` on `main` (#271), research by ano
 
 ---
 
-*Status: 2026-11-11, seven slides (#268) against `main` at `2499f87`; numbers from `main` and the named PRs; demo cues from PR #220 (open). Slide 7 rewritten around the trust-monitor product (#273) from the research report on `main` at `3493cfb`. Rebased onto `3493cfb`: slide 3's last line follows the runbook at `e340a56`, and slide 4 follows ADR-0050 (#267).*
+*Status: 2026-11-11, seven slides (#268) against `main` at `2499f87`; numbers from `main` and the named PRs; demo cues from PR #220 (merged). Slide 7 rewritten around the trust-monitor product (#273) from the research report on `main` at `3493cfb`. Rebased onto `3493cfb`: slide 3's last line follows the runbook at `e340a56`, and slide 4 follows ADR-0050 (#267).*
