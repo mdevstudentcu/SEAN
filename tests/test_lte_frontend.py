@@ -553,3 +553,66 @@ def test_cell_refound_after_coasting_keeps_the_loop_covariance_valid():
         st.predict(kk, L, FS, q)
         st.update(0, st.theta + 0.1, 0.05)
         assert _psd(st), kk
+
+
+# --- lock detector against the interference floor (#214) ---------------------------------
+
+# A strong cell and a weak one 2.5 µs earlier on another PSS root, as a frame-synchronised
+# network delivers them: the weak cell's sync windows hold the strong one's PSS and SSS, whose
+# correlation with the weak cell's sequences is a static floor at every delay.
+STRONG = synth.Tower(pci=101, delay_s=1.2e-3)
+WEAK = synth.Tower(pci=33, delay_s=1.2e-3 - 2.5e-6, power_db=-6.0, phase=0.5)
+FADE_S = 1.0
+
+
+@pytest.fixture(scope="module")
+def faded(tmp_path_factory):
+    """The weak cell gone at FADE_S; the capture runs on with the strong cell alone."""
+    tmp = tmp_path_factory.mktemp("fade")
+    path = splice(tmp, "fade", [STRONG, WEAK], [STRONG], FADE_S, 3.0, 20.0)
+    return {name: process_file(path, cfg)
+            for name, cfg in (("off", Config(lock_peak_to_floor=0.0)), ("on", Config()))}  # fmt: skip
+
+
+def _epoch_times(result, tower):
+    L = sig.half_frame_length(FS)
+    return np.array([(c.n0 + e.k * L + e.theta_meas) / FS for c in result.cells
+                     if c.pci == tower.pci for e in c.epochs])  # fmt: skip
+
+
+def test_faded_cell_keeps_locked_on_the_floor_without_the_detector(faded):
+    # What the detector is for: the weak cell's code gate keeps finding the strong cell's floor
+    # above `detect_snr_db` (against the reserved-bin noise) until the capture ends.
+    t = _epoch_times(faded["off"], WEAK)
+    assert (t < FADE_S).sum() > 100
+    assert (t > FADE_S + 1.5).sum() > 50 and t.max() > 2.9
+
+
+def test_faded_cell_track_ends_at_the_lock_detector(faded):
+    cfg = Config()
+    t = _epoch_times(faded["on"], WEAK)
+    assert (t < FADE_S).sum() > 100  # the cell itself is kept
+    # Nothing after one lock window (its epochs are dropped) and the loop's settling margin.
+    assert t.max() < FADE_S + cfg.lock_window_s + 0.1
+    weak = next(c for c in faded["on"].cells if c.pci == WEAK.pci)
+    assert weak.unlocked
+    assert np.all(np.abs(epoch_errors(faded["on"], WEAK)) * M_PER_SAMPLE < 300)
+    # the strong cell is not touched
+    assert len(_epoch_times(faded["on"], STRONG)) == len(_epoch_times(faded["off"], STRONG))
+
+
+def test_cell_found_after_an_unlock_starts_a_new_arc_from_the_search():
+    # The ended track's timing and rate had slid on the floor: the next search starts the cell
+    # over (new arc, its own carrier offset and σ), even where it lands near that prediction.
+    L, cfg = sig.half_frame_length(FS), Config()
+    slid = State(theta=3.2, nu=-2.6e-7 + 1.3e-7, p00=0.01, p01=0.0, p11=1e-18, k=404)
+    cell = CellTrack(earfcn=2460, fc=FC, pci=8, n0=1000.0, unlocked=True)
+    k = 2000
+    seen = cell.n0 + k * L + slid.at(k, L) + 0.2  # right on the slid prediction
+    f_hz = -PPM * FC * 1e-6
+    found = Found(2, 2, seen, f_hz, 300.0, 0.0, 0.0, 10.0)
+    carry = {(2460, 8): (cell, slid)}
+    same, st = _start((2460, 8), found, FC, L, carry, SimpleNamespace(earfcn=2460), cfg)
+    assert same is cell and cell.arc == 1 and cell.n0 == seen and not cell.unlocked
+    assert st.k == 0 and st.theta == 0.0
+    assert st.nu == pytest.approx(-f_hz / FC) and st.p11 == pytest.approx((300.0 / FC) ** 2)
