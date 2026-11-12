@@ -1,6 +1,6 @@
 # Heading at GPS loss (#276)
 
-Commit `b48a5c7`, seeds 0–19 (20 runs per row), `python analysis/heading_at_loss.py --seeds 20 --jobs 3`, 374 s. Scenario: `challenge-drone-outage` cut to 360 s, built in `analysis/heading_at_loss.py` (module docstring). Every sensor value is `TBC`; sim only.
+Commit `7d291e7`, seeds 0–19 (20 runs per row), `python analysis/heading_at_loss.py --seeds 20 --jobs 3`, 374 s. Scenario: `challenge-drone-outage` cut to 360 s, built in `analysis/heading_at_loss.py` (module docstring). Every sensor value is `TBC`; sim only.
 
 Statistic: ADR-0034's, the 95th percentile across runs at each second after GPS loss; *worst 0–300 s* is T1's (25 m), *worst 0–120 s* the fallback's (50 m). Heading error at loss: |vertical part of the rotation between the filter's attitude and the truth| at the loss; σ is the filter's own. ρ: Spearman rank correlation across runs of |heading error at loss| with the error at 120 s and 300 s.
 

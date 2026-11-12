@@ -1,6 +1,6 @@
 {
  "meta": {
-  "commit": "b48a5c7",
+  "commit": "7d291e7",
   "seeds": 20,
   "command": "python analysis/heading_at_loss.py --seeds 20 --jobs 3",
   "runtime_s": 373.7362401485443,
