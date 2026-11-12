@@ -1,9 +1,9 @@
 {
  "meta": {
-  "commit": "9c54a5d",
+  "commit": "b48a5c7",
   "seeds": 20,
   "command": "python analysis/heading_at_loss.py --seeds 20 --jobs 3",
-  "runtime_s": 319.8549873828888,
+  "runtime_s": 373.7362401485443,
   "turns": {
    "start_s": 5.0,
    "end_s": 55.0,
