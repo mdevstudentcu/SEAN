@@ -169,6 +169,10 @@ class ImuMotion:
         max_yaw_sigma_deg: float = 180.0,  # alignment refused above this heading 1-sigma (TBC)
         max_lag_s: float = 3.0,  # s: longest velocity lag the fit corrects (TBC)
         lag_error: float = 0.5,  # fraction of the lag correction counted as heading error (TBC)
+        still_calibration: bool = True,  # start-up bias calibration while still (ADR-0053)
+        still_radius_m: float = 3.0,  # m: still while the filter stays this close (TBC)
+        still_min_s: float = 20.0,  # s: shortest still stretch that calibrates (TBC)
+        still_guard_s: int = 5,  # s: still after this long; the last ones left out (TBC)
     ):
         self.spec = spec
         self.max_hold_ns = int(max_hold_s * 1e9)
@@ -188,6 +192,11 @@ class ImuMotion:
         self.last: tuple[int, np.ndarray, np.ndarray] | None = None
         self.dropped = 0  # samples older than the filter's time when they arrived
         self._al: dict | None = None  # alignment window in progress
+        self.still_calibration, self.still_radius = still_calibration, still_radius_m
+        self.still_min_s, self.still_guard = still_min_s, still_guard_s
+        self._still: dict | None = None  # still stretch in progress
+        # Start-up calibration (ADR-0053): the latest still stretch's biases and their 1-sigma
+        self.cal: dict | None = None
 
     # --- state ---------------------------------------------------------------------------
     def augment(self, ekf: EKF, pos: slice, vel: slice) -> None:
@@ -348,7 +357,10 @@ class ImuMotion:
         al = self._al
         v = ekf.x[self.nav[3:6]]
         sd_v = math.sqrt(max(ekf.P[self.nav[3], self.nav[3]], ekf.P[self.nav[4], self.nav[4]]))
-        if not steering or sd_v > self.align_vel_sigma:
+        still = self.still_calibration and self._still_step(ekf, steering, segs)
+        # A still window cannot show heading: an uncalibrated gyro bias turning the integrated
+        # specific force would pass for it (#214), so a window never runs while still
+        if not steering or sd_v > self.align_vel_sigma or still:
             self._al = None
             return
         if al is None:
@@ -363,10 +375,14 @@ class ImuMotion:
         al["t"].append(ekf.t_ns)
         al["u"].append(S.copy())
         al["w"].append(v - al["v0"] - GRAVITY * ((ekf.t_ns - al["t0"]) / 1e9))
+        ba, bg = (
+            (np.zeros(3), np.zeros(3)) if self.cal is None else (self.cal["ba"], self.cal["bg"])
+        )
         for h, f, w in segs:
             if f is None:  # an IMU gap breaks the window
                 self._al = None
                 return
+            f, w = f - ba, w - bg
             S += C @ f * h
             C = C @ rotation(w * h)
         al["C"] = C
@@ -381,14 +397,69 @@ class ImuMotion:
         self.R = R0 @ C
         self.aligned_at = t_ns
         self.yaw_sigma = yaw
-        # The IMU states start from their priors, uncorrelated with the rest
-        s = self.spec
+        # The IMU states start from their priors, uncorrelated with the rest: the start-up
+        # calibration's biases if there was one (ADR-0053), else zero with the spec's 1-sigma
         k = np.r_[np.arange(self.att.start, self.bg.stop)]
         ekf.x[k] = 0.0
         ekf.P[k, :] = 0.0
         ekf.P[:, k] = 0.0
-        sig = [self.tilt_sigma, self.tilt_sigma, yaw, *[s.accel_bias] * 3, *[s.gyro_bias] * 3]
-        ekf.P[k, k] = np.square(sig)
+        sa, sg = self._bias_sigmas()
+        if self.cal is not None:
+            ekf.x[self.ba], ekf.x[self.bg] = self.cal["ba"], self.cal["bg"]
+        ekf.P[k, k] = np.square([self.tilt_sigma, self.tilt_sigma, yaw, *sa, *sg])
+
+    def _bias_sigmas(self) -> tuple[np.ndarray, np.ndarray]:
+        """Accelerometer and gyro bias 1-sigma per axis: the calibration's, else the spec's."""
+        if self.cal is not None:
+            return self.cal["sa"], self.cal["sg"]
+        s = self.spec
+        return np.full(3, s.accel_bias), np.full(3, s.gyro_bias)
+
+    def _still_step(self, ekf: EKF, steering: bool, segs) -> bool:
+        """Start-up calibration (ADR-0053); returns whether the receiver is still. A stretch
+        lasts while GNSS steers, no IMU sample is missing, and the filter's horizontal position
+        stays within `still_radius_m` of where it began; the receiver is still once the stretch
+        has lasted `still_guard_s` (so anything faster than radius / guard never is). The
+        stretch's samples are summed in 1 s blocks, less the last `still_guard_s` of them (a
+        receiver about to move may already be turning). Once the rest lasts `still_min_s`, it
+        is the calibration, updated as the stretch goes on:
+        gyro bias the mean rate (a still receiver does not turn), accelerometer bias the mean
+        specific force's excess over gravity, along it (tilt hides the other two axes). Each
+        1-sigma is the standard error of the 1 s means, at least the spec's: a hand-held
+        receiver sways, and sway does not average out as white noise does. A later stretch
+        replaces an earlier one (biases drift with temperature)."""
+        p = ekf.x[self.nav[0:2]]
+        st = self._still
+        if not steering or any(f is None for _, f, _ in segs):
+            self._still = None
+            return False
+        if st is None or math.hypot(*(p - st["p0"])) >= self.still_radius:
+            st = self._still = {"p0": p.copy(), "blk": [], "cur": np.zeros(7)}
+        cur = st["cur"]  # duration, specific force and rate sums of the block in progress
+        for h, f, w in segs:
+            cur += np.r_[h, f * h, w * h]
+            if cur[0] >= 1.0:
+                st["blk"].append(cur.copy())
+                cur[:] = 0.0
+        still = len(st["blk"]) >= self.still_guard
+        blk = np.array(st["blk"][: len(st["blk"]) - self.still_guard])
+        if len(blk) < 2 or blk[:, 0].sum() < self.still_min_s:
+            return still
+        T = blk[:, 0].sum()
+        f, w = blk[:, 1:4].sum(axis=0) / T, blk[:, 4:7].sum(axis=0) / T
+        g = float(np.linalg.norm(f))
+        means = blk[:, 1:] / blk[:, :1]
+        sem = means.std(axis=0, ddof=1) / math.sqrt(len(blk))
+        s = self.spec
+        self.cal = {
+            "t_ns": ekf.t_ns,
+            "span_s": float(T),
+            "bg": w,
+            "ba": f / g * (g - G),
+            "sa": np.maximum(sem[:3], s.accel_bias),
+            "sg": np.maximum(sem[3:], s.gyro_bias),
+        }
+        return still
 
     def _lag(self, ekf: EKF) -> float:
         """How far (s) the constant-velocity filter's velocity lags the truth: for a filter at
@@ -414,11 +485,11 @@ class ImuMotion:
         uc, wc = u - u.mean(axis=0), w - w.mean(axis=0)
         R0 = wahba(uc, wc)
         n = len(tj)
-        s = self.spec
+        gyro_bias = float(np.max(self._bias_sigmas()[1]))
         a = uc @ R0.T  # the specific force side, in ENU
         # What the gyro bias alone can put into one velocity change (m/s): a tilt error growing
         # as bias times time, carrying g, over the window
-        drift = G * s.gyro_bias * T**2 / 2
+        drift = G * gyro_bias * T**2 / 2
         # Heading shows only in the horizontal spread of the velocity changes (mean square).
         # Less what the gyro bias alone could give: none left means heading is unobservable
         spread = float(np.mean(np.sum(np.square(a[:, :2]), axis=1))) - drift**2
@@ -432,7 +503,7 @@ class ImuMotion:
         dt, dyaw = np.diff(t), np.diff(al["yaw"])
         rate = math.sqrt(float(np.sum(np.square(dyaw[dt > 0]) / dt[dt > 0])) / T)  # rms, rad/s
         yaw = math.sqrt(
-            var_w / spread + (s.gyro_bias * T / 2) ** 2 + (self.lag_error * tau * rate) ** 2
+            var_w / spread + (gyro_bias * T / 2) ** 2 + (self.lag_error * tau * rate) ** 2
         )
         yaw = max(yaw, self.min_yaw_sigma)
         return None if yaw > self.max_yaw_sigma else (R0, yaw)

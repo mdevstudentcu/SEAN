@@ -346,3 +346,59 @@ def test_worse_grade_spec_scales_every_term():
     worse = MPU6050.scaled(3.0)
     assert worse.accel_noise == pytest.approx(3 * MPU6050.accel_noise)
     assert worse.gyro_extra == pytest.approx(3 * MPU6050.gyro_extra)
+
+
+def still_then_walk(bg_dps, ba, seed=0, still_s=40.0, walk_s=120.0, speed=1.3, gnss_sigma=0.3):
+    """A hand-held-like session (#214): still for `still_s`, then a straight level walk east at
+    `speed`, with an uncalibrated IMU (`bg_dps` deg/s gyro bias, `ba` m/s^2 accelerometer bias,
+    body axes = ENU) and 1 Hz GNSS throughout. A receiver's fixes are smoothed by its own
+    filter, so they wander far less from one second to the next than white noise of their
+    error would (real walk: the filter's speed 0.01 to 0.08 m/s when still): `gnss_sigma` is
+    that step-to-step noise. Returns (measurements, true east at each 10 Hz epoch)."""
+    rng = np.random.default_rng(seed)
+    t = np.arange(0.0, still_s + walk_s, 0.01)
+    acc = np.where((t >= still_s) & (t < still_s + 2.0), speed / 2.0, 0.0)  # 2 s to speed
+    vel = np.cumsum(acc) * 0.01
+    east = np.cumsum(vel) * 0.01
+    f = np.column_stack([acc, np.zeros_like(t), np.full_like(t, 9.80665)]) + np.asarray(ba)
+    f += rng.normal(0.0, 0.05, f.shape)
+    w = np.radians(np.asarray(bg_dps)) + rng.normal(0.0, 0.003, (len(t), 3))
+    ts_ns = T0_NS + np.round(t * 1e9).astype(np.int64)
+    meas = sensors.imu_measurements(ts_ns, f, w)
+    for i in range(0, len(t), 100):
+        p = (east[i], 0.0, 0.0) + rng.normal(0.0, gnss_sigma, 3)
+        meas.append(Measurement(t_ns=int(ts_ns[i]), source="gnss", kind="position_enu",
+                                value=tuple(p), sigma=(1.0, 1.0, 1.5)))  # fmt: skip
+    meas.sort(key=lambda m: (m.t_ns, m.source))
+    return meas, dict(zip(ts_ns[::10].tolist(), east[::10], strict=True))
+
+
+REAL_BIAS = ((-3.95, 0.15, 1.08), (0.02, -0.06, -1.37))  # the walk's still start (#214)
+
+
+def test_still_start_calibrates_the_imu_biases_adr0053():
+    """The real walk's MPU6050 sat still for a minute with -3.95 deg/s of gyro bias and -1.37
+    m/s^2 of vertical accelerometer bias, against 0.05 deg/s and 0.05 m/s^2 assumed after a
+    start-up calibration nothing ran. The still stretch now is that calibration."""
+    bg, ba = REAL_BIAS
+    meas, _ = still_then_walk(bg, ba, walk_s=1.0)
+    f = ekf.EKF(motion="imu")
+    for m in meas:
+        f.process(m)
+    cal = f.imu.cal
+    assert cal is not None and cal["span_s"] >= 20.0
+    assert np.allclose(np.degrees(cal["bg"]), bg, atol=0.01)
+    assert cal["ba"][2] == pytest.approx(ba[2], abs=0.02)  # only the vertical shows when still
+    assert np.all(cal["sg"] >= MPU6050.gyro_bias) and np.all(cal["sa"] >= MPU6050.accel_bias)
+
+
+def test_an_uncalibrated_gyro_bias_no_longer_locks_gnss_out_issue_214():
+    """Before ADR-0053, the walk's gyro bias tilted the integrated specific force, the alignment
+    took that for heading, and the IMU then pulled the filter off and its gate shut GNSS out
+    (real walk: 83 % of epochs, p95 270 km with GPS on). Calibrated, GNSS stays in."""
+    meas, east = still_then_walk(*REAL_BIAS)
+    est = [e for e in ekf.run(meas, motion="imu") if e.t_ns in east]
+    late = [e for e in est if e.t_ns >= T0_NS + 60e9]
+    assert not any("gnss_excluded" in e.flags for e in late)
+    err = [math.hypot(e.pos_enu[0] - east[e.t_ns], e.pos_enu[1]) for e in late]
+    assert np.percentile(err, 95) < 5.0
