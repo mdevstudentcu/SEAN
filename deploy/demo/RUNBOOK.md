@@ -62,7 +62,7 @@ Ctrl-C stops any segment and frees the port. Each switch may print `ERROR: Cance
 
 ## The stage sequence, second by second
 
-**Wall** is seconds after pressing Enter on `deploy/demo/demo.sh stage`, from the timed runs below (±3 s). **T+** is the panel's own clock, top right: move on by watching T+, not a stopwatch. All values: simulation, seed 0, commit `9aed72b`.
+**Wall** is seconds after pressing Enter on `deploy/demo/demo.sh stage`, from the timed runs below (±3 s). **T+** is the panel's own clock, top right: move on by watching T+, not a stopwatch. All values: simulation, seed 0, commit `9aed72b`, except HPL values and the three UNSAFE onsets, which are from ADR-0056's horizontal factor (5.68; HPL 6.6 % above `9aed72b`'s, onsets 0.3 s earlier; estimates and errors unchanged).
 
 Segment 1b was added after the Wall columns of segments 2 and 3 were measured: in today's sequence each of their Wall times is about 22 s later (the jump now starts at wall 46 s, not 24 s) (*Timing* below). T+ values are unchanged.
 
@@ -75,8 +75,8 @@ Where to look: the big coloured word top right (NOMINAL / DEGRADED / UNSAFE); **
 | 0–4 s | Browser opens, panel connects. **SIM**, `challenge-drone-outage (seed 0)`, `estimator ekf` | "A simulated drone flying a loop over Carleton. The triangles are the real Rogers tower sites from the government registry." |
 | 4–15 s (T+0–60) | Green **NOMINAL**, HPL about 7 m against the 50 m alert limit | "Green means: trust this position. HPL is our bound on the error, here 7 metres." |
 | 15 s (T+61.8) | Amber **DEGRADED**: *GPS not in use* | "GPS is gone." |
-| 16 s (T+64.8) | Red **UNSAFE**, alert latched *since T+64.8 s*; the dashed HPL circle grows on the map | "Within five seconds of the loss the panel turns red: do not navigate on this position. The alert stays on the list until someone acknowledges it." |
-| 16–24 s (T+65–105) | HPL chart: blue above green. About T+100: HPL 865 m, error 335 m | "Honest number: 40 seconds without GPS we are over 300 metres off. What matters is that the bound, the blue line, stays above the real error on this run." |
+| 16 s (T+64.5) | Red **UNSAFE**, alert latched *since T+64.5 s*; the dashed HPL circle grows on the map | "Within five seconds of the loss the panel turns red: do not navigate on this position. The alert stays on the list until someone acknowledges it." |
+| 16–24 s (T+65–105) | HPL chart: blue above green. About T+100: HPL 883 m, error 321 m | "Honest number: 40 seconds without GPS we are over 300 metres off. What matters is that the bound, the blue line, stays above the real error on this run." |
 
 **Press Enter when T+ passes 105.**
 
@@ -90,12 +90,12 @@ NO DATA for 2–7 s; talk over the gap: "Same flight, same GPS loss. This one is
 | --- | --- | --- |
 | 25–37 s (T+0–60) | Green **NOMINAL**, HPL about 7 m; the study line under the top bar; Sources: `lte` under *In use* | (Finish the gap line over the clean part.) |
 | 37 s (T+61.8) | Amber **DEGRADED**: *GPS not in use* | "GPS is gone, as before." |
-| 38 s (T+65.0) | Red **UNSAFE**, alert latched *since T+65.0 s* | — |
-| 38–46 s (T+65–105) | Red **UNSAFE** throughout. *Error against truth* moves between 10 and 58 m (T+70: 28.5 m, T+90: 42.4 m, T+104.7: 39.2 m, T+105.3: 17.9 m); HPL 75–160 m (T+104.7: 140.3 m, T+105.3: 108.7 m); `lte 1.00` under *In use*; the HPL chart's green line stays under the blue | "Now the towers carry us. At this moment in the last run we were nearly 400 metres off; here, tens of metres. It is still red, and rightly: our bound is over 100 metres, above the 50-metre alert limit, so the panel still says do not navigate on this. Much better, not yet good enough." |
+| 38 s (T+64.7) | Red **UNSAFE**, alert latched *since T+64.7 s* | — |
+| 38–46 s (T+65–105) | Red **UNSAFE** throughout. *Error against truth* moves between 10 and 58 m (T+70: 28.5 m, T+90: 42.4 m, T+104.7: 39.2 m, T+105.3: 17.9 m); HPL 80–170 m (T+104.7: 149.5 m, T+105.3: 115.8 m); `lte 1.00` under *In use*; the HPL chart's green line stays under the blue | "Now the towers carry us. At this moment in the last run we were nearly 400 metres off; here, tens of metres. It is still red, and rightly: our bound is over 100 metres, above the 50-metre alert limit, so the panel still says do not navigate on this. Much better, not yet good enough." |
 
 **Press Enter when T+ passes 105.**
 
-On this run the HPL is above the true error at every epoch from T+60 to T+120. Over the first 45 s without GPS the error stays under 60 m, against 380–390 m at the same T+ in segment 1 (HPL about 980 m there). The map's Follow view is zoomed to the drone here, so no tower triangles are in it; *Area* shows them.
+On this run the HPL is above the true error at every epoch from T+60 to T+120. Over the first 45 s without GPS the error stays under 60 m, against 380–390 m at the same T+ in segment 1 (HPL about 1,040 m there). The map's Follow view is zoomed to the drone here, so no tower triangles are in it; *Area* shows them.
 
 #### The towers segment if short of time
 
@@ -120,7 +120,7 @@ The page shows **NO DATA** for 3–6 s, then reconnects by itself; the top bar n
 | --- | --- | --- |
 | 29–44 s (T+0–150) | Green **NOMINAL**, HPL about 7 m | "Same flight, GPS healthy." |
 | 44 s (T+150.0) | Amber **DEGRADED**, *GPS rejected* latched *since T+150.0 s* | "The jump is caught at the very first fake fix: GPS rejected." |
-| 45 s (T+154.8) | Red **UNSAFE**. HPL 415 m, error 97 m at T+174.6 | "Red: without GPS the bound opens up, as before." |
+| 45 s (T+154.5) | Red **UNSAFE**. HPL 442 m, error 97 m at T+174.6 | "Red: without GPS the bound opens up, as before." |
 | 47 s (T+176.8) | **Green NOMINAL again**, HPL 7 m, *Error against truth* 300 m. The three alerts stay listed, *cleared … unacknowledged* | "But watch. Half a minute later this plain filter lets the fake GPS back in and follows it: green, a 7-metre bound, 300 metres wrong. That is the failure the jump guard fixes." |
 
 **Press Enter when T+ passes 188.**
@@ -133,8 +133,8 @@ NO DATA for 3–6 s again; the top bar now says `challenge-drone-gps-return (see
 | --- | --- | --- |
 | 53–68 s (T+0–150) | Green **NOMINAL**, HPL about 7 m | (Keep talking over the clean part; it is the same as before.) |
 | 68 s (T+150.0) | Amber **DEGRADED**, *GPS rejected* | "Caught at the first fake fix, as before." |
-| 69–73 s (T+154.8–199.9) | Red **UNSAFE** throughout. T+180.0: HPL 549 m, error 133 m. T+193.9: HPL 948 m, error 255 m | "This time the fake GPS stays out. We are flying on the barometer and our last known speed and heading, so the error grows, but the bound grows faster and the panel stays red. Nobody is told a wrong position is safe." |
-| 73 s (T+200.0) | **Green NOMINAL**: real GPS back, HPL 13.5 m then 6.9 m, error 1.7 m, then between 0.1 and 3.6 m to T+220 (median 1.5 m). The three alerts stay listed, *cleared at T+199.9 s* | "The spoofer stops, real GPS comes straight back, and we are green and within a few metres again." |
+| 69–73 s (T+154.5–199.9) | Red **UNSAFE** throughout. T+180.0: HPL 585 m, error 133 m. T+193.9: HPL 1,010 m, error 255 m | "This time the fake GPS stays out. We are flying on the barometer and our last known speed and heading, so the error grows, but the bound grows faster and the panel stays red. Nobody is told a wrong position is safe." |
+| 73 s (T+200.0) | **Green NOMINAL**: real GPS back, HPL 14.4 m then 7.4 m, error 1.7 m, then between 0.1 and 3.6 m to T+220 (median 1.5 m). The three alerts stay listed, *cleared at T+199.9 s* | "The spoofer stops, real GPS comes straight back, and we are green and within a few metres again." |
 
 On this run the HPL is above the true error at every epoch from T+10 to T+212 (and in segment 1 to T+105); in segment 2 it is below it from T+176.8, which is the failure shown.
 
@@ -210,6 +210,8 @@ Say: "This one is a real receiver, not a simulation: a laptop GPS standing still
 When the bound reaches kilometres, add: "The bound is honest but far too wide: the real error stays within a couple of metres because the receiver never moved, and the filter does not know that." Do not say the position stays within 2 m without GPS: a stationary receiver says nothing about a moving one.
 
 **Wall** is seconds after pressing Enter on `deploy/demo/demo.sh realcut` (±1 s); **T+** is the panel clock. Measured as for the stage sequence (a script reading the panel stream, no browser, Ctrl-C at T+157): four runs on 2026-11-11, two at the uncommitted change and two at commit `4caf1e4`, clean tree, macOS, this laptop, load average 3–7. Every panel-clock time and value below was the same in all four; first frame 2.3–3.5 s after Enter (slower under load).
+
+HPL values in this table were measured before ADR-0056 (horizontal factor 5.33). With 5.68 each is 6.6 % larger and the UNSAFE onset may come a few tenths of a second earlier: `TBC`, not re-measured, because the session is not on the machine where ADR-0056 was checked. Errors and the other times do not change.
 
 | Wall | T+ | Panel | Say |
 | --- | --- | --- | --- |
