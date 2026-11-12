@@ -147,3 +147,11 @@ table.score td.ok { color: var(--ok); } table.score td.bad { color: var(--bad); 
 .kicker { max-width: 58%; }
 .fig.short img { max-height: 13.5rem; object-fit: contain; }
 ol.legend.two { display: grid; grid-template-columns: 1fr 1fr; column-gap: 0.9rem; row-gap: 0.35rem; font-size: 0.86rem; }
+
+/* slide 5: big screenshot, narrow side column */
+ol.legend.tight { gap: 0.18rem; font-size: 0.78rem; line-height: 1.25; }
+ol.legend.tight li { padding-left: 1.6rem; }
+ol.legend.tight li::before { width: 1.15rem; height: 1.15rem; font-size: 0.58rem; }
+.proofstat { margin-top: 0.45rem; }
+.proofstat .num { font-family: var(--display); font-size: 1.25rem; letter-spacing: 0.02em; }
+.proofstat .lbl { font-size: 0.72rem; color: var(--muted); line-height: 1.3; }

@@ -21,14 +21,20 @@ layout: default
   <div class="small muted" style="font-family: var(--mono); margin-top: 0.5rem; letter-spacing: 0.06em">Signals-of-opportunity · Error-bounded · Assured Navigation</div>
   <h1 style="font-size: 2.2rem; margin-top: 1.4rem">A navigation layer that knows when it is wrong</h1>
   <p class="lede" style="margin-top: 1.2rem">A receive-only GPS trust monitor. It keeps position and time from the cell towers already in the air, and tells the operator, with a number, how far to trust them.</p>
-  <p class="muted small" style="margin-top: 2.2rem">Shrikar Vempati · M. Elshoubky</p>
+  <p class="muted small" style="margin-top: 2.2rem">Team 12</p>
 </div>
 <div style="position: absolute; right: 4.2rem; top: 50%; transform: translateY(-50%); width: 27rem">
   <Media file="drone-payload.jpg" label="The drone with the payload mounted" hint="Outdoors, three-quarter view, antennas visible. Landscape." ratio="4 / 3" />
 </div>
 
 <!--
-(0:00, 10 s) The real danger is not losing GPS. It is a display that says "trust me" when it should not. We built SEAN: signals-of-opportunity, error-bounded, assured navigation. A navigation layer that knows when it is wrong, and says so with a number.
+**0:00 → 0:10 · 10 s**
+
+**Say:** We're Team 12. The real danger is not losing GPS. It's a display that says "trust me" when it shouldn't. We built **SEAN**: signals-of-opportunity, error-bounded, assured navigation. A navigation layer that knows when it is wrong, and says so with a number.
+
+**Do:** say the expansion slowly, once. Move on; the judges read the rest.
+
+**Scores:** Presentation (8): the pitch in one line.
 -->
 
 ---
@@ -65,7 +71,19 @@ class: topo-light
 <div class="foot">systems/requirements.md · systems/use-cases.md · systems/assumptions.md · ADR-0034 (targets after the mentors' answers)</div>
 
 <!--
-(0:10, 30 s) Three users: drones beyond line of sight, crews on approach, and anyone who takes time from GPS. We only listen, we use signals already in the air, and it is cheap. Each use case maps to a requirement with a number we test against. These targets are ours, to be confirmed; where the mentors gave one, 50 m for two minutes, we keep it as the fallback.
+**0:10 → 0:40 · 30 s**
+
+**Say:** Three users: drones flown beyond line of sight, crews on approach, and anyone who takes time from GPS. Three constraints: we only listen, we use signals already in the air with cell towers first, and the radios cost **CAD 170**. Each use case maps to a requirement with a number we test against. These targets are ours and still to be confirmed; where the mentors gave one, **50 m for two minutes**, we keep it as the fallback.
+
+**Point at:** the table, row by row with your hand, not word by word.
+
+**Scores:** Problem & requirements (1) · D1: requirements tied to the use cases (mentor ask) · challenge: crewed *and* uncrewed, position *and* timing.
+
+**If asked:**
+- *Why 25 m when the mentors said 50 m?* We set ours tighter (ADR-0034) and score both.
+- *Why assume GPS is good at start-up?* The filter learns each tower's clock while GPS is good; slide 6 shows how long that takes.
+- *Why cell towers first?* The challenge says communication signals should be primary. The ablation backs it: remove LTE and the error grows by about 2 km.
+- Full trace with REQ numbers → backup *Every requirement traces to a use case*.
 -->
 
 ---
@@ -106,7 +124,20 @@ class: topo-light
 <div class="foot">systems/architecture.md (D1) · ADR-0021 · ADR-0024 · ADR-0046 · systems/research.md (novelty check)</div>
 
 <!--
-(0:40, 35 s) The payload is a Raspberry Pi with a low-cost LTE radio, GPS with a timing pulse, an IMU and a barometer. It only listens. The laptop turns tower sync signals into ranges, fuses them with every tower's clock and our own, and turns that into a bound and a colour. What is new: towers are checked like GPS; tower time comes from GPS so it can contradict GPS time but never confirm it; and each tower's slow error is its own state, so the bound stays honest. Others use towers for accuracy; we build the integrity.
+**0:40 → 1:15 · 35 s**
+
+**Say:** The payload is a Raspberry Pi with a low-cost LTE radio, GPS with a timing pulse, an IMU and a barometer. It only listens. The laptop turns tower sync signals into ranges, fuses them with every tower's clock and our own, and turns that into a bound and a colour. Three things are new. Towers are checked like GPS. Tower time comes from GPS, so it can contradict GPS time but never confirm it. And each tower's slow error is its own state, so the bound stays honest. Others use towers for **accuracy**; we build the **integrity**.
+
+**Point at:** the chain left to right, then the three cards.
+
+**Scores:** Technical approach (2) · Innovation (3) · Prototype (4) · challenge: communication signals primary.
+
+**If asked:**
+- *Prior work?* The Kassas group fuses cell towers for accuracy. We found no one building the integrity case on them (systems/research.md).
+- *Where do tower positions come from?* The public ISED registry. A wrong entry is one of the faults the filter tests for.
+- *Isn't it still GPS-dependent, since towers sync to GPS?* Yes, and that's the rule: towers may contradict GPS time, never confirm it.
+- *Why ADS-B?* Other aircraft's ADS-B warns a crew of interference ahead (scoreboard row 7).
+- *Is the link secure?* Authenticated and encrypted (ADR-0026).
 -->
 
 ---
@@ -137,10 +168,22 @@ class: topo-light
 <div class="foot">The panel's status rail, recorded live and looped (main de28b38) · deploy/demo/RUNBOOK.md</div>
 
 <!--
-(1:15, 60 s) LIVE: deploy/demo/demo.sh jump (about 50 s: Enter at T+188, then T+212). If anything fails, talk over these clips.
-1. "GPS lost: within three seconds, red. Forty seconds on we are 325 m off, and the bound says so."
-2. "A spoofer jumps GPS 300 m. Caught at the first fake fix. Half a minute later the plain filter takes it back: green, and 300 m wrong."
-3. "Same attack with our jump guard: it stays red, the bound grows faster than the error, and when the spoofer stops, real GPS comes straight back."
+**1:15 → 2:15 · 60 s · LIVE DEMO**
+
+**Before the talk:** terminal open, demo command typed, panel in a browser tab beside the slides.
+
+**Do:** run `deploy/demo/demo.sh jump` (about 50 s). Press **Enter at T+188**, then again at **T+212**. If anything fails, don't debug: say "here's the recording" and talk over these clips.
+
+**Say:**
+1. GPS lost: within three seconds, **red**. Forty seconds on we're **325 m** off, and the bound, **895 m**, says so.
+2. A spoofer jumps GPS **300 m**. Caught at the first fake fix. Half a minute later the plain filter takes it back: **green, and 300 m wrong**. That's the failure we're here to stop.
+3. Same attack with our jump guard: it stays red, the bound grows faster than the error, and when the spoofer stops, real GPS comes straight back.
+
+**Scores:** Presentation & demo (8) · D2: real-time monitoring · mentor ask: begin with location jumps.
+
+**If asked:**
+- *Is that real?* A simulated drone flying past real tower sites, through the same code that runs on recordings and live data. The panel is the real operator panel.
+- *Why does the plain filter accept the jump?* It tests one fix at a time, so a spoofer that holds its offset starts to look consistent. The guard refuses GPS after a jump until it agrees with the towers again (ADR-0038).
 -->
 
 ---
@@ -153,22 +196,22 @@ class: topo-light
 
 # Confidence shown ten ways, and it holds up
 
-<div class="cols" style="grid-template-columns: 1.35fr 1fr; gap: 1.4rem; margin-top: 0.6rem; align-items: start">
+<div class="cols" style="grid-template-columns: 2.75fr 1fr; gap: 1.1rem; margin-top: 0.2rem; align-items: start">
 <div class="annot">
   <img src="/proof/panel-unsafe.jpg" alt="The operator panel 40 s after GPS loss, UNSAFE">
   <span class="pin" style="left: 96%; top: 8%">1</span>
-  <span class="pin" style="left: 67.5%; top: 40%">2</span>
-  <span class="pin" style="left: 95%; top: 33%">3</span>
-  <span class="pin" style="left: 67.5%; top: 26%">4</span>
-  <span class="pin" style="left: 67.5%; top: 30.5%">5</span>
-  <span class="pin" style="left: 67.5%; top: 94%">6</span>
-  <span class="pin" style="left: 52%; top: 93%">7</span>
+  <span class="pin" style="left: 65.3%; top: 40%">2</span>
+  <span class="pin" style="left: 100.6%; top: 36.6%">3</span>
+  <span class="pin" style="left: 65.3%; top: 26%">4</span>
+  <span class="pin" style="left: 65.3%; top: 30.5%">5</span>
+  <span class="pin" style="left: 65.3%; top: 94%">6</span>
+  <span class="pin" style="left: 66.6%; top: 83%">7</span>
   <span class="pin" style="left: 42%; top: 28%">8</span>
   <span class="pin" style="left: 22%; top: 79%">9</span>
-  <span class="pin" style="left: 67.5%; top: 66%">10</span>
+  <span class="pin" style="left: 65.3%; top: 66%">10</span>
 </div>
 <div>
-<ol class="legend two">
+<ol class="legend tight">
 <li><strong>State</strong> colour and words</li>
 <li><strong>Protection level</strong> vs limit</li>
 <li><strong>ANP vs RNP</strong>, a crew's terms</li>
@@ -180,20 +223,29 @@ class: topo-light
 <li><strong>Bound over time</strong> + forecast</li>
 <li><strong>Alerts</strong>, latched</li>
 </ol>
-<h3 style="margin-top: 1rem">Is it true?</h3>
-<div class="flex flex-col gap-2 small">
-<div>Error above the bound, simulated drone, 200 runs</div>
-<div class="num"><span class="bad">41.6 %</span> default → <span class="ok">0.4 %</span> honest-bound filter, 0 hazardous</div>
-<div style="margin-top: 0.2rem">Bound below the error, <strong>real</strong> recordings, GPS cut</div>
-<div class="num"><span class="bad">34 %</span> of 3,005 checks → <span class="ok">0</span></div>
-</div>
+<h3 style="margin-top: 0.8rem">Is it true?</h3>
+<div class="proofstat"><div class="num"><span class="bad">41.6 %</span> → <span class="ok">0.4 %</span></div><div class="lbl">error above the bound · sim, 200 runs · 0 hazardous</div></div>
+<div class="proofstat"><div class="num"><span class="bad">34 %</span> → <span class="ok">0</span></div><div class="lbl">bound below the error · <strong>real</strong>, 3,005 checks</div></div>
 </div>
 </div>
 
 <div class="foot">HPL = 5.68 × σ<sub>max</sub> (two-dimensional, 10⁻⁷ per epoch, TBC; ADR-0056) · ADR-0046 · analysis/results/honest-bound · real-replay-256</div>
 
 <!--
-(2:15, 35 s) The mentors asked us to consider several ways of showing confidence. The panel gives ten, and they agree: a state colour, the protection level against the limit, the aviation 95 % radius, a GPS trust word, a spoof check, per-source trust, a time bound, the map circle, the bound over time with a forecast, and latched alerts. Is the number true? In simulation the default bound was escaped 42 % of the time; ours, under half a percent. On real recordings: a third of the time against never.
+**2:15 → 2:50 · 35 s**
+
+**Say:** The mentors asked us to consider several ways of showing confidence. The panel gives ten, and they agree: a state colour, the protection level against the limit, the aviation 95 % radius, a GPS trust word, a spoof check, per-source trust, a time bound, the map circle, the bound over time with a forecast, and latched alerts. Is the number true? In simulation the default bound was escaped **42 %** of the time; ours, **under half a percent**. On real recordings: **a third of the time, against never**.
+
+**Point at:** pins 1, 2, 3 and 7 as you name them; the rest in one sweep. Then the two red → green numbers.
+
+**Scores:** Technical approach (2) · Evidence (5) · mentor ask: several ways to show confidence · challenge: numerical confidence, crewed and uncrewed.
+
+**If asked:**
+- *How is the protection level calculated?* 5.68 × the largest position standard deviation. Horizontal error is two-dimensional, so a 10⁻⁷ risk per epoch needs 5.68, not the 1-D 5.33. We caught that in our own code (ADR-0056) → backup *A bound that does not lie*.
+- *0.4 % still escapes; your target is 99.9 %.* Right: 99.6 % in sim, short of the target, but none hazardous (never showed safe while the error was over the limit).
+- *What makes it "honest"?* Each tower's slow error is a state in the filter (ADR-0046), so drift widens the bound.
+- *0 on real data, but how wide was the bound?* Kilometres. Honest, not yet useful → backup *real GPS cut*.
+- Every readout explained → backup *Ten readouts*.
 -->
 
 ---
@@ -221,7 +273,19 @@ class: topo-light
 <div class="foot">systems/accuracy-budget.md (seeds 0–19) · systems/verification.md (Sim validity) · ADR-0015 · ADR-0036 · lte-measured-noise (8892fca)</div>
 
 <!--
-(2:50, 35 s) The mentors asked for the calculation. Each error term is grown from the moment GPS is lost and checked against the Monte Carlo: a clean route stays inside the 50 m fallback; realistic towers do not, multipath alone is over 200 m. Handover: the filter that learns tower drift needs two and a half minutes of good GPS first. And we measured our radio: precise, 0.73 m, but with a slow 8 m error it never reports. The sim had that wrong, and fixing it is what made the bound honest.
+**2:50 → 3:25 · 35 s**
+
+**Say:** The mentors asked for the calculation. Each error term is grown from the moment GPS is lost and checked against the Monte Carlo. A clean route stays inside the 50 m fallback; realistic towers don't, and multipath alone is over **200 m**. Handover: the filter that learns tower drift needs **two and a half minutes** of good GPS first. And we measured our radio: precise, **0.73 m**, but with a slow **8 m** error it never reports. The sim had that wrong, and fixing it is what made the bound honest.
+
+**Point at:** the lines (budget) against the dots (Monte Carlo); then each card.
+
+**Scores:** Technical approach & rigor (2) · Evidence (5) · mentor asks: explain the accuracy calculation, handover timing, how the sim aligns to reality.
+
+**If asked:**
+- *Which terms?* Tower clock, multipath, error in the registered tower position, our clock, noise (systems/accuracy-budget.md).
+- *What's measured and what's a placeholder?* IMU and LTE noise are measured; tower clocks, multipath and attacks are placeholders → backup *We measured the radio*.
+- *How do you close the gap?* Heading and velocity, LTE carrier phase, more towers (roadmap).
+- Handover plot → backup *Why accuracy misses, and how long GPS must be good first*.
 -->
 
 ---
@@ -256,7 +320,21 @@ class: topo-light
 <div class="foot">systems/results.md · analysis/results/headline (24aa5d1, seeds 0–49) · analysis/results/final (d66c929, ablation)</div>
 
 <!--
-(3:25, 35 s) Every target, including the misses. Detection works, false alarms are zero, the towers carry the solution, and crews get up to a minute's warning from other aircraft. Timing holds in 49 of 50 runs. Not yet: accuracy without GPS, 449 m against 25, and a slow drag nothing catches in time. The filter we pick is never hazardous on a jump; it pays in availability.
+**3:25 → 4:00 · 35 s**
+
+**Say:** Every target, including the misses. Detection works, false alarms are zero, the towers carry the solution, and crews get up to a minute's warning from other aircraft. Timing holds in 49 of 50 runs. Not yet: accuracy without GPS, **449 m against 25**, and a slow drag nothing catches in time. The filter we pick is never hazardous on a jump; it pays in availability.
+
+**Point at:** the green block, then the red rows: say the misses out loud, don't skip them.
+
+**Scores:** Testing, evidence & results, limitations recognised (5) · D2: quantitative results · trade-offs (2).
+
+**If asked:**
+- *What does "opt-in" mean?* Our pick, `ekf-honest-guard`, is a filter you select by name; the default `ekf` stays as the reference.
+- *Slow drag?* Carrier hopping catches 50 of 50, but at 127 s, still over the 30 s target. It's on the roadmap.
+- *Timing miss?* The worst run is 1.55 µs against 1.5; mean 0.44 µs → backup *Time*.
+- *Why does the IMU add nothing?* Over a long outage a low-cost IMU drifts too far to help; heading and velocity are next.
+- *Sim or real?* The Kind column says which. Most is 50-run sim; the bound check is real recordings.
+- Filter trade-off table → backup *What each defence costs*.
 -->
 
 ---
@@ -296,7 +374,20 @@ class: topo-content
 <div class="foot">systems/safety.md · systems/roadmap.md (D3) · systems/results.md · ADR-0001 · ADR-0011 · ADR-0013 · ADR-0026</div>
 
 <!--
-(4:00, 40 s) It never transmits, so there is no spectrum risk; we decode only broadcast fields; identifiers are hashed; the link is authenticated; it is advisory. The product is a receive-only trust monitor that warns the autopilot. Next is accuracy: heading, velocity, carrier phase and flight tests, then LEO as one more source. Every number you saw traces to a commit in our repository. Thank you.
+**4:00 → 4:40 · 40 s**
+
+**Say:** It never transmits, so there's no spectrum risk. We decode only broadcast fields; identifiers are hashed; the link is authenticated; it's advisory. The product is a receive-only trust monitor that warns the autopilot. Next is accuracy: heading, velocity, carrier phase and flight tests, then LEO as one more source. Every number you saw traces to a commit in our repository. Thank you.
+
+**Do:** stop on "thank you". Leave this slide up for questions; press **O** to jump to a backup.
+
+**Scores:** Safety, regulatory, privacy, cyber (6) · Impact, feasibility, next steps (10) · Documentation (7) · D3: roadmap to a product · mentor ask: LEO in the roadmap · challenge: interfering with spectrum → we never transmit.
+
+**If asked:**
+- *Certification?* Advisory only. We found no standard yet for this kind of source (roadmap, Certification).
+- *Who buys it?* Proposed: operators flying beyond line of sight, drone shows, defence trials.
+- *Why LEO?* Iridium PNT is another strong signal we can only listen to; it slots in as one more source (ADR-0013).
+- *How do we check your numbers?* systems/results.md: each one names its scenario or session, seeds and commit.
+- Details → backups *Safe and legal by design*, *A GPS trust monitor*, *Every number here traces to a commit*.
 -->
 
 ---
@@ -309,6 +400,10 @@ class: topo-section
   <h1 style="font-size: 2.6rem">Backup</h1>
   <p class="lede">Full evidence: systems/results.md · prepared answers: systems/judge-questions.md</p>
 </div>
+
+<!--
+**Backups for questions.** Press **O** for the overview and click a slide, or **G** and its number. Answer first, then show the slide; come back here when done.
+-->
 
 ---
 class: topo-light
@@ -336,6 +431,12 @@ class: topo-light
 
 <div class="foot">systems/requirements.md · systems/plan.md (targets T1–T5) · ADR-0034 (targets after the mentors' answers)</div>
 
+<!--
+**Use when:** "how do requirements tie to the use cases?" or "where's the D1 trace?"
+
+**Say:** Each use case maps to numbered requirements, each with a success measure we test in the scoreboard. REQ-06, towers carry the solution, is tested by removing them. REQ-07, receive-only, is a design rule checked in hardware and code.
+-->
+
 ---
 class: topo-light
 ---
@@ -346,21 +447,21 @@ class: topo-light
 
 # Ten readouts, one answer: do not navigate on this
 
-<div class="cols" style="grid-template-columns: 1.55fr 1fr; gap: 1.4rem; margin-top: 0.7rem; align-items: start">
+<div class="cols" style="grid-template-columns: 2.3fr 1fr; gap: 1.2rem; margin-top: 0.2rem; align-items: start">
 <div class="annot">
   <img src="/proof/panel-unsafe.jpg" alt="The operator panel 40 s after GPS loss, UNSAFE">
   <span class="pin" style="left: 96%; top: 8%">1</span>
-  <span class="pin" style="left: 67.5%; top: 40%">2</span>
-  <span class="pin" style="left: 95%; top: 33%">3</span>
-  <span class="pin" style="left: 67.5%; top: 26%">4</span>
-  <span class="pin" style="left: 67.5%; top: 30.5%">5</span>
-  <span class="pin" style="left: 67.5%; top: 94%">6</span>
-  <span class="pin" style="left: 52%; top: 93%">7</span>
+  <span class="pin" style="left: 65.3%; top: 40%">2</span>
+  <span class="pin" style="left: 100.6%; top: 36.6%">3</span>
+  <span class="pin" style="left: 65.3%; top: 26%">4</span>
+  <span class="pin" style="left: 65.3%; top: 30.5%">5</span>
+  <span class="pin" style="left: 65.3%; top: 94%">6</span>
+  <span class="pin" style="left: 66.6%; top: 83%">7</span>
   <span class="pin" style="left: 42%; top: 28%">8</span>
   <span class="pin" style="left: 22%; top: 79%">9</span>
-  <span class="pin" style="left: 67.5%; top: 66%">10</span>
+  <span class="pin" style="left: 65.3%; top: 66%">10</span>
 </div>
-<ol class="legend">
+<ol class="legend tight">
 <li><strong>State</strong> by colour and words: nominal, degraded, unsafe</li>
 <li><strong>Protection level</strong> against the alert limit: 895 m, 17.9× the limit</li>
 <li><strong>ANP against RNP</strong>: the 95 % radius, in a crew's terms</li>
@@ -375,6 +476,12 @@ class: topo-light
 </div>
 
 <div class="foot">HPL = 5.68 × σ<sub>max</sub> (two-dimensional, 10⁻⁷ per epoch, TBC; ADR-0056) · time bound = 5.33 × σ<sub>clock</sub> · ADR-0027 (panel) · ADR-0041 (spoof check)</div>
+
+<!--
+**Use when:** "explain the readouts" or "how would a pilot use this?"
+
+**Say:** Every readout answers one question: can I navigate on this? Here, 40 s after GPS loss, all ten say no: the bound is 895 m, about 18 times the 50 m limit. Readout 3 gives a crew the same thing in their terms, ANP against RNP. Alerts latch until acknowledged, so a short red isn't missed.
+-->
 
 ---
 class: topo-content
@@ -410,6 +517,14 @@ $$\mathrm{HPL} = k_H\,\sigma_{\max},\quad k_H=\sqrt{2\ln 10^{7}} = 5.68$$
 
 <div class="foot">ADR-0046 · ADR-0056 · analysis/results/honest-bound (1385a48) · analysis/results/real-replay-256</div>
 
+<!--
+**Use when:** "how is the protection level calculated?" or "how do you know it's honest?"
+
+**Say:** HPL = k × the largest position standard deviation. Horizontal error is two-dimensional, so a 10⁻⁷ risk per epoch gives k = √(2 ln 10⁷) = 5.68. We had 5.33, the one-dimensional value, and fixed it ourselves (ADR-0056). Every dot above the diagonal is a moment the error escaped the bound: 41.6 % before, 0.4 % after, none hazardous. On real recordings with GPS cut: 34 % of checks under the error, against 0.
+
+**Be ready for:** the 10⁻⁷ risk is our proposal (TBC), not a certified allocation.
+-->
+
 ---
 class: topo-content
 ---
@@ -432,6 +547,12 @@ class: topo-content
 </div>
 
 <div class="foot">systems/accuracy-budget.md · analysis/accuracy_budget.py (f3fc928 / f736bda, seeds 0–19) · ADR-0034</div>
+
+<!--
+**Use when:** "walk me through the accuracy calculation" or "how long does GPS need to be good first?"
+
+**Say:** Left: each error term grown from the moment GPS is lost, summed, against 20 Monte Carlo runs. The budget predicts the simulation, so we understand why it misses: on realistic towers, multipath alone is 215 m at two minutes. Right: the filter that learns tower clock drift needs at least 150 s of good GPS to stay under 50 m on the clean route; the other filters don't depend on it. On realistic towers, no wait is long enough.
+-->
 
 ---
 class: topo-light
@@ -466,6 +587,12 @@ class: topo-light
 
 <div class="foot">systems/verification.md (Sim validity) · ADR-0015 · ADR-0036 · analysis/results/lte-measured-noise (8892fca) · #199 (pnt compare)</div>
 
+<!--
+**Use when:** "how does the simulation line up with reality?"
+
+**Say:** We set the models from measurements wherever we could: IMU from an overnight bench capture, LTE noise from 15 real captures. The table says honestly what's still a placeholder. The same comparison tool runs on sim and real: the sim's LTE error was white, 49 m; the real one is smooth, 21 m. The radio reports a σ 1.3–2× too big for the white noise and says nothing about the slow error, so the honest-bound filter carries that error as a state.
+-->
+
 ---
 class: topo-light
 ---
@@ -491,6 +618,12 @@ class: topo-light
 </div>
 
 <div class="foot">systems/results.md (b) · #170 (seeds 0–49) · #216 (timing pulse) · ADR-0024</div>
+
+<!--
+**Use when:** "what about timing?" (the challenge asks for position *and* timing)
+
+**Say:** Ten minutes after GPS loss, the mean time error is 0.44 µs; 49 of 50 runs are within 1.5 µs and the worst is 1.55. A GPS time drift of 50 ns/s is flagged in 3.3 s median. The stated 1σ clock bound covers the error 99.5 % of the time. On real hardware, the payload's clock follows the GPS timing pulse to 769 ns. Towers take their time from GPS, so they can contradict GPS time but never confirm it.
+-->
 
 ---
 class: topo-content
@@ -519,6 +652,12 @@ class: topo-content
 </div>
 
 <div class="foot">analysis/results/headline/summary.md (24aa5d1, seeds 0–49) · ADR-0038 (jump guard) · ADR-0046 · ADR-0020 (base station)</div>
+
+<!--
+**Use when:** "why that filter?" or "what are the trade-offs?"
+
+**Say:** 15 attacks, 50 runs each. The default follows a held jump: 17,042 hazardous moments. The guard turns those into unavailable ones, 14.9 → 19.1 % of the time. Our pick adds the honest bound: best accuracy of the payload filters and a bound that always covers the error. Solution separation is never wrong because it never answers. A ground base station helps outages but follows the spoofer without a guard, and it's sim only.
+-->
 
 ---
 class: topo-content
@@ -570,6 +709,12 @@ Advisory: it warns, it does not steer. No certification claim; we found no stand
 
 <div class="foot">systems/safety.md · systems/risks.md · ADR-0001 · ADR-0011 · ADR-0026 (authenticated links) · systems/roadmap.md (Certification)</div>
 
+<!--
+**Use when:** safety, regulation, privacy or cyber questions.
+
+**Say:** Receive-only: there's no transmit path, and spoofing and jamming exist only as software injection, so we never touch the spectrum. We decode only fields meant for everyone, never content (Radiocommunication Act s.9(2)). Wi-Fi identifiers are hashed at capture. The link is authenticated and encrypted. Flights are pilot-flown with a kill switch and a checklist. It's advisory: it warns, it doesn't steer.
+-->
+
 ---
 class: topo-content
 ---
@@ -612,6 +757,12 @@ Hours of tower data for fault rates; an on-board receiver; the warning output to
 
 <div class="foot">systems/roadmap.md (D3) · ADR-0013 (LEO in the roadmap) · hardware/bom.md</div>
 
+<!--
+**Use when:** "what's the product?", "is it feasible?" or "where does LEO fit?"
+
+**Say:** Three steps. Now: detection and an honest bound, on real hardware. Next: earn the accuracy with heading, velocity, carrier phase and flight tests. Product: earn the integrity case with hours of tower data for fault rates, an on-board receiver and the warning to the autopilot, with LEO (Iridium PNT) as one more source. We found no spoof detector on sale that checks GPS against cell towers. The risks are on the slide; we name them.
+-->
+
 ---
 class: topo-content
 ---
@@ -645,6 +796,12 @@ class: topo-content
 
 <div class="foot">systems/README.md · systems/results.md · systems/quality.md · AGENTS.md</div>
 
+<!--
+**Use when:** "how would we reproduce this?" or documentation questions.
+
+**Say:** D1 and D3 are in the repository with the requirements, risks, safety case and verification plan. 57 decision records, each with its options and trade-offs. Every result names its scenario or real session, its seeds and its commit, and one command regenerates every table and figure. 1,485 automated tests run before every merge.
+-->
+
 ---
 class: topo-light
 ---
@@ -667,6 +824,12 @@ class: topo-light
 
 <div class="foot">analysis/results/real-replay-256 · analysis/results/real-gps-cut-20261111 · results.md (a)</div>
 
+<!--
+**Use when:** "does it work on real data?"
+
+**Say:** Honestly, not for accuracy yet. On a real static session with GPS cut in software, every filter using towers ends hundreds of metres to kilometres off; without towers, standing still, it stays within metres. The cause is the radio's slow 8 m error, which it doesn't report. Our honest filter never under-states the error, but its bound is kilometres wide: honest, not yet usable. Moving captures, carrier phase and more towers close it.
+-->
+
 ---
 class: topo-light
 ---
@@ -683,6 +846,14 @@ class: topo-light
 </div>
 
 <div class="foot">hardware/bom.md · hardware/antennas.md · ADR-0057 (Bingfu antenna)</div>
+
+<!--
+**Use when:** "show us the hardware."
+
+**Say:** Raspberry Pi 4B with the LTE and ADS-B radios on USB, a GPS HAT with the timing pulse, an IMU and a barometer. The antenna's ground plane mattered more than the antenna itself: 25 dB.
+
+**Before the talk:** any slot still showing "Photo to add" → skip this slide.
+-->
 
 ---
 class: topo-light
@@ -705,3 +876,9 @@ class: topo-light
 </div>
 
 <div class="foot">analysis/results/final/summary.md (d66c929, seeds 0–49)</div>
+
+<!--
+**Use when:** "do the cell towers actually matter?" (the challenge says communication signals should be primary)
+
+**Say:** Paired runs, removing one source at a time. Without the LTE towers the error grows by nearly 2 km; without the barometer, by 78 m; without the IMU, nothing measurable. The communication signals carry the solution.
+-->
