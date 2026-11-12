@@ -166,6 +166,44 @@ Zero-velocity update when the IMU's 2 s variance is at its noise level (threshol
 | zupt | 478 / 478 | 74.18% | 1,245 | 0.47 | 364 / 364 | 72.18% | 2,403 | 0.38 |
 | no-lte | 1,258 / 2,729 | 0.00% | 0 | 4.18 | 1,258 / 2,729 | 0.00% | 0 | 4.18 |
 
+## Stationary hold with a relative trigger (round 3, commit `7076fc6`; tuning data)
+
+`hold<N>-v<limit>-k<k>`: arms at GNSS loss only if the GNSS fixes of the last N s (20, 30) moved no faster than the limit (0.3, 0.5 m/s; displacement of the mean of the first and last 5 s of fixes); while armed, a zero-velocity update (sigma 0.1 m/s, gated) each second as long as every IMU axis's 1 s standard deviation stays within k (2, 3) times its rest-window value and the mean specific-force magnitude within k rest standard deviations; the first exceedance disarms it until GNSS returns. Not armed, it changes nothing.
+
+Real `0040` (with LTE, and with LTE withheld, `@nolte`):
+
+| Row | 60 s | 120 s | 300 s | p95 0–300 s (worst cut) | Error > HPL | HPL 120 s | HPL 300 s | LTE after cut: accepted / unchecked / rejected | Speed after cut (m/s) |
+|---|---|---|---|---|---|---|---|---|---|
+| no-lte | 0.2 (0.6) | 0.4 (2.0) | 1.7 (3.2) | 3.1 | 0.0% (0 of 1,505) | 4,241 | 16,298 | – | 0.01 |
+| control | 73.0 (114) | 381 (849) | 1,229 (3,262) | 3,046 | 0.0% (0 of 1,505) | 3,177 | 9,443 | 7,502 / 122 / 2 | 4.61 |
+| hold30-v0.5-k2 | 1.0 (74.5) | 57.4 (1,335) | 1,033 (3,188) | 3,086 | 12.6% (189 of 1,505) | 1,412 | 6,770 | 21,515 / 122 / 126 | 4.25 |
+| hold30-v0.5-k3 | 1.0 (74.5) | 3.2 (1,335) | 2,757 (3,188) | 3,086 | 16.3% (245 of 1,505) | 207 | 2,349 | 43,536 / 122 / 315 | 1.62 |
+| hold20-v0.3-k2 | 1.0 (74.5) | 57.4 (1,335) | 1,033 (3,188) | 3,086 | 12.6% (189 of 1,505) | 1,412 | 6,770 | 21,515 / 122 / 126 | 4.25 |
+| hold30-v0.5-k2@nolte | 0.2 (1.3) | 1.3 (1.7) | 1.1 (1.6) | 1.7 | 0.0% (0 of 1,505) | 1,850 | 12,254 | – | 0.00 |
+| hold30-v0.5-k3@nolte | 0.2 (1.3) | 1.3 (1.7) | 1.1 (1.6) | 1.7 | 0.0% (0 of 1,505) | 208 | 8,474 | – | 0.00 |
+
+- N (20, 30 s) and the speed limit (0.3, 0.5 m/s) give identical results; it armed at every cut (and at the 99 s cut for the 0.3 m/s limit too, at this commit's fix-displacement test).
+- **It disarms on a receiver that does not move**, after 3 to 200 s: in one 1 s window one gyro axis's standard deviation reaches 3.9 to 4.6 times its rest value (cut 299: at +4 s; cut 99: at +204 s), with the accelerometer and the magnitude unchanged. A real MPU-6050 glitch the sim IMU does not have.
+- **With LTE the hold makes the bound dishonest**: 12.6 % (k = 2) and 16.3 % (k = 3) of withheld fixes above HPL, against 0 % for the control. The held velocity shrinks the covariance, LTE then pulls the position with a tight velocity, and after the disarm the error grows to 1–2.8 km at 300 s.
+- **With LTE withheld** the same hold gives 1.1 m (worst 1.6) at 300 s, 0 % above HPL and a 300 s HPL of 8.5–12 km (no LTE: 16 km). So on this session LTE, with the hold active, loosens nothing and tightens nothing usefully: it moves the position by kilometres and breaks the bound. LTE updates still used with the hold: 21,515 (k = 2) and 43,536 (k = 3) accepted after the cuts.
+
+Sim drone legs, seeds 100–109: **every hold arm never arms; each of the 20 runs per arm hashes identical to the control** (`tune-sim-hold.json`, per-run sha256 of every estimate). The 2 s-variance zero-velocity update (`zupt`) fires in flight (above). Sim static leg `challenge-timing-outage` (static throughout, so it shows arming, not disarming):
+
+| Row | challenge-timing-outage: worst-second p95 0–120 / 0–300 s (m) | challenge-timing-outage: above HPL | challenge-timing-outage: hazardous | challenge-timing-outage: tightness |
+|---|---|---|---|---|
+| ekf | 2,251 / 6,569 | 41.89% | 108 | 0.71 |
+| ekf-learned-noise | 414 / 1,156 | 0.00% | 0 | 8.54 |
+| control | 409 / 918 | 0.00% | 0 | 11.39 |
+| hold30-v0.5-k2 | 4.7 / 4.7 | 0.00% | 0 | 7.64 |
+| hold30-v0.5-k3 | 4.7 / 4.7 | 0.00% | 0 | 7.64 |
+| zupt | 1.2 / 2.2 | 0.00% | 0 | 13.75 |
+
+The disarm path (rest, then motion after the loss) exists in no committed scenario; it is covered only by `tests/test_ekf_field_options.py` with a synthetic IMU (disarms within 2 s of a walk starting, does not re-arm without GNSS; a platform moving at the loss never arms and is the control exactly). A walk-away cannot be injected into the real session: `pnt replay --inject` and the attack hooks change records but cannot add a truth-consistent IMU motion without fabricating it.
+
+### Rule re-applied with the hold (fixed rule, unchanged)
+
+Every hold arm with LTE fails (a) on real data (12.6–16.3 % above HPL). The `@nolte` rows are not LTE filters and not arms of this protocol (they are no LTE plus the hold). **Winner under the rule: still the control.** Held-out runs, fixed now before opening held-out data: the control; the labelled near-miss `cells4`; `hold30-v0.5-k2` with LTE (the hold arm with the lowest share above HPL on real; N and limit gave identical results, the longer window and looser limit kept) and the same with LTE withheld; no LTE; `main`'s `ekf`; `ekf-learned-noise`.
+
 ## Findings from the tuning data
 
 - **The consistency test passes every real cell.** Before each cut the real cells' normalised innovation RMS (1 Hz) is 0.09–0.29 over 30–120 s, the sim cells' 0.96–2.33: while GNSS steers, the tower clock and slow-error states absorb the real slow error, so the innovations look better than the model, not worse. Every threshold (2, 3, 4) and window gives the same result on `0040`; what the arm holds back is only cells first heard after the loss (no evidence). With threshold 2 some sim cells fail, none real. A test on innovations cannot see this error; it is not a finding about the sim's realism.
