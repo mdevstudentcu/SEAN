@@ -1,6 +1,6 @@
 # GPS cut on a moving session: `20261111-0151-static-fullsuite2` (#214)
 
-Evidence: **replay of a real session**, GPS cut in software (ADR-0015). Analysis at `0d52214`; LTE records: 20261111-0151-static-fullsuite2-lte (front end run by this script), front end at `0d52214`. 5 cuts (100, 150, 200, 250, 300 s after the first measurement; given with --cut-at), each scored for 300 s. The cuts share one recording: they are not independent draws, and the worst cut is not a 95th percentile.
+Evidence: **replay of a real session**, GPS cut in software (ADR-0015). Analysis at `21488c2`; LTE records: 20261111-0151-static-fullsuite2-lte (front end run by this script), front end at `21488c2`. 5 cuts (100, 150, 200, 250, 300 s after the first measurement; given with --cut-at), each scored for 300 s. The cuts share one recording: they are not independent draws, and the worst cut is not a 95th percentile.
 
 Truth: the withheld GPS fixes, linear between good fixes at most 2.5 s apart, at every estimate. Good fix: 3D fix, HDOP <= 2, >= 6 satellites used (TBC); 601 of 601 fixes (median HDOP 0.7, median satellites used 14.0). The truth carries the fixes' own error (metres), so smaller errors are truth noise. Moving: speed from the fixes >= 0.5 m/s (TBC); 0% of the session with truth. No position, track, origin, range or bearing is given here, only errors.
 
@@ -37,35 +37,35 @@ Lookup (`pnt.nav.cells`, `MAX_RANGE_KM` 10 km of the session origin, TBC): 4 mat
 
 | Config | Cut (s) | Moving share | 60 s | 120 s | 300 s | HPL ≥ error | Run time (s) |
 |---|---|---|---|---|---|---|---|
-| no LTE, ekf | 100 | 0% | 0.2 | 0.4 | 0.6 | 100% | 0.7 |
-| no LTE, ekf | 150 | 0% | 0.2 | 0.3 | 0.6 | 100% | 1.2 |
+| no LTE, ekf | 100 | 0% | 0.2 | 0.4 | 0.6 | 100% | 0.6 |
+| no LTE, ekf | 150 | 0% | 0.2 | 0.3 | 0.6 | 100% | 0.6 |
 | no LTE, ekf | 200 | 0% | 0.2 | 0.3 | 0.6 | 100% | 0.7 |
 | no LTE, ekf | 250 | 0% | 3.2 | 6.5 | 15.9 | 100% | 0.8 |
-| no LTE, ekf | 300 | 0% | 0.1 | 0.2 | 1.2 | 100% | 1.7 |
+| no LTE, ekf | 300 | 0% | 0.1 | 0.2 | 1.2 | 100% | 0.9 |
 | no LTE, ekf-imu | 100 | 0% | 0.2 | 0.4 | 0.6 | 100% | 1 |
-| no LTE, ekf-imu | 150 | 0% | 0.2 | 0.3 | 0.6 | 100% | 2.3 |
+| no LTE, ekf-imu | 150 | 0% | 0.2 | 0.3 | 0.6 | 100% | 1.1 |
 | no LTE, ekf-imu | 200 | 0% | 0.2 | 0.3 | 0.6 | 100% | 1.4 |
-| no LTE, ekf-imu | 250 | 0% | 3.2 | 6.5 | 15.9 | 100% | 1.7 |
-| no LTE, ekf-imu | 300 | 0% | 0.1 | 0.2 | 1.2 | 100% | 3.4 |
-| LTE, ekf | 100 | 0% | 249 | 946 | 1,123 | 47% | 3 |
-| LTE, ekf | 150 | 0% | 203 | 1,175 | 1,536 | 39% | 4.5 |
-| LTE, ekf | 200 | 0% | 137 | 323 | 595 | 93% | 5 |
-| LTE, ekf | 250 | 0% | 101 | 61.9 | 47.7 | 100% | 3.2 |
-| LTE, ekf | 300 | 0% | 97.1 | 88.4 | 216 | 100% | 5.7 |
-| LTE, ekf-imu | 100 | 0% | 249 | 946 | 1,123 | 47% | 3.4 |
-| LTE, ekf-imu | 150 | 0% | 203 | 1,175 | 1,536 | 39% | 5.9 |
-| LTE, ekf-imu | 200 | 0% | 137 | 323 | 595 | 93% | 3.6 |
-| LTE, ekf-imu | 250 | 0% | 101 | 61.9 | 47.7 | 100% | 7.7 |
-| LTE, ekf-imu | 300 | 0% | 97.1 | 88.4 | 216 | 100% | 5.9 |
-| LTE, B (ekf-measured-sigma) | 100 | 0% | 249 | 946 | 1,123 | 47% | 2 |
-| LTE, B (ekf-measured-sigma) | 150 | 0% | 203 | 1,175 | 1,536 | 39% | 2.2 |
-| LTE, B (ekf-measured-sigma) | 200 | 0% | 137 | 323 | 595 | 93% | 2.6 |
+| no LTE, ekf-imu | 250 | 0% | 3.2 | 6.5 | 15.9 | 100% | 1.6 |
+| no LTE, ekf-imu | 300 | 0% | 0.1 | 0.2 | 1.2 | 100% | 1.8 |
+| LTE, ekf | 100 | 0% | 249 | 946 | 1,123 | 47% | 2.1 |
+| LTE, ekf | 150 | 0% | 203 | 1,175 | 1,536 | 39% | 2.4 |
+| LTE, ekf | 200 | 0% | 137 | 323 | 595 | 93% | 2.6 |
+| LTE, ekf | 250 | 0% | 101 | 61.9 | 47.7 | 100% | 2.6 |
+| LTE, ekf | 300 | 0% | 97.1 | 88.4 | 216 | 100% | 3.1 |
+| LTE, ekf-imu | 100 | 0% | 249 | 946 | 1,123 | 47% | 2.5 |
+| LTE, ekf-imu | 150 | 0% | 203 | 1,175 | 1,536 | 39% | 3.1 |
+| LTE, ekf-imu | 200 | 0% | 137 | 323 | 595 | 93% | 3.4 |
+| LTE, ekf-imu | 250 | 0% | 101 | 61.9 | 47.7 | 100% | 3.9 |
+| LTE, ekf-imu | 300 | 0% | 97.1 | 88.4 | 216 | 100% | 4.2 |
+| LTE, B (ekf-measured-sigma) | 100 | 0% | 249 | 946 | 1,123 | 47% | 1.9 |
+| LTE, B (ekf-measured-sigma) | 150 | 0% | 203 | 1,175 | 1,536 | 39% | 2.4 |
+| LTE, B (ekf-measured-sigma) | 200 | 0% | 137 | 323 | 595 | 93% | 2.5 |
 | LTE, B (ekf-measured-sigma) | 250 | 0% | 101 | 61.9 | 47.7 | 100% | 2.9 |
-| LTE, B (ekf-measured-sigma) | 300 | 0% | 97.1 | 88.4 | 216 | 100% | 5.8 |
+| LTE, B (ekf-measured-sigma) | 300 | 0% | 97.1 | 88.4 | 216 | 100% | 2.9 |
 | LTE, ekf before ADR-0050 | 100 | 0% | 5,622 | 8,447 | 14,375 | 0% | 1.7 |
-| LTE, ekf before ADR-0050 | 150 | 0% | 7,972 | 10,242 | 17,247 | 0% | 2.3 |
-| LTE, ekf before ADR-0050 | 200 | 0% | 9,792 | 12,400 | 21,553 | 0% | 2.3 |
-| LTE, ekf before ADR-0050 | 250 | 0% | 11,872 | 13,128 | 25,487 | 0% | 2.6 |
+| LTE, ekf before ADR-0050 | 150 | 0% | 7,972 | 10,242 | 17,247 | 0% | 2 |
+| LTE, ekf before ADR-0050 | 200 | 0% | 9,792 | 12,400 | 21,553 | 0% | 2.2 |
+| LTE, ekf before ADR-0050 | 250 | 0% | 11,872 | 13,128 | 25,487 | 0% | 2.3 |
 | LTE, ekf before ADR-0050 | 300 | 0% | 12,712 | 15,520 | 29,463 | 0% | 2.5 |
 
-Wall time: 133 s.
+Wall time: 99 s.
