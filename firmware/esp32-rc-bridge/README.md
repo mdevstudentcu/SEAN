@@ -2,6 +2,8 @@
 
 > **[ADR-0029](../../systems/adr/0029-tethered-hover-wifi-control.md): tethered, low, indoor hover only.** Free flight needs a real RC link with a physical kill switch ([`safety.md`](../../systems/safety.md), ADR-0028).
 
+> **Retired 2026-11-11** (ADR-0029, *Amendment 2026-11-11 (owners)*). The drone now has a real RC link (FlySky FS-i6) and flies Betaflight 4.5.5 (ADR-0028, *Amendment 2026-11-11 (owners)*), not INAV. That Betaflight build has no CRSF receiver driver, so this bridge cannot fly it. To use the bridge again, flash a CRSF-enabled build and redo the bench test below against Betaflight's settings. This page was written for INAV, which was never flashed: the INAV settings below were never applied.
+
 ```
 gamepad ─USB─ laptop (`pnt rc`) ─UDP over the ESP32's own 2.4 GHz WPA2 AP─ ESP32 ─CRSF on UART2─ ATF435 (INAV)
 ```
@@ -55,7 +57,7 @@ CI doesn't build this folder yet (it needs a `.github/` change with owner sign-o
 - Which UART is free is `TBC`: the MTF-01 and the payload's MAVLink telemetry also need UARTs (the ATF435 has 6).
 - Keep the ESP32's antenna away from the payload's SDR antennas and the GPS antenna.
 
-## INAV setup (`TBC` against the installed INAV version)
+## INAV setup (written for INAV, never applied; `TBC` against the installed INAV version)
 
 Check each setting name with `get <name>` in the INAV CLI before relying on it, and record the INAV version here once it is known (`TBC`). UART numbers in the CLI start at 0, so `UARTn` is `serial n-1`.
 

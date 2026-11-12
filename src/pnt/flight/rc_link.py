@@ -1,8 +1,13 @@
 """Gamepad to ESP32 RC bridge over Wi-Fi (ADR-0029). Tethered indoor hover only.
 
+Retired 2026-11-11 (ADR-0029, *Amendment 2026-11-11 (owners)*): the drone has a real RC
+link now, and its Betaflight 4.5.5 build has no CRSF receiver driver, so the bridge needs a
+CRSF-enabled build before it is used again. This was written for INAV, which was never
+flashed.
+
 Reads a Linux gamepad (``/dev/input/js*``), turns it into stick, arm, kill and mode
 values, and sends them as authenticated UDP packets to the ESP32 RC bridge. The bridge
-turns them into CRSF frames for INAV.
+turns them into CRSF frames for the flight controller.
 
 The wire format and the bridge's own rules live in
 ``firmware/esp32-rc-bridge/lib/rc_bridge/rc_bridge.h``. This file must agree with it
@@ -15,7 +20,7 @@ Safety rules on this side (the bridge enforces its own as well):
 - **Boot is disarmed.** Arming needs both arm buttons pressed afresh and held for
   ``ARM_HOLD_S``, with the throttle stick at the bottom and a live link to the bridge.
 - **Silence means failsafe.** If the gamepad goes away, or the program stops, nothing
-  more is sent; the bridge then goes silent and INAV runs its failsafe (LAND).
+  more is sent; the bridge then goes silent and the flight controller runs its failsafe.
 """
 
 from __future__ import annotations
@@ -52,11 +57,11 @@ STATUS_LEN = STATUS_BODY.size + TAG_LEN
 FLAG_ARM = 0x01
 FLAG_KILL = 0x02
 
-# INAV's default `map AETR`, then AUX1 = arm, AUX2 = mode.
+# The default `map AETR` (INAV and Betaflight), then AUX1 = arm, AUX2 = mode.
 CH_ROLL, CH_PITCH, CH_THROTTLE, CH_YAW, CH_ARM, CH_MODE = range(6)
 US_LOW, US_MID, US_HIGH = 1000, 1500, 2000
 
-# AUX2 positions. Which INAV modes they select is set in INAV (README, `TBC`).
+# AUX2 positions. Which flight modes they select is set on the flight controller (README, `TBC`).
 MODE_ANGLE, MODE_ALTHOLD, MODE_POSHOLD = 1000, 1500, 2000
 MODE_NAMES = {MODE_ANGLE: "ANGLE", MODE_ALTHOLD: "ALTHOLD", MODE_POSHOLD: "POSHOLD"}
 
@@ -571,7 +576,7 @@ def run(args: argparse.Namespace, out=sys.stdout) -> int:
             try:
                 pad.poll()
             except OSError as e:
-                print(f"\ngamepad lost ({e}): sending stopped, INAV will fail safe", file=out)
+                print(f"\ngamepad lost ({e}): sending stopped, the FC will fail safe", file=out)
                 return 1
             if link is not None and link.receive(now):
                 ctl.disarm("bridge rebooted")
@@ -594,7 +599,7 @@ def run(args: argparse.Namespace, out=sys.stdout) -> int:
                 line = f"{link.describe(now)} | {describe_command(cmd)}{note}"
                 print(f"\r{line:<120s}", end="", file=out, flush=True)
     except KeyboardInterrupt:
-        print("\nstopped: sending stopped, INAV will fail safe (LAND)", file=out)
+        print("\nstopped: sending stopped, the flight controller will fail safe", file=out)
     finally:
         pad.close()
     return 0
