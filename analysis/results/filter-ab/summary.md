@@ -1,6 +1,6 @@
 # Filter A/B on real cuts and the sim drone leg (#286)
 
-Draft written **before the held-out data was opened**: the protocol, the selection rule and the tuning tables. Held-out results, stress rows and the bars are added below once run.
+The protocol, the selection rule, the tuning tables and the choice of held-out rows were committed before the held-out data was opened (`9d579c8`, `5ba9fc4`); the held-out results, the bars and the stress rows follow them.
 
 ## Protocol (fixed in advance)
 
@@ -182,7 +182,7 @@ Real `0040` (with LTE, and with LTE withheld, `@nolte`):
 | hold30-v0.5-k2@nolte | 0.2 (1.3) | 1.3 (1.7) | 1.1 (1.6) | 1.7 | 0.0% (0 of 1,505) | 1,850 | 12,254 | – | 0.00 |
 | hold30-v0.5-k3@nolte | 0.2 (1.3) | 1.3 (1.7) | 1.1 (1.6) | 1.7 | 0.0% (0 of 1,505) | 208 | 8,474 | – | 0.00 |
 
-- N (20, 30 s) and the speed limit (0.3, 0.5 m/s) give identical results; it armed at every cut (and at the 99 s cut for the 0.3 m/s limit too, at this commit's fix-displacement test).
+- N (20, 30 s) and the speed limit (0.3, 0.5 m/s) give identical results; it armed at every cut. (A first version took the rest speed from the filter's velocity; on the sim's static timing leg that wanders 0.3–1.8 m/s, so it never armed there. The committed version uses the fixes' displacement.)
 - **It disarms on a receiver that does not move**, after 3 to 200 s: in one 1 s window one gyro axis's standard deviation reaches 3.9 to 4.6 times its rest value (cut 299: at +4 s; cut 99: at +204 s), with the accelerometer and the magnitude unchanged. A real MPU-6050 glitch the sim IMU does not have.
 - **With LTE the hold makes the bound dishonest**: 12.6 % (k = 2) and 16.3 % (k = 3) of withheld fixes above HPL, against 0 % for the control. The held velocity shrinks the covariance, LTE then pulls the position with a tight velocity, and after the disarm the error grows to 1–2.8 km at 300 s.
 - **With LTE withheld** the same hold gives 1.1 m (worst 1.6) at 300 s, 0 % above HPL and a 300 s HPL of 8.5–12 km (no LTE: 16 km). So on this session LTE, with the hold active, loosens nothing and tightens nothing usefully: it moves the position by kilometres and breaks the bound. LTE updates still used with the hold: 21,515 (k = 2) and 43,536 (k = 3) accepted after the cuts.
@@ -208,3 +208,119 @@ Every hold arm with LTE fails (a) on real data (12.6–16.3 % above HPL). The `@
 
 - **The consistency test passes every real cell.** Before each cut the real cells' normalised innovation RMS (1 Hz) is 0.09–0.29 over 30–120 s, the sim cells' 0.96–2.33: while GNSS steers, the tower clock and slow-error states absorb the real slow error, so the innovations look better than the model, not worse. Every threshold (2, 3, 4) and window gives the same result on `0040`; what the arm holds back is only cells first heard after the loss (no evidence). With threshold 2 some sim cells fail, none real. A test on innovations cannot see this error; it is not a finding about the sim's realism.
 - **LTE held back cannot come back** without curvature inflation: once the position sigma has grown, the curvature check drops nearly every record (`cells4`: 0 LTE updates after any cut). Inflating instead lets it back in, and then the HPL stops holding on real data (18.4 % above HPL alone, 2.7 % with `cells3`).
+
+## Held-out evaluation (run once)
+
+**Real, session `20261111-1937-static-fullsuite3`** (replay, GPS cut in software at 99, 149, 199, 249, 299 s; 1,500 withheld fixes; commit `f8672d1`, clean; front end recorded in the session's meta as `fcafe6b`). The first held-out run (`5ba9fc4`) had no value at +300 s: the fix that stands for it is 2.6 ms past the 300 s horizon. The scorer was fixed to let the instants look up to 0.5 s past the horizon (`f8672d1`, test added; `0040`'s 200 per-run values are unchanged) and the same rows were run again on the same data. The filters, settings and rows did not change; only the 300 s column (and the 300 s HPL) was empty before.
+
+| Row | 60 s | 120 s | 300 s | p95 0–300 s (worst cut) | Error > HPL | HPL 120 s | HPL 300 s | LTE after cut: accepted / unchecked / rejected | Speed after cut (m/s) |
+|---|---|---|---|---|---|---|---|---|---|
+| no-lte | 0.8 (5.7) | 1.6 (9.6) | 6.9 (20.3) | 19.3 | 0.0% (0 of 1,500) | 4,406 | 16,556 | – | 0.03 |
+| ekf | 145 (344) | 255 (1,246) | 857 (1,569) | 2,586 | 26.9% (403 of 1,500) | 395 | 589 | 69,193 / 95 / 50 | 5.35 |
+| ekf-learned-noise | 145 (344) | 255 (1,247) | 865 (1,575) | 2,589 | 26.7% (401 of 1,500) | 396 | 591 | 69,193 / 95 / 50 | 5.38 |
+| control | 128 (227) | 150 (326) | 492 (705) | 696 | 0.0% (0 of 1,500) | 1,705 | 970 | 68,905 / 95 / 0 | 1.96 |
+| cells4 | 2.8 (369) | 47.2 (1,078) | 422 (4,416) | 3,971 | 1.0% (15 of 1,500) | 1,831 | 4,303 | 34,538 / 66 / 0 | 1.49 |
+| hold30-v0.5-k2 | 1.4 (2.4) | 1.5 (3.7) | 101 (298) | 277 | 0.0% (0 of 1,500) | 57.3 | 838 | 69,243 / 95 / 0 | 0.00 |
+| hold30-v0.5-k2@nolte | 1.9 (2.3) | 2.0 (3.9) | 1.2 (4.2) | 4.2 | 0.0% (0 of 1,500) | 58.2 | 3,220 | – | 0.00 |
+
+![Error after the cut against the withheld GPS fix, median of five cut times, held-out real session 1937 (replay); the 50 m line; relative metres only](heldout-1937-error.png)
+
+Control per cut (300 s error, m): 339, 231, 705, 524, 492; 0 of 300 withheld fixes above HPL at every cut; median speed after the cut 1.6–2.9 m/s.
+
+**Sim, seeds 0–49** (sim, every value `TBC`; `analysis/filter_ab.py sim --seeds 0-49 --arms control cells4 hold30-v0.5-k2 --jobs 8` at `e37ab24`, clean, on the Linux box; the same rows on the Mac at `f8672d1` gave identical tables; per-run estimate hashes differ between the two machines, Python 3.12 against 3.14):
+
+| Row | 1c: worst-second p95 0–120 / 0–300 s (m) | 1c: above HPL | 1c: hazardous | 1c: tightness | 13c: worst-second p95 0–120 / 0–300 s (m) | 13c: above HPL | 13c: hazardous | 13c: tightness |
+|---|---|---|---|---|---|---|---|---|
+| ekf | 3,268 / 12,507 | 35.43% | 285 | 1.12 | 3,628 / 11,894 | 48.58% | 1,072 | 0.30 |
+| ekf-learned-noise | 813 / 2,474 | 4.34% | 0 | 0.98 | 132 / 132 | 0.13% | 0 | 1.75 |
+| control | 705 / 2,249 | 1.39% | 0 | 1.91 | 129 / 129 | 0.38% | 0 | 1.70 |
+| cells4 | 1,330 / 3,149 | 0.53% | 0 | 2.89 | 136 / 148 | 1.91% | 0 | 1.54 |
+| hold30-v0.5-k2 | 705 / 2,249 | 1.39% | 0 | 1.91 | 129 / 129 | 0.38% | 0 | 1.70 |
+| no-lte | 1,329 / 2,909 | 0.00% | 0 | 3.92 | 1,329 / 2,909 | 0.00% | 0 | 3.92 |
+
+`hold30-v0.5-k2`: every one of the 100 held-out sim runs hashes identical to the control (never armed). On `1937` it armed at all five cuts and disarmed at four of them (148–330 zero-velocity updates per cut).
+
+### Bars, one by one (winner under the rule: the control, `ekf-honest`)
+
+| Bar | Value | Met |
+|---|---|---|
+| Real `1937`: within 10 m of no LTE at 300 s (median over cuts) | 492 m against 6.9 m | **no, missed by 485 m** |
+| Real `1937`: HPL ≥ error on ≥ 99 % of withheld fixes | 100 % (0 of 1,500 above) | yes |
+| Real `1937`: median HPL at 300 s smaller than no LTE's | 970 m against 16,556 m | yes |
+| Sim 0–49: worst-second p95 no more than 5 % worse than `ekf-honest`, both legs | it is `ekf-honest` (705 / 2,249 m; 129 / 129 m) | yes, by definition |
+| Sim 0–49: 0 hazardous epochs | 0 and 0 | yes |
+| Sim 0–49: share above HPL at or below `ekf-honest`'s | 1.39 % and 0.38 % (equal) | yes, by definition |
+| Defaults byte-identical (estimators registered on `main`) | 132 of 132 against this branch's base `10d25b4`; see *Hashes* | yes against the base; against today's `main` see below |
+
+The labelled near-miss `cells4` (does not pass the rule) on the same bars: real 422 m at 300 s (worst cut 4,416 m), missed by 415 m; 99.0 % of fixes at or under HPL (15 of 1,500 above), met at the limit; HPL at 300 s 4,303 m, met; sim worst-second p95 +89 % / +40 % (1 carrier) and +5.4 % / +14.7 % (13 carriers), missed; 0 hazardous, met; above HPL 0.53 % (1 carrier, met) and 1.91 % against 0.38 % (13 carriers, missed).
+
+Control + stationary hold (does not pass the rule; a stationary-only aid):
+- **At rest at GPS loss (real `1937`):** 101 m at 300 s (worst cut 298 m), 0 % above HPL, HPL 838 m at 300 s; 69,243 LTE updates still accepted after the cuts. **With LTE withheld:** 1.2 m (worst 4.2 m), 0 %, HPL 3,220 m. On this session LTE tightens the 300 s bound (838 against 3,220 m) and costs about 100 m of error; on `0040` (tuning) it broke the bound (12.6 % above HPL). The static result is the hold, not tower navigation.
+- **In motion (sim only):** identical to the control: never armed, 100 of 100 held-out runs and 20 of 20 tuning runs per arm hash identical.
+
+## Stress rows (winner, the control; reported, not used to choose)
+
+Real, each session's five cuts, error median (worst), m:
+
+| Session | Case | 120 s | 300 s | Error > HPL | HPL 300 s | LTE accepted after cut |
+|---|---|---|---|---|---|---|
+| `1937` | as recorded | 150 (326) | 492 (705) | 0.0 % | 970 | 68,905 |
+| `1937` | two strongest cells only | 427 (922) | 1,322 (2,005) | **1.2 %** (18 of 1,500) | 14,444 | 9,793 |
+| `1937` | retold sigma × 0.5 | 225 (624) | 661 (768) | **15.7 %** | 471 | 69,115 |
+| `1937` | retold sigma × 2 | 340 (646) | 677 (1,514) | 0.0 % | 5,224 | 55,974 |
+| `0040` | as recorded | 381 (849) | 1,229 (3,262) | 0.0 % | 9,443 | 7,502 |
+| `0040` | two strongest cells only | 520 (680) | 1,385 (3,075) | 0.0 % | 11,196 | 6,824 |
+| `0040` | retold sigma × 0.5 | 496 (1,371) | 2,118 (2,986) | **13.5 %** | 7,791 | 14,227 |
+| `0040` | retold sigma × 2 | 327 (864) | 1,466 (3,038) | 0.0 % | 8,636 | 14,692 |
+
+Each cut separately: the per-cut lines above (`1937`) and `tune-real-0040.json` (`0040`: 953, 1,282, 1,229, 164, 3,262 m at 300 s; 0 above HPL at every cut).
+
+Sim, seeds 0–49, `ac3d5ab` (clean, Linux box):
+
+| Entry | Row | Worst-second p95 0–120 / 0–300 s (m) | Above HPL | Hazardous | Notes |
+|---|---|---|---|---|---|
+| `challenge-drone-spoof-jump` (held 300 m jump; window from the jump) | control | 326 / 326 | 86.1 % | 129,571 | on the spoofed position at +120 s in 50 of 50 runs: follows the jump |
+| | control + jump guard (`ekf-honest-guard`) | 1,227 / 3,199 | 0.41 % | 0 | refuses the jump; on the spoofed position at +120 s in 8 of 50 runs while coasting with GNSS excluded (as #247 saw on seed 105) |
+| | `ekf-guard` | 3,790 / 11,310 | 37.1 % | 131 | 0 of 50 on the spoofed position |
+| `challenge-drone-nominal` | control | — | 0.00 % | 0 | 0.0 false alarms per hour (also `ekf`, `ekf-learned-noise`) |
+| `challenge-drone-outage-tower-clock-step` | control | 705 / 2,200 | 3.50 % (worst run 44.5 %) | 0 | `ekf` 35.7 % and 279 hazardous; `ekf-learned-noise` 11.3 % |
+
+## Hashes (defaults unchanged)
+
+`analysis/filter_ab.py hashes`: sha256 of every field of every estimate, `challenge-drone-outage`, `challenge-drone-spoof-jump`, `realistic-long-outage`, seeds 0 and 1, on the Linux box.
+- This branch at `e37ab24` (its last code commit) against its base `10d25b4`: **132 of 132 identical** (the 18 estimators registered on `main` and `ekf-learned-noise`, `ekf-calibrated-learned-noise`, `ekf-honest`, `ekf-honest-guard`).
+- Against today's `origin/main` `8f992ed`: 59 of 108 identical. `main`'s merge-base with this branch, `3493cfb`, equals this branch on all 108 and equals `8f992ed` on the same 59: every difference comes from `main`'s 21 commits since, whose only change under `src/pnt/nav` is ADR-0045's GNSS-height fallback (`ekf.py`). The branch could not be rebased onto `8f992ed` (the first #156 commit conflicts with ADR-0045 in `ekf.py`), so the base was kept.
+
+## What a presenter can say (true on the held-out data)
+
+"On a real stationary session we never tuned on, with GPS cut in software, our honest tower filter's protection level covered the true error at every one of 1,500 checked fixes and was about 17 times tighter than coasting without towers at five minutes (about 1 km against 17 km). Its position, though, drifted to about 500 m, while coasting without towers stayed at about 7 m (median over five cuts) because the receiver did not move, so towers do not yet improve position on real data."
+
+## Not checked
+
+- Sessions `0151` and `0233` (with the other owner); any moving real session.
+- A real walk-away after GPS loss (no session has one; the hold's disarm path is covered by a synthetic-IMU unit test only); the cause of the MPU-6050 gyro glitch that disarms the hold on a still receiver.
+- Held-out sim stress beyond the three entries above; the stress rows on 13 carriers; the hop leg's jump.
+- The full `just qa` (no `just` here): lint, format and the full pytest were run through `.venv` instead; no sim or plot smoke from `just`.
+
+## Commands
+
+```bash
+S=data/sessions   # git-ignored; paths passed as arguments
+python analysis/filter_ab.py real $S/20261111-0040-static-fullsuite-lte --arms single stationary --jobs 4 --out analysis/results/runs/filter-ab/tune-real-0040.json
+python analysis/filter_ab.py sim --seeds 100-109 --arms single stationary --jobs 4 --out analysis/results/runs/filter-ab/tune-sim.json
+python analysis/filter_ab.py real $S/20261111-0040-static-fullsuite-lte --arms control cells3 combos --no-refs --jobs 4 --out analysis/results/runs/filter-ab/tune-real-0040-combos.json
+python analysis/filter_ab.py sim --seeds 100-109 --arms control cells3 combos --no-refs --jobs 4 --out analysis/results/runs/filter-ab/tune-sim-combos.json
+python analysis/filter_ab.py real $S/20261111-0040-static-fullsuite-lte --arms control stationary hold30-v0.5-k2@nolte hold30-v0.5-k3@nolte --jobs 4 --out analysis/results/runs/filter-ab/tune-real-0040-hold.json
+python analysis/filter_ab.py sim --seeds 100-109 --arms control stationary --no-refs --jobs 4 --out analysis/results/runs/filter-ab/tune-sim-hold.json
+python analysis/filter_ab.py sim --legs challenge-timing-outage --seeds 100-109 --arms control hold30-v0.5-k2 hold30-v0.5-k3 zupt --jobs 4 --out analysis/results/runs/filter-ab/tune-sim-timing-hold.json
+# held out, once
+python analysis/filter_ab.py real $S/20261111-1937-static-fullsuite3-lte --arms control cells4 hold30-v0.5-k2 hold30-v0.5-k2@nolte --jobs 4 --out analysis/results/runs/filter-ab/heldout-real-1937.json
+python analysis/filter_ab.py sim --seeds 0-49 --arms control cells4 hold30-v0.5-k2 --jobs 8 --out ../ab286-out/heldout-sim.json
+python analysis/filter_ab.py figure analysis/results/runs/filter-ab/heldout-real-1937.json --rows no-lte ekf control cells4 hold30-v0.5-k2 --frontend fcafe6b --out analysis/results/filter-ab/heldout-1937-error.png
+# stress
+python analysis/filter_ab.py real $S/<session>-lte --arms control --stress '{"cells": 2}' --out ...   # and {"sigma_scale": 0.5}, {"sigma_scale": 2.0}
+python analysis/filter_ab.py sim --legs challenge-drone-spoof-jump --seeds 0-49 --arms control control-guard ekf-guard --no-refs --jobs 8 --out ...
+python analysis/filter_ab.py sim --legs challenge-drone-nominal --seeds 0-49 --arms control --jobs 8 --out ...
+python analysis/filter_ab.py sim --legs challenge-drone-outage-tower-clock-step --seeds 0-49 --arms control --jobs 8 --out ...
+python analysis/filter_ab.py hashes --out <json>    # with PYTHONPATH at each tree's src
+```
