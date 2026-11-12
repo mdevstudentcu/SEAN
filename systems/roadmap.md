@@ -1,4 +1,6 @@
-# D3: Roadmap to a commercial alternative-navigation product
+# D3: SEAN roadmap to a commercial alternative-navigation product
+
+**SEAN**: **S**ignals-of-opportunity, **E**rror-bounded, **A**ssured **N**avigation.
 
 **The product (proposed, #273):** a receive-only GPS trust monitor for small drones. It checks GPS against cell towers and other signals it only listens to, and warns the autopilot when GPS should not be trusted. Underneath is the navigation layer we built: a position from cell towers after GPS is lost, with a bound, that tells the operator when not to trust it. Every number of ours here is in [`results.md`](results.md) with its kind (simulated or real) and source.
 

@@ -1,4 +1,6 @@
-# D1: Architecture
+# D1: SEAN architecture
+
+**SEAN**: **S**ignals-of-opportunity, **E**rror-bounded, **A**ssured **N**avigation.
 
 **In one line:** a receive-only navigation layer that keeps a position from cell towers after GPS is lost, and tells the operator when not to trust it. Written for engineers who build navigation products; every number is in [`results.md`](results.md) with its kind (simulated or real) and source.
 
