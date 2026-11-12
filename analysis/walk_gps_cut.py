@@ -62,7 +62,10 @@ SESSIONS = REPO / "data" / "sessions"
 HORIZON_S = 300.0  # s scored after each cut (T1's 300 s, ADR-0034)
 AT_S = (60.0, 120.0, 300.0)  # s after the cut: errors reported at these instants
 PRE_S = 60.0  # s of good GPS needed just before a cut
-WALK_BEFORE_S = 120.0  # TBC: s of walking before a cut (the sim walk's IMU aligned 114 s in)
+# TBC: s before a cut that must be walking. #295 proposed 60 (was 120, asked because the sim
+# walk's IMU aligned 114 s in; with #295's ADR-0053 the real walk's IMU never aligns, so it buys
+# nothing there). On 20261111-1806-walk-lte: 3 cuts at 120 s and 0.8, 9 at 60 s and 0.6.
+WALK_BEFORE_S = 60.0
 SETTLE_S = 30.0  # s of start-up left out of the before-cut statistics
 HDOP_MAX = 2.0  # TBC: a good fix's HDOP
 MIN_SATS = 6  # TBC: satellites used in a good fix
@@ -71,7 +74,7 @@ SKY_AGE_S = 5.0  # s: a SKY report older than this says nothing about a fix
 MAX_GAP_S = 2.5  # s: truth only between good fixes at most this far apart (1 Hz fixes, TBC)
 SPEED_BASE_S = 10.0  # s: speed from the fixes this far apart (centred)
 MOVING_MPS = 0.5  # TBC: walking is 1 to 1.5 m/s; a static fix wanders far slower
-MIN_MOVING = 0.8  # TBC: share of the scored window the receiver must be moving
+MIN_MOVING = 0.6  # TBC (#295; was 0.8): share of each window the receiver must be moving
 MIN_SPACING_S = 60.0  # s between automatic cuts
 N_CUTS = 5
 AT_TOL_NS = 50_000_000  # an estimate within 50 ms of cut + s is the one at s
@@ -721,6 +724,7 @@ def main(argv=None) -> None:
             "max_gap_s": MAX_GAP_S,
             "moving_mps": MOVING_MPS,
             "min_moving": MIN_MOVING,
+            "walk_before_s": WALK_BEFORE_S,
             "pre_s": PRE_S,
         },  # fmt: skip
         "motion": {},
