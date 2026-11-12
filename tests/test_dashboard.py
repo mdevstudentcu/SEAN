@@ -681,3 +681,19 @@ def test_page_keeps_the_runbook_cues_and_shows_the_gps_trust():
     # true error called out when it is outside the bound: the page must keep both
     assert 'id="guard"' in page and "jump guard" in js
     assert 'id="err-check"' in page and "OUTSIDE THE BOUND" in js
+
+
+def test_panel_font_is_bundled_with_its_licence_and_nothing_loads_from_the_network():
+    """The demo runs offline: every font face the panel names is a file in the package, with its
+    licence beside it, and no page asset points at another host."""
+    web = SRC / "dashboard" / "web"
+    css = (web / "style.css").read_text()
+    faces = re.findall(r'@font-face\s*{[^}]*url\("([^"]+)"\)', css)
+    assert faces, "no bundled font face"
+    for rel in faces:
+        assert (web / rel).is_file(), rel
+    assert (web / "fonts" / "IBMPlexSans-OFL.txt").read_text().count("SIL Open Font License") >= 1
+    assert '"IBM Plex Sans"' in (web / "app.js").read_text()  # the charts draw with it too
+    for name in ("index.html", "style.css", "app.js"):
+        text = (web / name).read_text()
+        assert not re.search(r"""(?:src|href|url)\s*[=(]\s*["']?(?:https?:)?//""", text), name
