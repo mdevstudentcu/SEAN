@@ -347,6 +347,15 @@ class EKF:
         noise_tau_s: float | None = None,  # s: memory of a radio's learned range noise; None: off
         range_sigma_floor_m: float = 0.0,  # m: least range sigma of a radio's record; 0: off (TBC)
         noise_prior_m: float = 40.0,  # m: a radio cell's range sigma before learning (TBC)
+        # Field options for a radio's LTE records (#286; each off by default, module docstring)
+        noise_freeze_gnss: bool = False,  # learned noise not updated while GNSS is trusted
+        lte_min_cells: int = 0,  # radio cells heard in `lte_cells_window_s` to use one; 0: off
+        lte_cells_window_s: float = 1.0,  # s: window that counts the cells heard
+        lte_max_hdop: float | None = None,  # largest horizontal DOP of those cells; None: off
+        lte_gate_mode: str = "skip",  # below the cell/HDOP limit: "skip" or "clock" (no position)
+        lte_huber_k: float = 0.0,  # normalised innovation above which R grows (Huber); 0: off
+        common_step_s: float = 0.0,  # s: new arcs this close share one bias (timing step); 0: off
+        zupt_sigma_mps: float = 0.0,  # m/s: zero-velocity update when the IMU is still; 0: off
     ):
         if clock_model not in CLOCK_MODELS:
             raise ValueError(f"clock_model must be one of {CLOCK_MODELS}, not {clock_model!r}")
@@ -461,6 +470,23 @@ class EKF:
         self._curvature = 0.0  # the curvature part of the last pseudorange's R
         self._noise: dict[str, list[float]] = {}  # emitter -> [last t, weight, weighted sum]
         self._mp_var = 0.0  # the multipath state's variance before the last update
+        # Field options (#286): see the module docstring
+        if lte_gate_mode not in LTE_GATE_MODES:
+            raise ValueError(f"lte_gate_mode must be one of {LTE_GATE_MODES}")
+        self.noise_freeze_gnss = noise_freeze_gnss
+        self.lte_min_cells, self.lte_max_hdop = lte_min_cells, lte_max_hdop
+        self.lte_cells_window_ns = int(lte_cells_window_s * 1e9)
+        self.lte_gate_mode = lte_gate_mode
+        self.lte_huber_k = lte_huber_k
+        self.common_step_ns = int(common_step_s * 1e9)
+        self.zupt_sigma = zupt_sigma_mps
+        self._heard: dict[str, tuple[int, np.ndarray]] = {}  # radio cell -> (last t, its ENU)
+        self._new_arcs: list[tuple[int, int, str]] = []  # (t, arc state, cell) of new arcs
+        self._shared_arcs: set[int] = set()  # arc states two or more cells share
+        self._still: deque[tuple[int, np.ndarray]] = deque()  # IMU samples for the ZUPT test
+        self._zupt_last = -(10**18)
+        self.geometry_held = 0  # radio records held back by the cell/HDOP limit
+        self.zupts = 0  # zero-velocity updates made
 
     # --- state ---------------------------------------------------------------------------
     def _init(self, m: Measurement) -> None:
@@ -604,14 +630,23 @@ class EKF:
             return None, False
         if rec[0] == arc:
             return rec[1], False
+        if self.common_step_ns:  # another cell's new arc just now: one timing step, one bias
+            self._new_arcs = [a for a in self._new_arcs if m.t_ns - a[0] <= self.common_step_ns]
+            shared = next((a for a in self._new_arcs if a[2] != m.emitter), None)
+            if shared is not None:
+                rec[:] = [arc, shared[1], m.t_ns]
+                self._shared_arcs.add(shared[1])
+                return shared[1], False  # gated: the step is already in the shared state
         i = rec[1]
-        if i is None:
+        if i is None or i in self._shared_arcs:
             i = self._append_states([residual], [self.init_emitter_sigma])
         else:  # reuse the cell's arc state: a new, independent bias
             self.x[i] = residual
             self.P[i, :] = self.P[:, i] = 0.0
             self.P[i, i] = self.init_emitter_sigma**2
         rec[:] = [arc, i, m.t_ns]
+        if self.common_step_ns:
+            self._new_arcs.append((m.t_ns, i, m.emitter))
         return i, True
 
     def arc_settling(self, m: Measurement) -> bool:
@@ -880,6 +915,8 @@ class EKF:
         if m.kind == "accel_gyro":  # IMU samples drive the prediction, never an update
             if self.imu is not None:
                 self.imu.add(self, m)
+            if self.zupt_sigma and self.x is not None:
+                self._zupt(m)  # except a zero-velocity update when the IMU is still (#286)
             return
         if self.x is None:
             if m.kind == "position_enu":
@@ -969,6 +1006,31 @@ class EKF:
         for i, var in reset:
             P[i, :] = P[:, i] = 0.0
             P[i, i] = var
+
+    def _zupt(self, m: Measurement) -> None:
+        """Zero-velocity update (#286, opt-in `zupt_sigma_mps`): when over the last
+        ZUPT_WINDOW_S the IMU's specific force and rate vary no more than its noise (each axis's
+        standard deviation under ZUPT_ACCEL_STD and ZUPT_GYRO_STD), the velocity is told zero
+        with sigma `zupt_sigma_mps`, at most once a second. Gated like any update, so a filter
+        whose velocity is known to be far from zero refuses it. Only a receiver that stops can
+        use it; a smooth flight's IMU can pass the same test (PR evidence, #286)."""
+        self._still.append((m.t_ns, np.asarray(m.value[:6], float)))
+        while self._still[0][0] < m.t_ns - ZUPT_WINDOW_NS:
+            self._still.popleft()
+        span = m.t_ns - self._still[0][0]
+        if span < 0.9 * ZUPT_WINDOW_NS or m.t_ns - self._zupt_last < 1_000_000_000:
+            return
+        s = np.std([v for _, v in self._still], axis=0)
+        if s[:3].max() > ZUPT_ACCEL_STD or s[3:].max() > ZUPT_GYRO_STD:
+            return
+        self.predict(m.t_ns)
+        H = _row(self, 3)
+        H[:, VEL] = np.eye(3)
+        R = np.eye(3) * self.zupt_sigma**2
+        self._zupt_last = m.t_ns
+        if self._update("zupt", m.t_ns, -self.x[VEL], H, R):
+            self.zupts += 1
+            del self.last_used["zupt"]  # a constraint, not a source: no trust or health entry
 
     def _coverage_bound(self, m: Measurement) -> None:
         """A heard cell bounds where we are: within `heard_cell_radius_m` of its site,
@@ -1183,12 +1245,16 @@ class EKF:
         memory `noise_tau_s`, each sample weighted by its precision relative to a pure noise
         sample. Skipped when the state part exceeds the variance learned so far; without trusted
         GNSS, kept only if it does not lower the variance (module docstring)."""
+        if self.noise_freeze_gnss and self.gnss_trusted():
+            return  # #286: tower clocks can absorb the slow error while GNSS steers
         y, S, _ = self._last_innov
         before = self.range_variance(m)
         state = float(S[0, 0]) - R - self._mp_var
         if state > before:
             return  # mostly state error: weak evidence about the noise
         excess = float(y[0]) ** 2 - state - self._curvature
+        if self._slow_fixed():
+            excess -= self._mp_var  # the slow state is sized apart: learn the white part only
         acc = self._noise.setdefault(m.emitter, [m.t_ns, 0.0, 0.0])
         old = list(acc)
         decay = np.exp(-(m.t_ns - acc[0]) / self.noise_tau_ns)
@@ -1210,6 +1276,43 @@ class EKF:
             s2 += float(perp @ self.P[told_pos : told_pos + 2, told_pos : told_pos + 2] @ perp)
         return s2**2 / (2.0 * r**2)
 
+    def geometry_hold(self, m: Measurement, e: np.ndarray) -> str | None:
+        """#286 (opt-in `lte_min_cells`, `lte_max_hdop`): None to use a radio's record as usual,
+        else `lte_gate_mode` ("skip" it, or use it for "clock" and bias states only). Held when
+        fewer than `lte_min_cells` radio cells were heard in the last `lte_cells_window_s`, or
+        their horizontal DOP (lines of sight from the estimate, one clock unknown, as
+        `analysis/real_replay_diagnose.py`) exceeds `lte_max_hdop`: a 2-D fix from those ranges
+        with our clock unknown needs 3 cells, and with fewer the slow range error goes into the
+        position and velocity instead."""
+        if not (self.lte_min_cells or self.lte_max_hdop) or "rx_clock" not in m.meta:
+            return None
+        self._heard[m.emitter] = (m.t_ns, e)
+        for k in [k for k, (t, _) in self._heard.items() if m.t_ns - t > self.lte_cells_window_ns]:
+            del self._heard[k]
+        need = max(self.lte_min_cells, 3 if self.lte_max_hdop else 0)
+        ok = len(self._heard) >= need
+        if ok and self.lte_max_hdop:
+            G = []
+            for _, p in self._heard.values():
+                d = self.x[:2] - p[:2]
+                G.append([*(d / max(float(np.hypot(*d)), 1e-9)), 1.0])
+            G = np.array(G)
+            try:
+                Q = np.linalg.inv(G.T @ G)
+                ok = bool(np.sqrt(Q[0, 0] + Q[1, 1]) <= self.lte_max_hdop)
+            except np.linalg.LinAlgError:
+                ok = False
+        if ok:
+            return None
+        self.geometry_held += 1
+        return self.lte_gate_mode
+
+    def _slow_fixed(self) -> bool:
+        """The slow state sized in metres (`multipath_sigma_m`, no ratio) with learned noise on:
+        the learner then sizes the white part alone (#286). Before #286 this pairing set the
+        state's sigma to zero; no registered estimator used it."""
+        return bool(self.noise_tau_ns) and self.multipath_sigma_m > 0 and not self.multipath_ratio
+
     def range_noise(self, m: Measurement, mp: int | None) -> float:
         """R of this pseudorange. For a radio's record with a multipath state `mp`, the variance
         is split between the two in the model's ratio, and the state's steady-state sigma is set
@@ -1219,6 +1322,9 @@ class EKF:
             return m.sigma[0] ** 2  # both off (the default): the reported sigma, as before
         total = self.range_variance(m)
         if mp is None or "rx_clock" not in m.meta:
+            return total
+        if self._slow_fixed():  # #286: the state keeps `multipath_sigma_m`; R is the white part
+            self._mp_var = float(self.P[mp, mp])
             return total
         k = self.multipath_ratio**2 / (1.0 + self.multipath_ratio**2)
         self.multipath_sigma[mp] = max(self.multipath_ratio * m.sigma[0], np.sqrt(k * total))
@@ -1339,6 +1445,9 @@ def _pseudorange(ekf: EKF, m: Measurement):
     e = ekf._emitter(m)
     if e is None:
         return None
+    held = ekf.geometry_hold(m, e)  # #286: too few cells or poor geometry for position
+    if held == "skip":
+        return None
     d = ekf.x[POS] - e
     r = float(np.linalg.norm(d))
     u = d / r  # line of sight, tower to receiver
@@ -1376,14 +1485,32 @@ def _pseudorange(ekf: EKF, m: Measurement):
     if ekf.arc_settling(m):
         R = R * ARC_SETTLE_FACTOR**2
     ekf._curvature = 0.0
-    if "rx_clock" in m.meta and ekf.noise_tau_ns:
+    if held == "clock":  # #286: clocks and biases only; the position's part is noise to them
+        R += float(H[0, POS] @ ekf.P[POS, POS] @ H[0, POS])
+        H[0, POS] = 0.0
+    elif "rx_clock" in m.meta and ekf.noise_tau_ns:
         ekf._curvature = ekf.range_curvature(u, r, None if pos is None else pos[0])
         if not (new or new_arc) and ekf._curvature > ekf.range_variance(m):
             return None  # not linear enough to use: the second-order term exceeds the noise
-    return y, H, np.array([[R + ekf._curvature]]), not (new or new_arc)
+    R += ekf._curvature
+    gate = not (new or new_arc)
+    if ekf.lte_huber_k and gate and "rx_clock" in m.meta:  # #286: Huber weight, not reject
+        S = float(H[0] @ ekf.P @ H[0]) + R
+        nu = abs(y) / np.sqrt(S)
+        if nu > ekf.lte_huber_k:
+            R += S * (nu / ekf.lte_huber_k - 1.0)  # S grows to S nu / k: weight k / nu
+    return y, H, np.array([[R]]), gate
 
 
 ARC_SETTLE_FACTOR = 10.0  # TBC: sigma scale in a new arc's first `arc_settle_s` (ADR-0050)
+LTE_GATE_MODES = ("skip", "clock")  # what `geometry_hold` does with a held record (#286)
+# Zero-velocity test (#286, opt-in `zupt_sigma_mps`): each IMU axis's standard deviation over
+# the window under these. Set just above the 95th percentile of 2 s windows on the static tuning
+# session 20261111-0040 (0.022 m/s^2, 0.00088 rad/s; TBC). The sim drone's IMU passes the same
+# test on part of its flight, so the update is gated (PR evidence, #286).
+ZUPT_WINDOW_NS = 2_000_000_000
+ZUPT_ACCEL_STD = 0.025  # m/s^2 (TBC)
+ZUPT_GYRO_STD = 0.0012  # rad/s (TBC)
 
 
 def _doppler(ekf: EKF, m: Measurement):
