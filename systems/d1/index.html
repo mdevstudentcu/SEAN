@@ -20,7 +20,7 @@
 }
 @page { size: Letter; margin: 16mm 17mm 16mm 17mm;
   @top-left { content: "SEAN · D1 Engineering Architecture"; font: 7.5pt "Red Hat Mono", monospace; color: #8a96a3; }
-  @top-right { content: "Team 12 · Rev 1.0 · 2026-11-12"; font: 7.5pt "Red Hat Mono", monospace; color: #8a96a3; }
+  @top-right { content: "Team 12 · Rev 1.1 · 2026-11-12"; font: 7.5pt "Red Hat Mono", monospace; color: #8a96a3; }
   @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 7.5pt "Red Hat Mono", monospace; color: #8a96a3; } }
 @page :first { @top-left { content: none; } @top-right { content: none; } @bottom-right { content: none; } }
 
@@ -30,9 +30,11 @@ body { margin: 0; font-family: var(--body); font-size: 9.2pt; line-height: 1.45;
 
 .title { height: 245mm; display: flex; flex-direction: column; break-after: page; }
 .title .prog { font-family: var(--mono); font-size: 8pt; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.title h1 { font-family: var(--display); font-weight: 400; font-size: 40pt; letter-spacing: .05em; margin: 30mm 0 0; line-height: 1; }
+.title h1 { font-family: var(--display); font-weight: 400; font-size: 40pt; letter-spacing: .05em; margin: 10mm 0 0; line-height: 1; }
+.title .hero { margin: 7mm 0 0; }
+.title .hero img { max-height: 92mm; width: 100%; object-fit: cover; border: none; }
 .title .exp { font-size: 12pt; color: var(--ink2); margin-top: 3mm; }
-.title .doc { font-family: var(--display); font-size: 16pt; margin-top: 12mm; }
+.title .doc { font-family: var(--display); font-size: 16pt; margin-top: 6mm; }
 .title .abs { font-size: 10pt; color: var(--ink2); max-width: 150mm; margin-top: 6mm; line-height: 1.5; }
 .title .ctl { margin-top: auto; }
 .title table { font-size: 8.6pt; }
@@ -41,12 +43,10 @@ body { margin: 0; font-family: var(--body); font-size: 9.2pt; line-height: 1.45;
 h2 { font-family: var(--display); font-weight: 400; font-size: 13pt; letter-spacing: .02em; margin: 8mm 0 2.5mm; padding-bottom: 1.5mm; border-bottom: 1.4px solid var(--ink); break-after: avoid; }
 h2.newpage { break-before: page; margin-top: 0; }
 h3 { font-size: 10pt; font-weight: 700; margin: 5mm 0 1.6mm; break-after: avoid; }
-h4 { font-size: 9.2pt; font-weight: 700; margin: 3mm 0 1mm; break-after: avoid; }
 p { margin: 0 0 2.4mm; }
 .small { font-size: 8.2pt; }
 .muted { color: var(--muted); }
-.num, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-code { font-family: var(--mono); font-size: .88em; background: var(--tint); padding: 0 .3em; border-radius: 2px; }
+code { font-family: var(--mono); font-size: .86em; background: var(--tint); padding: 0 .3em; border-radius: 2px; }
 b, strong { font-weight: 700; }
 ul, ol { margin: 0 0 2.4mm; padding-left: 5mm; } li { margin-bottom: .6mm; }
 .cols { display: grid; gap: 6mm; } .c2 { grid-template-columns: 1fr 1fr; }
@@ -58,7 +58,6 @@ td { padding: 1.1mm 1.8mm; border-bottom: 1px solid var(--line); vertical-align:
 tr { break-inside: avoid; }
 td.n { font-family: var(--mono); white-space: nowrap; }
 caption { caption-side: top; text-align: left; font-size: 8pt; font-weight: 700; padding-bottom: 1.2mm; }
-.sel { font-weight: 700; }
 .st { display: inline-block; font-family: var(--mono); font-size: 7pt; border-radius: 2px; padding: 0 1.4mm; white-space: nowrap; }
 .s-ok { color: var(--ok); background: var(--okbg); } .s-warn { color: var(--warn); background: var(--warnbg); } .s-bad { color: var(--bad); background: var(--badbg); }
 
@@ -73,6 +72,8 @@ svg text { font-family: "Red Hat Text", sans-serif; }
 .toc { font-size: 9pt; columns: 2; column-gap: 10mm; }
 .toc div { break-inside: avoid; padding: .5mm 0; }
 .toc .l2 { padding-left: 5mm; color: var(--ink2); font-size: 8.4pt; }
+dl.terms { display: grid; grid-template-columns: 34mm 1fr; gap: 1.2mm 4mm; font-size: 8.4pt; margin: 1mm 0 3mm; }
+dl.terms dt { font-weight: 700; } dl.terms dd { margin: 0; }
 </style>
 </head>
 <body>
@@ -82,29 +83,29 @@ svg text { font-family: "Red Hat Text", sans-serif; }
   <h1>SEAN</h1>
   <div class="exp">Signals-of-opportunity, Error-bounded, Assured Navigation</div>
   <div class="doc">D1 · Engineering Architecture</div>
-  <div class="abs">This document describes the architecture of SEAN, a receive-only navigation layer that maintains position and time from terrestrial LTE signals of opportunity when GPS is degraded, jammed, spoofed or unavailable, and reports numerical confidence in both. It covers requirements and their traceability, the system and its interfaces, the navigation and integrity design, the rationale for each major decision, and the verification evidence.</div>
+  <figure class="hero"><img src="assets/fig/payload-drone.jpg" alt="The SEAN payload beside the test drone"><figcaption>The payload (left: receivers, GPS, motion sensor and altimeter in a taped enclosure) and the test drone that carries it.</figcaption></figure>
+  <div class="abs">SEAN keeps an aircraft's position and time going when GPS is jammed, faked or lost, using the cell towers that are already around it, and tells the operator, with a number, how far to trust that position and time. It only listens; it never transmits. This document describes what it must do, how it is built, why it is built that way, and what our tests show.</div>
   <div class="ctl">
     <table>
       <tbody>
         <tr><td>Document</td><td>D1 Engineering Architecture</td></tr>
         <tr><td>Team</td><td>Team 12</td></tr>
-        <tr><td>Revision / date</td><td>1.0 · 12 November 2026</td></tr>
-        <tr><td>Configuration baseline</td><td>Repository <code>main</code> at <code>ffb201ae</code>; each result names its own commit and seeds</td></tr>
-        <tr><td>Principal use cases</td><td>Navigation continuity for the aircraft; status and confidence monitoring</td></tr>
-        <tr><td>Intended audience</td><td>Engineers experienced in navigation products</td></tr>
-        <tr><td>Companion deliverables</td><td>D2 Technical demonstration (live panel); D3 Engineering design and roadmap</td></tr>
+        <tr><td>Revision / date</td><td>1.1 · 12 November 2026</td></tr>
+        <tr><td>Configuration baseline</td><td>Repository <code>main</code> at <code>ffb201ae</code>; each result names its own commit</td></tr>
+        <tr><td>Principal use cases</td><td>Keeping the aircraft navigating (navigation continuity); telling the operator how far to trust it (status and confidence monitoring)</td></tr>
+        <tr><td>Companion deliverables</td><td>D2 live demonstration; D3 roadmap to a product</td></tr>
       </tbody>
     </table>
     <h3 style="margin-top:6mm">Contents</h3>
     <div class="toc">
-      <div>1 Introduction</div><div class="l2">1.1 Purpose and scope · 1.2 Solution summary · 1.3 Status · 1.4 Compliance matrix · 1.5 Conventions</div>
-      <div>2 Requirements</div><div class="l2">2.1 Use cases · 2.2 Constraints · 2.3 Requirements · 2.4 Assumptions</div>
-      <div>3 System architecture</div><div class="l2">3.1 Overview · 3.2 Payload · 3.3 Ground software · 3.4 Interfaces and data</div>
-      <div>4 Navigation design</div><div class="l2">4.1 Concept of operations · 4.2 LTE front end · 4.3 Models · 4.4 Tower clocks · 4.5 GPS-dependency classes · 4.6 Estimators</div>
-      <div>5 Integrity and confidence monitoring</div><div class="l2">5.1 Protection levels · 5.2 Fault hypotheses · 5.3 Jump guard · 5.4 Spoof decision · 5.5 ADS-B warning · 5.6 Status logic · 5.7 Operator display</div>
-      <div>6 Design rationale</div><div class="l2">6.1 Signal selection · 6.2 Architecture decisions</div>
-      <div>7 Verification</div><div class="l2">7.1 Method · 7.2 Simulation validity · 7.3 Results · 7.4 Positioning · 7.5 Real captures · 7.6 Integrity · 7.7 Accuracy budget · 7.8 Timing · 7.9 Trade-offs</div>
-      <div>8 Safety, security and regulatory</div>
+      <div>1 Introduction</div><div class="l2">1.1 Purpose · 1.2 The solution in brief · 1.3 Status · 1.4 Where each requirement of the brief is answered · 1.5 Terms used</div>
+      <div>2 Requirements</div><div class="l2">2.1 Users · 2.2 Constraints · 2.3 Requirements · 2.4 Assumptions</div>
+      <div>3 System architecture</div><div class="l2">3.1 Overview · 3.2 Payload · 3.3 Ground software · 3.4 Data records</div>
+      <div>4 How position and time are estimated</div><div class="l2">4.1 Mission timeline · 4.2 Measuring distance to towers · 4.3 The filter · 4.4 Tower clocks · 4.5 Which sources can vouch for GPS · 4.6 Filter versions</div>
+      <div>5 How confidence is computed and shown</div><div class="l2">5.1 Protection levels · 5.2 What can go wrong · 5.3 Jump guard · 5.4 Sky check · 5.5 Warning from other aircraft · 5.6 Status · 5.7 Operator panel</div>
+      <div>6 Why it is built this way</div><div class="l2">6.1 Which signals · 6.2 Key decisions</div>
+      <div>7 Verification</div><div class="l2">7.1 Method · 7.2 Simulation against reality · 7.3 Results · 7.4 Position · 7.5 Real recordings · 7.6 Confidence · 7.7 Error budget · 7.8 Timing · 7.9 Trade-offs</div>
+      <div>8 Safety, security and regulation</div>
       <div>9 Limitations and open items</div>
       <div>10 Traceability and reproducibility</div>
       <div>Appendix A Abbreviations</div>
@@ -113,222 +114,198 @@ svg text { font-family: "Red Hat Text", sans-serif; }
 </div>
 
 <h2 class="newpage">1 Introduction</h2>
-<h3>1.1 Purpose and scope</h3>
-<p>The challenge asks for an alternative navigation solution that maintains position and timing when GPS is degraded or unavailable, uses communication signals of opportunity as the primary technology, and provides numerical confidence measures so that operators of crewed and uncrewed aircraft can judge the reliability of position and time. This document is the engineering architecture (D1) for that solution. The demonstration (D2) and the roadmap to a commercial product (D3) are separate deliverables and are referenced where relevant.</p>
+<h3>1.1 Purpose</h3>
+<p>The challenge asks for a navigation solution that keeps position and time accurate when GPS is degraded or unavailable, uses communication signals (such as cell towers) as the main technology, and gives crews and drone operators a number that says how reliable the position and time are. This document is the engineering architecture (D1). The live demonstration (D2) and the roadmap to a product (D3) are separate.</p>
 
-<h3>1.2 Solution summary</h3>
-<p>SEAN consists of a receive-only payload and a ground navigation stack. The payload (Raspberry Pi 4B) records LTE downlink IQ, ADS-B, a GPS receiver with its pulse-per-second (PPS) output, an IMU and a barometer on one PPS-disciplined clock. The ground stack converts LTE primary and secondary synchronisation signals (PSS/SSS) into pseudoranges to registered tower sites, fuses them with the other sensors in an extended Kalman filter that carries each tower's clock, the receiver clocks and each tower's slowly varying range error as states, and computes horizontal and time protection levels. Integrity monitors test GPS and the towers against each other; the result is presented live on an operator panel.</p>
-<p>The design is integrity-first. Three elements distinguish it from published cell-tower navigation:</p>
+<h3>1.2 The solution in brief</h3>
+<p>SEAN has two parts. A small <b>payload</b> on the aircraft (a Raspberry Pi with two low-cost radio receivers, a GPS receiver, a motion sensor and a pressure altimeter) records what it hears. A <b>ground station</b> (a laptop) turns the cell-tower signals into distances, combines them with the other sensors to estimate position and time, works out how wrong that estimate could be, and shows the result live.</p>
+<p>The design puts trustworthiness first. Three ideas set it apart from published work on navigating with cell towers:</p>
 <ol>
-<li><b>Towers are fault hypotheses, not trusted references.</b> A site clock step, a registry error, a rogue cell on a valid cell ID and a network-wide timing fault are each modelled and monitored.</li>
-<li><b>GPS-dependency classes.</b> Every source is tagged independent, GPS-timed or GPS-derived. LTE towers are GPS-timed: their geometry is retained under a GPS fault, but their time may refute GPS time and never confirm it.</li>
-<li><b>A measured, honest error model.</b> The receiver's unreported, slowly varying range error was measured on real captures and is carried as a Gauss–Markov state, so that the protection level remains a bound after GPS loss.</li>
+<li><b>Towers can be wrong too.</b> Most work treats towers as reliable reference points. We treat each tower like GPS: something that can fail (its clock can jump, its listed location can be wrong, a fake tower can copy a real one's ID), and we check for each failure.</li>
+<li><b>Tower time comes from GPS.</b> Cell towers set their clocks from GPS. So if GPS time is faked, tower time can be faked with it. We label every source by how it depends on GPS; tower timing may be used to <i>catch</i> a GPS time error but never to <i>confirm</i> that GPS is right.</li>
+<li><b>Confidence based on measured errors.</b> We measured our receiver and found a slow, drifting error it never reports. The filter now tracks that error explicitly, which is what keeps its stated uncertainty honest after GPS is lost.</li>
 </ol>
 
 <h3>1.3 Status at this revision</h3>
 <table>
 <thead><tr><th style="width:30%">Capability</th><th style="width:15%">Status</th><th>Evidence</th></tr></thead>
 <tbody>
-<tr><td>GPS jump detection and refusal</td><td><span class="st s-ok">Verified (sim)</span></td><td>Jumps of 20 m to 500 km flagged in 1.1 s; hazardous epochs per run on a held 300 m jump reduced from 5,244 to 3 (50 runs)</td></tr>
-<tr><td>Protection level honest after GPS loss</td><td><span class="st s-ok">Verified (real)</span><br><span class="st s-warn">Partial (sim)</span></td><td>Real captures with GPS removed in software: 0 of 3,005 checks with the bound under the error (default filter: 1,025). Simulation: 0.45 % of epochs above the bound, target 0.1 %</td></tr>
-<tr><td>Time holdover and time-spoof detection</td><td><span class="st s-warn">49 of 50 runs</span></td><td>0.44 µs mean error after 10 min (target 1.5 µs; worst run 1.55 µs); 50 ns/s drift flagged in 3.3 s median</td></tr>
-<tr><td>Position from towers after GPS loss</td><td><span class="st s-bad">Not met on payload</span></td><td>Simulation: 105 m with all fixes and measured noise, 10 m with clean ranges; real captures limited by the receiver (§7.5)</td></tr>
-<tr><td>Real-time monitoring</td><td><span class="st s-ok">Demonstrated</span></td><td>Live operator panel at ≥ 1 Hz (D2)</td></tr>
-<tr><td>Receive-only, privacy</td><td><span class="st s-ok">Verified (inspection)</span></td><td>No transmit path; enforced by automated tests</td></tr>
+<tr><td>Detecting and refusing a GPS position jump (spoofing)</td><td><span class="st s-ok">Verified (sim)</span></td><td>Jumps of 20 m to 500 km flagged in 1.1 s. With our guard, moments of dangerously wrong output per run fall from 5,244 to 3 (50 runs)</td></tr>
+<tr><td>Stated uncertainty stays honest after GPS loss</td><td><span class="st s-ok">Verified (real)</span><br><span class="st s-warn">Partial (sim)</span></td><td>Real recordings, GPS removed in software: the stated bound was never smaller than the true error (0 of 3,005 checks; standard filter: 1,025). Simulation: bound exceeded 0.45 % of the time, target 0.1 %</td></tr>
+<tr><td>Keeping time without GPS; detecting faked time</td><td><span class="st s-warn">49 of 50 runs</span></td><td>0.44 µs average error after 10 min (target 1.5 µs; worst run 1.55 µs). A clock being dragged at 50 ns/s is caught in 3.3 s</td></tr>
+<tr><td>Position from towers after GPS loss</td><td><span class="st s-bad">Not met on payload</span></td><td>Simulation: 105 m with every improvement, 10 m with clean tower signals. Real recordings are limited by the receiver (§7.5)</td></tr>
+<tr><td>Live monitoring</td><td><span class="st s-ok">Demonstrated</span></td><td>Operator panel updating at least once a second (D2)</td></tr>
+<tr><td>Never transmits; privacy</td><td><span class="st s-ok">Verified</span></td><td>No transmit path; enforced by automated tests</td></tr>
 </tbody>
 </table>
 
-<h3>1.4 Compliance matrix</h3>
+<h3>1.4 Where each requirement of the brief is answered</h3>
 <table>
-<thead><tr><th style="width:44%">Item from the brief and judging criteria</th><th>Addressed in</th></tr></thead>
+<thead><tr><th style="width:46%">Asked for (challenge brief and judging criteria)</th><th>Section</th></tr></thead>
 <tbody>
 <tr><td>Engineering architecture for the proposed solution</td><td>§3, §4, §5</td></tr>
-<tr><td>Principal use cases: navigation continuity; status and confidence monitoring</td><td>§2.1, §2.3, §4, §5</td></tr>
-<tr><td>Signals of opportunity (communication) as the primary technology</td><td>§4.2, §6.1, §7.4 (ablation)</td></tr>
-<tr><td>Numerical confidence for crewed and uncrewed aircraft, position and timing</td><td>§5.1, §5.6, §5.7</td></tr>
+<tr><td>Use cases: navigation continuity; status and confidence monitoring</td><td>§2, §4, §5</td></tr>
+<tr><td>Communication signals as the main technology</td><td>§4.2, §6.1, §7.4</td></tr>
+<tr><td>Numbers that tell crews and operators how reliable position and time are</td><td>§5</td></tr>
 <tr><td>Problem, users, constraints, assumptions, success measures</td><td>§2</td></tr>
-<tr><td>Calculations, architecture and trade-offs</td><td>§5.1, §6, §7.7, §7.9</td></tr>
-<tr><td>Testing and evidence; limitations; how the simulation aligns to reality</td><td>§7, §9</td></tr>
-<tr><td>Safety, RF, aviation, privacy, cybersecurity, regulation; no spectrum interference</td><td>§8</td></tr>
-<tr><td>Documentation: traceable and reproducible</td><td>§10</td></tr>
+<tr><td>Calculations and trade-offs</td><td>§5.1, §6, §7.7, §7.9</td></tr>
+<tr><td>Testing, evidence and limitations; how the simulation matches reality</td><td>§7, §9</td></tr>
+<tr><td>Safety, radio regulation, aviation, privacy, cybersecurity; no interference with the radio spectrum</td><td>§8</td></tr>
+<tr><td>Traceable, reproducible documentation</td><td>§10</td></tr>
 </tbody>
 </table>
 
-<h3>1.5 Conventions</h3>
-<ul class="small">
-<li><b>TBC</b>: proposed value, not confirmed. <b>TBD</b>: no value yet. Targets are the team's unless attributed to the mentors.</li>
-<li><b>Sim</b> results come from committed scenarios over real ISED tower sites; <b>real</b> results come from recorded sessions; <b>injected</b> means a fault added in software to a real recording.</li>
-<li><b>Accuracy statistic</b> (REQ-01): at each second after GPS loss, the 95th percentile of horizontal error across Monte Carlo runs; the worst second of the window is reported.</li>
-<li><b>Hazardous epoch</b>: horizontal error above the alert limit while the protection level is below it.</li>
-<li>Time is int64 GPS nanoseconds; positions are ENU metres about the session origin.</li>
-</ul>
+<h3>1.5 Terms used in this document</h3>
+<dl class="terms">
+<dt>Protection level (HPL)</dt><dd>A radius around the estimated position that the true position should be inside. If the radius is bigger than what the mission can tolerate, the system says "do not navigate on this". The time protection level (TPL) is the same idea for the clock.</dd>
+<dt>Alert limit</dt><dd>The largest error a mission can tolerate: 50 m for the drone, 556 m for an aircraft on approach (the RNP 0.3 standard), 1.5 µs for timing.</dd>
+<dt>Dangerous moment</dt><dd>A moment where the true error is bigger than the alert limit but the system still says the position is safe. This is the failure we care most about (the literature calls it a hazardously misleading epoch).</dd>
+<dt>Spoofing / jamming</dt><dd>Spoofing: transmitting fake GPS so the receiver reports a wrong position or time. Jamming: drowning GPS out so it reports nothing.</dd>
+<dt>Filter</dt><dd>The algorithm (an extended Kalman filter) that combines all measurements into one best estimate of position and time, together with how uncertain that estimate is.</dd>
+<dt>Run, simulation</dt><dd>A simulated flight with random errors drawn fresh each time. We repeat each scenario 50 times (50 runs) and report the 95th percentile (the error 95 % of runs stay under) at the worst moment.</dd>
+<dt>Sim / real / injected</dt><dd>Sim: simulated flights over the real tower locations around Ottawa. Real: recorded by our payload. Injected: a fault added in software to a real recording.</dd>
+<dt>TBC / TBD</dt><dd>TBC: proposed value not yet confirmed. TBD: no value yet.</dd>
+</dl>
 
 <h2>2 Requirements</h2>
-<h3>2.1 Use cases</h3>
+<h3>2.1 Users</h3>
 <table>
-<thead><tr><th style="width:17%">Use case</th><th style="width:22%">Operating context</th><th style="width:27%">Threats</th><th>Needs</th></tr></thead>
+<thead><tr><th style="width:17%">User</th><th style="width:22%">Situation</th><th style="width:27%">Threats</th><th>What they need</th></tr></thead>
 <tbody>
-<tr><td><b>UC-01</b> Uncrewed aircraft</td><td>Inspection or delivery drone on an urban corridor, below 120 m</td><td>In-vehicle jammers on nearby roads; carry-off spoofing; urban blockage</td><td>Position that stays within the corridor through an outage; an alert before it leaves it</td></tr>
-<tr><td><b>UC-02</b> Crewed aircraft, terminal area</td><td>Approach into an airport</td><td>Regional jamming that also degrades other aircraft's ADS-B; spoofing near conflict airspace</td><td>Continuity with a protection level the crew can act on (ANP against RNP 0.3)</td></tr>
-<tr><td><b>UC-03</b> Timing user</td><td>Communications or satcom terminal disciplined to GPS time</td><td>Jamming forces holdover; time spoofing shifts the clock without moving the position</td><td>Time within a bound after GPS loss; honest uncertainty; time-spoof detection</td></tr>
+<tr><td><b>UC-01</b> Drone operator</td><td>Inspection or delivery drone on an urban route, below 120 m</td><td>Jammers in nearby vehicles; spoofing aimed at drones; buildings blocking GPS</td><td>A position that stays on the route through an outage, and a warning before it drifts off</td></tr>
+<tr><td><b>UC-02</b> Crew on approach</td><td>Aircraft approaching an airport</td><td>Regional jamming that also corrupts other aircraft's position broadcasts; spoofing near conflict zones</td><td>Continued position with a confidence figure the crew can act on, in their usual terms</td></tr>
+<tr><td><b>UC-03</b> Timing user</td><td>Radio or satellite terminal that takes its time from GPS</td><td>Jamming forces it to run on its own clock; time spoofing shifts the clock without moving the position</td><td>Time that stays accurate for a while after GPS is lost, an honest uncertainty, and detection of faked time</td></tr>
 </tbody>
 </table>
-<p class="small">Navigation continuity is served by UC-01 and UC-02 (position) and UC-03 (time); status and confidence monitoring applies to all three.</p>
 
 <h3>2.2 Constraints</h3>
 <ul>
-<li><b>Receive-only.</b> No intentional emission beyond licence-exempt control, telemetry and Wi-Fi links; jamming and spoofing are injected in software only. Transmitting is permitted only in a controlled lab, which was not available.</li>
-<li><b>Communication signals primary.</b> Cell towers carry the solution; IMU and barometer assist.</li>
-<li><b>Cost and schedule.</b> Radios and antennas under CAD 170; development within the hackathon week.</li>
-<li><b>Platform-agnostic payload.</b> The same payload and session format by hand, in a vehicle and on a drone.</li>
+<li><b>Listen only.</b> The payload never transmits. Jamming and spoofing are tested by adding them in software, never over the air (the brief rules out interfering with the radio spectrum outside a lab).</li>
+<li><b>Communication signals first.</b> Cell towers do most of the work; the motion sensor and altimeter help.</li>
+<li><b>Low cost and one week.</b> The radios and antennas cost under CAD 170.</li>
+<li><b>Works on any carrier.</b> The same payload by hand, in a car or on a drone.</li>
 </ul>
 
-<h3>2.3 Requirements and traceability</h3>
+<h3>2.3 Requirements</h3>
 <table>
-<thead><tr><th style="width:18%">ID</th><th style="width:33%">Success measure (TBC unless noted)</th><th style="width:7%">UC</th><th style="width:7%">Verif.</th><th>Result at this revision</th></tr></thead>
+<thead><tr><th style="width:18%">Requirement</th><th style="width:33%">How success is measured (TBC unless noted)</th><th style="width:7%">User</th><th>Result</th></tr></thead>
 <tbody>
-<tr><td><b>REQ-01</b> Navigation continuity</td><td>95 % ≤ 25 m for ≥ 300 s after GPS loss; fallback ≤ 50 m for ≥ 120 s (mentors); RNP 0.3 (556 m) in the terminal area</td><td class="n">01, 02</td><td class="n">A, T</td><td><span class="st s-bad">Not met</span> payload configuration 449 m (sim); 105 m with all fixes (study); 10 m with clean ranges (§7.4)</td></tr>
-<tr><td><b>REQ-02</b> Position confidence</td><td>HPL bounds the error in ≥ 99.9 % of epochs; no hazardous epoch on fault scenarios; alert limit 50 m (UC-01), 556 m (UC-02)</td><td class="n">01, 02</td><td class="n">A, T</td><td><span class="st s-warn">Partial</span> real 100 % of 3,005 checks; sim 99.55 % pooled, 0 hazardous (§7.6)</td></tr>
-<tr><td><b>REQ-03</b> Timing</td><td>≤ 1.5 µs after 10 min without GPS; reported 1σ covers ≥ 68 %</td><td class="n">03</td><td class="n">T</td><td><span class="st s-warn">Partial</span> 49 of 50 runs; 1σ covers 99.5 % (§7.8)</td></tr>
-<tr><td><b>REQ-04</b> Spoofing and fault detection</td><td>20 m jump within 2 s (accepted); 2 m/s ramp within 30 s; 50 ns/s time ramp within 60 s; ≤ 1 false alarm per hour</td><td class="n">all</td><td class="n">A, T</td><td><span class="st s-ok">Met</span> jump 1.1 s, time ramp 3.3 s, 0.0 /h. <span class="st s-bad">Not met</span> position ramp, 127 s best</td></tr>
-<tr><td><b>REQ-05</b> Real-time monitoring</td><td>Position, HPL, time uncertainty, per-source status; ≥ 1 Hz</td><td class="n">all</td><td class="n">D, T</td><td><span class="st s-ok">Met</span> (D2)</td></tr>
-<tr><td><b>REQ-06</b> Signals of opportunity primary</td><td>Removing them degrades REQ-01 more than removing any other aid</td><td class="n">all</td><td class="n">A</td><td><span class="st s-ok">Met</span> +1,961 m without LTE; +78 m without barometer; +0 m without IMU (sim)</td></tr>
-<tr><td><b>REQ-07</b> Receive-only</td><td>No transmit path in hardware or code</td><td class="n">all</td><td class="n">I</td><td><span class="st s-ok">Met</span> automated test</td></tr>
-<tr><td><b>REQ-08</b> Privacy</td><td>No communication content decoded; identifiers hashed at capture</td><td class="n">all</td><td class="n">I</td><td><span class="st s-ok">Met</span></td></tr>
-<tr><td><b>REQ-09</b> Platform-agnostic</td><td>Same session format and pipeline on all carriers</td><td class="n">all</td><td class="n">D</td><td><span class="st s-warn">Partial</span> static and walking captures</td></tr>
-<tr><td><b>REQ-10</b> Reproducibility</td><td>Every result from a committed scenario, or a named session and commit</td><td class="n">all</td><td class="n">I</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td><b>REQ-01</b> Keep navigating after GPS loss</td><td>95 % of runs within 25 m for 5 min after GPS is lost (mentors' fallback: within 50 m for 2 min); within 556 m on approach</td><td>01, 02</td><td><span class="st s-bad">Not met</span> payload as built 449 m (sim); 105 m with every improvement; 10 m with clean tower signals (§7.4)</td></tr>
+<tr><td><b>REQ-02</b> A protection level on every position</td><td>The true error stays inside it 99.9 % of the time; no dangerous moments</td><td>01, 02</td><td><span class="st s-warn">Partial</span> real recordings: always inside; simulation: inside 99.55 % of the time, no dangerous moments (§7.6)</td></tr>
+<tr><td><b>REQ-03</b> Keep time after GPS loss</td><td>Within 1.5 µs after 10 min; the stated uncertainty covers the error at least 68 % of the time</td><td>03</td><td><span class="st s-warn">Partial</span> 49 of 50 runs; stated uncertainty covers 99.5 % (§7.8)</td></tr>
+<tr><td><b>REQ-04</b> Detect GPS that lies</td><td>A 20 m jump within 2 s (agreed with mentors); a slow 2 m/s drag within 30 s; a 50 ns/s time drag within 60 s; at most 1 false alarm per hour</td><td>all</td><td><span class="st s-ok">Met</span> jumps 1.1 s, time drag 3.3 s, 0 false alarms. <span class="st s-bad">Not met</span> slow drag: 127 s at best</td></tr>
+<tr><td><b>REQ-05</b> Live monitoring</td><td>Position, protection levels, per-source status, at least once a second</td><td>all</td><td><span class="st s-ok">Met</span> (D2)</td></tr>
+<tr><td><b>REQ-06</b> Cell towers carry the solution</td><td>Removing towers hurts more than removing any other sensor</td><td>all</td><td><span class="st s-ok">Met</span> without towers +1,961 m; without altimeter +78 m; without motion sensor +0 m (sim)</td></tr>
+<tr><td><b>REQ-07</b> Listen only</td><td>No way to transmit, in hardware or software</td><td>all</td><td><span class="st s-ok">Met</span> checked by an automated test</td></tr>
+<tr><td><b>REQ-08</b> Privacy</td><td>No message content decoded; Wi-Fi device IDs scrambled when recorded</td><td>all</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td><b>REQ-09</b> Any carrier</td><td>Same recording format and processing on every carrier</td><td>all</td><td><span class="st s-warn">Partial</span> standing and walking recordings</td></tr>
+<tr><td><b>REQ-10</b> Reproducible</td><td>Every result can be regenerated from the repository</td><td>all</td><td><span class="st s-ok">Met</span></td></tr>
 </tbody>
 </table>
-<p class="small muted">Verification methods: A analysis, T test, D demonstration, I inspection. Mentor guidance (10 Nov): drone accuracy ≤ 50 m for about 2 min with the calculation explained; the integrity level is the team's to determine, shown several ways; handover timing must fit the budget; location jumps first.</p>
+<p class="small muted">Mentor guidance (10 November): for the drone, within 50 m for about 2 minutes would be acceptable, with the calculation explained; the confidence level is ours to choose and should be shown several ways; how long GPS is available before it is lost matters; test position jumps first.</p>
 
 <h3>2.4 Assumptions</h3>
 <table>
-<thead><tr><th style="width:9%">ID</th><th style="width:40%">Assumption</th><th>Rationale and status</th></tr></thead>
+<thead><tr><th style="width:9%">ID</th><th style="width:40%">Assumption</th><th>Why, and status</th></tr></thead>
 <tbody>
-<tr><td class="n">ASM-01</td><td>GPS is available and trusted at start-up, long enough to initialise and calibrate</td><td>Tower clocks and noise are learned under GPS. The handover study sizes the period (≥ 150 s for drift learning, §7.7). TBC</td></tr>
-<tr><td class="n">ASM-02</td><td>Transmitter positions come from the public ISED registry</td><td>The receiver decodes the physical cell ID, not the global cell ID; position error TBD; a wrong entry is a monitored fault (§5.2)</td></tr>
-<tr><td class="n">ASM-03</td><td>Jamming and spoofing are simulated or injected in software only</td><td>REQ-07 and the brief's spectrum condition. Baselined</td></tr>
-<tr><td class="n">ASM-04</td><td>Payload clocks are disciplined to GPS PPS within 1 µs while GPS is available</td><td>Measured on the payload: offset −35 ns ± 364 ns</td></tr>
-<tr><td class="n">ASM-05</td><td>Navigation is primarily horizontal; height comes from the barometer</td><td>Small-drone operation. TBC</td></tr>
-<tr><td class="n">ASM-07</td><td>FM/TV broadcast transmitters in the area share one site</td><td>Broadcast ranging gives poor geometry; towers carry positioning. TBC</td></tr>
+<tr><td>ASM-01</td><td>GPS works and can be trusted at start-up, for long enough to learn the towers</td><td>The tower clocks and noise levels are learned while GPS is good. About 150 s is enough (§7.7). TBC</td></tr>
+<tr><td>ASM-02</td><td>Tower locations come from the public ISED licence database</td><td>Our receiver reads a tower's short ID, not its full identity, so we look the location up. A wrong entry is one of the faults we check for (§5.2)</td></tr>
+<tr><td>ASM-03</td><td>Jamming and spoofing are only simulated or added in software</td><td>We never transmit</td></tr>
+<tr><td>ASM-04</td><td>The payload's clock is kept within 1 µs of GPS time while GPS works</td><td>Measured: within 35 ns on average, 364 ns spread</td></tr>
+<tr><td>ASM-05</td><td>Navigation is mainly horizontal; height comes from the altimeter</td><td>Small-drone flight. TBC</td></tr>
+<tr><td>ASM-07</td><td>Local FM and TV transmitters are all on one hill</td><td>So they cannot give a position fix; towers have to. TBC</td></tr>
 </tbody>
 </table>
 
 <h2>3 System architecture</h2>
 <h3>3.1 Overview</h3>
-<p>Signals are recorded on the payload and processed on the ground. Simulation, replay of a recorded session and the live stream are interchangeable sources behind one interface, so every algorithm runs unchanged on simulated and real data (Figure 1).</p>
+<p>The payload only records; all processing happens on the ground. A simulated flight, a replayed recording and the live radio link all feed the same software, so anything tested in simulation runs unchanged on real data (Figure 1).</p>
 
 <figure>
-<svg viewBox="0 0 1000 420" role="img" aria-label="System architecture block diagram">
+<svg viewBox="0 0 1000 420" role="img" aria-label="System block diagram">
   <defs>
     <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#36414c"/></marker>
     <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8a96a3"/></marker>
   </defs>
   <rect x="10" y="20" width="230" height="350" rx="6" fill="#fff" stroke="#36414c" stroke-width="1.5"/>
   <text x="24" y="44" font-size="14" font-weight="700">Payload (Raspberry Pi 4B)</text>
-  <text x="24" y="61" font-size="11" fill="#5d6975">receive-only · one PPS-disciplined clock</text>
+  <text x="24" y="61" font-size="11" fill="#5d6975">listens only · one clock for all sensors</text>
   <g font-size="12">
-    <rect x="24" y="74" width="202" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="34" y="91" font-weight="600">LTE SDR (NESDR SMArt v5)</text><text x="34" y="106" font-size="10.5" fill="#5d6975">one carrier, 1.92 MS/s IQ</text>
-    <rect x="24" y="120" width="202" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="34" y="137" font-weight="600">ADS-B SDR (FlightStick)</text><text x="34" y="152" font-size="10.5" fill="#5d6975">1090 MHz</text>
-    <rect x="24" y="166" width="202" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="34" y="183" font-weight="600">GPS HAT + PPS</text><text x="34" y="198" font-size="10.5" fill="#5d6975">NMEA, satellite C/N0, PPS</text>
-    <rect x="24" y="212" width="202" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="34" y="229" font-weight="600">IMU + barometer</text><text x="34" y="244" font-size="10.5" fill="#5d6975">MPU6050, BMP180 on I²C</text>
-    <rect x="24" y="266" width="202" height="88" rx="4" fill="#fff" stroke="#36414c"/><text x="34" y="285" font-weight="600">Recorder / streamer</text><text x="34" y="302" font-size="10.5" fill="#5d6975">raw IQ (.cu8) to USB drive</text><text x="34" y="317" font-size="10.5" fill="#5d6975">sensor records to MCAP</text><text x="34" y="332" font-size="10.5" fill="#5d6975">live: ZeroMQ PUB, msgpack</text><text x="34" y="347" font-size="10.5" fill="#5d6975">chrony + PPS time base</text>
+    <rect x="24" y="74" width="202" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="34" y="91" font-weight="600">Cell-tower radio</text><text x="34" y="106" font-size="10.5" fill="#5d6975">one LTE channel, raw samples</text>
+    <rect x="24" y="120" width="202" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="34" y="137" font-weight="600">Aircraft-broadcast radio</text><text x="34" y="152" font-size="10.5" fill="#5d6975">ADS-B, 1090 MHz</text>
+    <rect x="24" y="166" width="202" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="34" y="183" font-weight="600">GPS receiver</text><text x="34" y="198" font-size="10.5" fill="#5d6975">position, satellite strengths, timing pulse</text>
+    <rect x="24" y="212" width="202" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="34" y="229" font-weight="600">Motion sensor, altimeter</text><text x="34" y="244" font-size="10.5" fill="#5d6975">IMU, barometer</text>
+    <rect x="24" y="266" width="202" height="88" rx="4" fill="#fff" stroke="#36414c"/><text x="34" y="285" font-weight="600">Recorder</text><text x="34" y="302" font-size="10.5" fill="#5d6975">raw radio samples to a USB drive</text><text x="34" y="317" font-size="10.5" fill="#5d6975">sensor readings to a log file</text><text x="34" y="332" font-size="10.5" fill="#5d6975">live stream to the ground</text><text x="34" y="347" font-size="10.5" fill="#5d6975">clock set by the GPS pulse</text>
   </g>
   <line x1="240" y1="240" x2="296" y2="240" stroke="#36414c" stroke-width="1.8" marker-end="url(#ar)"/>
-  <text x="244" y="228" font-size="10.5" fill="#36414c">CurveZMQ</text><text x="244" y="258" font-size="10.5" fill="#36414c">or session</text>
+  <text x="244" y="226" font-size="10.5" fill="#36414c">encrypted</text><text x="244" y="258" font-size="10.5" fill="#36414c">link or file</text>
   <rect x="300" y="20" width="690" height="350" rx="6" fill="#fff" stroke="#36414c" stroke-width="1.5"/>
   <text x="314" y="44" font-size="14" font-weight="700">Ground station (laptop)</text>
-  <text x="314" y="61" font-size="11" fill="#5d6975">Python; Measurement records; int64 GPS ns; ENU metres about the session origin</text>
+  <text x="314" y="61" font-size="11" fill="#5d6975">every reading carries a GPS timestamp in nanoseconds; positions in metres east, north, up</text>
   <g font-size="12">
-    <rect x="314" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="371" y="212" text-anchor="middle" font-weight="700">Source</text><text x="371" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">sim | replay | live</text><text x="371" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">time-ordered</text><text x="371" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">stream, one</text><text x="371" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">contract</text>
-    <rect x="446" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="503" y="212" text-anchor="middle" font-weight="700">Front ends</text><text x="503" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">LTE PSS/SSS TOA</text><text x="503" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">→ pseudoranges</text><text x="503" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">GNSS health, ADS-B</text><text x="503" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">cell lookup</text>
-    <rect x="578" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="635" y="212" text-anchor="middle" font-weight="700">Estimator</text><text x="635" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">EKF family</text><text x="635" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">tower, receiver,</text><text x="635" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">radio clocks;</text><text x="635" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">slow-error states</text>
-    <rect x="710" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="767" y="212" text-anchor="middle" font-weight="700">Integrity</text><text x="767" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">HPL, TPL</text><text x="767" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">jump guard</text><text x="767" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">spoof decision</text><text x="767" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">MHSS, ADS-B</text>
-    <rect x="842" y="190" width="134" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="909" y="212" text-anchor="middle" font-weight="700">Operator panel</text><text x="909" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">FastAPI + SSE</text><text x="909" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">status, HPL, TPL,</text><text x="909" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">per-source trust,</text><text x="909" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">latched alerts</text>
+    <rect x="314" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="371" y="212" text-anchor="middle" font-weight="700">Input</text><text x="371" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">simulation,</text><text x="371" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">recording, or</text><text x="371" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">live link: same</text><text x="371" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">format</text>
+    <rect x="446" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="503" y="212" text-anchor="middle" font-weight="700">Signal processing</text><text x="503" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">tower signals</text><text x="503" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">→ distances;</text><text x="503" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">GPS health;</text><text x="503" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">aircraft reports</text>
+    <rect x="578" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="635" y="212" text-anchor="middle" font-weight="700">Filter</text><text x="635" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">position, speed,</text><text x="635" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">our clock, each</text><text x="635" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">tower's clock and</text><text x="635" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">slow error</text>
+    <rect x="710" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="767" y="212" text-anchor="middle" font-weight="700">Checks</text><text x="767" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">protection levels,</text><text x="767" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">jump guard,</text><text x="767" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">sky check, other-</text><text x="767" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">aircraft warning</text>
+    <rect x="842" y="190" width="134" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="909" y="212" text-anchor="middle" font-weight="700">Operator panel</text><text x="909" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">in a web browser:</text><text x="909" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">status, protection</text><text x="909" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">levels, source</text><text x="909" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">trust, alerts</text>
   </g>
   <g stroke="#36414c" stroke-width="1.8" marker-end="url(#ar)"><line x1="428" y1="239" x2="444" y2="239"/><line x1="560" y1="239" x2="576" y2="239"/><line x1="692" y1="239" x2="708" y2="239"/><line x1="824" y1="239" x2="840" y2="239"/></g>
   <g font-size="11.5">
-    <rect x="314" y="90" width="196" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="324" y="110" font-weight="700">Simulator, attack library</text><text x="324" y="127" font-size="10.5" fill="#5d6975">trajectories, error models, faults</text>
-    <rect x="528" y="90" width="168" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="538" y="110" font-weight="700">ISED registry extract</text><text x="538" y="127" font-size="10.5" fill="#5d6975">(EARFCN, PCI) → site</text>
-    <rect x="714" y="90" width="262" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="724" y="110" font-weight="700">Reference station (simulated)</text><text x="724" y="127" font-size="10.5" fill="#5d6975">base/rover differencing of tower clocks</text>
+    <rect x="314" y="90" width="196" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="324" y="110" font-weight="700">Simulator and attacks</text><text x="324" y="127" font-size="10.5" fill="#5d6975">flights, sensor errors, faults</text>
+    <rect x="528" y="90" width="168" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="538" y="110" font-weight="700">Tower database</text><text x="538" y="127" font-size="10.5" fill="#5d6975">ID → location (ISED)</text>
+    <rect x="714" y="90" width="262" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="724" y="110" font-weight="700">Ground reference station (sim)</text><text x="724" y="127" font-size="10.5" fill="#5d6975">a fixed receiver that measures tower clocks</text>
   </g>
   <g stroke="#8a96a3" stroke-width="1.5" marker-end="url(#arg)"><line x1="371" y1="142" x2="371" y2="188"/><line x1="590" y1="142" x2="525" y2="188"/><line x1="620" y1="142" x2="630" y2="188"/><line x1="790" y1="142" x2="668" y2="188"/></g>
-  <rect x="710" y="308" width="266" height="46" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="720" y="327" font-size="11.5" font-weight="700">Advisory output to an autopilot</text><text x="720" y="343" font-size="10.5" fill="#5d6975">product step (D3), not implemented</text>
+  <rect x="710" y="308" width="266" height="46" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="720" y="327" font-size="11.5" font-weight="700">Warning to an autopilot</text><text x="720" y="343" font-size="10.5" fill="#5d6975">product step (D3), not built</text>
   <line x1="767" y1="288" x2="767" y2="306" stroke="#8a96a3" stroke-width="1.5" marker-end="url(#arg)"/>
-  <text x="314" y="320" font-size="10.5" fill="#5d6975">Storage: session folder = MCAP log + raw IQ + sidecars + meta.yaml</text>
-  <text x="314" y="336" font-size="10.5" fill="#5d6975">Truth (sim) and Estimate records share the same time base</text>
-  <text x="10" y="398" font-size="11" fill="#36414c">Solid: implemented and exercised on real recordings. Dashed: simulated input, reference data, or future product interface.</text>
+  <text x="314" y="320" font-size="10.5" fill="#5d6975">Each recording: a log file, the raw radio samples, and a description file</text>
+  <text x="10" y="398" font-size="11" fill="#36414c">Solid: built and run on real recordings. Dashed: simulated, reference data, or a future product step.</text>
 </svg>
-<figcaption><b>Figure 1. System block diagram.</b> Every element downstream of the Source runs identically on simulated, replayed and live data.</figcaption>
+<figcaption><b>Figure 1. System block diagram.</b> Everything to the right of "Input" runs the same way on a simulated flight, a recording and the live link.</figcaption>
 </figure>
 
 <h3>3.2 Payload hardware</h3>
 <table>
-<thead><tr><th style="width:20%">Function</th><th style="width:30%">Part</th><th>Interface and notes</th></tr></thead>
+<thead><tr><th style="width:20%">Function</th><th style="width:30%">Part</th><th>Notes</th></tr></thead>
 <tbody>
-<tr><td>Computer, recorder</td><td>Raspberry Pi 4B</td><td>Both SDRs on USB 2 ports; USB 3 left empty to keep its noise away from GPS L1 and 2.4 GHz</td></tr>
-<tr><td>LTE receiver</td><td>NooElec NESDR SMArt v5 (8-bit RTL-SDR, 0.5 ppm TCXO), Bingfu antenna</td><td>One LTE carrier (EARFCN 2460) at 1.92 MS/s, covering the central 1.08 MHz that holds PSS/SSS</td></tr>
-<tr><td>ADS-B receiver</td><td>AirNav FlightStick</td><td>1090 MHz with built-in filter; cannot receive LTE</td></tr>
-<tr><td>GPS and time</td><td>GPS HAT with external active antenna</td><td>NMEA and satellite reports via gpsd; PPS on GPIO; chrony disciplines the system clock</td></tr>
-<tr><td>Inertial, height</td><td>MPU6050, BMP180</td><td>I²C on the Pi; IMU noise and bias measured on the bench</td></tr>
-<tr><td>Storage</td><td>USB drive</td><td>SD card lost 2.9 % of IQ in 4 gaps per 10 min; USB drive: none in 10 min</td></tr>
-<tr><td>Carrier</td><td>Hand, vehicle, 5-inch quadcopter (Betaflight 4.5.5)</td><td>Pilot-flown with RC kill switch; the payload is removable and never feeds the flight controller</td></tr>
+<tr><td>Computer, recorder</td><td>Raspberry Pi 4B</td><td>Both radios on the slower USB 2 ports; the USB 3 ports are left empty because they emit noise near the GPS frequency</td></tr>
+<tr><td>Cell-tower radio</td><td>NooElec NESDR SMArt v5 (a USB software radio), Bingfu antenna</td><td>Listens to one LTE channel at a time, 1.92 million samples a second: enough to capture the sync signals every tower sends (§4.2)</td></tr>
+<tr><td>Aircraft-broadcast radio</td><td>AirNav FlightStick</td><td>Receives ADS-B, the position reports aircraft broadcast on 1090 MHz</td></tr>
+<tr><td>GPS and timing</td><td>GPS add-on board with external antenna</td><td>Position, satellite signal strengths, and a once-a-second timing pulse that keeps the Pi's clock on GPS time</td></tr>
+<tr><td>Motion, height</td><td>MPU6050 motion sensor, BMP180 pressure altimeter</td><td>Motion-sensor noise measured overnight on the bench</td></tr>
+<tr><td>Storage</td><td>USB drive</td><td>The SD card lost 2.9 % of the radio samples; the USB drive lost none</td></tr>
+<tr><td>Carrier</td><td>Hand, car, small quadcopter</td><td>The drone is flown by a pilot with a physical kill switch; the payload never controls it</td></tr>
 </tbody>
 </table>
 
-<h3>3.3 Ground software components</h3>
+<h3>3.3 Ground software</h3>
 <table>
-<thead><tr><th style="width:18%">Component</th><th>Function</th><th style="width:21%">Evidence</th></tr></thead>
+<thead><tr><th style="width:18%">Part</th><th>What it does</th><th style="width:21%">How it was checked</th></tr></thead>
 <tbody>
-<tr><td>Source</td><td>Yields a time-ordered stream of Measurement records from simulation, a recorded session or the live link; one contract test covers all three</td><td>Automated test</td></tr>
-<tr><td>LTE front end</td><td>PSS/SSS search and time-of-arrival tracking from the 3GPP specifications; pseudorange records at 10 Hz with SNR and a reported σ. Sync signals only</td><td>Synthetic baseband; 15 real captures</td></tr>
-<tr><td>Cell lookup</td><td>Maps (EARFCN, PCI) to one registered eNB site; unknown or colliding cells are dropped and counted, never guessed</td><td>Registry audit (4,059 rows); real captures</td></tr>
-<tr><td>GNSS health</td><td>Jamming indicator from the C/N0 of the four strongest satellites (reference 40 dB-Hz, loss 25 dB-Hz, TBC)</td><td>Real session, 595 s</td></tr>
-<tr><td>Estimators</td><td>EKF family (§4.6)</td><td>Monte Carlo; real replays</td></tr>
-<tr><td>Integrity</td><td>Protection levels and monitors (§5)</td><td>Monte Carlo; injected faults</td></tr>
-<tr><td>Operator panel</td><td>Web panel over Server-Sent Events with canvas plots; NO DATA on stream stall</td><td>D2 demonstration</td></tr>
-<tr><td>Simulator</td><td>Trajectories, per-source error models with provenance labels, attack library, scenario sets; fault injection into recordings</td><td>§7.2</td></tr>
+<tr><td>Input</td><td>Delivers readings in time order from a simulation, a recording or the live link, in one common format</td><td>Automated test on all three</td></tr>
+<tr><td>Tower signal processing</td><td>Finds towers by their sync signals and measures when each signal arrives; outputs 10 distance readings a second per tower. Only sync signals are read, never content</td><td>Synthetic signals; 15 real recordings</td></tr>
+<tr><td>Tower lookup</td><td>Matches each tower's channel and short ID to one licensed site in the ISED database. If there is no match, or more than one, the tower is ignored rather than guessed</td><td>Database audit (4,059 entries); real recordings</td></tr>
+<tr><td>GPS health</td><td>A jamming indicator from how strong the four strongest satellites are</td><td>One 10-minute real recording</td></tr>
+<tr><td>Filter</td><td>Combines everything into position, time and their uncertainty (§4)</td><td>Simulation; real recordings</td></tr>
+<tr><td>Checks</td><td>Protection levels and fault checks (§5)</td><td>Simulation; faults added to real recordings</td></tr>
+<tr><td>Operator panel</td><td>Live browser panel; shows NO DATA if the stream stops</td><td>Live demonstration (D2)</td></tr>
+<tr><td>Simulator</td><td>Simulated flights, sensor errors (each labelled with where its size came from), and a library of attacks; can also add faults to real recordings</td><td>§7.2</td></tr>
 </tbody>
 </table>
 
-<h3>3.4 Interfaces and data</h3>
-<p>Three record types flow through the pipeline, encoded as JSON in MCAP logs and as msgpack on the live stream. Interface changes require both software owners' approval.</p>
-<table>
-<caption>Table 3-1. Measurement record (one observable from one source)</caption>
-<thead><tr><th style="width:18%">Field</th><th style="width:14%">Type</th><th>Meaning</th></tr></thead>
-<tbody>
-<tr><td><code>t_ns</code></td><td>int64</td><td>GPS time of validity, ns since the GPS epoch</td></tr>
-<tr><td><code>source</code></td><td>str</td><td><code>gnss</code>, <code>imu</code>, <code>baro</code>, <code>lte</code>, <code>adsb</code>, <code>vor</code>, <code>wifi</code>, <code>leo</code> (sim), …</td></tr>
-<tr><td><code>kind</code></td><td>str</td><td><code>pseudorange</code>, <code>position_enu</code>, <code>accel_gyro</code>, <code>altitude</code>, <code>gnss_health</code>, <code>adsb_report</code>, …</td></tr>
-<tr><td><code>emitter</code></td><td>str</td><td>Transmitter ID, e.g. <code>lte:&lt;earfcn&gt;:&lt;pci&gt;</code>, <code>adsb:&lt;icao&gt;</code>; Wi-Fi BSSIDs hashed</td></tr>
-<tr><td><code>receiver</code></td><td>str</td><td><code>payload</code> (default) or <code>reference</code></td></tr>
-<tr><td><code>value</code>, <code>sigma</code></td><td>tuple[float]</td><td>Observable and the front end's own 1σ, in the units of the kind</td></tr>
-<tr><td><code>meta</code></td><td>dict</td><td>SNR, emitter position, raw-file offset, flags</td></tr>
-</tbody>
-</table>
-<table>
-<caption>Table 3-2. Estimate record (navigation output)</caption>
-<thead><tr><th style="width:26%">Field</th><th>Meaning</th></tr></thead>
-<tbody>
-<tr><td><code>pos_enu</code>, <code>vel_enu</code>, <code>pos_cov</code></td><td>Position, velocity, 3×3 position covariance</td></tr>
-<tr><td><code>clock_bias_s</code>, <code>clock_sigma_s</code></td><td>Receiver clock offset from GPS time and its 1σ</td></tr>
-<tr><td><code>hpl_m</code>, <code>vpl_m</code></td><td>Horizontal and vertical protection levels</td></tr>
-<tr><td><code>status</code></td><td><code>nominal</code> | <code>degraded</code> | <code>unsafe</code></td></tr>
-<tr><td><code>trust</code>, <code>flags</code></td><td>Per-source trust in [0, 1]; flags such as <code>gnss_excluded</code>, <code>spoof_suspected</code></td></tr>
-</tbody>
-</table>
-<p class="small"><b>Session layout:</b> one folder per session with the MCAP log, raw IQ per SDR (<code>.cu8</code>) and a sidecar per SDR (sample rate, centre frequency, GPS time of sample 0, gain, hops, outages), and <code>meta.yaml</code> (payload, commit, seed for simulated sessions). <b>Transport:</b> ZeroMQ PUB/SUB secured with CurveZMQ; the payload admits only enrolled laptop keys.</p>
+<h3>3.4 Data records</h3>
+<p>All software exchanges one kind of record per reading. Each record holds: when it was valid (GPS time, nanoseconds); which sensor produced it; what kind of value it is (a distance, a position, an acceleration…); which transmitter it came from (for a tower, its channel and short ID; Wi-Fi IDs are scrambled); the value; the sensor's own estimate of its uncertainty; and extras such as signal strength. The output record holds position, speed, their uncertainty, our clock offset and its uncertainty, the protection levels, the status (nominal, degraded, unsafe), how much each source is trusted, and any warnings. Recordings are stored as a log file plus the raw radio samples and a description file. The live link is encrypted and only accepts registered laptops.</p>
 
-<h2>4 Navigation design</h2>
-<h3>4.1 Concept of operations</h3>
-<p>The mission assumed by the mentors is GPS at the start, then lost or degraded in one area. SEAN uses the period of trusted GPS to learn tower clocks and noise, coasts on towers, barometer and IMU when GPS is lost, refuses GPS that is detected to be lying, and re-admits GPS only when it is consistent again (Figure 2).</p>
+<h2>4 How position and time are estimated</h2>
+<h3>4.1 Mission timeline</h3>
+<p>The mentors described the mission as: GPS works at the start, then is lost or degraded in one area. SEAN uses the good period to learn the towers, carries on with towers, altimeter and motion sensor when GPS is lost, refuses GPS that is caught lying, and lets GPS back in only once it agrees again (Figure 2).</p>
 <figure>
-<svg viewBox="0 0 1000 310" role="img" aria-label="Concept of operations timeline">
+<svg viewBox="0 0 1000 310" role="img" aria-label="Mission timeline">
   <g font-size="11.5">
-    <rect x="60" y="8" width="252" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="70" y="25" font-weight="700">1 GPS trusted: calibrate</text><text x="70" y="40" font-size="10.5" fill="#5d6975">learn tower clocks and noise (gated)</text>
-    <rect x="318" y="8" width="252" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="328" y="25" font-weight="700">2 GPS lost: coast</text><text x="328" y="40" font-size="10.5" fill="#5d6975">towers + barometer + IMU; bound grows</text>
-    <rect x="576" y="8" width="200" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="586" y="25" font-weight="700">3 GPS spoofed: refuse</text><text x="586" y="40" font-size="10.5" fill="#5d6975">jump latched; GPS excluded</text>
-    <rect x="782" y="8" width="208" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="792" y="25" font-weight="700">4 GPS consistent: re-admit</text><text x="792" y="40" font-size="10.5" fill="#5d6975">stream steps back by the jump</text>
+    <rect x="60" y="8" width="252" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="70" y="25" font-weight="700">1 GPS good: learn</text><text x="70" y="40" font-size="10.5" fill="#5d6975">tower clocks and noise levels</text>
+    <rect x="318" y="8" width="252" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="328" y="25" font-weight="700">2 GPS lost: carry on</text><text x="328" y="40" font-size="10.5" fill="#5d6975">towers + altimeter + motion; radius grows</text>
+    <rect x="576" y="8" width="200" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="586" y="25" font-weight="700">3 GPS faked: refuse it</text><text x="586" y="40" font-size="10.5" fill="#5d6975">jump caught; GPS ignored</text>
+    <rect x="782" y="8" width="208" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="792" y="25" font-weight="700">4 GPS honest: let it back</text><text x="792" y="40" font-size="10.5" fill="#5d6975">once it jumps back</text>
   </g>
   <line x1="60" y1="255" x2="990" y2="255" stroke="#36414c" stroke-width="1.3"/>
   <line x1="60" y1="64" x2="60" y2="255" stroke="#36414c" stroke-width="1.3"/>
@@ -338,7 +315,7 @@ svg text { font-family: "Red Hat Text", sans-serif; }
   <text x="66" y="162" font-size="10.5" fill="#c03a3a">alert limit</text>
   <path d="M60,238 L318,238 C380,236 420,205 470,170 C520,135 548,108 576,98 L640,92 C700,88 760,84 782,82 C794,170 804,233 990,238" fill="none" stroke="#2f5fae" stroke-width="2.4"/>
   <path d="M60,248 L318,248 C380,246 420,233 470,214 C520,190 550,170 576,162 C604,154 640,143 700,133 C740,127 770,123 782,122 C794,205 804,245 990,248" fill="none" stroke="#1d8a50" stroke-width="2.4"/>
-  <text x="640" y="84" font-size="10.5" fill="#2f5fae" font-weight="700">HPL</text>
+  <text x="620" y="84" font-size="10.5" fill="#2f5fae" font-weight="700">protection level</text>
   <text x="700" y="148" font-size="10.5" fill="#1d8a50" font-weight="700">true error</text>
   <g font-size="10" font-family="Red Hat Mono" font-weight="600">
     <rect x="60" y="282" width="412" height="18" fill="#1d8a50"/><text x="68" y="295" fill="#fff">NOMINAL</text>
@@ -347,353 +324,372 @@ svg text { font-family: "Red Hat Text", sans-serif; }
     <rect x="782" y="282" width="208" height="18" fill="#1d8a50"/><text x="790" y="295" fill="#fff">NOMINAL</text>
   </g>
 </svg>
-<figcaption><b>Figure 2. Concept of operations (schematic).</b> The status follows the protection level against the alert limit, so the state changes while the true error is still within the bound. Real traces of each phase are shown in D2 and §7.</figcaption>
+<figcaption><b>Figure 2. Mission timeline (sketch).</b> The status follows the protection level, which stays above the true error. So the panel turns red while the real error is still inside the radius, never after it has escaped. Real traces are in the demonstration (D2) and §7.</figcaption>
 </figure>
 
-<h3>4.2 LTE front end and cell identification</h3>
-<p>The front end searches the 1.92 MS/s IQ for the three PSS roots and the 168 SSS sequences, which identify the physical cell ID (PCI = 3·N<sub>ID</sub><sup>(1)</sup> + N<sub>ID</sub><sup>(2)</sup>), and tracks each cell's frame timing to produce a pseudorange record at 10 Hz with SNR and a reported σ. Only synchronisation and broadcast system fields are processed. The receiver cannot decode SIB1 (it needs the full carrier), so identity is resolved by matching (EARFCN, PCI) to one registered site in the ISED extract; a cell that matches no site or several is dropped. A cell re-acquired after a loss of lock starts a new tracking arc with its own range bias, because weak cells were found to keep reporting after losing lock.</p>
+<h3>4.2 Measuring distance to towers</h3>
+<p>Every LTE cell tower continuously broadcasts two short, publicly specified sync signals so that phones can find it and line up with its timing. Our receiver searches the recorded radio samples for these signals. Each pattern identifies the tower by a short ID (one of 504), and the moment it arrives tells us, after allowing for clocks, how far away the tower is. We output ten distance readings a second per tower. Only the sync signals and public broadcast fields are processed; no traffic or message content.</p>
+<p>The short ID is not unique across a city, and our receiver cannot read the tower's full identity (that needs a wider radio). So we look up the channel and short ID in the ISED licence database and keep the tower only if exactly one licensed site matches. When the receiver loses a weak tower and finds it again, we treat the new track as a fresh start with its own unknown offset, because we found that weak towers keep producing readings after the receiver has actually lost them.</p>
 
-<h3>4.3 State and measurement models</h3>
-<div class="eq">x = [ p<sub>ENU</sub>, v<sub>ENU</sub>, b, ḃ, {c<sub>s</sub>, ċ<sub>s</sub>}<sub>sites</sub>, {d, ḋ}<sub>radios</sub>, {m<sub>k</sub>}<sub>cells</sub> ]<br>
-ρ<sub>k</sub> = ‖p − s<sub>k</sub>‖ + c·(b + d − c<sub>s(k)</sub>) + m<sub>k</sub> + ε<sub>k</sub><br>
-m<sub>k</sub>: first-order Gauss–Markov, τ = 30 s, σ<sub>m</sub> = σ<sub>ε</sub> (TBC) · ε<sub>k</sub>: white, σ<sub>ε</sub> learned per cell from a 40 m prior</div>
-<p>p and v are position and velocity; b is our receiver clock (driven by PPS while GPS is valid), d the SDR dongle clock, c<sub>s</sub> the clock of tower site s, s<sub>k</sub> the registered position of the site serving cell k. The barometer provides height; the IMU drives the prediction in the IMU variants once aligned. GPS position fixes are gated with a 3-degree-of-freedom χ² test at 99.9 %; when only the vertical component fails (barometer drift), the horizontal part is still used and the height flagged.</p>
-<p class="small"><b>Why the slow-error state.</b> Real captures show range jitter of 0.73 m on strong cells but a slowly varying error with a median of 8.1 m at 1 s that the radio does not report. Told only the white σ, the filter over-trusts each accepted range and its covariance collapses; after GPS loss its bound was exceeded in 45 % of epochs (sim) and understated the error in 34 % of real checks.</p>
+<h3>4.3 The filter</h3>
+<p>The filter keeps a running estimate of everything that affects the measurements, and how uncertain each part is:</p>
+<ul>
+<li>the aircraft's position and speed;</li>
+<li>our clock's offset from GPS time, and the radio's own clock offset;</li>
+<li>each tower's clock offset and how fast it drifts;</li>
+<li>for each tower, a <b>slow error</b>: an extra distance error that wanders slowly (it fades back over about 30 seconds) and that the radio never reports.</li>
+</ul>
+<p>Each tower reading is modelled as:</p>
+<div class="eq">measured distance = true distance to the tower's licensed location<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ speed of light × (our clock + radio clock − tower clock)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ slow error + random noise</div>
+<p>The random noise level is not taken from the radio, which under-reports it; the filter estimates it for each tower from how far that tower's readings land from where the filter expected them, starting from a cautious 40 m. The altimeter gives height; the motion sensor helps predict movement where it is used. A GPS position is accepted only if it is close enough to the prediction to be explained by normal noise (a statistical test that wrongly rejects an honest reading 1 time in 1,000). If only the GPS height disagrees, which happens when the altimeter drifts with temperature, the horizontal position is still used.</p>
+<p class="small"><b>Why track the slow error?</b> On real recordings our radio's distances jitter by only 0.73 m on strong towers, but drift by a median 8 m over a second, and the radio reports neither. A filter told only the small jitter believes each reading far too much and becomes over-confident: after GPS loss its stated radius was too small 45 % of the time in simulation, and 34 % of the time on real recordings. Tracking the slow error fixed both (§7.6).</p>
 
-<h3>4.4 Tower clock model</h3>
-<p>Each LTE site (sectors on one EARFCN, grouped by PCI div 3) carries a clock offset and drift. Sites share a common term per network builder (one network builder serves two of the three local operators), because FDD sites are only frequency-locked: each keeps its own offset, while builder-wide timing faults move all its sites together. Clocks are learned only after GPS has been trusted for a gating period (30 s, TBC) and while the GPS-independent evidence (barometer, our clock) agrees; a calibration learned under GPS that is later flagged is rolled back. A tower whose clock steps by more than its predicted σ is treated as a site fault, not absorbed.</p>
+<h3>4.4 Tower clocks</h3>
+<p>Each tower has its own clock. To turn arrival times into distances, the filter must know each tower's clock offset and drift. It learns them while GPS is good, because then position and time are known.</p>
+<ul>
+<li><b>Grouped by network.</b> In Ottawa, Bell and Telus share one network built and timed by Telus, while Rogers and Vidéotron/Freedom run their own. Towers on the same network keep the same tick rate but each has its own offset. So each tower gets its own offset, plus one shared drift for its network. If a whole network's timing goes wrong, every tower on it moves together; that is a named fault we check for (§5.2).</li>
+<li><b>Learned only while GPS is trusted.</b> Learning starts after GPS has been trusted for 30 seconds (TBC) and only while the sensors that do not depend on GPS (altimeter, our own clock) agree with it. If GPS is later found to have been lying, what was learned is thrown away.</li>
+<li><b>Jumps are faults.</b> A tower clock that jumps by more than expected is treated as a fault in that tower, not quietly absorbed.</li>
+</ul>
 
-<h3>4.5 GPS-dependency classes</h3>
+<h3>4.5 Which sources can vouch for GPS</h3>
 <div class="cols c2" style="grid-template-columns: 1.15fr 1fr; gap: 5mm; align-items: start">
 <figure style="margin-top:0">
-<svg viewBox="0 0 560 290" role="img" aria-label="GPS-dependency classes">
+<svg viewBox="0 0 560 290" role="img" aria-label="Which sources can confirm GPS">
   <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#36414c"/></marker></defs>
   <g font-size="12">
-    <rect x="6" y="8" width="170" height="156" rx="4" fill="#fff" stroke="#36414c"/><text x="18" y="30" font-weight="700">Independent</text>
-    <text x="18" y="52" fill="#36414c">barometer, IMU</text><text x="18" y="70" fill="#36414c">our clock in holdover</text><text x="18" y="88" fill="#36414c">VOR</text>
-    <text x="18" y="136" font-size="10.5" fill="#5d6975">may confirm or</text><text x="18" y="151" font-size="10.5" fill="#5d6975">refute GPS</text>
-    <rect x="194" y="8" width="170" height="156" rx="4" fill="#fff" stroke="#36414c"/><text x="206" y="30" font-weight="700">GPS-timed</text>
-    <text x="206" y="52" fill="#36414c">LTE towers</text><text x="206" y="72" font-size="10.5" fill="#36414c">geometry survives a GPS</text><text x="206" y="86" font-size="10.5" fill="#36414c">fault; time does not</text>
-    <text x="206" y="136" font-size="10.5" fill="#5d6975">may refute GPS time,</text><text x="206" y="151" font-size="10.5" fill="#5d6975">never confirm it</text>
-    <rect x="382" y="8" width="170" height="156" rx="4" fill="#fff" stroke="#36414c"/><text x="394" y="30" font-weight="700">GPS-derived</text>
-    <text x="394" y="52" fill="#36414c">ADS-B positions</text><text x="394" y="70" fill="#36414c">our GPS, SBAS</text>
-    <text x="394" y="136" font-size="10.5" fill="#5d6975">inside the GPS common-</text><text x="394" y="151" font-size="10.5" fill="#5d6975">mode fault; never confirms</text>
+    <rect x="6" y="8" width="170" height="156" rx="4" fill="#fff" stroke="#36414c"/><text x="18" y="30" font-weight="700">Independent of GPS</text>
+    <text x="18" y="52" fill="#36414c">altimeter, motion sensor</text><text x="18" y="70" fill="#36414c">our clock, free-running</text><text x="18" y="88" fill="#36414c">VOR navigation beacons</text>
+    <text x="18" y="136" font-size="10.5" fill="#5d6975">can confirm or</text><text x="18" y="151" font-size="10.5" fill="#5d6975">contradict GPS</text>
+    <rect x="194" y="8" width="170" height="156" rx="4" fill="#fff" stroke="#36414c"/><text x="206" y="30" font-weight="700">Timed by GPS</text>
+    <text x="206" y="52" fill="#36414c">cell towers</text><text x="206" y="72" font-size="10.5" fill="#36414c">their locations stay valid;</text><text x="206" y="86" font-size="10.5" fill="#36414c">their clocks follow GPS</text>
+    <text x="206" y="136" font-size="10.5" fill="#5d6975">can contradict GPS time,</text><text x="206" y="151" font-size="10.5" fill="#5d6975">never confirm it</text>
+    <rect x="382" y="8" width="170" height="156" rx="4" fill="#fff" stroke="#36414c"/><text x="394" y="30" font-weight="700">Derived from GPS</text>
+    <text x="394" y="52" fill="#36414c">other aircraft's positions</text><text x="394" y="70" fill="#36414c">our own GPS</text>
+    <text x="394" y="136" font-size="10.5" fill="#5d6975">fail together with GPS;</text><text x="394" y="151" font-size="10.5" fill="#5d6975">never confirm it</text>
   </g>
   <g stroke="#36414c" stroke-width="1.6" marker-end="url(#a2)"><line x1="91" y1="164" x2="250" y2="222"/><line x1="279" y1="164" x2="279" y2="220"/><line x1="467" y1="164" x2="310" y2="222"/></g>
-  <rect x="180" y="224" width="200" height="50" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="280" y="246" text-anchor="middle" font-size="12.5" font-weight="700">GPS consistency decision</text><text x="280" y="263" text-anchor="middle" fill="#5d6975" font-size="10.5">no evidence counted twice</text>
+  <rect x="180" y="224" width="200" height="50" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="280" y="246" text-anchor="middle" font-size="12.5" font-weight="700">Is GPS telling the truth?</text><text x="280" y="263" text-anchor="middle" fill="#5d6975" font-size="10.5">no evidence counted twice</text>
 </svg>
-<figcaption><b>Figure 3. GPS-dependency classes.</b></figcaption>
+<figcaption><b>Figure 3. Which sources may vouch for GPS.</b></figcaption>
 </figure>
 <div>
-<p>Without classes, a GPS spoof echoed by ADS-B positions and by GPS-disciplined tower clocks appears as three agreeing sources. With classes, only independent evidence can confirm GPS. A two-class scheme (independent or dependent) was rejected because it discards tower geometry, which survives a GPS fault even though tower time does not.</p>
-<p class="small">Limit by design: a wide-area time spoof that also captures tower timing is detectable only through independent evidence (our clock in holdover), and is outside the current fault model.</p>
+<p>A spoofed GPS can drag other sources with it: other aircraft report positions from their own GPS, and towers set their clocks from GPS. Counted naively, a single fake could look like three sources agreeing. So each source is put in one of three groups, and only sources that are independent of GPS are allowed to confirm it.</p>
+<p>We considered a simpler two-group split (independent or not). We rejected it because it would throw away tower locations, which stay valid when GPS is faked even though tower clocks do not.</p>
+<p class="small">Known gap: a spoofer powerful enough to fake GPS time over a wide area, taking the towers' clocks with it, could only be caught by our own free-running clock. This case is outside the current design.</p>
 </div>
 </div>
 
-<h3>4.6 Estimator family</h3>
+<h3>4.6 Filter versions</h3>
+<p>The software contains several versions of the filter, so improvements can be tested against each other on the same runs. The names in brackets are the ones used in the code and results.</p>
 <table>
-<thead><tr><th style="width:22%">Estimator</th><th>Description</th><th style="width:12%">Default</th></tr></thead>
+<thead><tr><th style="width:26%">Version</th><th>What it does differently</th><th style="width:14%">Status</th></tr></thead>
 <tbody>
-<tr><td><code>baseline</code></td><td>Deliberately simple reference filter (control)</td><td>control</td></tr>
-<tr><td><code>ekf</code></td><td>Position, velocity, receiver clock, per-tower and per-radio clocks; real-capture records told the measured σ; re-acquired arcs get their own bias</td><td>yes</td></tr>
-<tr><td><code>ekf-calibrated</code></td><td>Tower clocks per site under a builder term, gated calibration with rollback (§4.4)</td><td>opt-in</td></tr>
-<tr><td><code>ekf-imu</code></td><td>IMU-driven prediction</td><td>opt-in</td></tr>
-<tr><td><code>ekf-learned-noise</code></td><td>Learns each cell's range noise from its innovations, from a 40 m prior; never shrinks without GPS</td><td>opt-in</td></tr>
-<tr><td><code>ekf-honest-guard</code></td><td>Learned noise plus slow-error states (§4.3) plus the jump guard (§5.3). <b>Selected configuration</b></td><td>opt-in</td></tr>
-<tr><td><code>ekf-mhss</code></td><td>Multiple-hypothesis solution separation with exclusion</td><td>opt-in</td></tr>
-<tr><td><code>ekf-base(-imu)</code></td><td>Differenced against the reference station; falls back to <code>ekf</code> if the base is lost</td><td>sim only</td></tr>
+<tr><td>Simple reference (<code>baseline</code>)</td><td>A deliberately basic filter, used as the yardstick</td><td>for comparison</td></tr>
+<tr><td>Standard (<code>ekf</code>)</td><td>Tracks position, speed, our clock, each tower's clock and the radio's clock. On real recordings it uses our measured noise levels instead of the radio's own figure</td><td>default</td></tr>
+<tr><td>With learned tower clocks (<code>ekf-calibrated</code>)</td><td>Adds the network grouping of tower clocks and the learn-while-GPS-is-trusted rule (§4.4)</td><td>optional</td></tr>
+<tr><td>With motion sensor (<code>ekf-imu</code>)</td><td>Uses the motion sensor to predict movement between readings</td><td>optional</td></tr>
+<tr><td>With learned noise (<code>ekf-learned-noise</code>)</td><td>Estimates how noisy each tower really is from its readings, instead of trusting the radio's figure</td><td>optional</td></tr>
+<tr><td><b>Honest filter with jump guard</b> (<code>ekf-honest-guard</code>)</td><td>Learned noise, plus the slow error per tower (§4.3), plus the jump guard (§5.3). <b>This is the version we recommend</b></td><td>optional</td></tr>
+<tr><td>Cross-checking (<code>ekf-mhss</code>)</td><td>Runs extra copies of the filter, each leaving out one group of sources, and raises an alarm if they disagree (the literature calls this solution separation)</td><td>optional</td></tr>
+<tr><td>With ground station (<code>ekf-base</code>)</td><td>Subtracts a fixed ground receiver's view of the same towers, which cancels the tower clocks</td><td>simulation only</td></tr>
 </tbody>
 </table>
-<p class="small muted">Selection rule, fixed in advance (§7.9): ≤ 1 % of epochs above the bound on real and simulated tuning data, then the lowest real error at 300 s, subject to ≤ 5 % degradation in simulation and no hazardous epoch. Seven further configurations (slow-error sizing, IMU propagation, process noise, cell-count gates, consistency gates, Huber weighting, frozen learning) were evaluated against it and none passed.</p>
+<p class="small muted">How the recommended version was chosen: the rule was written before testing. A version had to keep the true error inside its radius at least 99 % of the time on both real and simulated test data; among those, the lowest real error after 5 minutes won, provided it was no more than 5 % worse in simulation and produced no dangerous moments. We then tried seven further tweaks (different slow-error sizes, motion-sensor prediction, process settings, requiring several towers, consistency checks, outlier down-weighting, freezing the learning) and none beat it.</p>
 
-<h2>5 Integrity and confidence monitoring</h2>
+<h2>5 How confidence is computed and shown</h2>
 <h3>5.1 Protection levels</h3>
-<div class="eq">HPL = K<sub>H</sub> · σ<sub>max</sub>,&nbsp;&nbsp; K<sub>H</sub> = √(2 ln(1/P<sub>IR</sub>)) = √(2 ln 10⁷) = 5.68<br>
-TPL = K<sub>T</sub> · σ<sub>clock</sub>,&nbsp;&nbsp; K<sub>T</sub> = 5.33<br>
-<span class="muted">σ<sub>max</sub>: largest standard deviation of the 2×2 horizontal covariance · P<sub>IR</sub> = 10⁻⁷ per epoch (TBC) · exposure time TBD</span></div>
-<p>For a circular two-dimensional Gaussian error, P(r &gt; kσ) = e<sup>−k²/2</sup>, so an integrity risk of 10⁻⁷ requires k = 5.68. The one-dimensional value 5.33, used in our code until it was found in review, gives 6.8 × 10⁻⁷ for a horizontal error; the factor was corrected, and results computed before the correction are labelled (the correction can only raise coverage). The clock is a single state, so the time factor remains 5.33. In the solution-separation estimator the HPL is the multiple-hypothesis bound at the same risk, with fault priors per site 10⁻³, builder 10⁻⁴, sensor layer 10⁻⁴ and GPS common mode 10⁻³ (all TBC). Alert limits: 50 m (UC-01), 556 m (UC-02, RNP 0.3), 1.5 µs (UC-03).</p>
+<p>The filter knows how uncertain its position is in every direction. The protection level is a radius large enough that the true position falls outside it only with a stated, tiny probability. We use a probability of 1 in 10 million per update (TBC).</p>
+<div class="eq">protection radius (HPL) = 5.68 × the position's standard deviation in its least certain direction<br>
+time protection level (TPL) = 5.33 × the clock's standard deviation<br>
+<span class="muted">5.68 = √(2 ln 10⁷): the multiplier for which a 2-D error escapes the circle with probability 1 in 10 million</span></div>
+<p>Why 5.68: a horizontal error has two directions (east and north). For such an error the chance of landing outside a circle of k standard deviations is e<sup>−k²/2</sup>, so 1 in 10 million needs k = 5.68. Our code first used 5.33, the value for a one-direction error, which actually gives about 7 in 10 million; we found and fixed this ourselves. Time has one direction, so 5.33 is right there. The alert limits are 50 m (drone), 556 m (approach) and 1.5 µs (timing).</p>
+<p class="small">The cross-checking version computes its radius differently: from all the extra filter copies, with a prior chance of failure assumed for each group of sources (a single tower 1 in 1,000; a whole tower network 1 in 10,000; a whole sensor type 1 in 10,000; GPS 1 in 1,000; all TBC).</p>
 
-<h3>5.2 Fault hypotheses and monitors</h3>
+<h3>5.2 What can go wrong, and what checks for it</h3>
 <table>
-<thead><tr><th style="width:18%">Hypothesis</th><th style="width:35%">Covers</th><th>Monitored by</th></tr></thead>
+<thead><tr><th style="width:20%">Failure</th><th style="width:35%">Examples</th><th>Checked by</th></tr></thead>
 <tbody>
-<tr><td>GPS common mode</td><td>GPS position or time wrong, with every GPS-derived source</td><td>χ² gate; jump guard (§5.3); sky-map spoof decision (§5.4); time-drift gate; MHSS GPS-free subset; ADS-B warning raises its prior (§5.5)</td></tr>
-<tr><td>Tower site</td><td>One site's clock step; wrong or moved registry entry; rogue cell on a valid PCI</td><td>MHSS site subsets; per-arc bias; tower displacement monitor (opt-in)</td></tr>
-<tr><td>Network builder</td><td>One builder's timing source in holdover or captured</td><td>MHSS builder subset</td></tr>
-<tr><td>Sensor layer</td><td>A whole sensor type wrong</td><td>MHSS layer subset</td></tr>
-<tr><td>Reference station</td><td>Base moved, clock step, link lost</td><td>Base consistency check (sim)</td></tr>
+<tr><td>GPS is wrong</td><td>Jammed, spoofed position, faked time; other aircraft's reports go wrong with it</td><td>The distance check on each GPS reading (§4.3); the jump guard (§5.3); the sky check (§5.4); a check for GPS time being dragged; the cross-checking filter copy without GPS; the warning from other aircraft (§5.5)</td></tr>
+<tr><td>One tower is wrong</td><td>Its clock jumps; its database location is wrong; a fake tower copies its ID</td><td>Cross-checking copies that leave out each tower; fresh offset when a tower is re-found; an optional check of GPS movement against the towers</td></tr>
+<tr><td>A whole tower network is wrong</td><td>The network's own timing fails or is captured</td><td>Cross-checking copy that leaves out that network</td></tr>
+<tr><td>A whole sensor type is wrong</td><td>Altimeter drift, motion-sensor fault</td><td>Cross-checking copy that leaves out that sensor type</td></tr>
+<tr><td>Ground station is wrong (sim)</td><td>Moved, clock jump, link lost</td><td>Consistency check on the ground station</td></tr>
 </tbody>
 </table>
 
-<h3>5.3 GPS jump guard</h3>
+<h3>5.3 Jump guard</h3>
+<p>When a spoofer suddenly moves the GPS position, the filter's normal check rejects the fake reading. But while GPS is rejected, the filter's own uncertainty grows, until eventually the same fake reading looks plausible and is accepted. A spoofer only has to wait. The jump guard closes that gap:</p>
 <ol class="small">
-<li><b>Step test.</b> The GPS stream is checked against a straight line fitted to its own last 2 s; the mean of the newest 1–3 fixes stepping away with NIS &gt; 30.66 (χ², 3 dof, 10⁻⁶) is a step.</li>
-<li><b>Latch.</b> A step at a fix whose innovation against the filter also exceeds 30.66, while GPS was in use within 2 s, latches the guard. The step is taken as the offset GPS is holding.</li>
-<li><b>While latched.</b> GPS position is excluded (<code>gnss_excluded</code>); further steps of the stream accumulate into the offset and its covariance. The filter coasts.</li>
-<li><b>Re-admit.</b> When the accumulated offset is consistent with zero (NIS ≤ 16.27, the gate's 99.9 % bound), GPS is back on its pre-jump track; fixes then bypass the gate until the filter has agreed with GPS for a settling period.</li>
+<li><b>Spot a jump.</b> GPS readings normally follow a smooth line. If the latest readings suddenly step away from the line their own last 2 seconds were following, and also disagree strongly with the filter (both by a margin that honest GPS would exceed only about once in a million readings), the guard trips.</li>
+<li><b>Refuse GPS.</b> GPS position is ignored, and the size of the jump is remembered. The filter carries on with towers, altimeter and motion sensor. Any further jumps are added to the remembered offset.</li>
+<li><b>Let GPS back in</b> only when the GPS readings have jumped back by the same amount (the remembered offset is back to zero within normal noise). That is the signature of the spoofer stopping. Honest GPS is then accepted again within 0.1 s.</li>
 </ol>
-<p class="small">Rationale: once GPS is rejected, the coasting covariance grows until the same spoofed fix passes the gate, so a spoofer need only wait. Re-admission on the stream's own steps is independent of the filter covariance. A fix returning after an outage longer than 2 s is not judged by the guard (stated limit, §9).</p>
+<p class="small">The guard does not use the filter's uncertainty to decide when to let GPS back, because that uncertainty is exactly what grows while the spoofer waits. Known gap: GPS that returns after it has been off for more than 2 seconds is not judged by the guard (§9).</p>
 
-<h3>5.4 Spoof decision from the sky</h3>
-<p class="small">Each GPS satellite report is compared with the almanac (SGP4 from a dated TLE set) at the current estimate. A satellite received with C/N0 &gt; 0 but predicted below −5° elevation, in two consecutive reports, is a hard cue. With at least five satellites above the mask, a C/N0 spread under 3 dB or a correlation with predicted elevation under 0.2 is a soft cue (suppressed while the jamming indicator is ≥ 0.5). Cues and the estimator's own spoof flags are combined by noisy-OR into an advisory level: unknown, suspect, spoofed. The decision is advisory and changes no estimate.</p>
+<h3>5.4 Sky check</h3>
+<p class="small">We know where every GPS satellite should be in the sky at our time and place (from published orbits). Two clues point to a fake. <b>Hard clue:</b> a satellite received with a signal although it should be below the horizon, seen twice in a row. <b>Soft clue:</b> with at least five satellites, the signal strengths are suspiciously equal (spread under 3 dB), or do not follow the pattern where higher satellites are stronger. A fake transmitted from one antenna tends to make all satellites look alike. The soft clue is switched off during jamming, which also flattens strengths. The clues are combined into a level of unknown, suspect or spoofed. This check is advisory: it is shown to the operator and does not change the position.</p>
 
-<h3>5.5 ADS-B interference warning</h3>
-<p class="small">An aircraft that earlier reported good quality and drops below NACp 9 or NIC 7 for 5 s, or makes a confirmed track jump over 300 m, is evidence of interference. The warning is raised while at least two aircraft within 50 km show a drop, or any shows a confirmed jump, and for 300 s after. While raised, the GPS common-mode prior in the solution-separation estimator is raised to 10⁻¹, widening the bound before our own GPS is affected. Position is never derived from ADS-B.</p>
+<h3>5.5 Warning from other aircraft</h3>
+<p class="small">Aircraft broadcast their position with an accuracy and integrity rating (ADS-B). If an aircraft that was reporting good ratings drops to poor ones for 5 seconds, or its reported track jumps by more than 300 m, that suggests interference near it. When two aircraft within 50 km show this, or one shows a confirmed jump, we raise a warning for 300 seconds. While the warning is up, the cross-checking filter treats GPS as much more likely to fail (1 in 10), which widens our radius before our own GPS is affected. We never take a position from these broadcasts, because they come from the other aircraft's own GPS.</p>
 
-<h3>5.6 Status logic</h3>
+<h3>5.6 Status</h3>
 <table>
-<thead><tr><th style="width:16%">Status</th><th>Condition (drone limits, TBC)</th><th style="width:30%">Operator meaning</th></tr></thead>
+<thead><tr><th style="width:16%">Status</th><th>When (drone limits, TBC)</th><th style="width:28%">What the operator should do</th></tr></thead>
 <tbody>
-<tr><td><span class="st s-ok">NOMINAL</span></td><td>HPL &lt; 40 m and no source flagged</td><td>Navigate on this position</td></tr>
-<tr><td><span class="st s-warn">DEGRADED</span></td><td>HPL 40–50 m, or a source flagged (e.g. GPS rejected, height excluded)</td><td>Usable; prepare for loss</td></tr>
-<tr><td><span class="st s-bad">UNSAFE</span></td><td>HPL ≥ 50 m (alert limit), or no HPL</td><td>Do not navigate on this position</td></tr>
+<tr><td><span class="st s-ok">NOMINAL</span></td><td>Radius under 40 m and no source flagged</td><td>Navigate on this position</td></tr>
+<tr><td><span class="st s-warn">DEGRADED</span></td><td>Radius 40–50 m, or a source flagged (for example GPS refused, or GPS height ignored)</td><td>Usable; prepare for loss</td></tr>
+<tr><td><span class="st s-bad">UNSAFE</span></td><td>Radius 50 m or more (the alert limit), or no radius available</td><td>Do not navigate on this position</td></tr>
 </tbody>
 </table>
-<p class="small">Monitors act through the estimate: a refused or excluded source is flagged (DEGRADED) and the coasting filter's HPL grows until it crosses the limit (UNSAFE). The sky-map spoof decision and the ADS-B warning are shown as separate readouts and do not change the status directly. Alerts latch with their start time until acknowledged. The approach use case reports ANP (the 95 % radius from the covariance) against RNP 0.3; the timing use case reports TPL and the predicted time to its alert limit.</p>
+<p class="small">The checks act through the estimate: a refused source is flagged (DEGRADED), and without it the filter's radius grows until it crosses the limit (UNSAFE). The sky check and the warning from other aircraft are shown separately and do not change the status by themselves. Alerts stay on screen with their start time until acknowledged. For an approach, the panel also shows the position's 95 % radius against the approach requirement; for timing, the time protection level and how long until it reaches its limit.</p>
 
-<h3>5.7 Operator display</h3>
+<h3>5.7 Operator panel</h3>
 <div class="cols c2" style="grid-template-columns: 1.3fr 1fr; gap: 5mm; align-items: start">
-<figure style="margin:0"><img src="assets/fig/panel-unsafe.jpg" alt="Operator panel 40 s after GPS loss"><figcaption><b>Figure 4. Operator panel</b>, simulated drone over real tower sites, 40 s after GPS loss: UNSAFE, HPL 895 m, true error 325 m.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/panel-unsafe.jpg" alt="Operator panel 40 s after GPS loss"><figcaption><b>Figure 4. Operator panel</b>, simulated drone over real tower locations, 40 s after GPS loss: UNSAFE, radius 895 m, true error 325 m (inside it).</figcaption></figure>
 <table style="margin-top:0">
-<thead><tr><th>#</th><th>Readout</th></tr></thead>
+<thead><tr><th>#</th><th>Shows</th></tr></thead>
 <tbody>
-<tr><td class="n">1</td><td>Status, colour and text</td></tr>
-<tr><td class="n">2</td><td>HPL against the alert limit</td></tr>
-<tr><td class="n">3</td><td>ANP against RNP</td></tr>
-<tr><td class="n">4</td><td>GPS trust state</td></tr>
-<tr><td class="n">5</td><td>Spoof decision and cue</td></tr>
-<tr><td class="n">6</td><td>Per-source trust and weight</td></tr>
-<tr><td class="n">7</td><td>TPL and time to alert</td></tr>
-<tr><td class="n">8</td><td>Map: HPL circle, track coloured by confidence</td></tr>
-<tr><td class="n">9</td><td>HPL history with pre-flight forecast</td></tr>
-<tr><td class="n">10</td><td>Latched alerts</td></tr>
+<tr><td>1</td><td>Status, in colour and words</td></tr>
+<tr><td>2</td><td>Protection radius against the alert limit</td></tr>
+<tr><td>3</td><td>95 % radius against the approach requirement</td></tr>
+<tr><td>4</td><td>Whether GPS is trusted</td></tr>
+<tr><td>5</td><td>Sky-check level and clue</td></tr>
+<tr><td>6</td><td>How much each source is trusted</td></tr>
+<tr><td>7</td><td>Time protection level, time to its limit</td></tr>
+<tr><td>8</td><td>Map with the radius, track coloured by confidence</td></tr>
+<tr><td>9</td><td>Radius over time, with a pre-flight forecast</td></tr>
+<tr><td>10</td><td>Alerts, kept until acknowledged</td></tr>
 </tbody>
 </table>
 </div>
 
-<h2>6 Design rationale</h2>
-<p>Each decision below is recorded with its options and consequences (§10). The selected option is in bold.</p>
-<h3>6.1 Signal selection</h3>
+<h2>6 Why it is built this way</h2>
+<p>Every decision below was written down at the time with the options considered (§10). The chosen option is in bold.</p>
+<h3>6.1 Which signals</h3>
 <table>
-<thead><tr><th style="width:13%">Signal</th><th style="width:31%">Advantages</th><th style="width:33%">Disadvantages</th><th>Role</th></tr></thead>
+<thead><tr><th style="width:14%">Signal</th><th style="width:31%">For</th><th style="width:33%">Against</th><th>How we use it</th></tr></thead>
 <tbody>
-<tr><td><b>LTE downlink</b></td><td>Ubiquitous, strong, fixed registered sites; PSS/SSS fully known and within 1.08 MHz, so a low-cost SDR can range on them; in a cabled testbed, denial needed about 30 dB more jamming power against PSS/SSS than against reference signals</td><td>GPS-timed; one carrier hears few sites; unreported slowly varying error; no global cell ID without full-band decoding</td><td class="sel">Primary</td></tr>
-<tr><td>ADS-B</td><td>Position and quality of every equipped aircraft</td><td>GPS-derived; unauthenticated; spoofed aircraft observed retaining high integrity indicators</td><td>Interference warning only</td></tr>
-<tr><td>VOR</td><td>GPS-independent</td><td>No lock on our captures; poor geometry at low altitude</td><td>Front end built</td></tr>
-<tr><td>Wi-Fi</td><td>Dense in urban areas</td><td>Short range; cloneable beacons; ranging (FTM) requires transmitting</td><td>Not used for position</td></tr>
-<tr><td>Iridium (LEO)</td><td>Global, strong; receivable by our SDR</td><td>Published open-burst fixes 100–200 m, static, over minutes; unauthenticated; commercial service already available</td><td>Simulated; roadmap (D3)</td></tr>
-<tr><td>Starlink</td><td>Dense constellation</td><td>A terminal transmits; downlink-only opportunistic use</td><td>Simulated</td></tr>
-<tr><td>Broadcast time</td><td>Independent time</td><td>CHU ended June 2026; WWVB needs an LF receiver; FM RDS has minute resolution</td><td>Not used</td></tr>
+<tr><td><b>Cell towers (LTE)</b></td><td>Everywhere, strong, at fixed licensed locations. Their sync signals are public and narrow, so a cheap radio can measure them. In a published lab test, jamming them took about 1,000 times more power than jamming other parts of the LTE signal</td><td>Their clocks follow GPS; one channel hears few towers; a slow error the radio does not report; the full tower identity needs a wider radio</td><td><b>Main source</b></td></tr>
+<tr><td>Aircraft broadcasts (ADS-B)</td><td>Position and quality of every equipped aircraft</td><td>Comes from their GPS, so fails with it; not authenticated; spoofed aircraft have been seen still reporting good quality</td><td>Early warning only</td></tr>
+<tr><td>VOR beacons</td><td>Independent of GPS</td><td>Our receiver never locked on; poor geometry near the ground</td><td>Software built, not relied on</td></tr>
+<tr><td>Wi-Fi</td><td>Dense in cities</td><td>Short range; easy to fake; measuring distance requires transmitting</td><td>Not used for position</td></tr>
+<tr><td>Iridium satellites</td><td>Strong, global; our radio can hear them</td><td>Published fixes from their open signals are 100–200 m, standing still, after minutes; not authenticated; a paid service already exists</td><td>Simulated; next layer in the roadmap</td></tr>
+<tr><td>Starlink</td><td>Many satellites</td><td>Using it properly needs a terminal that transmits</td><td>Simulated</td></tr>
+<tr><td>Broadcast time signals</td><td>Independent time</td><td>Canada's CHU stopped in June 2026; the US WWVB needs a special receiver; FM radio time is only to the minute</td><td>Not used</td></tr>
 </tbody>
 </table>
 
-<h3>6.2 Architecture decisions</h3>
+<h3>6.2 Key decisions</h3>
 <table>
-<thead><tr><th style="width:15%">Decision</th><th style="width:33%">Options considered</th><th>Rationale for the selection</th></tr></thead>
+<thead><tr><th style="width:15%">Decision</th><th style="width:33%">Options considered</th><th>Why we chose it</th></tr></thead>
 <tbody>
-<tr><td>Solution emphasis</td><td>Accuracy-first; <b>integrity-first</b>; hostile emitters or space-based</td><td>Accuracy-first reproduces published work; space-based is simulation-only. Integrity-first covers all three use cases</td></tr>
-<tr><td>Spoof testing</td><td>Transmit-capable SDR; <b>receive-only with software injection</b></td><td>No spectrum risk; injection into real recordings exercises real receiver data</td></tr>
-<tr><td>Processing location</td><td>On board; <b>record raw, process on ground</b></td><td>Captures can be re-processed as algorithms improve; one code path for sim, replay and live</td></tr>
-<tr><td>Tower clocks</td><td>Independent random walk per tower; one clock per network; <b>per site with a builder term, gated learning</b>; base-station differencing only</td><td>Per tower: no redundancy or drift. Per network: wrong for FDD (sites only frequency-locked). Differencing needs hardware and has no fallback</td></tr>
-<tr><td>Dependency model</td><td>None; two classes; <b>three classes</b></td><td>Three classes retain tower geometry while excluding tower time from confirming GPS</td></tr>
-<tr><td>Detected GPS jump</td><td>Gate only; <b>refuse until stream steps back</b>; refuse for the flight; re-admit on covariance test</td><td>Runs with hazardous epochs: gate 49/50; covariance test 46/50; selected 3/50, with honest GPS re-admitted 0.1 s after the jump ends; refuse-for-flight never re-admits</td></tr>
-<tr><td>Bound honesty</td><td>Larger factor after GPS loss; larger process noise; <b>slow error as a state</b></td><td>A factor hides a model error and depends on tuning; process noise inflates the bound everywhere; the state matches the measured error</td></tr>
-<tr><td>HPL factor</td><td>5.33; <b>5.68</b>; SBAS 6.0/6.18</td><td>5.68 is derived from the stated risk for a 2-D error; SBAS factors belong to SBAS's own risk allocation</td></tr>
-<tr><td>Spoof decision</td><td>Sky map; power pattern; <b>both, advisory</b>; both, excluding GPS</td><td>Each cue alone is blind or soft; exclusion on soft evidence costs accuracy; the jump guard already acts</td></tr>
-<tr><td>ADS-B use</td><td><b>Raise GPS fault prior</b>; graded prior; de-weight GPS; display only</td><td>Widens the bound early without letting GPS-derived data steer position</td></tr>
-<tr><td>Reference station</td><td>None; hardware; <b>simulation, hardware later</b></td><td>Best GPS-loss accuracy in simulation (677 → 332 m) but follows spoofs without a guard; parts not available by the cut-off</td></tr>
-<tr><td>Payload</td><td><b>Pi 4B alone</b> or Pi + microcontroller hub; <b>USB drive</b> or SD card</td><td>One board and one clock; the SD card dropped 2.9 % of IQ</td></tr>
+<tr><td>What to focus on</td><td>Best accuracy; <b>trustworthiness first</b>; jammers or satellites as signals</td><td>Accuracy-only repeats published work; jammers and satellites could only be simulated. Trustworthiness serves all three users</td></tr>
+<tr><td>How to test spoofing</td><td>Transmit fake GPS; <b>add it in software</b></td><td>No risk to the radio spectrum; adding faults to real recordings still tests real receiver data</td></tr>
+<tr><td>Where to process</td><td>On the aircraft; <b>record raw, process on the ground</b></td><td>Recordings can be re-processed as the software improves; one program for simulation, recordings and live</td></tr>
+<tr><td>Tower clocks</td><td>Each tower independent; one clock per network; <b>own offset per tower, shared drift per network, learned while GPS is trusted</b>; ground station only</td><td>Independent towers can't be cross-checked; one clock per network is wrong because towers keep their own offsets; a ground station needs extra hardware and fails if its link drops</td></tr>
+<tr><td>Who can vouch for GPS</td><td>Everyone; two groups; <b>three groups</b></td><td>Three groups keep tower locations while stopping tower clocks from vouching for GPS</td></tr>
+<tr><td>After a GPS jump</td><td>Normal check only; <b>refuse until it jumps back</b>; refuse for the rest of the flight; let back in when the filter's uncertainty allows</td><td>Runs with dangerous moments: normal check 49 of 50; uncertainty rule 46 of 50; ours 3 of 50, with honest GPS back in 0.1 s. Refusing for the rest of the flight never lets honest GPS back</td></tr>
+<tr><td>Keeping the radius honest</td><td>Multiply the radius after GPS loss; add generic uncertainty; <b>track the slow error per tower</b></td><td>A multiplier hides the real problem and only fits the cases it was tuned on; generic uncertainty widens the radius everywhere; tracking the slow error matches what we measured</td></tr>
+<tr><td>Radius multiplier</td><td>5.33; <b>5.68</b>; 6.0 (aviation SBAS value)</td><td>5.68 follows from our stated probability for a 2-D error; the SBAS value belongs to that system's own budget</td></tr>
+<tr><td>Sky check</td><td>Positions only; strengths only; <b>both, advisory</b>; both, and drop GPS</td><td>Each clue alone misses some fakes or false-alarms indoors; dropping GPS on a soft clue costs accuracy; the jump guard already acts</td></tr>
+<tr><td>Other aircraft's broadcasts</td><td><b>Treat GPS as more likely to fail</b>; graded; trust GPS less in the position; display only</td><td>Widens the radius early without letting another aircraft's GPS steer ours</td></tr>
+<tr><td>Ground station</td><td>None; build it; <b>simulate now, build later</b></td><td>Best accuracy after GPS loss in simulation (677 → 332 m), but it follows a spoof without a guard; parts not available in time</td></tr>
+<tr><td>Payload</td><td><b>One Pi</b> or Pi plus a microcontroller; <b>USB drive</b> or SD card</td><td>One board means one clock for all sensors; the SD card dropped 2.9 % of radio samples</td></tr>
 </tbody>
 </table>
 
 <h2>7 Verification</h2>
 <h3>7.1 Method</h3>
 <ul class="small">
-<li><b>Benchmark set.</b> One scenario leg per use case over real ISED tower sites, emitting LTE records shaped as the real front end writes them, plus a 15-attack realistic set (outages, jumps, ramps, meaconing, time spoofing, tower faults).</li>
-<li><b>Monte Carlo.</b> 50 seeded runs per scenario (200 for the bound study), paired across estimators. Tuning uses seeds 100–109, never reported.</li>
-<li><b>Real data.</b> Static and walking sessions with GPS as truth; GPS removed in software at several cut times; faults injected into recordings.</li>
-<li><b>Statistics.</b> Accuracy as defined in §1.5; bound coverage as the share of epochs with HPL ≥ error; hazardous epochs; detection time; false alarms per hour.</li>
+<li><b>Test scenarios.</b> One simulated mission per user, flown over the real tower locations around Ottawa, producing tower readings in the same form our real receiver writes them. Plus a set of 15 attacks: GPS outages, sudden jumps, slow drags, delayed replays of real GPS, time drags and tower faults.</li>
+<li><b>Repetition.</b> Each scenario is flown 50 times with fresh random errors (200 times for the confidence study). Each filter version sees exactly the same 50 flights. Settings were tuned on 10 separate flights that are never reported.</li>
+<li><b>Real data.</b> Standing and walking recordings, with GPS as the truth; GPS is removed in software at several moments to see what happens next; faults are added to recordings.</li>
+<li><b>What we report.</b> Accuracy as defined in §1.5; how often the true error stays inside the radius; dangerous moments; how fast an attack is caught; false alarms per hour.</li>
 </ul>
 
-<h3>7.2 Simulation validity</h3>
+<h3>7.2 How the simulation matches reality</h3>
 <table>
-<thead><tr><th style="width:28%">Model</th><th>Source of parameters</th><th style="width:14%">Status</th></tr></thead>
+<thead><tr><th style="width:28%">Part of the simulation</th><th>Where its numbers come from</th><th style="width:14%">Status</th></tr></thead>
 <tbody>
-<tr><td>IMU noise and bias instability</td><td>Overnight static bench capture</td><td><span class="st s-ok">measured</span></td></tr>
-<tr><td>LTE white range noise</td><td>15 static captures; σ as a function of SNR (0.73 m on strong cells, 22.5 m at −14 to −11 dB)</td><td><span class="st s-ok">measured</span></td></tr>
-<tr><td>LTE slow error</td><td>Same captures; 2.4–17 m, median 8.1 m at 1 s; persists in same-site sector differences, so it is not a clock</td><td><span class="st s-ok">measured</span></td></tr>
-<tr><td>Payload clock</td><td>PPS discipline on the payload</td><td><span class="st s-ok">measured</span></td></tr>
-<tr><td>GPS fix, C/N0</td><td>Static sessions</td><td><span class="st s-warn">partial</span></td></tr>
-<tr><td>Cells heard per carrier</td><td>1–4 per carrier in real captures; antenna placement mattered by ≥ 25.7 dB</td><td><span class="st s-warn">partial</span></td></tr>
-<tr><td>Tower clocks, multipath in motion, barometer</td><td>Literature</td><td><span class="st s-bad">placeholder</span></td></tr>
-<tr><td>Attacks</td><td>Software injection, simulated and into real recordings</td><td><span class="st s-bad">placeholder</span></td></tr>
+<tr><td>Motion-sensor noise and drift</td><td>Overnight recording on the bench</td><td><span class="st s-ok">measured</span></td></tr>
+<tr><td>Tower distance jitter</td><td>15 real recordings: 0.73 m on strong towers, up to 22 m on weak ones</td><td><span class="st s-ok">measured</span></td></tr>
+<tr><td>Tower slow error</td><td>Same recordings: 2–17 m, median 8 m. It stays when comparing two antennas on the same mast, so it is not a clock</td><td><span class="st s-ok">measured</span></td></tr>
+<tr><td>Payload clock</td><td>Timing pulse on the payload</td><td><span class="st s-ok">measured</span></td></tr>
+<tr><td>GPS position and strengths</td><td>Standing recordings</td><td><span class="st s-warn">partly</span></td></tr>
+<tr><td>Towers heard per channel</td><td>1–4 in real recordings; antenna placement changed signal strength by more than 25 dB</td><td><span class="st s-warn">partly</span></td></tr>
+<tr><td>Tower clocks, reflections while moving, altimeter</td><td>Published values</td><td><span class="st s-bad">assumed</span></td></tr>
+<tr><td>Attacks</td><td>Added in software, to simulations and to real recordings</td><td><span class="st s-bad">assumed</span></td></tr>
 </tbody>
 </table>
-<p class="small">The same comparison tool runs on simulated and real records: the original simulated LTE residual was white with 49 m RMS; the real residual is smooth (lag-1 correlation 1.00) at 21 m. This finding drove the slow-error state (§4.3). Injection into real recordings: a 300 m jump was flagged 0.6 s after onset; a fake sky was flagged in 59 of 59 reports, with 0 of 120 genuine reports flagged.</p>
+<p class="small">Comparing simulation and reality with the same tool showed that the first simulation got the tower error wrong: it had 49 m of fast random jitter, while reality has 21 m of slowly wandering error. That finding is what led to tracking the slow error (§4.3). Faults added to real recordings: a 300 m GPS jump was caught 0.6 s after it started; a faked sky was flagged in 59 of 59 reports, and none of 120 genuine reports was flagged.</p>
 
-<h3>7.3 Results summary</h3>
+<h3>7.3 Results</h3>
 <table>
-<thead><tr><th style="width:32%">Target</th><th>Result</th><th style="width:8%">Kind</th><th style="width:13%">Verdict</th></tr></thead>
+<thead><tr><th style="width:33%">Target</th><th>Result</th><th style="width:8%">Kind</th><th style="width:13%">Verdict</th></tr></thead>
 <tbody>
-<tr><td>Location jump ≥ 20 m flagged within 2 s</td><td class="n">1.1 s, 50 of 50</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
-<tr><td>No hazardous epoch from a held jump</td><td class="n">0 with guard; 17,042 without</td><td>sim</td><td><span class="st s-ok">Met (opt-in)</span></td></tr>
-<tr><td>Meaconing (5 s replay)</td><td class="n">1,995 misleading epochs/run → 0</td><td>sim</td><td><span class="st s-ok">Met (opt-in)</span></td></tr>
-<tr><td>Bound covers error after GPS loss</td><td class="n">0 of 3,005 understated; default 1,025</td><td>real</td><td><span class="st s-ok">Met (opt-in)</span></td></tr>
-<tr><td>Bound covers ≥ 99.9 % of epochs</td><td class="n">99.55 % pooled; worst run 81.5 %</td><td>sim</td><td><span class="st s-warn">Not met</span></td></tr>
-<tr><td>Time drift 50 ns/s within 60 s</td><td class="n">3.3 s median, 50 of 50</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
-<tr><td>≤ 1 false alarm per hour</td><td class="n">0.0 /h, all estimators and legs</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
-<tr><td>SoOP primary (ablation)</td><td class="n">+1,961 m without LTE; +78 m baro; +0 m IMU</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
-<tr><td>Interference warning on approach</td><td class="n">50 of 50; 48–78 s lead; 1.94 false/h</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
-<tr><td>Time ≤ 1.5 µs after 10 min</td><td class="n">0.44 µs mean; 1.55 µs worst</td><td>sim</td><td><span class="st s-warn">49 of 50</span></td></tr>
-<tr><td>Approach within 556 m</td><td class="n">approach towers synthetic</td><td>sim</td><td><span class="st s-warn">Not scored</span></td></tr>
-<tr><td>Position ≤ 25 m for 300 s</td><td class="n">449 m payload; 105 m all fixes; 10 m clean</td><td>sim</td><td><span class="st s-bad">Not met</span></td></tr>
-<tr><td>2 m/s position ramp within 30 s</td><td class="n">0 of 50; 50 of 50 at 127 s with hopping</td><td>sim</td><td><span class="st s-bad">Not met</span></td></tr>
+<tr><td>GPS jump of 20 m or more caught within 2 s</td><td>1.1 s, 50 of 50</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td>No dangerous moments from a held jump</td><td>0 with the guard; 17,042 without</td><td>sim</td><td><span class="st s-ok">Met (optional)</span></td></tr>
+<tr><td>Delayed replay of real GPS</td><td>1,995 wrong moments per run → 0 with the guard</td><td>sim</td><td><span class="st s-ok">Met (optional)</span></td></tr>
+<tr><td>Radius never smaller than the error after GPS loss</td><td>0 of 3,005 checks; standard filter 1,025</td><td>real</td><td><span class="st s-ok">Met (optional)</span></td></tr>
+<tr><td>Error inside the radius 99.9 % of the time</td><td>99.55 % overall; worst single run 81.5 %</td><td>sim</td><td><span class="st s-warn">Not met</span></td></tr>
+<tr><td>Time dragged at 50 ns/s caught within 60 s</td><td>3.3 s, 50 of 50</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td>At most 1 false alarm per hour</td><td>0 per hour, every filter and scenario</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td>Towers matter most</td><td>+1,961 m without towers; +78 m without altimeter; +0 m without motion sensor</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td>Warning of interference on approach</td><td>50 of 50; 48–78 s before reaching it; 1.94 false warnings per hour</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td>Time within 1.5 µs after 10 min</td><td>0.44 µs average; 1.55 µs worst</td><td>sim</td><td><span class="st s-warn">49 of 50</span></td></tr>
+<tr><td>Approach within 556 m</td><td>approach-area towers are made up</td><td>sim</td><td><span class="st s-warn">Not scored</span></td></tr>
+<tr><td>Within 25 m for 5 min</td><td>payload as built 449 m; every improvement 105 m; clean signals 10 m</td><td>sim</td><td><span class="st s-bad">Not met</span></td></tr>
+<tr><td>Slow 2 m/s drag caught within 30 s</td><td>0 of 50; 50 of 50 after 127 s if the radio could switch channels</td><td>sim</td><td><span class="st s-bad">Not met</span></td></tr>
 </tbody>
 </table>
+<p class="small muted">"Optional" means the result comes from the recommended filter version, which is not yet the default in the code.</p>
 
-<h3>7.4 Positioning after GPS loss</h3>
-<figure><img src="assets/fig/ladder.png" alt="Worst-second 95th-percentile error by configuration"><figcaption><b>Figure 5. Accuracy after GPS loss by configuration</b> (sim, drone leg, worst second of 0–300 s, 95th percentile of 50 runs; clean-range row 20 runs). Believing the front end's reported σ (2 m) is worse than using no towers, because each accepted range collapses the covariance. Learned noise and 13 hopped carriers (about 27 sites heard instead of 2) give 132 m; with the measured white noise, 105 m; with multipath at its measured at-rest size, 51 m. Ideal ranges from all 17 sites within 3 km give 10 m, within 25 m for all 300 s: the geometry is sufficient and range quality is the limit. Hopping is a study configuration; the payload records one carrier.</figcaption></figure>
+<h3>7.4 Position after GPS loss</h3>
+<figure><img src="assets/fig/ladder.png" alt="Error after GPS loss for each improvement"><figcaption><b>Figure 5. What each improvement buys</b> (simulated drone, worst moment of the first 5 minutes after GPS loss, error that 95 % of 50 runs stay under). Believing the radio's own 2 m accuracy claim is worse than not using towers at all: each reading is trusted too much and drags the position off. Learning each tower's real noise, and listening to 13 channels in turn so that about 27 towers are heard instead of 2, brings it to 132 m; with our measured radio noise, 105 m; with reflections as small as we measured standing still, 51 m. With clean signals from all 17 towers within 3 km, it stays at 10 m, inside 25 m for the full 5 minutes. So the tower geometry is good enough; the quality of the distance readings is the limit. Switching channels is a study: the payload listens to one channel today.</figcaption></figure>
 <div class="cols c2" style="gap:5mm">
-<figure style="margin:0"><img src="assets/fig/towers-holding.png" alt="Panel in the hopping study"><figcaption><b>Figure 6.</b> Hopping study on the operator panel, seed 0, 45 s after GPS loss: error 17.9 m, LTE in use, HPL 108.7 m.</figcaption></figure>
-<figure style="margin:0"><img src="assets/fig/ablation.png" alt="Ablation"><figcaption><b>Figure 7. Ablation</b> (sim, 50 paired runs, long outage): added error when each source is removed.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/towers-holding.png" alt="Operator panel in the channel-switching study"><figcaption><b>Figure 6.</b> The channel-switching study on the operator panel, 45 s after GPS loss: 17.9 m off, towers in use, radius 109 m.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/ablation.png" alt="Error added when each source is removed"><figcaption><b>Figure 7.</b> Error added when each source is removed (simulation, 50 matched runs, long outage).</figcaption></figure>
 </div>
 
-<h3>7.5 Performance on real captures</h3>
+<h3>7.5 Real recordings</h3>
 <table>
-<thead><tr><th style="width:52%">Measurement (two 10-min static sessions, GPS as truth)</th><th>Value</th></tr></thead>
+<thead><tr><th style="width:56%">Measured (two 10-minute standing recordings, GPS as truth)</th><th>Value</th></tr></thead>
 <tbody>
-<tr><td>Share of time the best cell is above the usable SNR (−8 dB, TBC)</td><td class="n">43.1 % (other cells 0.6–6.6 %)</td></tr>
-<tr><td>Share of time any two cells are usable together</td><td class="n">0–1.4 %</td></tr>
-<tr><td>Cells needed together for a 2-D fix with an unknown receiver clock</td><td class="n">3</td></tr>
-<tr><td>White range noise, strong cells</td><td class="n">0.73 m (best cell at 10 Hz: 0.86 m)</td></tr>
-<tr><td>Weak cells after loss of lock</td><td class="n">keep reporting; 1.5–12.9 km error while reporting 21–31 m</td></tr>
-<tr><td>Position after a software GPS cut, 300 s, default filter / no LTE</td><td class="n">364–595 m / 0.6–1.3 m (median of 5 cuts)</td></tr>
-<tr><td>Published reference: research-grade receiver on a UAV, 3 eNodeBs</td><td class="n">8.15 m RMSE (Shamaei, Khalife, Kassas, 2018)</td></tr>
+<tr><td>Time the best tower is strong enough to use</td><td>43 % (other towers 0.6–6.6 %)</td></tr>
+<tr><td>Time any two towers are usable together</td><td>0–1.4 %</td></tr>
+<tr><td>Towers needed at once for a position (two directions plus our unknown clock)</td><td>3</td></tr>
+<tr><td>Distance jitter on strong towers</td><td>0.73 m</td></tr>
+<tr><td>Weak towers after the receiver loses them</td><td>keep producing readings 1.5–12.9 km wrong, while claiming 21–31 m accuracy</td></tr>
+<tr><td>Position 5 min after GPS is removed in software: standard filter / without towers</td><td>364–595 m / 0.6–1.3 m</td></tr>
+<tr><td>Published result with a research-grade receiver on a drone, 3 towers</td><td>8.15 m (Shamaei, Khalife and Kassas, 2018)</td></tr>
 </tbody>
 </table>
-<p>The limiting factor on real data is the receiver: a single 8-bit SDR on one carrier rarely tracks more than one cell at a time, while a fix requires three. On static real data the towers therefore do not yet improve position over a stationary receiver on the barometer; the protection level nonetheless remains a bound on the same data (§7.6). Increasing simultaneous cells (a hopping front end or additional SDRs), measuring multipath in motion and moving to carrier phase with a disciplined oscillator are the next steps (D3).</p>
+<p>The limit on real data is our receiver. One low-cost radio on one channel rarely hears more than one usable tower at a time, and a position needs three. So on standing recordings the towers do not yet beat simply staying put on the altimeter. The radius, however, stays honest on the same data (§7.6). The fixes are hearing more towers at once (a radio that switches channels, or more radios), measuring reflections while moving, and then measuring the signal's phase with a better clock (D3).</p>
 
-<h3>7.6 Integrity</h3>
-<figure><img src="assets/fig/honest-bound-top.png" alt="Error against HPL before and after the slow-error state"><figcaption><b>Figure 8. Error against protection level</b> (sim, drone leg, 600 s outage, 200 runs). Points above the diagonal are epochs where the error exceeded the bound: 41.6 % over the whole run (45.3 % from GPS loss) for the default filter; 0.4 % (0.45 %) with slow-error states, no hazardous epoch. The worst single run still exceeds the bound in 18.5 % of its epochs. On real captures with GPS removed, the bound understated the error in 0 of 3,005 checks against 1,025 for the default filter, although at kilometre scale.</figcaption></figure>
+<h3>7.6 Is the radius honest?</h3>
+<figure><img src="assets/fig/honest-bound-top.png" alt="True error against radius, before and after tracking the slow error"><figcaption><b>Figure 8. True error against radius</b> (simulated drone, 10-minute outage, 200 runs). Every point above the diagonal is a moment when the true error was outside the radius. Standard filter: 41.6 % of the time over the whole flight (45.3 % counting only after GPS loss). Honest filter: 0.4 % (0.45 %), with no dangerous moments. The worst single run is still outside 18.5 % of the time. On real recordings with GPS removed, the radius was never smaller than the error (0 of 3,005 checks, against 1,025 for the standard filter), though it was kilometres wide.</figcaption></figure>
 
-<h3>7.7 Accuracy budget and handover</h3>
+<h3>7.7 Error budget and how long GPS must be good first</h3>
 <div class="cols c2" style="gap:5mm">
-<figure style="margin:0"><img src="assets/fig/budget-vs-mc.png" alt="Accuracy budget against Monte Carlo"><figcaption><b>Figure 9. Error budget</b>: tower clock, multipath, registered-position error, receiver clock and noise, each propagated from GPS loss and summed (lines), against 20 Monte Carlo runs (points). Clean route: within the 50 m fallback. Realistic towers: multipath alone 215 m at 120 s.</figcaption></figure>
-<figure style="margin:0"><img src="assets/fig/handover-clean.png" alt="Error against good-GPS time before loss"><figcaption><b>Figure 10. Handover.</b> 95 % error against the duration of good GPS before loss (clean route). The drift-learning filter needs ≥ 150 s to stay under 50 m; the other filters do not depend on it.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/budget-vs-mc.png" alt="Error budget against simulation"><figcaption><b>Figure 9. Error budget.</b> Each source of error (tower clocks, reflections, error in the tower's listed location, our clock, noise) is grown from the moment GPS is lost and added up (lines), then compared with 20 simulated runs (points). They agree. On a clean route the total stays inside 50 m; with realistic towers, reflections alone reach 215 m after 2 minutes.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/handover-clean.png" alt="Error against how long GPS was good before loss"><figcaption><b>Figure 10.</b> Error against how long GPS was good before it was lost. The filter that learns tower clock drift needs at least 150 s of good GPS to stay under 50 m; the other versions do not depend on it.</figcaption></figure>
 </div>
 
 <h3>7.8 Timing</h3>
 <div class="cols c2" style="grid-template-columns: 1fr 1fr; gap:5mm; align-items:start">
-<figure style="margin:0"><img src="assets/fig/t3-timing.png" alt="Time error after 10 min without GPS"><figcaption><b>Figure 11.</b> Time error 10 min after GPS loss, one point per run (sim, 50 runs); dashed line 1.5 µs.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/t3-timing.png" alt="Time error after 10 minutes without GPS"><figcaption><b>Figure 11.</b> Time error 10 minutes after GPS loss, one point per run (simulation, 50 runs); dashed line 1.5 µs.</figcaption></figure>
 <div class="small">
-<p>Mean 0.44 µs; 49 of 50 runs within 1.5 µs (worst 1.55 µs); the reported 1σ covers the error in 99.5 % of epochs. A 50 ns/s GPS time ramp is flagged in 3.3 s median (4.1 s worst), with no false alarm on nominal runs. On hardware, the payload clock follows the GPS PPS at −35 ± 364 ns.</p>
-<p>Because towers are GPS-timed, tower time is used to refute GPS time, never to confirm it. On harder sets the time bound is over-confident since the receiver clock was added to the tower ranges; this cost was accepted and is listed in §9.</p>
+<p>Average 0.44 µs; 49 of 50 runs within 1.5 µs (worst 1.55 µs). The stated uncertainty covers the real error 99.5 % of the time. A GPS clock being dragged at 50 ns per second is caught in 3.3 s (4.1 s worst), with no false alarms. On the real payload, the clock follows the GPS timing pulse to within 35 ns on average.</p>
+<p>Because tower clocks follow GPS, they are only used to catch a wrong GPS time, never to confirm it. On the harder scenarios the stated time uncertainty is too small; this is listed in §9.</p>
 </div>
 </div>
 
-<h3>7.9 Estimator trade-off</h3>
+<h3>7.9 Trade-offs between filter versions</h3>
 <table>
-<thead><tr><th style="width:27%">Estimator (15 attacks × 50 runs)</th><th>Error, worst second, 300 s</th><th>Bound coverage, worst run</th><th>Hazardous epochs, held jump</th><th>Unavailable</th></tr></thead>
+<thead><tr><th style="width:28%">Version (15 attacks × 50 runs)</th><th>Error at worst moment, 5 min after loss</th><th>Error inside radius, worst run</th><th>Dangerous moments, held jump</th><th>Time unavailable</th></tr></thead>
 <tbody>
-<tr><td><code>ekf</code> (default)</td><td class="n">677 m</td><td class="n">69.2 %</td><td class="n">17,042 (20/50 runs)</td><td class="n">14.9 %</td></tr>
-<tr><td><code>ekf-guard</code></td><td class="n">677 m</td><td class="n">69.2 %</td><td class="n">0</td><td class="n">19.3 %</td></tr>
-<tr><td><b><code>ekf-honest-guard</code></b> (selected)</td><td class="n"><b>449 m</b></td><td class="n"><b>100 %</b></td><td class="n"><b>0</b></td><td class="n">19.1 %</td></tr>
-<tr><td><code>ekf-mhss</code></td><td class="n">677 m</td><td class="n">100 %</td><td class="n">0</td><td class="n">100 %</td></tr>
-<tr><td><code>ekf-base-imu</code> (sim only)</td><td class="n">332 m</td><td class="n">100 %</td><td class="n">68,537 (49/50)</td><td class="n">12.4 %</td></tr>
+<tr><td>Standard</td><td>677 m</td><td>69.2 %</td><td>17,042 (20 of 50 runs)</td><td>14.9 %</td></tr>
+<tr><td>Standard + jump guard</td><td>677 m</td><td>69.2 %</td><td>0</td><td>19.3 %</td></tr>
+<tr><td><b>Honest filter + jump guard</b> (recommended)</td><td><b>449 m</b></td><td><b>100 %</b></td><td><b>0</b></td><td>19.1 %</td></tr>
+<tr><td>Cross-checking</td><td>677 m</td><td>100 %</td><td>0</td><td>100 %</td></tr>
+<tr><td>Ground station + motion sensor (sim only)</td><td>332 m</td><td>100 %</td><td>68,537 (49 of 50)</td><td>12.4 %</td></tr>
 </tbody>
 </table>
-<p class="small">The selected configuration trades availability for integrity: refusing a spoofed GPS converts 17,042 hazardous epochs into unavailable ones (14.9 → 19.1 %). Solution separation is never misleading because its bound always exceeds the limit with the current tower model. The reference-station filter is the most accurate after GPS loss but has no guard and follows a held jump.</p>
-<p class="small muted">Sources: <code>systems/results.md</code> (b)–(e); <code>analysis/results/headline</code> (24aa5d1, seeds 0–49); <code>honest-bound</code> (seeds 0–199); <code>stacked-fixes</code>, <code>stacked-fixes-measured</code>; <code>tower-count</code>; <code>lte-gps-truth-20261111</code>; <code>lte-measured-noise</code> (8892fca); <code>real-replay-256</code>; <code>final</code> (d66c929). Results that predate the HPL factor correction were computed with 5.33; at 5.68 each bound is 6.5 % larger.</p>
+<p class="small">The recommended version gives up some availability for safety: refusing a faked GPS turns 17,042 dangerous moments into honest "do not navigate" ones (unavailable 14.9 % → 19.1 % of the time). The cross-checking version is never wrong because, with today's tower model, it never claims a small enough radius to be usable. The ground station is the most accurate after GPS loss but has no jump guard yet and follows a held jump.</p>
+<p class="small muted">Sources: <code>systems/results.md</code>; <code>analysis/results/</code> folders <code>headline</code> (commit 24aa5d1), <code>honest-bound</code>, <code>stacked-fixes-measured</code>, <code>tower-count</code>, <code>lte-gps-truth-20261111</code>, <code>lte-measured-noise</code>, <code>real-replay-256</code>, <code>final</code> (d66c929). Results made before the 5.68 correction used 5.33; with 5.68 every radius is 6.5 % larger, so the error can only fall inside it more often.</p>
 
-<h2>8 Safety, security and regulatory</h2>
+<h2>8 Safety, security and regulation</h2>
 <table>
 <thead><tr><th style="width:18%">Area</th><th>Approach</th></tr></thead>
 <tbody>
-<tr><td>RF / spectrum (ISED)</td><td>Receive-only: no transmit-capable radio on the payload and no transmit path in code (automated test). Jamming and spoofing exist only as software injection. No activity that could interfere with licensed spectrum.</td></tr>
-<tr><td>Interception law</td><td>Only synchronisation signals and broadcast fields intended for general reception are decoded; no communication content (Radiocommunication Act s.9(2)). No ruling was found on whether deriving timing from them constitutes use; a legal opinion is required before commercialisation.</td></tr>
-<tr><td>Privacy</td><td>Wi-Fi BSSIDs hashed at capture. The panel does not display where a recording was made. Reference data cites its public source.</td></tr>
-<tr><td>Cybersecurity</td><td>Payload–ground link authenticated and encrypted (CurveZMQ, enrolled keys only). Every source, including towers and the reference station, is a fault hypothesis. Tamper-evident logs: planned.</td></tr>
-<tr><td>Flight operations</td><td>Pilot-flown, physical kill switch, RC-loss disarm; throttle limited and flattened near hover; low, close, over open ground; pre-flight checklist. The payload never commands the aircraft.</td></tr>
-<tr><td>Aviation role</td><td>Advisory: it warns, it does not steer. No standard was found for opportunistic navigation or for protection levels on non-GNSS sources (RTCA SC-159 covers GNSS equipment); no certification claim is made.</td></tr>
+<tr><td>Radio spectrum (ISED)</td><td>The payload has no radio that can transmit, and the software has no transmit path (checked by an automated test). Jamming and spoofing exist only in software. Nothing we did can interfere with licensed spectrum.</td></tr>
+<tr><td>Interception law</td><td>We only read signals meant for everyone (sync signals and public broadcast fields), never message content (Radiocommunication Act s.9(2)). We found no ruling on whether taking timing from them counts as "use", so a legal opinion is needed before selling.</td></tr>
+<tr><td>Privacy</td><td>Wi-Fi device IDs are scrambled when recorded. The panel does not show where a recording was made.</td></tr>
+<tr><td>Cybersecurity</td><td>The link between payload and laptop is encrypted and only accepts registered laptops. Every source, including towers and the ground station, is treated as something that can be wrong. Tamper-evident logs are planned.</td></tr>
+<tr><td>Flight</td><td>Flown by a pilot with a physical kill switch; the motors stop if the radio link is lost; maximum throttle is limited and the throttle is made less sensitive around hover; low, close and over open ground; checklist before each flight. The payload never controls the aircraft.</td></tr>
+<tr><td>Aviation role</td><td>Advisory: it warns, it does not steer. We found no certification standard for this kind of navigation (the relevant aviation standards cover GPS equipment), so we make no certification claim.</td></tr>
 </tbody>
 </table>
 <table>
-<caption>Table 8-1. Navigation hazards and architectural mitigations</caption>
-<thead><tr><th style="width:32%">Hazard</th><th>Mitigation</th></tr></thead>
+<caption>Table 8-1. Navigation hazards and how the design handles them</caption>
+<thead><tr><th style="width:32%">Hazard</th><th>How it is handled</th></tr></thead>
 <tbody>
-<tr><td>Misleading position displayed as safe</td><td>Status driven by HPL; monitors exclude faulty sources so the bound grows; slow-error states keep HPL a bound after GPS loss; latched alerts</td></tr>
-<tr><td>Spoofer waits for GPS re-admission</td><td>Jump guard re-admits only when the GPS stream steps back, not on a covariance test</td></tr>
-<tr><td>Tower fault (clock step, moved site, rogue cell)</td><td>Site and builder hypotheses; ambiguous cells dropped; per-arc bias on re-acquisition</td></tr>
-<tr><td>Time spoof that also captures tower timing</td><td>Tower time may refute, never confirm GPS time; wide-area capture is a stated limit</td></tr>
-<tr><td>Calibration learned under spoofed GPS</td><td>Gated on GPS-independent agreement; rolled back when GPS is flagged</td></tr>
-<tr><td>Interference ahead of the aircraft</td><td>ADS-B quality of other aircraft raises the GPS fault prior</td></tr>
+<tr><td>A wrong position shown as safe</td><td>Status follows the radius; refused sources make the radius grow; the slow-error tracking keeps the radius honest; alerts stay until acknowledged</td></tr>
+<tr><td>A spoofer waits for GPS to be let back in</td><td>The jump guard lets GPS back only when it jumps back, not when the filter's uncertainty has grown</td></tr>
+<tr><td>A tower is wrong (clock jump, moved, fake copy)</td><td>Per-tower and per-network checks; ambiguous towers ignored; fresh offset when a tower is re-found</td></tr>
+<tr><td>Faked time that also drags the tower clocks</td><td>Tower time can only contradict GPS time, never confirm it; a wide-area attack of this kind is a known gap</td></tr>
+<tr><td>Tower clocks learned while GPS was secretly faked</td><td>Learning needs agreement from sensors independent of GPS, and is discarded if GPS is later flagged</td></tr>
+<tr><td>Interference ahead of the aircraft</td><td>Other aircraft's broadcasts raise a warning that widens the radius early</td></tr>
 </tbody>
 </table>
 
 <h2>9 Limitations and open items</h2>
 <table>
-<thead><tr><th style="width:30%">Limitation</th><th style="width:35%">Impact</th><th>Planned resolution (D3)</th></tr></thead>
+<thead><tr><th style="width:30%">Limitation</th><th style="width:35%">Effect</th><th>Planned fix (D3)</th></tr></thead>
 <tbody>
-<tr><td>Single SDR, single carrier</td><td>Rarely three cells at once; REQ-01 not met on the payload</td><td>Hopping front end or additional SDRs; then carrier phase with a disciplined oscillator</td></tr>
-<tr><td>Static, ground-level captures only</td><td>Multipath in motion and reception at altitude (antenna downtilt) unmeasured</td><td>Moving captures with independent truth; flight captures</td></tr>
-<tr><td>2 m/s position ramp</td><td>Detected in 127 s at best, not 30 s</td><td>More sites heard; tower displacement monitor with hopping</td></tr>
-<tr><td>Bound coverage per run</td><td>Pooled 99.55 %; worst run 81.5 %; no exposure time set</td><td>Fault statistics from hours of tower data; exposure-time definition</td></tr>
-<tr><td>GPS returning after a long outage</td><td>Not judged by the jump guard; normal gate may reject honest GPS after large drift</td><td>Re-admission logic for long outages</td></tr>
-<tr><td>Time bound over-confident on harder sets</td><td>Accepted cost of modelling the receiver clock in tower ranges</td><td>Clock model revision</td></tr>
-<tr><td>Simultaneous faults in two groups; wide-area time capture</td><td>Outside the fault model</td><td>Multi-fault hypotheses; independent time reference</td></tr>
-<tr><td>Approach use case</td><td>Synthetic towers; not scored</td><td>Real approach-area tower geometry</td></tr>
-<tr><td>Reference station, LEO</td><td>Simulation only</td><td>Hardware station with a guard; Iridium layer</td></tr>
+<tr><td>One low-cost radio on one channel</td><td>Rarely three usable towers at once; REQ-01 not met on the payload</td><td>A radio that switches channels, or more radios; then signal-phase measurement with a better clock</td></tr>
+<tr><td>Only standing, ground-level recordings</td><td>Reflections while moving and reception at altitude (tower antennas point down) not measured</td><td>Recordings while moving, with independent truth; flight recordings</td></tr>
+<tr><td>Slow 2 m/s GPS drag</td><td>Caught in 127 s at best, not 30 s</td><td>Hear more towers; tower-based drag check with channel switching</td></tr>
+<tr><td>Radius honesty per flight</td><td>99.55 % overall but 81.5 % in the worst run; the probability is per update, with no defined exposure time</td><td>Fault statistics from hours of tower data; define the exposure time</td></tr>
+<tr><td>GPS returning after a long outage</td><td>Not judged by the jump guard; the normal check may wrongly refuse honest GPS after a large drift</td><td>A rule for letting GPS back after long outages</td></tr>
+<tr><td>Time uncertainty on hard scenarios</td><td>Stated too small</td><td>Revise the clock model</td></tr>
+<tr><td>Two faults at once; wide-area time spoofing</td><td>Outside the design</td><td>Multi-fault checks; an independent time source</td></tr>
+<tr><td>Approach use case</td><td>Approach-area towers are made up; not scored</td><td>Real tower geometry near an airport</td></tr>
+<tr><td>Ground station, satellites</td><td>Simulation only</td><td>Build the station with a jump guard; add the Iridium layer</td></tr>
 </tbody>
 </table>
 
 <h2>10 Traceability and reproducibility</h2>
-<p>The repository holds requirements, assumptions, risks, safety, verification, interface control documents and 57 decision records beside the code. Each reported result names its scenario or session, seeds and commit; 1,485 automated tests run before every merge, including tests that enforce the receive-only and privacy rules.</p>
+<p>The repository holds the requirements, assumptions, risks, safety case, test plan, data-format definitions and 57 written decision records next to the code. Every result names the scenario or recording, the random seeds and the code version it came from. 1,485 automated tests run before any change is merged, including tests that enforce the listen-only and privacy rules.</p>
 <table>
-<caption>Table 10-1. Decision records referenced in this document</caption>
-<thead><tr><th style="width:11%">ADR</th><th>Decision</th><th style="width:18%">Status</th></tr></thead>
+<caption>Table 10-1. Decision records referred to in this document</caption>
+<thead><tr><th style="width:11%">Record</th><th>Decision</th><th style="width:18%">Status</th></tr></thead>
 <tbody>
-<tr><td class="n">0001</td><td>The payload is receive-only</td><td>Accepted</td></tr>
-<tr><td class="n">0002</td><td>Record raw on board, process on the ground</td><td>Accepted</td></tr>
-<tr><td class="n">0004</td><td>Sim, replay and live are interchangeable sources</td><td>Accepted</td></tr>
-<tr><td class="n">0007, 0008</td><td>MCAP logs with raw IQ beside them; time in GPS ns, positions in ENU m</td><td>Accepted</td></tr>
-<tr><td class="n">0009, 0026</td><td>ZeroMQ transport; authenticated ground links (CurveZMQ)</td><td>Accepted</td></tr>
-<tr><td class="n">0011</td><td>Privacy enforced at capture</td><td>Accepted</td></tr>
-<tr><td class="n">0013</td><td>LEO (Iridium) simulated, not received</td><td>Accepted</td></tr>
-<tr><td class="n">0015</td><td>Simulation calibrated against real measurements</td><td>Accepted</td></tr>
-<tr><td class="n">0018, 0042</td><td>Pi 4B recorder; IQ to a USB drive</td><td>Proposed; Accepted</td></tr>
-<tr><td class="n">0020</td><td>Ground reference station for differential LTE (simulation only)</td><td>Proposed, amended</td></tr>
-<tr><td class="n">0021</td><td>Integrity-first navigation treating signals of opportunity as fallible</td><td>Accepted</td></tr>
-<tr><td class="n">0022, 0023</td><td>Tower clock model; tower identity from the ISED registry</td><td>Proposed</td></tr>
-<tr><td class="n">0024</td><td>GNSS-dependency classes</td><td>Proposed</td></tr>
-<tr><td class="n">0027</td><td>Panel over Server-Sent Events and canvas</td><td>Accepted</td></tr>
-<tr><td class="n">0031, 0033</td><td>GNSS jam indicator; ADS-B raises the GNSS fault prior</td><td>Proposed</td></tr>
-<tr><td class="n">0034</td><td>Targets after the mentors' answers</td><td>Accepted (T1, T4 jump)</td></tr>
-<tr><td class="n">0036, 0039</td><td>Measured LTE error model; learned range noise</td><td>Proposed</td></tr>
-<tr><td class="n">0037, 0040</td><td>Tower displacement monitor; carrier hopping as a study</td><td>Proposed</td></tr>
-<tr><td class="n">0038</td><td>Refuse a detected GNSS jump until undone</td><td>Proposed</td></tr>
-<tr><td class="n">0041</td><td>Spoof decision from sky, power and cues</td><td>Accepted</td></tr>
-<tr><td class="n">0045, 0046</td><td>Horizontal GNSS use when only height fails; slow-error states</td><td>Proposed</td></tr>
-<tr><td class="n">0047, 0050</td><td>Receiver clock in tower ranges; real-capture LTE handling</td><td>Accepted</td></tr>
-<tr><td class="n">0052</td><td>Field A/B: keep the honest filter</td><td>Proposed</td></tr>
-<tr><td class="n">0056</td><td>Horizontal protection-level factor 5.68</td><td>Accepted</td></tr>
+<tr><td>0001</td><td>The payload only listens</td><td>Accepted</td></tr>
+<tr><td>0002</td><td>Record raw on board, process on the ground</td><td>Accepted</td></tr>
+<tr><td>0004</td><td>Simulation, recordings and live data share one input format</td><td>Accepted</td></tr>
+<tr><td>0007, 0008</td><td>Log format; GPS-time timestamps and east-north-up metres</td><td>Accepted</td></tr>
+<tr><td>0009, 0026</td><td>Live link; encrypted, authenticated link</td><td>Accepted</td></tr>
+<tr><td>0011</td><td>Privacy enforced when recording</td><td>Accepted</td></tr>
+<tr><td>0013</td><td>Iridium satellites simulated, not received</td><td>Accepted</td></tr>
+<tr><td>0015</td><td>Simulation calibrated against real measurements</td><td>Accepted</td></tr>
+<tr><td>0018, 0042</td><td>One-Pi payload; radio samples to a USB drive</td><td>Proposed; Accepted</td></tr>
+<tr><td>0020</td><td>Ground reference station (simulation only for now)</td><td>Proposed, amended</td></tr>
+<tr><td>0021</td><td>Trustworthiness first; signals of opportunity can fail</td><td>Accepted</td></tr>
+<tr><td>0022, 0023</td><td>Tower clock model; tower identity from the ISED database</td><td>Proposed</td></tr>
+<tr><td>0024</td><td>Three groups by dependence on GPS</td><td>Proposed</td></tr>
+<tr><td>0027</td><td>Browser-based operator panel</td><td>Accepted</td></tr>
+<tr><td>0031, 0033</td><td>Jamming indicator; warning from other aircraft</td><td>Proposed</td></tr>
+<tr><td>0034</td><td>Targets after the mentors' answers</td><td>Accepted</td></tr>
+<tr><td>0036, 0039</td><td>Measured tower error; learned tower noise</td><td>Proposed</td></tr>
+<tr><td>0037, 0040</td><td>Tower-based drag check; channel switching as a study</td><td>Proposed</td></tr>
+<tr><td>0038</td><td>Refuse a GPS jump until it jumps back</td><td>Proposed</td></tr>
+<tr><td>0041</td><td>Sky check</td><td>Accepted</td></tr>
+<tr><td>0045, 0046</td><td>Use GPS horizontally when only its height disagrees; track the slow error</td><td>Proposed</td></tr>
+<tr><td>0047, 0050</td><td>Our clock in the tower readings; handling real tower recordings</td><td>Accepted</td></tr>
+<tr><td>0052</td><td>Keep the honest filter after field comparison</td><td>Proposed</td></tr>
+<tr><td>0056</td><td>Radius multiplier 5.68</td><td>Accepted</td></tr>
 </tbody>
 </table>
 
-<h3>10.1 Reproduction</h3>
-<div class="eq">just setup&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# environment<br>
-just sim gps-outage&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# one scenario: session + metrics<br>
-just eval gps-outage 50&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Monte Carlo<br>
-just replay &lt;session&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# estimators on a recorded session<br>
-just qa&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# lint and the full test suite</div>
+<h3>10.1 Reproducing the results</h3>
+<div class="eq">just setup&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# install<br>
+just sim gps-outage&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# fly one scenario<br>
+just eval gps-outage 50&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# fly it 50 times<br>
+just replay &lt;recording&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# run the filters on a real recording<br>
+just qa&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# all checks and tests</div>
 
-<h3>10.2 Document map</h3>
+<h3>10.2 Where to find things</h3>
 <table>
-<thead><tr><th style="width:30%">Topic</th><th>Repository location</th></tr></thead>
+<thead><tr><th style="width:30%">Topic</th><th>Location in the repository</th></tr></thead>
 <tbody>
-<tr><td>Requirements, use cases, assumptions, risks</td><td><code>systems/requirements.md</code>, <code>use-cases.md</code>, <code>assumptions.md</code>, <code>risks.md</code></td></tr>
-<tr><td>Interfaces</td><td><code>systems/icd/measurement.md</code>, <code>session.md</code>, <code>pnt.xml</code></td></tr>
-<tr><td>Verification plan and results</td><td><code>systems/verification.md</code>, <code>systems/results.md</code>, <code>analysis/results/</code></td></tr>
-<tr><td>Safety and threat model</td><td><code>systems/safety.md</code>, <code>systems/threat-model.md</code></td></tr>
+<tr><td>Requirements, users, assumptions, risks</td><td><code>systems/requirements.md</code>, <code>use-cases.md</code>, <code>assumptions.md</code>, <code>risks.md</code></td></tr>
+<tr><td>Data formats</td><td><code>systems/icd/</code></td></tr>
+<tr><td>Test plan and results</td><td><code>systems/verification.md</code>, <code>systems/results.md</code>, <code>analysis/results/</code></td></tr>
+<tr><td>Safety and threats</td><td><code>systems/safety.md</code>, <code>systems/threat-model.md</code></td></tr>
 <tr><td>Roadmap (D3)</td><td><code>systems/roadmap.md</code></td></tr>
 </tbody>
 </table>
@@ -701,15 +697,11 @@ just qa&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&
 <h2>Appendix A Abbreviations</h2>
 <table>
 <tbody>
-<tr><td style="width:13%"><b>ADR</b></td><td>Architecture decision record</td><td style="width:13%"><b>MHSS</b></td><td>Multiple-hypothesis solution separation</td></tr>
-<tr><td><b>ANP / RNP</b></td><td>Actual / required navigation performance</td><td><b>NACp / NIC</b></td><td>ADS-B navigation accuracy / integrity categories</td></tr>
-<tr><td><b>C/N0</b></td><td>Carrier-to-noise density ratio</td><td><b>NIS</b></td><td>Normalised innovation squared</td></tr>
-<tr><td><b>EARFCN</b></td><td>E-UTRA absolute radio-frequency channel number</td><td><b>PCI</b></td><td>LTE physical cell identity</td></tr>
-<tr><td><b>EKF</b></td><td>Extended Kalman filter</td><td><b>PPS</b></td><td>Pulse per second</td></tr>
-<tr><td><b>ENU</b></td><td>East–north–up local frame</td><td><b>PSS / SSS</b></td><td>LTE primary / secondary synchronisation signals</td></tr>
-<tr><td><b>HPL / TPL</b></td><td>Horizontal / time protection level</td><td><b>SDR</b></td><td>Software-defined radio</td></tr>
-<tr><td><b>ISED</b></td><td>Innovation, Science and Economic Development Canada</td><td><b>SoOP</b></td><td>Signals of opportunity</td></tr>
-<tr><td><b>LEO</b></td><td>Low Earth orbit</td><td><b>TOA</b></td><td>Time of arrival</td></tr>
+<tr><td style="width:13%"><b>ADS-B</b></td><td>Position reports that aircraft broadcast</td><td style="width:13%"><b>LTE</b></td><td>4G mobile network standard</td></tr>
+<tr><td><b>HPL / TPL</b></td><td>Horizontal / time protection level (§1.5)</td><td><b>RNP</b></td><td>Required navigation performance (an aviation accuracy standard)</td></tr>
+<tr><td><b>IMU</b></td><td>Motion sensor (accelerometers and gyroscopes)</td><td><b>SoOP</b></td><td>Signals of opportunity: signals sent for another purpose, used for navigation</td></tr>
+<tr><td><b>ISED</b></td><td>Innovation, Science and Economic Development Canada (licenses radio transmitters)</td><td><b>VOR</b></td><td>Ground radio beacon used in aviation</td></tr>
+<tr><td><b>LEO</b></td><td>Low Earth orbit (satellites such as Iridium, Starlink)</td><td><b>µs / ns</b></td><td>Microsecond / nanosecond</td></tr>
 </tbody>
 </table>
 
