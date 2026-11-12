@@ -1,6 +1,6 @@
 # Late in the outage: what happens to each LTE record (#226)
 
-**sim, every value TBC (ADR-0015, ADR-0030 Proposed, ADR-0046 Proposed).** `challenge-drone-outage`, 1 carrier, seeds 0–199. `python analysis/honest_bound_late.py --seeds 0-199 --jobs 5` at `5cc68fb` on mac (Python 3.14.6), 8 min. Per-second samples; the counterfactual rows are experiments, not estimators (module docstring).
+**sim, every value TBC (ADR-0015, ADR-0030 Proposed, ADR-0046 Proposed).** `challenge-drone-outage`, 1 carrier, seeds 0–199. `python analysis/honest_bound_late.py --seeds 0-199 --jobs 5` at `a5a8ce4` on mac (Python 3.14.6), 8 min. Per-second samples; the counterfactual rows are experiments, not estimators (module docstring).
 
 | Curvature skip | Estimator | s after GPS loss | LTE records | used | rejected by the gate | skipped (curvature) | first of a cell or arc | NEES mean | HPL median (m) | error median (m) | error p95 (m) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
