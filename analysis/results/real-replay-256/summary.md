@@ -72,4 +72,4 @@ Real, stationary, 600 s, same commands, analysis at `fcafe6b`, front end as abov
 - **Same picture as `0040`:** no LTE row beats no LTE; `ekf-honest` is again the only row that uses LTE updates and whose HPL covers every withheld fix; the default is overconfident (26.9 % of fixes).
 - With four cells and a 3-cell fix available most of the time, the tower-aided error is several times smaller than on `0040` (255 m against 1,001 m at 120 s for the default), and learned noise makes no difference here.
 - `ekf-honest` learns 63 to 112 m per cell; `ekf-learned-noise` 15 to 39 m.
-- Across both sessions: error above HPL on 1,024 of 3,005 withheld fixes (34.1 %) for the default, 0 of 3,005 for `ekf-honest`.
+- Across both sessions: error above HPL on 1,025 of 3,005 withheld fixes (34.1 %) for the default, 0 of 3,005 for `ekf-honest`.
