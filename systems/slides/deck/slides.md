@@ -148,18 +148,29 @@ The slow part of each tower's error is carried as its own filter state, so the c
 -->
 
 ---
-class: topo-section
+class: topo-light
 ---
 
-<div class="h-full flex flex-col justify-center" style="max-width: 40rem">
-  <div class="kicker">Live demo · real-time monitoring · simulated flight, real tower sites</div>
-  <h1 style="font-size: 2.6rem">Watch the confidence change</h1>
-  <div class="flex flex-col gap-5" style="margin-top: 1.6rem">
-    <div class="step"><div class="n">1</div><div><strong>GPS lost.</strong> <span class="muted">Red within three seconds: do not navigate on this.</span></div></div>
-    <div class="step"><div class="n">2</div><div><strong>A 300 m spoofed jump, no guard.</strong> <span class="muted">Caught at the first fake fix, then the plain filter takes it back: green and wrong.</span></div></div>
-    <div class="step"><div class="n">3</div><div><strong>The same attack, with our guard.</strong> <span class="muted">Stays red until the spoofer stops, then recovers to within metres.</span></div></div>
-  </div>
+<div class="kicker">Live demo · real-time monitoring · simulated drone, real tower sites, seed 0</div>
+
+# Watch the confidence change
+
+<div class="cols cols-3" style="margin-top: 1.1rem; gap: 1.2rem">
+<figure class="shot">
+  <img src="/proof/outage-3-rail.jpg" alt="Panel 40 s after GPS loss: UNSAFE, bound 895 m, error 325 m inside it">
+  <figcaption><span class="n">1</span><span><strong>GPS lost.</strong> Red within 3 s. Forty seconds on: 325 m off, and the bound (895 m) says so.</span></figcaption>
+</figure>
+<figure class="shot">
+  <img src="/proof/jump-3-rail.jpg" alt="Panel after a spoofed jump without the guard: NOMINAL, bound 7 m, error 298 m outside it">
+  <figcaption><span class="n">2</span><span><strong>Spoofed 300 m, no guard.</strong> Caught at the first fake fix, then taken back: <span class="ok">green</span> and 298 m wrong.</span></figcaption>
+</figure>
+<figure class="shot">
+  <img src="/proof/guard-1-rail.jpg" alt="Panel with the jump guard: UNSAFE, fake GPS refused, bound 1,006 m, error 254 m inside it">
+  <figcaption><span class="n">3</span><span><strong>Same attack, guard on.</strong> Fake GPS refused, stays <span class="bad">red</span>; real GPS back within metres.</span></figcaption>
+</figure>
 </div>
+
+<div class="foot">Status rail of the panel itself (main de28b38), held at T+100, T+187 and T+194 · deploy/demo/RUNBOOK.md</div>
 
 <!--
 (1:35, 80 s) SWITCH TO THE PANEL: deploy/demo/demo.sh stage. Enter at T+105 (skip the towers study if short of time), T+188, T+212.
@@ -193,7 +204,7 @@ class: topo-light
 <div class="foot">systems/results.md · analysis/results/headline (24aa5d1, seeds 0–49) · real: two static sessions, GPS cut in software</div>
 
 <!--
-(2:55, 30 s) Here is every target, including the misses. Detection works: jumps in 1.1 seconds, time drift in about 3, no false alarms in 40 hours of clean data. With the guard, a held jump never produces a hazardous epoch. On real recordings our bound never under-stated the error; the default did a third of the time. What does not work yet: accuracy without GPS, 449 metres against 25, and a slow drag that nothing catches in time.
+(2:55, 25 s) Here is every target, including the misses. Detection works: jumps in 1.1 seconds, time drift in about 3, no false alarms in 40 hours of clean data. With the guard, a held jump never produces a hazardous epoch. On real recordings our bound never under-stated the error; the default did a third of the time. What does not work yet: accuracy without GPS, 449 metres against 25, and a slow drag that nothing catches in time.
 -->
 
 ---
@@ -202,48 +213,69 @@ class: topo-content
 
 <div class="kicker">Rigor · how the confidence number is computed</div>
 
-# A bound you can act on, and why accuracy misses
+# A bound that does not lie
 
-<div class="cols cols-2" style="margin-top: 1rem; gap: 2.4rem">
+<div class="cols" style="grid-template-columns: 0.9fr 1.25fr; margin-top: 0.8rem; gap: 2rem">
 <div>
 
-### The protection level
-$$\mathrm{HPL} = k_H\,\sigma_{\max},\qquad k_H=\sqrt{2\ln 10^{7}} = 5.68$$
-<p class="muted small">σ<sub>max</sub>: the filter's largest horizontal standard deviation. A horizontal error is two-dimensional, so a 10<sup>−7</sup> per-epoch risk (TBC) needs 5.68, not the one-dimensional 5.33. We found and fixed that in our own code (ADR-0056). Time gets its own bound from the clock's σ.</p>
+$$\mathrm{HPL} = k_H\,\sigma_{\max},\quad k_H=\sqrt{2\ln 10^{7}} = 5.68$$
+<p class="muted small">σ<sub>max</sub>: the filter's largest horizontal standard deviation. A horizontal error is two-dimensional, so a 10<sup>−7</sup> risk per epoch (TBC) needs 5.68, not the one-dimensional 5.33: we caught that in our own code (ADR-0056). Time gets its own bound from the clock's σ.</p>
 
-<h3 style="margin-top: 1.2rem">On real recordings, GPS cut in software</h3>
-<div class="flex flex-col gap-2 small" style="margin-top: 0.5rem">
+<h3 style="margin-top: 1rem">Real recordings, GPS cut in software</h3>
+<div class="flex flex-col gap-2 small" style="margin-top: 0.4rem">
 <div>Default filter: bound below the true error</div>
 <div class="bar"><span style="width: 34%; background: var(--bad)"></span></div>
 <div class="num">1,025 of 3,005 checks (34 %)</div>
-<div style="margin-top: 0.4rem">Honest-bound filter</div>
+<div style="margin-top: 0.3rem">Honest-bound filter</div>
 <div class="bar"><span style="width: 0.6%; background: var(--ok)"></span></div>
 <div class="num">0 of 3,005</div>
 </div>
 
 </div>
-<div>
-
-### The accuracy budget
-<p class="small">Each error term is grown from the handover, when GPS is lost, and checked against the Monte Carlo:</p>
-<ul class="small">
-<li><strong>Clean route</strong>: range noise after the handover sets it (21 of 22 m) and the fallback is met</li>
-<li><strong>Realistic route</strong>: multipath alone is 215 m at 2 min; four more terms each exceed 25 m</li>
-</ul>
-<h3 style="margin-top: 1rem">What our radio measured</h3>
-<div class="flex gap-10" style="margin-top: 0.4rem">
-<div><div class="bigstat">0.73<span style="font-size: 1.6rem"> m</span></div><div class="statlabel">jitter on the strongest cells</div></div>
-<div><div class="bigstat">8<span style="font-size: 1.6rem"> m</span></div><div class="statlabel">slow error it does not report</div></div>
-</div>
-<p class="muted small" style="margin-top: 0.6rem">The slow error is why towers made position worse: the filter believed them. The fix is to model it, which is what the honest bound does.</p>
-
-</div>
+<figure class="fig">
+  <img src="/proof/honest-bound-top.png" alt="Error against protection level, before and after the fix: 41.6 % of epochs above the bound before, 0.4 % after">
+  <figcaption>Simulated drone, GPS lost for 600 s, 200 runs. Every dot above the diagonal is an epoch where the error escaped the bound: 41.6 % before, 0.4 % after, 0 hazardous.</figcaption>
+</figure>
 </div>
 
-<div class="foot">systems/accuracy-budget.md · ADR-0056 · analysis/results/lte-measured-noise · results.md (a)</div>
+<div class="foot">ADR-0046 · ADR-0056 · analysis/results/honest-bound (1385a48) · analysis/results/real-replay-256</div>
 
 <!--
-(3:25, 30 s) How the number is computed: 5.68 times the filter's largest horizontal standard deviation, the two-dimensional factor for a one-in-ten-million risk. We caught our own one-dimensional factor and fixed it. On real recordings the default filter's bound was too small a third of the time; ours, never. The accuracy budget explains the miss: our radio is precise, 0.73 m, but carries a slow 8 m error it does not report, so the filter over-trusted the towers.
+(3:20, 25 s) How the number is computed: 5.68 times the filter's largest horizontal standard deviation, the two-dimensional factor for a one-in-ten-million risk; we caught our own one-dimensional factor and fixed it. The plot is the proof: every dot above the line is a moment the error escaped the bound. Before: 42 percent. After: under half a percent. On real recordings: a third of the time against never.
+-->
+
+---
+class: topo-content
+---
+
+<div class="kicker">Rigor · the accuracy budget the mentors asked for</div>
+
+# Why accuracy misses, term by term
+
+<div class="cols" style="grid-template-columns: 1.5fr 0.8fr; margin-top: 0.8rem; gap: 2rem">
+<figure class="fig">
+  <img src="/proof/budget-vs-mc.png" alt="Accuracy budget against Monte Carlo on the clean and realistic routes">
+  <figcaption>Each error term grown from the moment GPS is lost, summed (lines) and checked against 20 Monte Carlo runs (p95). Clean route: inside the 50 m fallback. Realistic towers: hundreds of metres.</figcaption>
+</figure>
+<div>
+<h3>What sets it</h3>
+<ul class="small">
+<li><strong>Clean route:</strong> range noise after GPS loss, 21 of the 22 m budget</li>
+<li><strong>Realistic route:</strong> multipath alone is 215 m at 2 min; four more terms each exceed 25 m</li>
+</ul>
+<h3 style="margin-top: 1rem">Measured on real towers</h3>
+<div class="flex gap-6" style="margin-top: 0.3rem">
+<div><div class="bigstat" style="font-size: 2.6rem">0.73<span style="font-size: 1.2rem"> m</span></div><div class="statlabel">jitter, strongest cells</div></div>
+<div><div class="bigstat" style="font-size: 2.6rem">8<span style="font-size: 1.2rem"> m</span></div><div class="statlabel">slow error it never reports</div></div>
+</div>
+<p class="muted small" style="margin-top: 0.5rem">That slow error is why the towers made position worse: the filter believed them.</p>
+</div>
+</div>
+
+<div class="foot">systems/accuracy-budget.md (f3fc928, seeds 0–19) · analysis/results/lte-measured-noise (8892fca)</div>
+
+<!--
+(3:45, 20 s) The mentors asked us to show the calculation. Each error term is grown from the moment GPS is lost and checked against the Monte Carlo. On a clean route we are inside the 50 m fallback. With realistic towers, multipath alone is over 200 m. Our radio is precise, 0.73 m, but carries a slow 8 m error it never reports, and that is what the filter has to model.
 -->
 
 ---
@@ -296,7 +328,7 @@ Advisory: it tells the operator, it does not steer. No certification claim; we f
 <div class="foot">systems/safety.md · ADR-0001 · ADR-0011 · systems/roadmap.md (Certification)</div>
 
 <!--
-(3:55, 20 s) It never transmits, so there is no spectrum risk; attacks are injected in software. We decode only fields meant for everyone. Wi-Fi identifiers are hashed. The link is authenticated. And it is advisory: it warns, it does not steer, and we do not claim certification.
+(4:05, 15 s) It never transmits, so there is no spectrum risk; attacks are injected in software. We decode only fields meant for everyone. Wi-Fi identifiers are hashed. The link is authenticated. And it is advisory: it warns, it does not steer, and we do not claim certification.
 -->
 
 ---
@@ -339,7 +371,7 @@ Many hours of tower data for fault rates; an on-board receiver; the warning outp
 <p style="margin-top: 1.4rem"><strong>Every number in this deck traces to a scenario or session and a commit in our repository.</strong></p>
 
 <!--
-(4:15, 40 s) The product is a receive-only trust monitor that warns the autopilot. Built now: detection and an honest bound. Next: accuracy, with heading, a velocity source and carrier phase, proven on moving captures and a flight. Then the integrity case: hours of tower data, an on-board receiver, the autopilot output, and LEO as one more source. Every number you saw traces to a commit in our repository. Thank you.
+(4:20, 40 s) The product is a receive-only trust monitor that warns the autopilot. Built now: detection and an honest bound. Next: accuracy, with heading, a velocity source and carrier phase, proven on moving captures and a flight. Then the integrity case: hours of tower data, an on-board receiver, the autopilot output, and LEO as one more source. Every number you saw traces to a commit in our repository. Thank you.
 -->
 
 ---
@@ -383,24 +415,15 @@ class: topo-light
 
 # What our radio saw on real towers
 
-<div class="cols cols-2" style="margin-top: 1rem">
-<div class="card">
-
-### LTE range precision (15 static captures)
-- White noise **0.73 m** at 13–16 dB SNR, **10.9 m** at −11 to −8 dB
-- Slow, correlated error inside one track: **2.4 to 17 m, median 8.1 m**, not in the reported σ
-- The radio's reported σ is 1.3 to 2.0 times the white part
-- Sectors of one site drift together within 0.5 m/s: one clock per site
-
-</div>
-<div class="card">
-
-### Real GPS cut, four static sessions
-- With towers, position is hundreds of metres to kilometres worse than without: **no tower filter beats no towers yet**
-- Honest bound: 0 of 3,005 checks under the error, but kilometres wide: honest, not yet usable
-- A real 60 s capture: three cells tracked ten times a second, two consistent with one registered site
-
-</div>
+<div class="cols cols-2" style="margin-top: 0.8rem; gap: 1.6rem">
+<figure class="fig">
+  <img src="/proof/white-vs-snr.png" alt="LTE range noise against SNR over 15 real captures">
+  <figcaption>Range jitter against signal strength, 15 real static captures: 0.73 m on the strongest cells. A slower 2.4–17 m error (median 8.1 m) sits on top and is not in the radio's reported σ.</figcaption>
+</figure>
+<figure class="fig">
+  <img src="/proof/real-cut-0040.png" alt="Error after a software GPS cut on a real session, by filter">
+  <figcaption>A real session with GPS cut in software: with towers, every filter ends hundreds of metres to kilometres off; without towers (blue) stays within metres while standing still. No tower filter beats no towers yet.</figcaption>
+</figure>
 </div>
 
 <div class="foot">analysis/results/lte-measured-noise (8892fca) · ADR-0036 · results.md (a)</div>
@@ -419,6 +442,9 @@ class: topo-light
 <div class="card"><div class="bigstat">99.5<span style="font-size: 1.4rem"> %</span></div><div class="statlabel">of epochs where the stated 1σ clock bound covers the time error (target 68 %)</div></div>
 </div>
 
-<p class="muted" style="margin-top: 1.2rem">The time protection level is 5.33 × the clock's σ. Real time-of-day discipline on the payload: the GPS timing pulse into chrony, 769 ns standard deviation over 80 s.</p>
+<div class="cols" style="grid-template-columns: 1.3fr 1fr; margin-top: 1rem; gap: 1.6rem">
+<figure class="fig"><img src="/proof/t3-timing.png" alt="Time error 10 minutes after GPS loss, one dot per seed"><figcaption>Time error 10 min after GPS loss, one dot per seed, 50 seeds per scenario; dashed line the 1.5 µs target.</figcaption></figure>
+<p class="muted small">The time protection level is 5.33 × the clock's σ. Real time-of-day discipline on the payload: the GPS timing pulse into chrony, 769 ns standard deviation over 80 s.</p>
+</div>
 
 <div class="foot">systems/results.md (b), #170 (seeds 0–49) · #216 (PPS)</div>
