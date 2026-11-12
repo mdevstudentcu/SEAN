@@ -4,8 +4,13 @@ gpsd speaks JSON lines on TCP port 2947. We ask for TPV (fixes), SKY (satellites
 (edges seen on /dev/pps0, with the host clock at each edge).
 
 - `position_enu` from each 3D fix, time-tagged with the fix's own GPS time. Its sigma is gpsd's
-  95 % error estimate (`epx`, `epy`, `epv`) over 1.96. gpsd derives those from DOP and an
-  assumed range error, since the MediaTek chip reports none: `TBC` against a surveyed point.
+  95 % error estimate over 1.96: `eph` for east and north, `epv` for up (`epx`/`epy` only when
+  gpsd sends no `eph`). gpsd derives these from DOP and an assumed range error, since the
+  MediaTek chip reports none: `TBC` against a surveyed point. Not `epx`/`epy` (#284): with an
+  NMEA receiver gpsd computes xdop/ydop itself, once, and never updates them while the receiver
+  keeps sending HDOP/VDOP/PDOP, so they freeze at whatever geometry gpsd first saw (gpsd 3.25
+  `fill_dop`). `eph` = HDOP x 19 m follows the receiver's HDOP; it is radial, so using it on each
+  axis overstates the horizontal by up to sqrt(2), the safe side.
 - `velocity_enu` from speed, track and climb of a 3D fix, sigma from `eps`/`epc` the same way.
 - No `gnss_health` here: the chip has no jamming indicator. SKY goes to `/events` as
   `gnss_sky`, and the ground front end (`pnt frontend gnss`) makes `gnss_health` from its
@@ -55,9 +60,13 @@ def tpv_measurements(tpv: dict, origin_llh) -> list[Measurement]:
     meta = {"mode": tpv.get("mode"), "device": "gpsd"}
     out = []
     llh = tpv_llh(tpv)
-    if llh is not None and all(k in tpv for k in ("epx", "epy", "epv")):
+    have_h = "eph" in tpv or ("epx" in tpv and "epy" in tpv)
+    if llh is not None and have_h and "epv" in tpv:
         enu = frames.llh_to_enu(llh, origin_llh)
-        sig = (tpv["epx"] / Z95, tpv["epy"] / Z95, tpv["epv"] / Z95)
+        if "eph" in tpv:
+            sig = (tpv["eph"] / Z95, tpv["eph"] / Z95, tpv["epv"] / Z95)
+        else:
+            sig = (tpv["epx"] / Z95, tpv["epy"] / Z95, tpv["epv"] / Z95)
         out.append(
             Measurement(
                 t_ns=t,
