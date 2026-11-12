@@ -284,12 +284,13 @@ def run_real(
         for lab, base, st, var in rows_for(arms, refs)
         for c in cuts
     ]
+    commit = rgc._commit()  # before the runs: the tree they ran on
     t0 = time.perf_counter()
     runs = _map(real_task, tasks, jobs)
     return {
         "kind": "replay of a real session, GPS cut in software",
         "session": Path(path).name,
-        "commit": rgc._commit(),
+        "commit": commit,
         "cuts_s": list(cuts),
         "stress": stress or {},
         "rows": {
@@ -440,13 +441,14 @@ def run_sim(
     tasks = [(leg, s, rows) for leg in legs for s in seeds]
     if refs and any(leg in LEGS for leg in legs):  # no LTE: the same entry without LTE records
         tasks += [("nolte", s, [("no-lte", "ekf", {})]) for s in seeds]
+    commit = rgc._commit()  # before the runs: the tree they ran on
     t0 = time.perf_counter()
     runs = [r for rs in _map(sim_task, tasks, jobs) for r in rs]
     return {
         "kind": "sim, every value TBC (ADR-0015)",
         "legs": {leg: LEGS.get(leg, leg) for leg in legs},
         "seeds": seeds,
-        "commit": rgc._commit(),
+        "commit": commit,
         "extra": extra or {},
         "rows": {lab: {"base": base, "settings": st} for lab, base, st in rows},
         "elapsed_min": (time.perf_counter() - t0) / 60,
@@ -585,19 +587,29 @@ def parse_seeds(text: str) -> list[int]:
     return out
 
 
-def figure(data: dict, rows: list[str], out: Path) -> None:
+FIGURE_LABELS = {
+    "ekf": "ekf (main's default)",
+    "control": "ekf-honest (control; winner under the rule)",
+    "cells4": "cells4 (near-miss: fails the rule)",
+    "hold30-v0.5-k2": "ekf-honest + stationary hold (fails the rule)",
+}
+
+
+def figure(data: dict, rows: list[str], out: Path, frontend: str = "?") -> None:
     """Error after the cut against time, median of the cuts, one line per row, 50 m line:
     `real_gps_cut.plot_rows` on these rows (relative metres only)."""
     import real_gps_cut as rgc
 
-    runs = [r for r in data["runs"] if r["estimator"] in rows]
-    agg = {f"{lab}|{data['rows'][lab]['variant']}": {} for lab in rows}
+    names = {lab: FIGURE_LABELS.get(lab, lab) for lab in rows}
+    runs = [{**r, "estimator": names[r["estimator"]]} for r in data["runs"]
+            if r["estimator"] in rows]  # fmt: skip
+    agg = {f"{names[lab]}|{data['rows'][lab]['variant']}": {} for lab in rows}
     summary = {
         "aggregate": agg,
         "horizon_s": rgc.HORIZON_S,
         "session": data["session"],
         "cuts_s": data["cuts_s"],
-        "frontend_commit": data.get("frontend_commit", "?"),
+        "frontend_commit": frontend,
         "commit": data["commit"],
     }
     rgc.plot_rows(runs, summary, out)
@@ -631,6 +643,7 @@ def main(argv=None) -> None:
     f.add_argument("file")
     f.add_argument("--rows", nargs="+", required=True)
     f.add_argument("--out", required=True)
+    f.add_argument("--frontend", default="?", help="the session's front-end commit (its meta)")
     args = ap.parse_args(argv)
 
     if args.cmd in ("real", "sim"):
@@ -672,7 +685,8 @@ def main(argv=None) -> None:
         Path(args.out).write_text(json.dumps(out, indent=1, sort_keys=True) + "\n")
         print(f"wrote {args.out}: {len(out)} hashes")
     else:
-        figure(json.loads(Path(args.file).read_text()), args.rows, Path(args.out))
+        data = json.loads(Path(args.file).read_text())
+        figure(data, args.rows, Path(args.out), args.frontend)
         print(f"wrote {args.out}")
 
 
