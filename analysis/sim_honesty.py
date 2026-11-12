@@ -277,36 +277,53 @@ def summary(data: dict) -> str:
 
 
 def plot(data: dict, out: Path) -> None:
+    """Per term and estimator: the paired change of each run's window p95 against `base` (same
+    seed), as the median (bar) and the 10th to 90th percentile across seeds (whisker)."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     rows = data["rows"]
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5.5), sharey=False)
     colours = {"ekf": "#2a78d6", "ekf-calibrated-measured": "#eb6834", "ekf-arc-bias": "#1baf7a"}
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6.5))
     for ax, (w, scen) in zip(axes, SCENARIOS.items(), strict=True):
-        keys = variants(w)
+        keys = [k for k in variants(w) if k != "base"]
         names = ESTIMATORS[w]
         width = 0.8 / len(names)
         y = np.arange(len(keys))
         for j, n in enumerate(names):
-            v = [next(x["t1_m"] for x in rows if (x["scenario"], x["term"], x["estimator"])
-                      == (w, k, n)) for k in keys]  # fmt: skip
-            ax.barh(y + (j - (len(names) - 1) / 2) * width, v, width, label=n, color=colours[n])
+            base = next(x for x in rows if (x["scenario"], x["term"], x["estimator"])
+                        == (w, "base", n))["win_p95_by_seed"]  # fmt: skip
+            med, lo, hi = [], [], []
+            for k in keys:
+                r = next(
+                    x for x in rows if (x["scenario"], x["term"], x["estimator"]) == (w, k, n)
+                )
+                d = np.subtract(r["win_p95_by_seed"], base)
+                med.append(np.median(d))
+                lo.append(np.percentile(d, 10))
+                hi.append(np.percentile(d, 90))
+            yy = y + (j - (len(names) - 1) / 2) * width
+            med = np.array(med)
+            ax.barh(yy, med, width * 0.9, color=colours[n], label=n)
+            ax.errorbar(med, yy, xerr=[med - np.array(lo), np.array(hi) - med], fmt="none",
+                        ecolor="#555", elinewidth=0.8, capsize=2)  # fmt: skip
         ax.set_yticks(y, keys)
         ax.invert_yaxis()
-        ax.set_xscale("log")
-        ax.axvline(25.0, color="#888", lw=0.8, ls="--")
-        ax.set_xlabel("T1: worst-second p95 horizontal error, 0-300 s after GPS loss (m, log)")
+        ax.set_xscale("symlog", linthresh=10.0)
+        ax.axvline(0.0, color="#888", lw=0.8)
+        ax.set_xlabel("change of each run's p95 error, 0-300 s after GPS loss, vs base (m)")
         ax.set_title(scen)
         ax.grid(axis="x", alpha=0.3)
-    axes[0].legend(loc="lower right", fontsize=8)
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=3, frameon=False)
     fig.suptitle(
-        f"#278 terms one at a time, then all (sim, seeds {data['seeds'][0]}-"
-        f"{data['seeds'][-1]}, commit {data['commit']}); dashed: T1 target 25 m"
+        f"#278 terms one at a time, then all: paired change per seed, median (bar) and "
+        f"10-90 % (whisker)\nsim, seeds {data['seeds'][0]}-{data['seeds'][-1]}, commit "
+        f"{data['commit']}; symlog axis, linear within +-10 m"
     )
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
     fig.savefig(out, dpi=110)
     plt.close(fig)
 
