@@ -115,11 +115,13 @@ class Config:
     # its loop rate, kilometres in one arc. Every `lock_window_s` of accepted epochs, their
     # mean peak power over the profile's interference floor (as `first_path_floor` measures it)
     # must reach `lock_peak_to_floor`; if not, that window's epochs are dropped and the track
-    # ends, and the next search starts the cell on a new arc. 4: on that walk, 84 % of the
-    # seconds of a sliding track fell below it, 16 % of those of a good one (one track's floor
-    # alone, the gate's largest of a few exponential bins, has a mean near 2). 0: off.
+    # ends, and the next search starts the cell on a new arc. 3: on that walk's 1 s means, 51 %
+    # of a sliding track's seconds fell below it and 5 % of a good one's (4: 84 % and 16 %), and
+    # the cells' range errors inside one arc came out the same at 3 and 4 with 9 % more records
+    # at 3 (`analysis/results/weak-cell-wander/`). The floor alone, the largest of the gate's few
+    # exponential bins, has a mean near 2. 0: off.
     lock_window_s: float = 1.0
-    lock_peak_to_floor: float = 4.0
+    lock_peak_to_floor: float = 3.0
     output_period_s: float = 0.1  # 10 Hz
     # Doppler records, off by default (TBC, until the alias below is resolved and checked on a
     # real capture). The carrier phase is only known modulo the 200 Hz half-frame rate, and
