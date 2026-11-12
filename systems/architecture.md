@@ -146,7 +146,7 @@ Full list: [`safety.md`](safety.md).
 - **Receive-only:** no transmit path in hardware or code (REQ-07, ADR-0001). Attacks exist only in software.
 - **Privacy:** only signals meant for general reception are decoded (Radiocommunication Act s.9(2)); Wi-Fi BSSIDs are hashed at capture (REQ-08, [ADR-0011](adr/0011-privacy-at-capture.md)).
 - **Ground links:** authenticated and encrypted with CurveZMQ ([ADR-0026](adr/0026-ground-link-security.md)). MAVLink signing `TBC`; hash-chained logs after judging.
-- **Flight:** INAV, pilot-flown, RC kill switch ([ADR-0028](adr/0028-fly-inav.md)); tethered indoor hover only for the Wi-Fi bridge ([ADR-0029](adr/0029-tethered-hover-wifi-control.md)).
+- **Flight:** Betaflight 4.5.5, pilot-flown with a FlySky FS-i6; SwB is the kill switch, and RC loss disarms with no controlled landing ([ADR-0028](adr/0028-fly-inav.md), *Amendment 2026-11-11*). The Wi-Fi bridge for tethered hover is retired ([ADR-0029](adr/0029-tethered-hover-wifi-control.md)).
 
 ---
 

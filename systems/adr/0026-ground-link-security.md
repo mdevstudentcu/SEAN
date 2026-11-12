@@ -11,7 +11,7 @@ Every radio defence we build checks signals in the air. An attacker on a ground 
 
 - **Payload → laptop:** ZeroMQ PUB/SUB over Wi-Fi, carrying msgpack `Measurement` records (ADR-0009). `src/pnt/sources/live.py` subscribes with no authentication.
 - **Base → laptop:** the ground reference station streams over Ethernet (ADR-0020). A forged base corrupts every differential correction.
-- **MAVLink:** flight-controller telemetry and, if the Pi Zero hub returns, hub to recorder (ADR-0018 keeps ADR-0005's dialect). The flight controller runs INAV (ADR-0028), and the recorder only listens to it.
+- **MAVLink:** flight-controller telemetry and, if the Pi Zero hub returns, hub to recorder (ADR-0018 keeps ADR-0005's dialect). The flight controller runs Betaflight (ADR-0028, *Amendment 2026-11-11 (owners)*; INAV when this ADR was written), and the recorder only listens to it.
 - **Logs:** MCAP chunks carry CRC32s, which catch corruption but not deliberate edits ([MCAP spec](https://mcap.dev/spec)). REQ-10 needs results we can trust later.
 
 Tools we can use:
@@ -40,7 +40,7 @@ Authenticate and encrypt every ZeroMQ link with CurveZMQ (option A). Built in #8
 - The laptop pins each endpoint's server key, so a host without the Pi's secret key cannot complete the handshake.
 - `pnt record` and `pnt live` refuse to stream without keys, and refuse when libzmq lacks CURVE. Plaintext needs an explicit `--insecure` and prints a warning. Each session's `meta.yaml` `notes` say whether its stream was authenticated (no ICD change).
 
-MAVLink 2 signing is `TBC`. The flight controller runs INAV (ADR-0028), the recorder only listens to it, and whether INAV signs MAVLink is unconfirmed. Hash-chaining the session logs is the design, but it waits until after judging.
+MAVLink 2 signing is `TBC`. The flight controller runs Betaflight (ADR-0028, *Amendment 2026-11-11 (owners)*; INAV when this ADR was written), the recorder only listens to it, and whether Betaflight signs MAVLink is unconfirmed. Hash-chaining the session logs is the design, but it waits until after judging.
 
 We chose CurveZMQ over WireGuard (decided 2026-11-09):
 - pyzmq is already a dependency, and the laptop's libzmq has CURVE.
