@@ -1,7 +1,7 @@
 {
   "session": "20261111-1937-static-fullsuite3-lte",
-  "commit": "fcafe6b",
-  "frontend_commit": "fcafe6b",
+  "commit": "8807879",
+  "frontend_commit": "0ad95be",
   "kind": "replay of a real session, GPS cut in software",
   "cuts_s": [
     99.0,

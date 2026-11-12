@@ -1,6 +1,6 @@
 # Our opt-in LTE filters on a real session with GPS cut in software (#256)
 
-**Real, one stationary session:** `20261111-0040-static-fullsuite` (about 600 s; GPS fixes, barometer, IMU, one LTE radio's IQ). GPS removed in software at 99, 149, 199, 249 and 299 s; each cut scored for 300 s against the withheld 1 Hz GPS fixes (1,505 fixes in all). Front end at `28ec0a2` (its `src/pnt/frontends` equals `main` `c526b9e`, so it includes #245): 12,581 pseudoranges, 5 cells, 34 arcs. Analysis at `105e9a3`, clean tree. Sessions `0151` and `0233` were not reachable and nothing was substituted. The five cuts share one recording: differences between rows describe these runs, not a general improvement.
+**Real, one stationary session:** `20261111-0040-static-fullsuite` (about 600 s; GPS fixes, barometer, IMU, one LTE radio's IQ). GPS removed in software at 99, 149, 199, 249 and 299 s; each cut scored for 300 s against the withheld 1 Hz GPS fixes (1,505 fixes in all). Front end at `22d528f` (its `src/pnt/frontends` equals `main` `c526b9e`, so it includes #245): 12,581 pseudoranges, 5 cells, 34 arcs. Analysis at `8807879`, clean tree. Sessions `0151` and `0233` were not reachable and nothing was substituted. The five cuts share one recording: differences between rows describe these runs, not a general improvement.
 
 ![Horizontal error against the withheld GPS fix after the cut, median of five cut times, one line per filter, with the 50 m line](20261111-0040-static-fullsuite/error_by_row.png)
 
@@ -56,7 +56,7 @@ python analysis/real_replay_diagnose.py data/sessions/20261111-0040-static-fulls
 
 ## Second session: `20261111-1937-static-fullsuite3` (recorded 2026-11-12 UTC, #282)
 
-Real, stationary, 600 s, same commands, analysis at `fcafe6b`, front end as above: 18,572 pseudoranges, 4 cells, 3 or more cells heard in 77 % of seconds (17 to 21 % on `0040` after its early cuts). Same five cuts, 1,500 withheld fixes. The error at exactly 300 s is not scored on this session: its fixes fall off the script's 0.05 s matching grid at that instant (#264's nearest-fix change is not on this branch), so the 0–300 s p95 is given instead. GPS error estimates in this session's records are inflated (#284).
+Real, stationary, 600 s, same commands, analysis at `8807879`, front end as above: 18,572 pseudoranges, 4 cells, 3 or more cells heard in 77 % of seconds (17 to 21 % on `0040` after its early cuts). Same five cuts, 1,500 withheld fixes. The error at exactly 300 s is not scored on this session: even with #264's nearest-fix rule (now on `main`), no withheld fix inside the scored window lies within 0.5 s of that instant (cause not examined), so the 0–300 s p95 is given instead. GPS error estimates in this session's records are inflated (#284).
 
 ![Horizontal error against the withheld GPS fix after the cut, median of five cut times, one line per filter](20261111-1937-static-fullsuite3/error_by_row.png)
 
@@ -73,3 +73,7 @@ Real, stationary, 600 s, same commands, analysis at `fcafe6b`, front end as abov
 - With four cells and a 3-cell fix available most of the time, the tower-aided error is several times smaller than on `0040` (255 m against 1,001 m at 120 s for the default), and learned noise makes no difference here.
 - `ekf-honest` learns 63 to 112 m per cell; `ekf-learned-noise` 15 to 39 m.
 - Across both sessions: error above HPL on 1,025 of 3,005 withheld fixes (34.1 %) for the default, 0 of 3,005 for `ekf-honest`.
+
+## Before the rebase
+
+Both sessions were first run at the pre-rebase twins of `6f96c49` (`0040`) and `0ad95be` (`1937`), on a branch that carried copies of #156 and #251. Re-run after the rebase onto `main` `5cf9cd6` (which adds ADR-0045's GNSS-height fallback, #289's GNSS σ from eph and #264's nearest-fix scoring) with the same commands: every field of both `summary.json` and `diagnosis.json` files is identical except the commit, so no number above moved. The pooled count stands: error above HPL on 1,025 of 3,005 withheld fixes for the default, 0 of 3,005 for `ekf-honest`.
