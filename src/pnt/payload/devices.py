@@ -263,7 +263,11 @@ def find_fc() -> str | None:
 
 
 class FlightController:
-    """ArduPilot telemetry to `/mavlink/fc`, decoded to JSON (ICD-session). Listen only."""
+    """Flight-controller MAVLink to `/mavlink/fc`, decoded to JSON (ICD-session). Listen only.
+
+    The drone's Betaflight sends it on a Pi UART (`--fc /dev/ttyAMA<n>`, RUNBOOK I); the
+    automatic search only finds USB boards (ArduPilot, SITL).
+    """
 
     name = "fc"
     hardware = "flight-controller"
