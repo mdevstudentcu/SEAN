@@ -58,3 +58,4 @@ One file per decision, from [`0000-template.md`](0000-template.md). Never edit a
 | [0053](0053-imu-bias-calibration-while-still.md) | The IMU biases are calibrated from a still stretch before alignment, and no alignment window runs while still | Proposed |
 | [0054](0054-numba-for-the-ekf-kernels.md) | numba compiles the EKF's covariance kernels; `pnt eval` workers run one BLAS thread | Proposed |
 | [0055](0055-innovation-whiteness-flag.md) | Flag a source whose innovations are correlated in time (innovation whiteness test, report only; on the panel, live and replay paths, off for evals; GNSS position analysis only) | Proposed |
+| [0057](0057-payload-lte-antenna-bingfu.md) | The payload's LTE antenna is the Bingfu (owner's call; the ground-plane re-test can reopen it) | Accepted |

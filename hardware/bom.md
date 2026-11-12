@@ -100,7 +100,7 @@ Antennas are bought, not built: nobody is free to build them this week. The DIY 
 
 **Total antennas: $46.44.**
 
-**Which LTE antenna on the payload: open (#200).** A first A/B on 2026-11-10 ([`analysis/results/antenna-ab-20261110/`](../analysis/results/antenna-ab-20261110/README.md)) did not settle it. On a plastic chair 0.5 m up, the Bingfu and the bundle's telescopic (25.7 cm) each tracked one cell at about +6 dB and the bundle's UHF mast none above the detection floor; but the same UHF mast on the ground tracked a cell at +14 dB, at that spot and at another. Mounting (ground plane `TBC`), auto gain and hand-holding confound the comparison. The choice is an owner decision; a re-test of each antenna on the same ground plane (`TBD`) at fixed gain is the follow-up.
+**Which LTE antenna on the payload: the Bingfu (ADR-0057, owner decision 2026-11-12, #200).** A first A/B on 2026-11-10 ([`analysis/results/antenna-ab-20261110/`](../analysis/results/antenna-ab-20261110/README.md)) did not settle it on data. On a plastic chair 0.5 m up, the Bingfu and the bundle's telescopic (25.7 cm) each tracked one cell at about +6 dB and the bundle's UHF mast none above the detection floor; but the same UHF mast on the ground tracked a cell at +14 dB, at that spot and at another. Mounting (ground plane `TBC`), auto gain and hand-holding confound the comparison. A re-test of each antenna on the same ground plane (`TBD`) at fixed gain stays the follow-up and can reopen the choice.
 
 **Weight on the drone:** the Bingfu magnetic base and its 3 m cable add weight on a 5" quad. Either strip the magnet and tape the coiled cable down, or use a stub antenna with no cable. One candidate is the Superbat 5G/4G SMA stub (ASIN B0D12H2CDP, $16.37, today); its frequency range has not been checked (`TBC`), so check the listing before ordering.
 
@@ -166,7 +166,7 @@ From `hardware/README.md` and `flight/`. Status and source of each are `TBD`; RS
 
 ## Open decisions
 
-- **Payload LTE antenna: open (#200).** Bingfu, telescopic or UHF mast; the 2026-11-10 A/B is confounded by mounting (section 3). Needs the ground-plane re-test, then the owner's choice.
+- **Payload LTE antenna: the Bingfu (ADR-0057).** Owner's call; the 2026-11-10 A/B is confounded by mounting (section 3), so the ground-plane re-test (`TBD`) can reopen it.
 
 - **LoRa HAT (915 MHz): in hand (HON, 2026-11-10), not using** (*Not using*). Using it anywhere needs a decision (an ADR) first.
 
