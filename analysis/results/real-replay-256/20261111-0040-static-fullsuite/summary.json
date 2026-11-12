@@ -1,7 +1,7 @@
 {
   "session": "20261111-0040-static-fullsuite-lte",
-  "commit": "8807879",
-  "frontend_commit": "22d528f",
+  "commit": "2fbb84f",
+  "frontend_commit": "d02d16e",
   "kind": "replay of a real session, GPS cut in software",
   "cuts_s": [
     99.0,

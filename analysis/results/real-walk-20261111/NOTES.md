@@ -2,7 +2,7 @@
 
 Evidence: **replay of a real session** (GPS HAT, MPU6050, BMP180, RTL-SDR on LTE EARFCN 2460), GPS cut in software (ADR-0015). Errors, innovations, times and counts only: no position, track, origin, range or bearing.
 
-Commits (all on origin): `main` at `c526b9e` (nav code identical to #241's `289b702`), the GPS-cut tool `analysis/walk_gps_cut.py` at `fa5795c` (`shrikar/feat/214-walk-gps-cut`, not merged), this branch's fixes. Runs merge the tool onto each tree locally, so the figures and summaries name that local merge (`3fb854d`: `main` + `fa5795c` + this branch's `src` as of f800514, unchanged since). LTE records: `20261111-1806-walk-lte-lte` (front end at `fa5795c`).
+Commits (all on origin): `main` at `c526b9e` (nav code identical to #241's `32598eb`), the GPS-cut tool `analysis/walk_gps_cut.py` at `fa5795c` (`shrikar/feat/214-walk-gps-cut`, not merged), this branch's fixes. Runs merge the tool onto each tree locally, so the figures and summaries name that local merge (`3fb854d`: `main` + `fa5795c` + this branch's `src` as of f800514, unchanged since). LTE records: `20261111-1806-walk-lte-lte` (front end at `fa5795c`).
 
 ## 1. IMU: uncalibrated biases, an alignment fooled by them (fixed, ADR-0053)
 
@@ -52,7 +52,7 @@ GPS cut at 878, 938 and 998 s, `ekf` with LTE, variants (median of 3 cuts at 60 
 | dongle clock wander 50 m/s/√s | 138 | 1,045 | 1,391 | 51–93 % | 4.0 |
 | `q_accel` 0.3 | 65 | 95 | 1,610 | 60–80 % | 5.7 |
 
-No variant beats no LTE. A slow per-cell error state of the measured size makes the filter honest before the cut (p95 1.2 to 1.6 m, as without LTE) but not after it: even one cell alone (PCI 220) pulls the coast off. Variant runs: `analysis/walk_gps_cut.py` `run_one` with the LTE records filtered or the `ekf` options given, on `3493cfb` + `289b702` + `fa5795c` (nav code identical to `main`).
+No variant beats no LTE. A slow per-cell error state of the measured size makes the filter honest before the cut (p95 1.2 to 1.6 m, as without LTE) but not after it: even one cell alone (PCI 220) pulls the coast off. Variant runs: `analysis/walk_gps_cut.py` `run_one` with the LTE records filtered or the `ekf` options given, on `3493cfb` + `32598eb` + `fa5795c` (nav code identical to `main`).
 
 ## 3. Cut coverage
 

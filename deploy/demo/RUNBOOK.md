@@ -176,7 +176,7 @@ Only these, with their source. Never present the seed-0 run above as a statistic
 | Runs with hazardous epochs (error over 50 m while HPL under it), held 300 m jump, drone leg | `ekf` 49/50 seeds, mean 5,244 epochs per run; with the guard 3/50 seeds, mean 3 per run | same; ADR-0038 *Options* |
 | Jump ended (at 300 s in the study, not 200 s as on stage): real GPS taken back | `ekf` 48/50 seeds, median 18.8 s after the end; with the guard 50/50, median 0.1 s | same, *Jump ended at 300 s* |
 | Jump sizes 20 m to 500 km on the UC-01 route (realistic set, not the challenge leg): detected 1.1 s after the jump in every run but one 20 m jump; runs with hazardous epochs at 300 m | `ekf` 19/20, `ekf-guard` 0/20 | ADR-0038 *Consequences* (sim, seeds 0–19, `analysis/guard_jump_sizes.py` at `5a7a1c9`) |
-| Drone leg, GPS lost: the 95th percentile of error across 50 runs at each second, worst second of the first 300 s | no LTE 2,909 m; today's setup (`ekf`, 1 carrier) 12,507 m; study (`ekf-learned-noise`, 13 hopped carriers) 132 m. The 25 m / 300 s and 50 m / 120 s targets are not met | `analysis/results/stacked-fixes/summary.md`, draft PR #247 (sim, seeds 0–49, branch `elshoubky/feat/218-stacked-fixes` at `31aaca1`). Hopping is a study leg (ADR-0040), learned noise opt-in (ADR-0039) |
+| Drone leg, GPS lost: the 95th percentile of error across 50 runs at each second, worst second of the first 300 s | no LTE 2,909 m; today's setup (`ekf`, 1 carrier) 12,507 m; study (`ekf-learned-noise`, 13 hopped carriers) 132 m. The 25 m / 300 s and 50 m / 120 s targets are not met | `analysis/results/stacked-fixes/summary.md`, draft PR #247 (sim, seeds 0–49, branch `elshoubky/feat/218-stacked-fixes` at `69881a8`). Hopping is a study leg (ADR-0040), learned noise opt-in (ADR-0039) |
 | Cost of the guard: median error on the drone leg after refusing | 115 m at +30 s, 1.2 km at +120 s, flagged unsafe | ADR-0038 *Consequences* |
 
 `ekf` on `challenge-drone-outage` over 50 seeds has hazardous epochs on some seeds (#170): do not say the panel never tells less than the truth.
@@ -209,7 +209,7 @@ Say: "This one is a real receiver, not a simulation: a laptop GPS standing still
 
 When the bound reaches kilometres, add: "The bound is honest but far too wide: the real error stays within a couple of metres because the receiver never moved, and the filter does not know that." Do not say the position stays within 2 m without GPS: a stationary receiver says nothing about a moving one.
 
-**Wall** is seconds after pressing Enter on `deploy/demo/demo.sh realcut` (±1 s); **T+** is the panel clock. Measured as for the stage sequence (a script reading the panel stream, no browser, Ctrl-C at T+157): four runs on 2026-11-11, two at the uncommitted change and two at commit `a3190ce`, clean tree, macOS, this laptop, load average 3–7. Every panel-clock time and value below was the same in all four; first frame 2.3–3.5 s after Enter (slower under load).
+**Wall** is seconds after pressing Enter on `deploy/demo/demo.sh realcut` (±1 s); **T+** is the panel clock. Measured as for the stage sequence (a script reading the panel stream, no browser, Ctrl-C at T+157): four runs on 2026-11-11, two at the uncommitted change and two at commit `4caf1e4`, clean tree, macOS, this laptop, load average 3–7. Every panel-clock time and value below was the same in all four; first frame 2.3–3.5 s after Enter (slower under load).
 
 | Wall | T+ | Panel | Say |
 | --- | --- | --- | --- |
@@ -292,7 +292,7 @@ Headless Google Chrome at 1920×1080, panel served by `deploy/demo/demo.sh jump`
 
 The 2026-11-10 screenshots in `analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/` (commit `8cea8cf`) still show the time spoof and the real-session panel (`real-dash-today.png`: NO DATA, no origin in a real session). Their wording predates the fix in `ade3bbc` (*GPS lost … towers*, *Low trust*).
 
-Real GPS cut (#264): headless Google Chrome at 1920×1080, panel served by `deploy/demo/demo.sh realcut` (the same code as `a3190ce`, before it was committed). **Real session**, GPS removed in software at 35 s, `ekf`, origin hidden. Files in `analysis/pr-evidence/elshoubky-feat-264-real-cut-demo/`; each was checked by eye for coordinates, a map or a tower: none (only the ENU grid, the session name and relative metres).
+Real GPS cut (#264): headless Google Chrome at 1920×1080, panel served by `deploy/demo/demo.sh realcut` (the same code as `4caf1e4`, before it was committed). **Real session**, GPS removed in software at 35 s, `ekf`, origin hidden. Files in `analysis/pr-evidence/elshoubky-feat-264-real-cut-demo/`; each was checked by eye for coordinates, a map or a tower: none (only the ENU grid, the session name and relative metres).
 
 | File | Panel time | Shows |
 | --- | --- | --- |
