@@ -669,3 +669,15 @@ def test_page_keeps_the_runbook_cues_and_shows_the_gps_trust():
     js = (SRC / "dashboard" / "web" / "app.js").read_text()
     assert 'id="gps-trust"' in page and "f.gps_trust" in js
     assert "f.status.toUpperCase()" in js  # NOMINAL / DEGRADED / UNSAFE, as the runbook says
+    # The runbook's "where to look": the status first, HPL and the error against truth under it,
+    # then what is wrong and the alerts, down one rail
+    order = ['id="status-word"', 'id="big-hpl"', "Error against truth", "What is wrong now"]
+    order += ["Alerts (latched until acknowledged)", "Sources"]
+    rail = page[page.index('class="rail"') :]
+    assert [rail.index(name) for name in order] == sorted(rail.index(name) for name in order)
+    # ADR-0041: the spoof decision stays on the panel, next to the status (with the GPS trust)
+    assert rail.index('id="status"') < rail.index('id="spoof"') < rail.index("What is wrong now")
+    # Which estimator is on screen (a plain one takes a spoofed GPS back, ADR-0038), and the
+    # true error called out when it is outside the bound: the page must keep both
+    assert 'id="guard"' in page and "jump guard" in js
+    assert 'id="err-check"' in page and "OUTSIDE THE BOUND" in js

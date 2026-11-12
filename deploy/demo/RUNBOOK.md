@@ -28,7 +28,7 @@ Commands are in `deploy/demo/demo.sh`; `just demo <segment>` runs the same scrip
 
 - [ ] Power connected; sleep and screen saver off; notifications off (Focus mode).
 - [ ] Close other heavy jobs (Monte Carlo, IDEs): the panel needs one free core.
-- [ ] Projector at 1920×1080, browser full screen (Ctrl-Cmd-F), zoom 100 %. The two charts and the Sources card need it: in a 1451×722 window they are below the fold.
+- [ ] Projector at 1920×1080, browser full screen (Ctrl-Cmd-F), zoom 100 %. A smaller window still shows everything, but shrinks the whole panel to fit, text included.
 - [ ] Keep the terminal off the projector during the panel segments. With a browser connected, each segment switch prints `ERROR: Cancel 1 running task(s), timeout graceful shutdown exceeded` there. It is harmless (the server closing the open stream).
 - [ ] `deploy/demo/demo.sh check` → `pre-flight passed`. This also warms the Python caches.
 - [ ] Warm-up: `deploy/demo/demo.sh outage`, wait for the panel, Ctrl-C.
