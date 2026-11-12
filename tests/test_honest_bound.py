@@ -109,3 +109,14 @@ def test_the_stress_plan_covers_every_drone_entry_on_three_carrier_counts():
             assert f"drone/{entry}/{n}c" in keys
     jump = [t for t in tasks if t[0] == "drone/spoof-jump/1c"][0]
     assert "ekf-honest-guard" in jump[2] and "ekf-learned-noise+guard" in jump[2]
+
+
+def test_report_skips_the_late_outage_pickle_in_the_same_folder(tmp_path):
+    """honest_bound_late.py writes late-outage.pkl.gz beside the plans' pickles; --report read it
+    as a plan and stopped (KeyError: 'plan')."""
+    import gzip
+    import pickle
+
+    with gzip.open(tmp_path / "late-outage.pkl.gz", "wb") as fh:
+        pickle.dump({"commit": "0000000", "seeds": [0], "runs": []}, fh)
+    assert hb.load_plans(tmp_path) == {}

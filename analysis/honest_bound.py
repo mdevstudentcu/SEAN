@@ -630,6 +630,8 @@ def load_plans(runs_dir: Path) -> dict:
     out: dict = {}
     for path in sorted(runs_dir.glob("*.pkl.gz")):
         doc = load_plan(path)
+        if "plan" not in doc:
+            continue  # not a plan's pickle: honest_bound_late.py writes late-outage.pkl.gz here
         p = out.setdefault(doc["plan"], {"docs": [], "runs": []})
         p["docs"].append({k: v for k, v in doc.items() if k != "runs"})
         p["runs"] += doc["runs"]
