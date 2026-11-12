@@ -1,4 +1,5 @@
-"""Sensor models for our payload's IMU and barometer (issue #9, ADR-0014).
+"""Sensor models for our payload's IMU and barometer (issue #9, ADR-0014), and an opt-in
+magnetometer heading (#276, ADR-0051 Proposed) that the payload does not carry.
 
 Standalone: they take true motion as arrays (specific force and body rate in the body frame, or
 true altitude) and return what the sensor would report, so any trajectory source can drive them
@@ -206,4 +207,56 @@ def baro_measurements(
             t_ns=int(t), source="baro", kind="altitude", value=(float(a),), sigma=(params.noise_m,)
         )
         for t, a in zip(ts_ns, altitude_m, strict=True)
+    ]
+
+
+@dataclass(frozen=True)
+class MagParams:
+    """A magnetometer's heading, after hard- and soft-iron calibration and the declination
+    correction to true north (#276, ADR-0051 Proposed). The payload has no magnetometer
+    (ADR-0014): this is a candidate sensor, opt-in in the sim. What is left is a per-flight bias
+    (motor and wiring fields, calibration and declination error), drawn once per run from a
+    Student-t so that a few flights carry a much larger offset, plus white noise."""
+
+    noise_deg: float = 1.0  # white noise 1-sigma per reading, deg
+    bias_deg: float = 2.5  # scale of the per-flight bias, deg
+    bias_dof: float = 4.0  # Student-t degrees of freedom of that bias (heavy-ish tails)
+    provenance: dict = field(default_factory=dict)
+
+
+MAG = MagParams(
+    provenance={
+        "noise_deg": "TBC: unsourced placeholder",
+        "bias_deg": (
+            "TBC, weak evidence (report sources-research-20261111 17.4, 17.10): a per-flight "
+            "bias of 2-3 deg; one forum post saw a near-constant 3.6 deg on a small quad"
+        ),
+        "bias_dof": "TBC: unsourced; 4 gives tails heavier than Gaussian with a finite variance",
+    }
+)
+
+
+def heading_of(rot: np.ndarray) -> np.ndarray:
+    """Heading (rad, clockwise from true north) of the body x (forward) axis of each
+    body-to-ENU rotation (N, 3, 3), the convention of the `heading` kind (ICD-measurement)."""
+    return np.arctan2(rot[:, 0, 0], rot[:, 1, 0])
+
+
+def magnetometer(
+    rot: np.ndarray, rng: np.random.Generator, params: MagParams = MAG
+) -> tuple[np.ndarray, float]:
+    """(heading readings in rad wrapped to [-pi, pi), the run's bias in rad) for the true
+    body-to-ENU rotations `rot` (N, 3, 3)."""
+    bias = params.bias_deg * DEG * float(rng.standard_t(params.bias_dof))
+    psi = heading_of(rot) + bias + rng.normal(0.0, params.noise_deg * DEG, len(rot))
+    return (psi + np.pi) % (2 * np.pi) - np.pi, bias
+
+
+def mag_measurements(ts_ns: np.ndarray, psi: np.ndarray, params: MagParams = MAG):
+    """`heading` records from source `mag`. Sigma is the white noise only; the per-flight bias
+    is for the estimator to model, as the IMU's biases are."""
+    s = (params.noise_deg * DEG,)
+    return [
+        Measurement(t_ns=int(t), source="mag", kind="heading", value=(float(p),), sigma=s)
+        for t, p in zip(ts_ns, psi, strict=True)
     ]

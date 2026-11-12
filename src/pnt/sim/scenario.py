@@ -59,6 +59,8 @@ _HOSTILE_STREAM = 223
 _ADSB_STREAM = 0xAD5B
 # The simulated GPS sky's own stream (`sky:`, #206), for the same reason
 _SKY_STREAM = 224
+# The magnetometer's own stream (`mag:`, #276), for the same reason
+_MAG_STREAM = 276
 # The faults that reach the aircraft around us as well as our receiver (`pnt.sim.adsb`)
 GNSS_ZONES = ("jamming_zone", "spoof_zone")
 # The place-dependent tower error's own random stream (`place_error`, #95), for the same reason
@@ -281,6 +283,11 @@ def generate(spec: dict, seed: int = 0) -> SimRun:
             meas += models.baro(ts_ns, pos, rng, **cfg)
         elif model == "imu":
             meas += _imu(traj, ts, ts_ns, np.random.default_rng([seed, _IMU_STREAM]), cfg)
+        elif model == "mag":  # opt-in magnetometer heading (#276, ADR-0051 Proposed)
+            params = replace(sensors.MAG, **cfg) if cfg else sensors.MAG
+            rot = trajectory.kinematics(traj, ts).rot
+            psi, _ = sensors.magnetometer(rot, np.random.default_rng([seed, _MAG_STREAM]), params)
+            meas += sensors.mag_measurements(ts_ns, psi, params)
         elif model == "pseudorange":
             em_llh = cfg.pop("emitters_llh", None)
             if "towers_from" in cfg:
