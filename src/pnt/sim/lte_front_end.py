@@ -560,19 +560,24 @@ def records(
         n_epochs = schedule.n_epochs
 
     out: list[Measurement] = []
+    # Python ints and floats in one conversion per array, rather than one per record
+    t_list = np.asarray(ts_ns).astype(np.int64).tolist()
     for i, s in enumerate(secs):
-        cfo = -s.fc_hz / models.C_MPS * rate[i]
-        for k in np.flatnonzero(heard[:, i]):
+        ks = np.flatnonzero(heard[:, i])
+        cfo = (-s.fc_hz / models.C_MPS * rate[i])[ks].tolist()
+        snr = [None] * len(ks) if snr_db is None else snr_db[ks, i].tolist()
+        per = zip(ks.tolist(), snr, cfo, arc[i, ks].tolist(), value[i, ks].tolist(), strict=True)
+        for k, snr_k, cfo_k, arc_k, value_k in per:
             meta = {
-                "snr_db": None if snr_db is None else round(float(snr_db[k, i]), 2),
-                "cfo_hz": round(float(cfo[k]), 3),
+                "snr_db": None if snr_k is None else round(snr_k, 2),
+                "cfo_hz": round(cfo_k, 3),
                 "dongle": dongle.name,
                 "rx_clock": dongle.name,
                 "earfcn": s.earfcn,
                 "pci": s.pci,
                 "fc_hz": s.fc_hz,
                 "n_epochs": n_epochs,
-                "arc": int(arc[i, k]),  # 0 unless `arcs:` is on (module docstring)
+                "arc": arc_k,  # 0 unless `arcs:` is on (module docstring)
                 "sigma_crb_m": round(reported, 3),
                 "sigma_obs_m": None,
                 "ambiguity_m": AMBIGUITY_M,
@@ -580,11 +585,11 @@ def records(
             }
             out.append(
                 Measurement(
-                    t_ns=int(ts_ns[k]),
+                    t_ns=t_list[k],
                     source=source,
                     kind="pseudorange",
                     emitter=s.emitter,
-                    value=(float(value[i, k]),),
+                    value=(value_k,),
                     sigma=(reported,),
                     meta=meta,
                 )
