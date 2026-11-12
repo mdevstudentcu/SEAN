@@ -136,7 +136,7 @@ Fallback: #247 is merged as a simulation study; if a judge asks, say so. The sta
 
 Source: sky-map decision, #239 (merged, #250; ADR-0041 Accepted), [`summary.md`](../analysis/pr-evidence/shrikar-feat-206-spoof-decision/summary.md): real session `20261111-0040-static-fullsuite`, fake sky from 300 s, 59 of 59 faked skyviews flagged (suspect or spoofed) for each of three fake skies; 0 false alarms in 120 real skyviews. Bound on real data: PR #283 (merged), sessions `20261111-0040-static-fullsuite` and `20261111-1937-static-fullsuite3`, five GPS cuts each: default `ekf` above HPL on 622 of 1,505 and 403 of 1,500 withheld fixes (1,025 of 3,005, 34 %), `ekf-honest` on 0 of 3,005; its HPL is 3.2 km at 120 s and 9.4 km at 300 s on the first session; no row beats no LTE. Bound: #251 (merged, opt-in, verdict Not ready), `challenge-drone-outage`, 1 carrier, seeds 0–199: 45.33 % of epochs above HPL from GPS loss for `ekf`, 0.45 % for the opt-in `ekf-honest`; single runs still escape (worst 18.5 %); the 2 m/s ramp escapes every filter (99.3 %). The tower-time rule is our design (ADR-0024); the refutation of GPS time by tower time is planned, not built (Q11).
 
-**If asked:** Q6 (the 5.33 bound), Q11 (what is new), Q7 (slow drag), Q8 (false alarms), Q24 (detect but not mitigate).
+**If asked:** Q6 (the horizontal factor, 5.33 → 5.68), Q11 (what is new), Q7 (slow drag), Q8 (false alarms), Q24 (detect but not mitigate).
 
 ## 7. Roadmap
 
