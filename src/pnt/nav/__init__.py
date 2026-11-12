@@ -82,6 +82,16 @@ ESTIMATORS = {
 
 log = logging.getLogger(__name__)
 
+# Estimators that take `whiteness` (#275, ADR-0052): `ekf.run` and its presets, however wrapped.
+# `ekf-base*` run their own loop and are not among them.
+WHITENESS = (ekf.run, ekf.run_calibrated, ekf.run_calibrated_measured)
+
+
+def _takes_whiteness(fn: Callable) -> bool:
+    while isinstance(fn, functools.partial):
+        fn = fn.func
+    return fn in WHITENESS
+
 
 def receivers(estimator: Callable) -> frozenset[str]:
     """The receivers an estimator models: its `receivers` attribute, else payload only."""
@@ -93,11 +103,14 @@ def estimate(
     measurements: Iterable[Measurement],
     origin_llh=None,
     reference: dict | None = None,
+    whiteness: bool = False,
 ) -> Iterator[Estimate]:
     """Run `estimator` (a registry name or the function) over `measurements`, passing only the
     receivers it models. Records it drops are counted and logged as a warning when the run ends,
     so they are never lost silently. `reference` is the session's `reference` block; only an
-    estimator that models the reference receiver is given it, and only when there is one."""
+    estimator that models the reference receiver is given it, and only when there is one.
+    `whiteness` switches on the innovation whiteness flag (ADR-0052) for the estimators that
+    have it: the panel, live and replay paths do; evals, results and sweeps leave it off."""
     name = estimator if isinstance(estimator, str) else getattr(estimator, "__name__", "?")
     fn = ESTIMATORS[estimator] if isinstance(estimator, str) else estimator
     keep = receivers(fn)
@@ -111,6 +124,8 @@ def estimate(
                 dropped[m.receiver] = dropped.get(m.receiver, 0) + 1
 
     extra = {"reference": reference} if reference is not None and "reference" in keep else {}
+    if whiteness and _takes_whiteness(fn):
+        extra["whiteness"] = True
     try:
         yield from fn(fed(), origin_llh=origin_llh, **extra)
     finally:
