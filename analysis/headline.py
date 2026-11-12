@@ -27,6 +27,7 @@ import argparse
 import json
 import pickle
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -55,7 +56,9 @@ from pnt.metrics import ALERT_LIMIT_M, summarize  # noqa: E402
 from pnt.sim.scenario import expand, load  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
-AQUA = "#1baf7a"  # categorical slot 3, after figures.py's slots 1 and 2
+COLORS = [BLUE, ORANGE, "#1baf7a", "#eda100"]  # categorical slots 1-4, in this order
+# Bump when `one` changes what it returns: the cache key is this plus the code a run depends on
+CACHE_FORMAT = 1
 
 SPOOF_ESTIMATORS = [
     "ekf",
@@ -69,8 +72,6 @@ BASE_ESTIMATORS = ["ekf-base", "ekf-base-imu"]
 OUTAGE = "long-outage"
 SPOOF = "spoof-jump"  # the second panel: error after the spoof starts
 CHECK = ["long-outage", "spoof-jump"]
-SPOOF_SCENARIOS = ["spoof-ramp", "spoof-jump", "gps-return", "meaconing", "time-spoof"]
-FALSE_ALARM_SCENARIOS = ["nominal", "gps-low-sats", "capture-pi4b"]
 CURVE_S = 300  # seconds after the loss (or the spoof) drawn and stored
 
 
@@ -106,21 +107,32 @@ def curve_from(scenario: str) -> float | None:
     return None
 
 
-def run_keys(keys: list[tuple[str, str]], runs: int, jobs: int, cache: Path, commit: str) -> dict:
+def code_key() -> str | None:
+    """What a cached run depends on: the committed `src/` tree and `analysis/figures.py` (git
+    object ids) and CACHE_FORMAT. None, so nothing is cached, if either has uncommitted changes."""
+    git = ["git", "-C", str(REPO)]
+    paths = ["src", "analysis/figures.py"]
+    if subprocess.run([*git, "diff", "--quiet", "HEAD", "--", *paths]).returncode != 0:
+        return None
+    ids = subprocess.run(
+        [*git, "rev-parse", *(f"HEAD:{x}" for x in paths)], capture_output=True, text=True
+    ).stdout.split()
+    return f"v{CACHE_FORMAT}-" + "-".join(i[:10] for i in ids) if len(ids) == 2 else None
+
+
+def run_keys(keys: list[tuple[str, str]], runs: int, jobs: int, cache: Path) -> dict:
     """{(scenario, estimator): [one() per seed]}, from the cache where it has the key."""
-    out, todo = {}, []
-    for k in keys:
-        f = cache / f"{commit}-{runs}-{k[1]}-{k[0]}.pkl"
-        if f.exists() and "dirty" not in commit:
-            out[k] = pickle.loads(f.read_bytes())
-        else:
-            todo.append(k)
-    for k in todo:  # one key at a time, so each lands in the cache as soon as it is done
-        scn, est = k
+    tag = code_key()
+    out = {}
+    for scn, est in keys:  # one key at a time, so each lands in the cache as soon as it is done
+        f = cache / f"{tag}-{runs}-{est}-{scn}.pkl"
+        if tag and f.exists():
+            out[(scn, est)] = pickle.loads(f.read_bytes())
+            continue
         start = curve_from(scn)
-        out[k] = _map(one, [(scn, s, est, start) for s in range(runs)], jobs)
-        if "dirty" not in commit:
-            (cache / f"{commit}-{runs}-{est}-{scn}.pkl").write_bytes(pickle.dumps(out[k]))
+        out[(scn, est)] = _map(one, [(scn, s, est, start) for s in range(runs)], jobs)
+        if tag:
+            f.write_bytes(pickle.dumps(out[(scn, est)]))
         print(f"done {scn} {est}", flush=True)
     return out
 
@@ -241,9 +253,9 @@ def tables(s: dict) -> str:
         f"{'every estimate equal' if s['check']['equal'] else 'NOT EQUAL'} over all seeds.",
         "",
         "| Scenario | Estimator | Hazardous | Unavailable | Fault-window p95 (m) "
-        "| Worst run max (m) | Time error p95 in fault window (µs) "
-        "| Time PL bounds error, worst run |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| Worst run max (m) | HPL bounds error, mean / worst run "
+        "| Time error p95 in fault window (µs) | Time PL bounds error, worst run |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     base_rows = ["long-outage", "spoof-ramp", "spoof-jump", "nominal"] + [
         n.removeprefix("realistic-with-base-")
@@ -261,6 +273,7 @@ def tables(s: dict) -> str:
             lines.append(
                 f"| `{n}` | `{est}` | {st['hazardous']} | {st['unavailable']} "
                 f"| {_cell(m['fault_h_p95_m'])} | {_cell(m['worst_fault_h_max_m'])} "
+                f"| {100 * m['hpl_bound_frac']:.1f} % / {100 * m['min_hpl_bound_frac']:.1f} % "
                 f"| {_cell(m['fault_time_err_p95_us'], '{:.3f}')} "
                 f"| {_cell(100 * m['min_time_pl_bound_frac'], '{:.1f} %')} |"
             )
@@ -268,51 +281,56 @@ def tables(s: dict) -> str:
 
 
 def figure(s: dict, curves: dict, out: Path) -> Path:
+    """Top: the per-second p95 error (the T1 statistic) after GPS loss and after a 300 m spoof
+    jump. Bottom: at each of those seconds, the share of runs whose epoch is hazardous (error
+    over the alert limit while the HPL is within it: `plots.stanford_counts`)."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8), dpi=150, sharey=True)
-    for ax, (key, xlabel) in zip(
-        axes,
-        (
-            (OUTAGE, f"time since GPS loss (s), {OUTAGE}"),
-            (SPOOF, f"time since the spoof starts (s), {SPOOF} (300 m, held)"),
-        ),
-        strict=True,
-    ):
-        for (label, color), c in zip(
-            ((s["fig_names"][0], BLUE), (s["fig_names"][1], ORANGE), (s["fig_names"][2], AQUA)),
-            curves[key],
-            strict=True,
-        ):
-            ls = "--" if label == s["fig_names"][1] else "-"
-            ax.plot(np.arange(len(c)), c, color=color, lw=2, ls=ls, label=label)
-        ax.axhline(ALERT_LIMIT_M, color=INK, lw=1, ls="-.")
-        ax.text(0.99, ALERT_LIMIT_M * 1.08, f"alert limit {ALERT_LIMIT_M:g} m (TBC)", color=INK,
-                fontsize=8, ha="right", transform=ax.get_yaxis_transform())  # fmt: skip
+    fig, axes = plt.subplots(
+        2, 2, figsize=(12, 7.2), dpi=150, sharex="col", gridspec_kw={"height_ratios": [2.2, 1]}
+    )
+    panels = (
+        (OUTAGE, f"time since GPS loss (s): {OUTAGE}"),
+        (SPOOF, f"time since the spoof starts (s): {SPOOF}, 300 m, held to the end"),
+    )
+    for col, (key, xlabel) in enumerate(panels):
+        top, bottom = axes[0, col], axes[1, col]
+        for (name, c), color in zip(curves[key].items(), COLORS, strict=False):
+            ls = "--" if name == s["guarded"] else "-"
+            x = np.arange(len(c["p95"]))
+            top.plot(x, c["p95"], color=color, lw=2, ls=ls, label=name)
+            bottom.plot(x, 100 * c["hazardous"], color=color, lw=2, ls=ls, label=name)
+        top.axhline(ALERT_LIMIT_M, color=INK, lw=1, ls="-.")
+        top.text(0.99, ALERT_LIMIT_M * 1.08, f"alert limit {ALERT_LIMIT_M:g} m (TBC)", color=INK,
+                 fontsize=8, ha="right", transform=top.get_yaxis_transform())  # fmt: skip
         if key == OUTAGE:
-            ax.plot([0, T1_WINDOW_S], [T1_M, T1_M], color=INK, lw=1.5, ls=":")
-            ax.text(2, T1_M * 0.8, f"T1 ≤ {T1_M:g} m for {T1_WINDOW_S:g} s (TBC)", color=INK,
-                    fontsize=8, va="top")  # fmt: skip
-        ax.set_yscale("log")
-        ax.set_xlabel(xlabel)
-        ax.grid(True, which="major", color=GRID, lw=0.6)
-        for side in ("top", "right"):
-            ax.spines[side].set_visible(False)
-    axes[0].set_ylabel("horizontal error, 95th percentile across runs each second (m)")
-    axes[0].legend(fontsize=8, frameon=False, loc="lower right")
+            top.plot([0, T1_WINDOW_S], [T1_M, T1_M], color=INK, lw=1.5, ls=":")
+            top.text(2, T1_M * 0.8, f"T1 ≤ {T1_M:g} m for {T1_WINDOW_S:g} s (TBC)", color=INK,
+                     fontsize=8, va="top")  # fmt: skip
+        top.set_yscale("log")
+        bottom.set_ylim(-3, 103)
+        bottom.set_xlabel(xlabel)
+        for ax in (top, bottom):
+            ax.grid(True, which="major", color=GRID, lw=0.6)
+            for side in ("top", "right"):
+                ax.spines[side].set_visible(False)
+    axes[0, 0].set_ylabel("horizontal error (m),\n95th percentile across runs, each second")
+    axes[1, 0].set_ylabel("runs hazardous\nat that second (%)")
+    axes[0, 1].legend(fontsize=8, frameon=False, loc="lower right")
     fig.suptitle(
-        f"Error after GPS loss and after a spoof: per-second p95 over {s['runs']} runs",
+        f"After GPS loss and after a spoof jump: {s['runs']} runs per filter, same seeds",
         fontsize=10,
     )
     fig.text(
         0.01,
         0.01,
-        f"realistic-* / realistic-with-base-* · seeds 0-{s['runs'] - 1} · commit {s['commit']} · "
-        "sim, placeholder error models (systems/verification.md, Sim validity) · "
-        f"{s['fig_names'][2]}: base station in sim only, link always up, base surveyed (ADR-0020)",
+        f"realistic-* (ekf, {s['guarded']}) and realistic-with-base-* (base filters) · seeds "
+        f"0-{s['runs'] - 1} · commit {s['commit']} · sim, placeholder error models (systems/"
+        "verification.md, Sim validity) · base station: sim only, link always up, base surveyed "
+        "(ADR-0020)",
         fontsize=7,
         color=INK,
     )
@@ -346,7 +364,7 @@ def main(argv=None) -> None:
     keys = [(n, e) for e in args.estimators for n in realistic]
     keys += [(n, e) for e in args.base_estimators for n in with_base]
     keys += [(n, "ekf") for n in check]
-    res = run_keys(keys, args.runs, args.jobs, cache, commit)
+    res = run_keys(keys, args.runs, args.jobs, cache)
 
     equal = all(
         np.array_equal(a["curve"], b["curve"], equal_nan=True)
@@ -366,25 +384,28 @@ def main(argv=None) -> None:
         "base": {e: block(res, with_base, e, shared) for e in args.base_estimators},
         "base_scenarios": with_base,
         "check": {"scenarios": check, "equal": bool(equal)},
-        "fig_names": ["ekf", args.guarded, args.base_estimators[0]],
+        "guarded": args.guarded,
     }
 
-    def p95(scn: str, est: str, field: str = "curve") -> np.ndarray:
-        return np.nanpercentile(np.stack([r[field] for r in res[(scn, est)]]), 95, axis=0)
-
-    curves = {
-        key: [
-            p95(f"realistic-{key}", "ekf"),
-            p95(f"realistic-{key}", args.guarded),
-            p95(f"realistic-with-base-{key}", args.base_estimators[0]),
+    def curve(scn: str, est: str) -> dict:
+        """Per second: the p95 error across runs, and the share of runs hazardous then."""
+        err = np.stack([r["curve"] for r in res[(scn, est)]]).astype(float)
+        hpl = np.stack([r["hpl_curve"] for r in res[(scn, est)]]).astype(float)
+        haz = [
+            plots.stanford_counts(err[:, k], hpl[:, k], ALERT_LIMIT_M) for k in range(err.shape[1])
         ]
-        for key in (OUTAGE, SPOOF)
-    }
-    s["curves"] = {
-        key: {
-            name: [round(float(x), 2) for x in c]
-            for name, c in zip(s["fig_names"], cs, strict=True)
+        return {
+            "p95": np.nanpercentile(err, 95, axis=0),
+            "hazardous": np.array(
+                [h["hazardous"] / h["epochs"] if h["epochs"] else np.nan for h in haz]
+            ),
         }
+
+    drawn = [("ekf", "realistic"), (args.guarded, "realistic")]
+    drawn += [(e, "realistic-with-base") for e in args.base_estimators]
+    curves = {key: {e: curve(f"{env}-{key}", e) for e, env in drawn} for key in (OUTAGE, SPOOF)}
+    s["curves"] = {
+        key: {e: {k: [round(float(x), 3) for x in v] for k, v in c.items()} for e, c in cs.items()}
         for key, cs in curves.items()
     }
     png = figure(s, curves, out)
