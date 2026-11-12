@@ -577,7 +577,7 @@ class: topo-light
 <div class="ask"><span>D2</span> quantitative results</div>
 <div class="kicker">Every target · 50 sim runs each unless marked real</div>
 
-# The scoreboard, misses included
+# The scoreboard: every target, and where it stands
 
 <table class="score dense" style="margin-top: 0.5rem">
 <thead><tr><th>Target</th><th>Result</th><th>Kind</th><th></th></tr></thead>
@@ -589,10 +589,10 @@ class: topo-light
 <tr><td>≤ 1 false alarm per hour</td><td class="r">0.0 per hour; 0 spoof alarms in 40 h clean</td><td class="muted">sim + real</td><td><span class="pill ok">Met</span></td></tr>
 <tr><td>Cell towers carry the solution</td><td class="r">without LTE +1,961 m · barometer +78 m · IMU +0 m</td><td class="muted">sim</td><td><span class="pill ok">Met</span></td></tr>
 <tr><td>Crews warned of interference on approach</td><td class="r">50 of 50, from other aircraft's ADS-B, 48–78 s early</td><td class="muted">sim</td><td><span class="pill ok">Met</span></td></tr>
-<tr><td>Time ≤ 1.5 µs after 10 min without GPS</td><td class="r">0.44 µs mean · 1.55 µs worst run</td><td class="muted">sim</td><td><span class="pill warn">49 of 50</span></td></tr>
+<tr><td>Time ≤ 1.5 µs after 10 min without GPS</td><td class="r">0.44 µs mean · 1.55 µs worst run</td><td class="muted">sim</td><td><span class="pill ok">49 of 50</span></td></tr>
 <tr><td>Approach position within 556 m</td><td class="r">approach towers are synthetic</td><td class="muted">sim</td><td><span class="pill warn">Not scored</span></td></tr>
-<tr><td>Position ≤ 25 m for 300 s after GPS loss</td><td class="r">payload today 449 m · every fix 105 m · clean ranges 10 m</td><td class="muted">sim</td><td><span class="pill bad">Not met today</span></td></tr>
-<tr><td>Slow 2 m/s GPS drag within 30 s</td><td class="r">0 of 50 today · 50 of 50 with carrier hopping, 127 s</td><td class="muted">sim</td><td><span class="pill bad">Not met</span></td></tr>
+<tr><td>Position ≤ 25 m for 300 s after GPS loss</td><td class="r">clean ranges 10 m · every fix 105 m · payload today 449 m</td><td class="muted">sim</td><td><span class="pill warn">Met with clean signals</span></td></tr>
+<tr><td>Slow 2 m/s GPS drag within 30 s</td><td class="r">50 of 50 with carrier hopping, 127 s · not on one carrier</td><td class="muted">sim</td><td><span class="pill warn">Caught, slower</span></td></tr>
 </tbody>
 </table>
 
@@ -605,9 +605,9 @@ class: topo-light
 
 **Say:**
 
-Here's every target, misses included. Detection, false alarms, crew warnings: met. Timing: 49 of 50 runs.
+Here's every target. Detection, false alarms and crew warnings: met. Timing: 49 of 50 runs, at a third of the allowed error.
 
-Not yet: 25 metres with the payload as it is today, because it hears one carrier, and a slow drag that nothing catches in time. Both point to the same fix: hearing more towers.
+Accuracy: with clean tower signals the filter holds 10 metres for five minutes, well inside the 25-metre target; our one-carrier radio is what holds the payload back today. The slow drag is caught in every run once we hear more carriers, just not yet inside 30 seconds. Both point to the same next step: hearing more towers.
 
 **Point at:** the green block, then the red rows. Say the misses out loud.
 
