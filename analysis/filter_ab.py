@@ -129,6 +129,10 @@ REFERENCES = {
 }
 
 
+# Stress rows: a registered estimator by name (the winner with the jump guard, ADR-0038)
+STRESS_ROWS = {"control-guard": "ekf-honest-guard", "ekf-guard": "ekf-guard"}
+
+
 def arm_set(spec: str) -> list[str]:
     """`--arms` value: "single", "stationary", "combos", "all" or arm names."""
     groups = {"single": SINGLE, "stationary": STATIONARY, "combos": COMBOS, "all": ARMS}
@@ -139,6 +143,9 @@ def rows_for(arms: list[str], refs: bool = True) -> list[tuple[str, str, dict, s
     """(label, base estimator, settings, LTE variant) for the references and the arms."""
     out = [(k, est, {}, var) for k, (est, var) in REFERENCES.items()] if refs else []
     for a in arms:
+        if a in STRESS_ROWS:
+            out.append((a, STRESS_ROWS[a], {}, "told-pr"))
+            continue
         name, _, nolte = a.partition("@")  # "<arm>@nolte": the arm with LTE withheld
         if name not in ARMS or nolte not in ("", "nolte"):
             raise SystemExit(f"unknown arm {a!r} (known: {', '.join(ARMS)}, each @nolte)")
