@@ -402,3 +402,27 @@ def test_an_uncalibrated_gyro_bias_no_longer_locks_gnss_out_issue_214():
     assert not any("gnss_excluded" in e.flags for e in late)
     err = [math.hypot(e.pos_enu[0] - east[e.t_ns], e.pos_enu[1]) for e in late]
     assert np.percentile(err, 95) < 5.0
+
+
+def test_a_source_dragging_the_filter_does_not_stop_the_calibration_issue_214():
+    """The still test reads the GNSS fixes, not the filter: on the real walk with LTE fed, the
+    LTE pulled the filter's position more than 3 m about while the fixes held still, and no
+    still stretch lasted long enough to calibrate. Here another position source pulls the filter
+    east and west every 5 s, about 3 m peak to peak."""
+    meas, _ = still_then_walk(*REAL_BIAS, walk_s=1.0)
+    for k in range(10, 400):  # 10 Hz, from 1 s
+        east = 8.0 if (k // 50) % 2 else -8.0
+        meas.append(Measurement(t_ns=T0_NS + k * 100_000_000 + 1, source="vision",
+                                kind="position_enu", value=(east, 0.0, 0.0),
+                                sigma=(5.0, 5.0, 5.0)))  # fmt: skip
+    meas.sort(key=lambda m: (m.t_ns, m.source))
+    f = ekf.EKF(motion="imu")
+    east = []
+    for m in meas:
+        f.process(m)
+        if f.x is not None and m.t_ns > T0_NS + 5e9:
+            east.append(f.x[0])
+    assert np.ptp(east) > 3.0  # the filter swings beyond the still radius
+    assert f.imu.cal is not None
+    assert "gnss" not in f.last_rejected  # and GNSS stays in
+    assert np.allclose(np.degrees(f.imu.cal["bg"]), REAL_BIAS[0], atol=0.01)
