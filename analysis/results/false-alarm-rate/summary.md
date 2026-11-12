@@ -5,8 +5,8 @@ Sim, and replay of one real static session. **No real flight hours.** Generated 
 ```bash
 OMP_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 PYTHONPATH=src \
   python analysis/false_alarm_rate.py run --sessions <data/sessions> --seeds 50 --jobs 3 \
-  --label main --out analysis/results/runs/false-alarm-rate/main.json          # at 47a91e0
-PYTHONPATH=<main 3493cfb + PR #241's eb1f4a9, 611fa7b, 2510902 cherry-picked>/src \
+  --label main --out analysis/results/runs/false-alarm-rate/main.json          # at d91a309
+PYTHONPATH=<main 3493cfb + PR #241's 0e46d23, 18d33fe, d21b7bb cherry-picked>/src \
   python analysis/false_alarm_rate.py run --no-sim --jobs 1 --sessions <data/sessions> \
   --label "main 3493cfb + PR #241 cherry-picked (throwaway)" --out .../pr241.json
 python analysis/false_alarm_rate.py report .../main.json .../pr241.json
@@ -51,7 +51,7 @@ Counts are the same for `ekf`, `ekf-guard` and `ekf-spoof` except the latch, whi
 ---
 
 
-- `main`: commit `47a91e0`; sim seeds 0-49 of challenge-drone-nominal, challenge-timing-nominal, challenge-approach-nominal, realistic-nominal, nominal, spoof-jump-sky; real sessions: 20261111-0845-live-laptop-gps; 235 s with 3 workers (arm64)
+- `main`: commit `d91a309`; sim seeds 0-49 of challenge-drone-nominal, challenge-timing-nominal, challenge-approach-nominal, realistic-nominal, nominal, spoof-jump-sky; real sessions: 20261111-0845-live-laptop-gps; 235 s with 3 workers (arm64)
 - `main 3493cfb + PR #241 cherry-picked (throwaway)`: commit `7a841db`; no sim; real sessions: 20261111-0845-live-laptop-gps; 4 s with 1 workers (arm64)
 
 Each cell: false-alarm onsets / exposure hours / rate per hour / one-sided 95 % upper bound per hour (exact Poisson; zero events in T hours gives 3.0/T).
