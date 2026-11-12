@@ -465,9 +465,9 @@ def markdown(summary: dict) -> str:
         "## LTE updates and HPL, per row",
         "",
         "Error at 120 and 300 s after the cut: median over the cuts (worst run). Error > HPL: "
-        "share of the withheld fixes over every cut. LTE updates after the cut, summed over the "
-        "cuts: accepted through the gate / taken unchecked (a cell's first record or a new arc) / "
-        "rejected by the gate.",
+        "share of the withheld fixes over every cut. LTE updates from the cut to the end of the "
+        "session, summed over the cuts: accepted through the gate / taken unchecked (a cell's "
+        "first record or a new arc) / rejected by the gate.",
         "",
         "| Estimator | LTE | What the filter does with a real capture's LTE | 120 s | 300 s | "
         "Error > HPL | HPL held | LTE after the cut: accepted / unchecked / rejected |",
@@ -533,8 +533,9 @@ def markdown(summary: dict) -> str:
         "- The cut times share one recording: the runs are not independent draws, and the "
         "worst run is not a 95th percentile.",
         "- Tower positions are the committed table's matches (a hypothesis, `pnt.nav.cells`).",
-        "- The `adr36` variants apply a Proposed ADR's σ in this script only; nothing in `src/` "
-        "changes, and the correlated part ADR-0036 adds (`sigma_corr_m`) is not modelled.",
+        "- Since ADR-0050 the filter retells a real capture's pseudorange σ itself (except "
+        "`ekf-calibrated-measured` and `ekf-as-told`), so the `told`, `told-pr` and `adr36` "
+        "variants differ only in which records they keep, not in σ.",
         "",
     ]
     return "\n".join(lines)
