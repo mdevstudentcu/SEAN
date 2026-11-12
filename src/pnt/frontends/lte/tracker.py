@@ -104,6 +104,14 @@ class Config:
     # Regression guard, TBC: about one normal CP. A re-found cell this close to its prediction
     # moved to another path; beyond it, without host stamps, the jump counts as dropped samples.
     max_path_jump_us: float = 5.0
+    # Opt-in (#214), TBC: a cell re-found this close to its prediction (samples) after a loss
+    # of lock resumes from the prediction on the same arc, and the code gate finds where it is.
+    # The search times the cell from one half-frame, which at the walk's SNR is off by about a
+    # sample: on 20261111-1806-walk-lte the best cell, `220`, was re-found a median 0.9 samples
+    # from its prediction 59 times, and each started a new arc from the search's timing (its
+    # range stepped a median 46 m there). 0: off (a re-find 0.5 samples or more away starts a
+    # new arc, as before).
+    refind_keep_arc_samples: float = 0.0
     accel_ms2: float = 2.0  # rate random walk of the loop, as an acceleration, TBC
     carrier_lock_hz: float = 20.0  # loop rate 1σ below which carrier aiding starts, TBC
     miss_limit: int = 4  # consecutive misses before re-searching near the prediction
@@ -995,6 +1003,8 @@ class _Track:
         # the whole frames from the host clock. For a cell re-found after that, the outage is
         # already sized, so its jump is its own (another path), not a drop.
         outage = next((g for g in self.gaps.gaps if g.outage and at <= g.at <= f0 + n), None)
+        if outage is None and abs(resid) <= cfg.refind_keep_arc_samples:
+            return ("found", k_found, theta_at, False)  # opt-in: the search's timing is rough
         if outage is not None:
             if outage.ambiguous and good is not None:
                 outage.n += int((jump + L) % (2 * L) - L)

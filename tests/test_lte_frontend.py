@@ -648,3 +648,26 @@ def test_cell_found_after_an_unlock_starts_a_new_arc_from_the_search():
     assert same is cell and cell.arc == 1 and cell.n0 == seen and not cell.unlocked
     assert st.k == 0 and st.theta == 0.0
     assert st.nu == pytest.approx(-f_hz / FC) and st.p11 == pytest.approx((300.0 / FC) ** 2)
+
+
+@pytest.mark.parametrize("keep", [0.0, 1.5])
+def test_cell_refound_within_the_gate_keeps_its_arc_when_asked(tmp_path, monkeypatch, keep):
+    # 20261111-1806-walk-lte: the search times a re-found cell from one half-frame, about a
+    # sample off at the walk's SNR, and `220` started 59 new arcs from that timing (#214). With
+    # `refind_keep_arc_samples` a re-find within it resumes from the prediction on the same arc.
+    from pnt.frontends.lte import tracker
+
+    cap = capture.open_capture(write(tmp_path, "c", [TOWER], 0.3, 10.0))
+    cfg = Config(refind_keep_arc_samples=keep)
+    trk = tracker._Track(cap, cap.segments[0], GapMap(), cfg)
+    L, kk = trk.L, 20
+    cell = CellTrack(earfcn=2460, fc=FC, pci=8, n0=1000.0)
+    st = State(theta=0.3, nu=0.0, p00=0.01, p01=0.0, p11=1e-18, k=kk)
+    seen = cell.n0 + kk * L + st.at(kk, L) + 1.1  # 1.1 samples late: inside the code gate
+    found = Found(2, 2, seen, 0.0, 30.0, 0.0, 0.0, 10.0)
+    monkeypatch.setattr(tracker, "search", lambda *a, **k: [found])
+    action = trk._relocate(cell, st, kk, st.copy(), None)
+    if keep:
+        assert action == ("found", kk, pytest.approx(st.at(kk, L)), False)
+    else:
+        assert action == ("found", kk, pytest.approx(st.at(kk, L) + 1.1), True)
