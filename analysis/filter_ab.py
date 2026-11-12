@@ -84,7 +84,33 @@ SINGLE: dict[str, dict] = {
     "common-step": {"common_step_s": 1.5},
 }
 STATIONARY: dict[str, dict] = {"zupt": {"zupt_sigma_mps": 0.1}}
-COMBOS: dict[str, dict] = {}  # filled after the single-arm table (summary.md says which)
+# Round 2, after the single-arm table on tuning data (summary.md, *Combination round*)
+CURV = {"curvature_inflate": True}  # a too-curved range kept with R grown by the term
+COMBOS: dict[str, dict] = {
+    # per-cell consistency before the loss (window s, threshold in the model's sigma, mode)
+    **{
+        f"consist{n}-k{k}-{mode}": {
+            "lte_consistency_s": float(n),
+            "lte_consistency_k": float(k),
+            "lte_inconsistent_mode": mode,
+        }
+        for n in (30, 60, 120)
+        for k in (2, 3, 4)
+        for mode in ("cells3", "skip")
+    },
+    # the cell gate counted over a longer window
+    **{
+        f"cells{c}-w{w}": {"lte_min_cells": c, "lte_cells_window_s": float(w)}
+        for c in (3, 4)
+        for w in (3, 5)
+    },
+    "curv": CURV,
+    "cells3+slow150-tau60": {"lte_min_cells": 3, **slow(150, 60)},
+    "cells3+freeze": {"lte_min_cells": 3, "noise_freeze_gnss": True},
+    "cells3+curv": {"lte_min_cells": 3, **CURV},
+    "cells3-w3+curv": {"lte_min_cells": 3, "lte_cells_window_s": 3.0, **CURV},
+    "cells3-w5+curv": {"lte_min_cells": 3, "lte_cells_window_s": 5.0, **CURV},
+}
 ARMS: dict[str, dict] = {**SINGLE, **STATIONARY, **COMBOS}
 # Always shown: (registered estimator, LTE variant)
 REFERENCES = {
