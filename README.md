@@ -1,4 +1,6 @@
-# PNT from Signals of Opportunity
+# SEAN
+
+**SEAN**: **S**ignals-of-opportunity, **E**rror-bounded, **A**ssured **N**avigation.
 
 **Hack the Horizons 2026 (Honeywell Aerospace × Carleton FED), Challenge 2: Resilient Navigation in GPS-Denied Environments.**
 
