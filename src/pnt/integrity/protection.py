@@ -6,13 +6,15 @@ Baseline only: assumes the covariance is honest and errors are Gaussian. The int
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 
 # Multiplier on the horizontal error ellipse's major-axis sigma (ADR-0056): the horizontal error
 # is two-dimensional, so the 1e-7 per-epoch integrity risk (mhss.phmi) needs
 # P(r > k sigma_major) <= exp(-k^2 / 2) = 1e-7, k = sqrt(2 ln 1e7) = 5.68 (bounding the ellipse
 # by a circle of its major-axis sigma). The risk is TBC by REQ-02; the exposure time is TBD.
-K_H = 5.68
+K_H = math.sqrt(2 * math.log(1e7))  # 5.6777, the same tail mhss uses at phmi = 1e-7
 # Vertical and time are one-dimensional: the two-sided 1e-7 Gaussian factor, 5.33.
 K_V = 5.33
 
