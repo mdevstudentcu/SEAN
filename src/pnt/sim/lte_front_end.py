@@ -237,11 +237,20 @@ def _float(text: str) -> float | None:
 
 
 @lru_cache(maxsize=8)
+def _rows_by_earfcn(path: Path) -> dict[int, list[dict]]:
+    """A cell table's rows by EARFCN, in file order: read once, not once per carrier."""
+    out: dict[int, list[dict]] = {}
+    with open(path, newline="") as f:
+        for r in csv.DictReader(f):
+            out.setdefault(int(r["earfcn"]), []).append(r)
+    return out
+
+
+@lru_cache(maxsize=128)
 def sectors(path: Path, earfcn: int) -> tuple[Sector, ...]:
     """Every sector on `earfcn` in a cell table laid out as `lte-cells-ottawa.csv`, sorted by
     (eNB, PCI). A repeated (eNB, PCI) row keeps its first filing. Raises if none match."""
-    with open(path, newline="") as f:
-        rows = [r for r in csv.DictReader(f) if int(r["earfcn"]) == int(earfcn)]
+    rows = _rows_by_earfcn(path).get(int(earfcn), [])
     if not rows:
         raise ValueError(f"no sectors on EARFCN {earfcn} in {path}")
     first: dict[tuple[int, int], dict] = {}

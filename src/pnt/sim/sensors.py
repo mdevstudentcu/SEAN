@@ -122,8 +122,17 @@ def _gauss_markov(rng, n: int, dt: float, sigma: float, tau: float, axes: int) -
     x = np.empty((n, axes))
     x[0] = rng.normal(0.0, sigma, axes)
     q = sigma * np.sqrt(1.0 - phi**2)
-    for k in range(1, n):
-        x[k] = phi * x[k - 1] + rng.normal(0.0, q, axes)
+    # All steps' noise in one draw: the same stream, in the same order, as one draw of `axes`
+    # per step. The recursion then runs on Python floats, the same IEEE operations as before.
+    w = rng.normal(0.0, q, (n - 1, axes))
+    p = float(phi)
+    for a in range(axes):
+        v = float(x[0, a])
+        col = [v]
+        for wk in w[:, a].tolist():
+            v = p * v + wk
+            col.append(v)
+        x[:, a] = col
     return x
 
 
@@ -195,15 +204,11 @@ def imu_measurements(
     sa = _white_sigma(params.accel_noise_ug_rthz * 1e-6 * G, fs)
     sg = _white_sigma(params.gyro_noise_dps_rthz * DEG, fs)
     sigma = (sa, sa, sa, sg, sg, sg)
+    # One conversion to Python ints and floats for all samples, rather than one per value
+    rows = np.hstack([np.asarray(accel, float), np.asarray(gyro, float)]).tolist()
     return [
-        Measurement(
-            t_ns=int(t),
-            source="imu",
-            kind="accel_gyro",
-            value=tuple(float(x) for x in (*a, *g)),
-            sigma=sigma,
-        )
-        for t, a, g in zip(ts_ns, accel, gyro, strict=True)
+        Measurement(t_ns=t, source="imu", kind="accel_gyro", value=tuple(v), sigma=sigma)
+        for t, v in zip(np.asarray(ts_ns).astype(np.int64).tolist(), rows, strict=True)
     ]
 
 
