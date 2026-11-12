@@ -28,13 +28,13 @@ With the bias uncalibrated, the bias turns the integrated specific force by 4 de
 
 | Option | Pros | Cons |
 | --- | --- | --- |
-| A: calibrate in the filter from a still stretch the filter itself sees (GNSS steering, position within a radius) | needs no new procedure or file; runs on replay and live alike; recalibrates at every later stop | needs a still stretch before alignment; a receiver turning in place while "still" biases the gyro estimate |
+| A: calibrate in the filter from a still stretch (GNSS steering, its fixes within a radius) | needs no new procedure or file; runs on replay and live alike; recalibrates at every later stop | needs a still stretch before alignment; a receiver turning in place while "still" biases the gyro estimate |
 | B: a calibration step on the payload at start-up, written to the session's meta | the biases travel with the recording | a new procedure and ICD field (`icd` label); an old session has none |
 | C: widen the bias priors to the raw part's | honest with no procedure | the alignment then never accepts heading (its gyro-drift allowance swamps any spread), so `ekf-imu` is `ekf` everywhere, sim included |
 
 ## Decision (Proposed)
 
-**A.** While GNSS steers and the filter's horizontal position stays within `still_radius_m` (3 m, TBC) of where the stretch began, the receiver counts as still once that has lasted `still_guard_s` (5 s, TBC: anything faster than 0.6 m/s never counts). The stretch's samples are summed in 1 s blocks, less the last `still_guard_s` (a receiver about to move may already be turning). Once the rest lasts `still_min_s` (20 s, TBC), it is the calibration, updated as the stretch goes on, and a later stretch replaces it:
+**A.** While GNSS steers and its fixes stay within `still_radius_m` (3 m, TBC) of the fix the stretch began at (the fixes, not the filter: on the walk, LTE dragged the filter's position more than 3 m about while the receiver stood), the receiver counts as still once that has lasted `still_guard_s` (5 s, TBC: anything faster than 0.6 m/s never counts). The stretch's samples are summed in 1 s blocks, less the last `still_guard_s` (a receiver about to move may already be turning). Once the rest lasts `still_min_s` (20 s, TBC), it is the calibration, updated as the stretch goes on, and a later stretch replaces it:
 
 - gyro bias: the mean rate;
 - accelerometer bias: the mean specific force's excess over gravity, along it (the other two axes look like tilt when still and are left to the alignment);
