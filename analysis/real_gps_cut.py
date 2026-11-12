@@ -606,16 +606,17 @@ ROW_COLORS = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#8a5cd1", "#d1456b", 
 
 def plot_rows(rows: list[dict], summary: dict, path: Path) -> None:
     """One line per (estimator, variant) row: median error over the cuts against time after the
-    cut, log y, with the 50 m fallback line."""
+    cut, log y, with the 50 m fallback line. Rows whose curves are equal share one line and one
+    label ("a = b"), so a row hidden under another is still named."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     grid = np.arange(0.0, summary["horizon_s"] + 1.0, 1.0)
-    fig, ax = plt.subplots(figsize=(7.5, 4.6))
-    keys = [k for k in summary["aggregate"] if not k.startswith("hold|")]
-    for n, key in enumerate(keys):
+    fig, ax = plt.subplots(figsize=(9.0, 4.8))
+    curves: list[tuple[list[str], np.ndarray]] = []
+    for key in (k for k in summary["aggregate"] if not k.startswith("hold|")):
         est, var = key.split("|")
         rs = [r for r in rows if r["estimator"] == est and r["variant"] == var]
         ys = [
@@ -625,9 +626,15 @@ def plot_rows(rows: list[dict], summary: dict, path: Path) -> None:
         ]
         if not ys:
             continue
-        label = "no LTE" if var == "none" else f"{est} ({var})"
-        ax.plot(grid, np.nanmedian(ys, axis=0), color=ROW_COLORS[n % len(ROW_COLORS)], lw=2,
-                label=label)  # fmt: skip
+        med = np.nanmedian(ys, axis=0)
+        label = "no LTE" if var == "none" else est if var == "told-pr" else f"{est} ({var})"
+        same = next((c for c in curves if np.allclose(c[1], med, rtol=1e-6, equal_nan=True)), None)
+        if same is None:
+            curves.append(([label], med))
+        else:
+            same[0].append(label)
+    for n, (labels, med) in enumerate(curves):
+        ax.plot(grid, med, color=ROW_COLORS[n % len(ROW_COLORS)], lw=2, label=" = ".join(labels))
     hold = [r for r in rows if r["estimator"] == "hold"]
     if hold:
         ys = [np.interp(grid, r["after_s"], r["err_m"], left=np.nan, right=np.nan) for r in hold]
@@ -637,19 +644,20 @@ def plot_rows(rows: list[dict], summary: dict, path: Path) -> None:
     ax.set_yscale("log")
     ax.set_ylim(0.1, 1e5)
     ax.set_xlabel("s after GPS cut")
-    ax.set_ylabel("horizontal error (m)")
+    ax.set_ylabel("horizontal error against the withheld GPS fix (m)")
     ax.grid(True, which="major", color="0.9", lw=0.6)
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
-    ax.legend(loc="lower right", fontsize=7, frameon=False)
+    ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), fontsize=7.5, frameon=False)
     ax.set_title(
-        f"Error after a software GPS cut, real session {summary['session']} (replay): front end "
-        f"{summary['frontend_commit']}, analysis {summary['commit']}; median of "
-        f"{len(summary['cuts_s'])} cuts",
-        fontsize=8,
+        f"Replay of real session {summary['session']}, GPS cut in software: median of "
+        f"{len(summary['cuts_s'])} cut times\nfront end {summary['frontend_commit']}, analysis "
+        f"{summary['commit']}; LTE rows fed the front end's pseudoranges",
+        fontsize=8.5,
+        loc="left",
     )
     fig.tight_layout()
-    fig.savefig(path, dpi=130)
+    fig.savefig(path, dpi=130, bbox_inches="tight")
     plt.close(fig)
 
 
