@@ -30,8 +30,9 @@
 
     <section id="bound" class="card bound" title="HPL: our bound on the horizontal error. Green under 80 % of the alert limit, amber up to it, red over it (thresholds TBC)">
       <h2>Error bound against the alert limit</h2>
-      <div class="bound-line"><b id="big-hpl">—</b><span class="bound-al">HPL · alert limit <b id="big-al">—</b></span></div>
-      <div class="zgauge"><i class="z green"></i><i class="z amber"></i><i class="z red"></i><div id="big-mark" class="zmark"></div></div>
+      <div class="bound-line"><b id="big-hpl">—</b><span class="bound-al">HPL, our error bound · alert limit <b id="big-al">—</b></span></div>
+      <div class="zgauge"><i id="zg-green" class="z green"></i><i id="zg-amber" class="z amber"></i><i id="zg-red" class="z red"></i><div id="big-mark" class="zmark"></div></div>
+      <div class="zticks"><span style="left:0">0</span><span id="zt-amber" style="left:53.333%">—</span><span id="zt-al" style="left:66.667%">—</span><span id="zt-max" style="left:100%">—</span></div>
       <div class="bound-sub" id="big-tta">—</div>
     </section>
 
@@ -66,6 +67,7 @@
   </section>
 
   <aside class="side">
+    <!-- Timing is last: the location segments come first on stage, the time spoof is for questions -->
     <section class="card">
       <h2>Horizontal integrity</h2>
       <div class="nums">
@@ -75,17 +77,6 @@
       </div>
       <div class="row"><label>Predicted time to alert</label><span id="tta-h">—</span></div>
       <div class="row" id="err-row"><label>Error against truth</label><span id="err">—</span></div>
-    </section>
-
-    <section class="card">
-      <h2>Timing</h2>
-      <div class="nums">
-        <div><label>Clock 1σ</label><b id="clk">—</b></div>
-        <div><label>Time PL</label><b id="tpl">—</b></div>
-        <div><label>Time alert limit</label><b id="tal">—</b></div>
-      </div>
-      <div class="gauge"><div id="tpl-bar"></div><div class="gauge-al"></div></div>
-      <div class="row"><label>Predicted time to alert</label><span id="tta-t">—</span></div>
     </section>
 
     <section class="card">
@@ -103,6 +94,17 @@
       <div class="row" title="trust 0.5 or more: used by the estimator in the last few seconds"><label>In use</label><span id="trusted" class="chips">—</span></div>
       <div class="row" title="trust under 0.5: not used by the estimator in the last few seconds"><label>Not in use</label><span id="lowtrust" class="chips">—</span></div>
       <div class="row"><label>Towers heard</label><span id="heard">—</span></div>
+    </section>
+
+    <section class="card">
+      <h2>Timing</h2>
+      <div class="nums">
+        <div><label>Clock 1σ</label><b id="clk">—</b></div>
+        <div><label>Time PL</label><b id="tpl">—</b></div>
+        <div><label>Time alert limit</label><b id="tal">—</b></div>
+      </div>
+      <div class="gauge"><div id="tpl-bar"></div><div class="gauge-al"></div></div>
+      <div class="row"><label>Predicted time to alert</label><span id="tta-t">—</span></div>
     </section>
   </aside>
 

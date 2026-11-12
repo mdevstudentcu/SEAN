@@ -318,7 +318,7 @@ function alertsHtml(alerts, settled) {
     const state = a.active ? (a.acked ? "active, acknowledged" : "active") : `cleared at T+${a.last_s.toFixed(1)} s`;
     const times = a.count > 1 ? ` (${a.count} times; first T+${a.since_s.toFixed(1)} s)` : "";
     const btn = a.acked ? "" : `<button data-id="${a.id}">Ack</button>`;
-    return `<li class="${a.severity}${a.active ? "" : " cleared"}"><div class="txt"><span class="sev">${a.severity}</span>${esc(a.text)}<span class="when">since T+${a.onset_s.toFixed(1)} s${times} · ${state}</span></div>${btn}</li>`;
+    return `<li class="${a.severity}${a.active ? "" : " cleared"}"><div class="txt"><span class="one" title="${esc(a.text)}"><span class="sev">${a.severity}</span>${esc(a.text)}</span><span class="when">since T+${a.onset_s.toFixed(1)} s${times} · ${state}</span></div>${btn}</li>`;
   }).join("");
 }
 // Rebuilt only when what it shows has changed: a button replaced between press and release, as a
@@ -386,6 +386,14 @@ function renderBound(f, h) {
   $("bound").className = `card bound ${f.confidence}`;
   $("big-hpl").textContent = fm(hpl);
   $("big-al").textContent = fm(al, 0);
+  // zones as the map colours them (health.confidence): the gauge runs to 1.5 x the limit
+  const amb = S.info ? S.info.confidence_amber_m : 0.8 * al, pc = (v) => `${(100 * v) / (1.5 * al)}%`;
+  $("zg-green").style.width = pc(amb); $("zg-amber").style.width = pc(al - amb);
+  $("zg-red").style.width = pc(0.5 * al);
+  $("zt-amber").style.left = pc(amb); $("zt-al").style.left = pc(al);
+  $("zt-amber").textContent = fm(amb, 0);
+  $("zt-al").textContent = `limit ${fm(al, 0)}`;
+  $("zt-max").textContent = `${fm(1.5 * al, 0)}+`;
   $("big-mark").style.left = `${hpl == null ? 100 : Math.min(100, (100 * hpl) / (1.5 * al))}%`;
   let sub;
   if (hpl == null) sub = "No bound: do not trust the position";
