@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEAN D1 Architecture</title>
+<style>
+@font-face { font-family: "Krona One"; src: url(assets/fonts/krona-one-latin-400-normal.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "Red Hat Text"; src: url(assets/fonts/red-hat-text-latin-400-normal.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "Red Hat Text"; src: url(assets/fonts/red-hat-text-latin-500-normal.woff2) format("woff2"); font-weight: 500; }
+@font-face { font-family: "Red Hat Text"; src: url(assets/fonts/red-hat-text-latin-600-normal.woff2) format("woff2"); font-weight: 600; }
+@font-face { font-family: "Red Hat Text"; src: url(assets/fonts/red-hat-text-latin-700-normal.woff2) format("woff2"); font-weight: 700; }
+@font-face { font-family: "Red Hat Mono"; src: url(assets/fonts/red-hat-mono-latin-400-normal.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "Red Hat Mono"; src: url(assets/fonts/red-hat-mono-latin-600-normal.woff2) format("woff2"); font-weight: 600; }
+
+:root {
+  --ink: #1b2128; --ink2: #36414c; --muted: #5d6975; --faint: #8a96a3; --line: #d4d9de; --tint: #f4f6f7;
+  --ok: #1d8a50; --warn: #a86a08; --bad: #c03a3a; --okbg: #e6f3eb; --warnbg: #f9efdc; --badbg: #f8e6e6;
+  --display: "Krona One", "Arial Black", sans-serif; --body: "Red Hat Text", "Helvetica Neue", Arial, sans-serif; --mono: "Red Hat Mono", ui-monospace, Menlo, monospace;
+}
+@page { size: Letter; margin: 16mm 17mm 16mm 17mm;
+  @top-left { content: "SEAN · D1 Engineering Architecture"; font: 7.5pt "Red Hat Mono", monospace; color: #8a96a3; }
+  @top-right { content: "Team 12 · Rev 1.0 · 2026-11-12"; font: 7.5pt "Red Hat Mono", monospace; color: #8a96a3; }
+  @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 7.5pt "Red Hat Mono", monospace; color: #8a96a3; } }
+@page :first { @top-left { content: none; } @top-right { content: none; } @bottom-right { content: none; } }
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: var(--body); font-size: 9.2pt; line-height: 1.45; color: var(--ink); background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+@media screen { body { max-width: 216mm; margin: 0 auto; padding: 16mm 17mm; } }
+
+.title { height: 245mm; display: flex; flex-direction: column; break-after: page; }
+.title .prog { font-family: var(--mono); font-size: 8pt; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.title h1 { font-family: var(--display); font-weight: 400; font-size: 40pt; letter-spacing: .05em; margin: 30mm 0 0; line-height: 1; }
+.title .exp { font-size: 12pt; color: var(--ink2); margin-top: 3mm; }
+.title .doc { font-family: var(--display); font-size: 16pt; margin-top: 12mm; }
+.title .abs { font-size: 10pt; color: var(--ink2); max-width: 150mm; margin-top: 6mm; line-height: 1.5; }
+.title .ctl { margin-top: auto; }
+.title table { font-size: 8.6pt; }
+.title td:first-child { width: 42mm; color: var(--muted); }
+
+h2 { font-family: var(--display); font-weight: 400; font-size: 13pt; letter-spacing: .02em; margin: 8mm 0 2.5mm; padding-bottom: 1.5mm; border-bottom: 1.4px solid var(--ink); break-after: avoid; }
+h2.newpage { break-before: page; margin-top: 0; }
+h3 { font-size: 10pt; font-weight: 700; margin: 5mm 0 1.6mm; break-after: avoid; }
+h4 { font-size: 9.2pt; font-weight: 700; margin: 3mm 0 1mm; break-after: avoid; }
+p { margin: 0 0 2.4mm; }
+.small { font-size: 8.2pt; }
+.muted { color: var(--muted); }
+.num, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+code { font-family: var(--mono); font-size: .88em; background: var(--tint); padding: 0 .3em; border-radius: 2px; }
+b, strong { font-weight: 700; }
+ul, ol { margin: 0 0 2.4mm; padding-left: 5mm; } li { margin-bottom: .6mm; }
+.cols { display: grid; gap: 6mm; } .c2 { grid-template-columns: 1fr 1fr; }
+
+table { width: 100%; border-collapse: collapse; font-size: 8pt; margin: 1mm 0 3mm; }
+thead { display: table-header-group; }
+th { font-weight: 700; font-size: 7.6pt; text-align: left; padding: 1.2mm 1.8mm; border-bottom: 1.2px solid var(--ink); border-top: 1.2px solid var(--ink); background: var(--tint); }
+td { padding: 1.1mm 1.8mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr { break-inside: avoid; }
+td.n { font-family: var(--mono); white-space: nowrap; }
+caption { caption-side: top; text-align: left; font-size: 8pt; font-weight: 700; padding-bottom: 1.2mm; }
+.sel { font-weight: 700; }
+.st { display: inline-block; font-family: var(--mono); font-size: 7pt; border-radius: 2px; padding: 0 1.4mm; white-space: nowrap; }
+.s-ok { color: var(--ok); background: var(--okbg); } .s-warn { color: var(--warn); background: var(--warnbg); } .s-bad { color: var(--bad); background: var(--badbg); }
+
+figure { margin: 2mm 0 4mm; break-inside: avoid; }
+figure img { width: 100%; max-height: 80mm; object-fit: contain; display: block; border: 1px solid var(--line); }
+figcaption { font-size: 8pt; color: var(--ink2); margin-top: 1.5mm; line-height: 1.4; }
+figcaption b { color: var(--ink); }
+svg { display: block; width: 100%; height: auto; }
+svg text { font-family: "Red Hat Text", sans-serif; }
+
+.eq { font-family: var(--mono); font-size: 8.8pt; border-left: 2px solid var(--ink2); padding: 1.5mm 0 1.5mm 4mm; margin: 2mm 0 3mm; line-height: 1.65; break-inside: avoid; }
+.toc { font-size: 9pt; columns: 2; column-gap: 10mm; }
+.toc div { break-inside: avoid; padding: .5mm 0; }
+.toc .l2 { padding-left: 5mm; color: var(--ink2); font-size: 8.4pt; }
+</style>
+</head>
+<body>
+
+<div class="title">
+  <div class="prog">Hack the Horizons 2026 · Challenge 2 · Resilient Navigation in GPS-Denied Environments</div>
+  <h1>SEAN</h1>
+  <div class="exp">Signals-of-opportunity, Error-bounded, Assured Navigation</div>
+  <div class="doc">D1 · Engineering Architecture</div>
+  <div class="abs">This document describes the architecture of SEAN, a receive-only navigation layer that maintains position and time from terrestrial LTE signals of opportunity when GPS is degraded, jammed, spoofed or unavailable, and reports numerical confidence in both. It covers requirements and their traceability, the system and its interfaces, the navigation and integrity design, the rationale for each major decision, and the verification evidence.</div>
+  <div class="ctl">
+    <table>
+      <tbody>
+        <tr><td>Document</td><td>D1 Engineering Architecture</td></tr>
+        <tr><td>Team</td><td>Team 12</td></tr>
+        <tr><td>Revision / date</td><td>1.0 · 12 November 2026</td></tr>
+        <tr><td>Configuration baseline</td><td>Repository <code>main</code> at <code>ffb201ae</code>; each result names its own commit and seeds</td></tr>
+        <tr><td>Principal use cases</td><td>Navigation continuity for the aircraft; status and confidence monitoring</td></tr>
+        <tr><td>Intended audience</td><td>Engineers experienced in navigation products</td></tr>
+        <tr><td>Companion deliverables</td><td>D2 Technical demonstration (live panel); D3 Engineering design and roadmap</td></tr>
+      </tbody>
+    </table>
+    <h3 style="margin-top:6mm">Contents</h3>
+    <div class="toc">
+      <div>1 Introduction</div><div class="l2">1.1 Purpose and scope · 1.2 Solution summary · 1.3 Status · 1.4 Compliance matrix · 1.5 Conventions</div>
+      <div>2 Requirements</div><div class="l2">2.1 Use cases · 2.2 Constraints · 2.3 Requirements · 2.4 Assumptions</div>
+      <div>3 System architecture</div><div class="l2">3.1 Overview · 3.2 Payload · 3.3 Ground software · 3.4 Interfaces and data</div>
+      <div>4 Navigation design</div><div class="l2">4.1 Concept of operations · 4.2 LTE front end · 4.3 Models · 4.4 Tower clocks · 4.5 GPS-dependency classes · 4.6 Estimators</div>
+      <div>5 Integrity and confidence monitoring</div><div class="l2">5.1 Protection levels · 5.2 Fault hypotheses · 5.3 Jump guard · 5.4 Spoof decision · 5.5 ADS-B warning · 5.6 Status logic · 5.7 Operator display</div>
+      <div>6 Design rationale</div><div class="l2">6.1 Signal selection · 6.2 Architecture decisions</div>
+      <div>7 Verification</div><div class="l2">7.1 Method · 7.2 Simulation validity · 7.3 Results · 7.4 Positioning · 7.5 Real captures · 7.6 Integrity · 7.7 Accuracy budget · 7.8 Timing · 7.9 Trade-offs</div>
+      <div>8 Safety, security and regulatory</div>
+      <div>9 Limitations and open items</div>
+      <div>10 Traceability and reproducibility</div>
+      <div>Appendix A Abbreviations</div>
+    </div>
+  </div>
+</div>
+
+<h2 class="newpage">1 Introduction</h2>
+<h3>1.1 Purpose and scope</h3>
+<p>The challenge asks for an alternative navigation solution that maintains position and timing when GPS is degraded or unavailable, uses communication signals of opportunity as the primary technology, and provides numerical confidence measures so that operators of crewed and uncrewed aircraft can judge the reliability of position and time. This document is the engineering architecture (D1) for that solution. The demonstration (D2) and the roadmap to a commercial product (D3) are separate deliverables and are referenced where relevant.</p>
+
+<h3>1.2 Solution summary</h3>
+<p>SEAN consists of a receive-only payload and a ground navigation stack. The payload (Raspberry Pi 4B) records LTE downlink IQ, ADS-B, a GPS receiver with its pulse-per-second (PPS) output, an IMU and a barometer on one PPS-disciplined clock. The ground stack converts LTE primary and secondary synchronisation signals (PSS/SSS) into pseudoranges to registered tower sites, fuses them with the other sensors in an extended Kalman filter that carries each tower's clock, the receiver clocks and each tower's slowly varying range error as states, and computes horizontal and time protection levels. Integrity monitors test GPS and the towers against each other; the result is presented live on an operator panel.</p>
+<p>The design is integrity-first. Three elements distinguish it from published cell-tower navigation:</p>
+<ol>
+<li><b>Towers are fault hypotheses, not trusted references.</b> A site clock step, a registry error, a rogue cell on a valid cell ID and a network-wide timing fault are each modelled and monitored.</li>
+<li><b>GPS-dependency classes.</b> Every source is tagged independent, GPS-timed or GPS-derived. LTE towers are GPS-timed: their geometry is retained under a GPS fault, but their time may refute GPS time and never confirm it.</li>
+<li><b>A measured, honest error model.</b> The receiver's unreported, slowly varying range error was measured on real captures and is carried as a Gauss–Markov state, so that the protection level remains a bound after GPS loss.</li>
+</ol>
+
+<h3>1.3 Status at this revision</h3>
+<table>
+<thead><tr><th style="width:30%">Capability</th><th style="width:15%">Status</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td>GPS jump detection and refusal</td><td><span class="st s-ok">Verified (sim)</span></td><td>Jumps of 20 m to 500 km flagged in 1.1 s; hazardous epochs per run on a held 300 m jump reduced from 5,244 to 3 (50 runs)</td></tr>
+<tr><td>Protection level honest after GPS loss</td><td><span class="st s-ok">Verified (real)</span><br><span class="st s-warn">Partial (sim)</span></td><td>Real captures with GPS removed in software: 0 of 3,005 checks with the bound under the error (default filter: 1,025). Simulation: 0.45 % of epochs above the bound, target 0.1 %</td></tr>
+<tr><td>Time holdover and time-spoof detection</td><td><span class="st s-warn">49 of 50 runs</span></td><td>0.44 µs mean error after 10 min (target 1.5 µs; worst run 1.55 µs); 50 ns/s drift flagged in 3.3 s median</td></tr>
+<tr><td>Position from towers after GPS loss</td><td><span class="st s-bad">Not met on payload</span></td><td>Simulation: 105 m with all fixes and measured noise, 10 m with clean ranges; real captures limited by the receiver (§7.5)</td></tr>
+<tr><td>Real-time monitoring</td><td><span class="st s-ok">Demonstrated</span></td><td>Live operator panel at ≥ 1 Hz (D2)</td></tr>
+<tr><td>Receive-only, privacy</td><td><span class="st s-ok">Verified (inspection)</span></td><td>No transmit path; enforced by automated tests</td></tr>
+</tbody>
+</table>
+
+<h3>1.4 Compliance matrix</h3>
+<table>
+<thead><tr><th style="width:44%">Item from the brief and judging criteria</th><th>Addressed in</th></tr></thead>
+<tbody>
+<tr><td>Engineering architecture for the proposed solution</td><td>§3, §4, §5</td></tr>
+<tr><td>Principal use cases: navigation continuity; status and confidence monitoring</td><td>§2.1, §2.3, §4, §5</td></tr>
+<tr><td>Signals of opportunity (communication) as the primary technology</td><td>§4.2, §6.1, §7.4 (ablation)</td></tr>
+<tr><td>Numerical confidence for crewed and uncrewed aircraft, position and timing</td><td>§5.1, §5.6, §5.7</td></tr>
+<tr><td>Problem, users, constraints, assumptions, success measures</td><td>§2</td></tr>
+<tr><td>Calculations, architecture and trade-offs</td><td>§5.1, §6, §7.7, §7.9</td></tr>
+<tr><td>Testing and evidence; limitations; how the simulation aligns to reality</td><td>§7, §9</td></tr>
+<tr><td>Safety, RF, aviation, privacy, cybersecurity, regulation; no spectrum interference</td><td>§8</td></tr>
+<tr><td>Documentation: traceable and reproducible</td><td>§10</td></tr>
+</tbody>
+</table>
+
+<h3>1.5 Conventions</h3>
+<ul class="small">
+<li><b>TBC</b>: proposed value, not confirmed. <b>TBD</b>: no value yet. Targets are the team's unless attributed to the mentors.</li>
+<li><b>Sim</b> results come from committed scenarios over real ISED tower sites; <b>real</b> results come from recorded sessions; <b>injected</b> means a fault added in software to a real recording.</li>
+<li><b>Accuracy statistic</b> (REQ-01): at each second after GPS loss, the 95th percentile of horizontal error across Monte Carlo runs; the worst second of the window is reported.</li>
+<li><b>Hazardous epoch</b>: horizontal error above the alert limit while the protection level is below it.</li>
+<li>Time is int64 GPS nanoseconds; positions are ENU metres about the session origin.</li>
+</ul>
+
+<h2>2 Requirements</h2>
+<h3>2.1 Use cases</h3>
+<table>
+<thead><tr><th style="width:17%">Use case</th><th style="width:22%">Operating context</th><th style="width:27%">Threats</th><th>Needs</th></tr></thead>
+<tbody>
+<tr><td><b>UC-01</b> Uncrewed aircraft</td><td>Inspection or delivery drone on an urban corridor, below 120 m</td><td>In-vehicle jammers on nearby roads; carry-off spoofing; urban blockage</td><td>Position that stays within the corridor through an outage; an alert before it leaves it</td></tr>
+<tr><td><b>UC-02</b> Crewed aircraft, terminal area</td><td>Approach into an airport</td><td>Regional jamming that also degrades other aircraft's ADS-B; spoofing near conflict airspace</td><td>Continuity with a protection level the crew can act on (ANP against RNP 0.3)</td></tr>
+<tr><td><b>UC-03</b> Timing user</td><td>Communications or satcom terminal disciplined to GPS time</td><td>Jamming forces holdover; time spoofing shifts the clock without moving the position</td><td>Time within a bound after GPS loss; honest uncertainty; time-spoof detection</td></tr>
+</tbody>
+</table>
+<p class="small">Navigation continuity is served by UC-01 and UC-02 (position) and UC-03 (time); status and confidence monitoring applies to all three.</p>
+
+<h3>2.2 Constraints</h3>
+<ul>
+<li><b>Receive-only.</b> No intentional emission beyond licence-exempt control, telemetry and Wi-Fi links; jamming and spoofing are injected in software only. Transmitting is permitted only in a controlled lab, which was not available.</li>
+<li><b>Communication signals primary.</b> Cell towers carry the solution; IMU and barometer assist.</li>
+<li><b>Cost and schedule.</b> Radios and antennas under CAD 170; development within the hackathon week.</li>
+<li><b>Platform-agnostic payload.</b> The same payload and session format by hand, in a vehicle and on a drone.</li>
+</ul>
+
+<h3>2.3 Requirements and traceability</h3>
+<table>
+<thead><tr><th style="width:18%">ID</th><th style="width:33%">Success measure (TBC unless noted)</th><th style="width:7%">UC</th><th style="width:7%">Verif.</th><th>Result at this revision</th></tr></thead>
+<tbody>
+<tr><td><b>REQ-01</b> Navigation continuity</td><td>95 % ≤ 25 m for ≥ 300 s after GPS loss; fallback ≤ 50 m for ≥ 120 s (mentors); RNP 0.3 (556 m) in the terminal area</td><td class="n">01, 02</td><td class="n">A, T</td><td><span class="st s-bad">Not met</span> payload configuration 449 m (sim); 105 m with all fixes (study); 10 m with clean ranges (§7.4)</td></tr>
+<tr><td><b>REQ-02</b> Position confidence</td><td>HPL bounds the error in ≥ 99.9 % of epochs; no hazardous epoch on fault scenarios; alert limit 50 m (UC-01), 556 m (UC-02)</td><td class="n">01, 02</td><td class="n">A, T</td><td><span class="st s-warn">Partial</span> real 100 % of 3,005 checks; sim 99.55 % pooled, 0 hazardous (§7.6)</td></tr>
+<tr><td><b>REQ-03</b> Timing</td><td>≤ 1.5 µs after 10 min without GPS; reported 1σ covers ≥ 68 %</td><td class="n">03</td><td class="n">T</td><td><span class="st s-warn">Partial</span> 49 of 50 runs; 1σ covers 99.5 % (§7.8)</td></tr>
+<tr><td><b>REQ-04</b> Spoofing and fault detection</td><td>20 m jump within 2 s (accepted); 2 m/s ramp within 30 s; 50 ns/s time ramp within 60 s; ≤ 1 false alarm per hour</td><td class="n">all</td><td class="n">A, T</td><td><span class="st s-ok">Met</span> jump 1.1 s, time ramp 3.3 s, 0.0 /h. <span class="st s-bad">Not met</span> position ramp, 127 s best</td></tr>
+<tr><td><b>REQ-05</b> Real-time monitoring</td><td>Position, HPL, time uncertainty, per-source status; ≥ 1 Hz</td><td class="n">all</td><td class="n">D, T</td><td><span class="st s-ok">Met</span> (D2)</td></tr>
+<tr><td><b>REQ-06</b> Signals of opportunity primary</td><td>Removing them degrades REQ-01 more than removing any other aid</td><td class="n">all</td><td class="n">A</td><td><span class="st s-ok">Met</span> +1,961 m without LTE; +78 m without barometer; +0 m without IMU (sim)</td></tr>
+<tr><td><b>REQ-07</b> Receive-only</td><td>No transmit path in hardware or code</td><td class="n">all</td><td class="n">I</td><td><span class="st s-ok">Met</span> automated test</td></tr>
+<tr><td><b>REQ-08</b> Privacy</td><td>No communication content decoded; identifiers hashed at capture</td><td class="n">all</td><td class="n">I</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td><b>REQ-09</b> Platform-agnostic</td><td>Same session format and pipeline on all carriers</td><td class="n">all</td><td class="n">D</td><td><span class="st s-warn">Partial</span> static and walking captures</td></tr>
+<tr><td><b>REQ-10</b> Reproducibility</td><td>Every result from a committed scenario, or a named session and commit</td><td class="n">all</td><td class="n">I</td><td><span class="st s-ok">Met</span></td></tr>
+</tbody>
+</table>
+<p class="small muted">Verification methods: A analysis, T test, D demonstration, I inspection. Mentor guidance (10 Nov): drone accuracy ≤ 50 m for about 2 min with the calculation explained; the integrity level is the team's to determine, shown several ways; handover timing must fit the budget; location jumps first.</p>
+
+<h3>2.4 Assumptions</h3>
+<table>
+<thead><tr><th style="width:9%">ID</th><th style="width:40%">Assumption</th><th>Rationale and status</th></tr></thead>
+<tbody>
+<tr><td class="n">ASM-01</td><td>GPS is available and trusted at start-up, long enough to initialise and calibrate</td><td>Tower clocks and noise are learned under GPS. The handover study sizes the period (≥ 150 s for drift learning, §7.7). TBC</td></tr>
+<tr><td class="n">ASM-02</td><td>Transmitter positions come from the public ISED registry</td><td>The receiver decodes the physical cell ID, not the global cell ID; position error TBD; a wrong entry is a monitored fault (§5.2)</td></tr>
+<tr><td class="n">ASM-03</td><td>Jamming and spoofing are simulated or injected in software only</td><td>REQ-07 and the brief's spectrum condition. Baselined</td></tr>
+<tr><td class="n">ASM-04</td><td>Payload clocks are disciplined to GPS PPS within 1 µs while GPS is available</td><td>Measured on the payload: offset −35 ns ± 364 ns</td></tr>
+<tr><td class="n">ASM-05</td><td>Navigation is primarily horizontal; height comes from the barometer</td><td>Small-drone operation. TBC</td></tr>
+<tr><td class="n">ASM-07</td><td>FM/TV broadcast transmitters in the area share one site</td><td>Broadcast ranging gives poor geometry; towers carry positioning. TBC</td></tr>
+</tbody>
+</table>
+
+<h2>3 System architecture</h2>
+<h3>3.1 Overview</h3>
+<p>Signals are recorded on the payload and processed on the ground. Simulation, replay of a recorded session and the live stream are interchangeable sources behind one interface, so every algorithm runs unchanged on simulated and real data (Figure 1).</p>
+
+<figure>
+<svg viewBox="0 0 1000 420" role="img" aria-label="System architecture block diagram">
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#36414c"/></marker>
+    <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8a96a3"/></marker>
+  </defs>
+  <rect x="10" y="20" width="230" height="350" rx="6" fill="#fff" stroke="#36414c" stroke-width="1.5"/>
+  <text x="24" y="44" font-size="14" font-weight="700">Payload (Raspberry Pi 4B)</text>
+  <text x="24" y="61" font-size="11" fill="#5d6975">receive-only · one PPS-disciplined clock</text>
+  <g font-size="12">
+    <rect x="24" y="74" width="202" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="34" y="91" font-weight="600">LTE SDR (NESDR SMArt v5)</text><text x="34" y="106" font-size="10.5" fill="#5d6975">one carrier, 1.92 MS/s IQ</text>
+    <rect x="24" y="120" width="202" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="34" y="137" font-weight="600">ADS-B SDR (FlightStick)</text><text x="34" y="152" font-size="10.5" fill="#5d6975">1090 MHz</text>
+    <rect x="24" y="166" width="202" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="34" y="183" font-weight="600">GPS HAT + PPS</text><text x="34" y="198" font-size="10.5" fill="#5d6975">NMEA, satellite C/N0, PPS</text>
+    <rect x="24" y="212" width="202" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="34" y="229" font-weight="600">IMU + barometer</text><text x="34" y="244" font-size="10.5" fill="#5d6975">MPU6050, BMP180 on I²C</text>
+    <rect x="24" y="266" width="202" height="88" rx="4" fill="#fff" stroke="#36414c"/><text x="34" y="285" font-weight="600">Recorder / streamer</text><text x="34" y="302" font-size="10.5" fill="#5d6975">raw IQ (.cu8) to USB drive</text><text x="34" y="317" font-size="10.5" fill="#5d6975">sensor records to MCAP</text><text x="34" y="332" font-size="10.5" fill="#5d6975">live: ZeroMQ PUB, msgpack</text><text x="34" y="347" font-size="10.5" fill="#5d6975">chrony + PPS time base</text>
+  </g>
+  <line x1="240" y1="240" x2="296" y2="240" stroke="#36414c" stroke-width="1.8" marker-end="url(#ar)"/>
+  <text x="244" y="228" font-size="10.5" fill="#36414c">CurveZMQ</text><text x="244" y="258" font-size="10.5" fill="#36414c">or session</text>
+  <rect x="300" y="20" width="690" height="350" rx="6" fill="#fff" stroke="#36414c" stroke-width="1.5"/>
+  <text x="314" y="44" font-size="14" font-weight="700">Ground station (laptop)</text>
+  <text x="314" y="61" font-size="11" fill="#5d6975">Python; Measurement records; int64 GPS ns; ENU metres about the session origin</text>
+  <g font-size="12">
+    <rect x="314" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="371" y="212" text-anchor="middle" font-weight="700">Source</text><text x="371" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">sim | replay | live</text><text x="371" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">time-ordered</text><text x="371" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">stream, one</text><text x="371" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">contract</text>
+    <rect x="446" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="503" y="212" text-anchor="middle" font-weight="700">Front ends</text><text x="503" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">LTE PSS/SSS TOA</text><text x="503" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">→ pseudoranges</text><text x="503" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">GNSS health, ADS-B</text><text x="503" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">cell lookup</text>
+    <rect x="578" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="635" y="212" text-anchor="middle" font-weight="700">Estimator</text><text x="635" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">EKF family</text><text x="635" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">tower, receiver,</text><text x="635" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">radio clocks;</text><text x="635" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">slow-error states</text>
+    <rect x="710" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="767" y="212" text-anchor="middle" font-weight="700">Integrity</text><text x="767" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">HPL, TPL</text><text x="767" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">jump guard</text><text x="767" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">spoof decision</text><text x="767" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">MHSS, ADS-B</text>
+    <rect x="842" y="190" width="134" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="909" y="212" text-anchor="middle" font-weight="700">Operator panel</text><text x="909" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">FastAPI + SSE</text><text x="909" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">status, HPL, TPL,</text><text x="909" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">per-source trust,</text><text x="909" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">latched alerts</text>
+  </g>
+  <g stroke="#36414c" stroke-width="1.8" marker-end="url(#ar)"><line x1="428" y1="239" x2="444" y2="239"/><line x1="560" y1="239" x2="576" y2="239"/><line x1="692" y1="239" x2="708" y2="239"/><line x1="824" y1="239" x2="840" y2="239"/></g>
+  <g font-size="11.5">
+    <rect x="314" y="90" width="196" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="324" y="110" font-weight="700">Simulator, attack library</text><text x="324" y="127" font-size="10.5" fill="#5d6975">trajectories, error models, faults</text>
+    <rect x="528" y="90" width="168" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="538" y="110" font-weight="700">ISED registry extract</text><text x="538" y="127" font-size="10.5" fill="#5d6975">(EARFCN, PCI) → site</text>
+    <rect x="714" y="90" width="262" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="724" y="110" font-weight="700">Reference station (simulated)</text><text x="724" y="127" font-size="10.5" fill="#5d6975">base/rover differencing of tower clocks</text>
+  </g>
+  <g stroke="#8a96a3" stroke-width="1.5" marker-end="url(#arg)"><line x1="371" y1="142" x2="371" y2="188"/><line x1="590" y1="142" x2="525" y2="188"/><line x1="620" y1="142" x2="630" y2="188"/><line x1="790" y1="142" x2="668" y2="188"/></g>
+  <rect x="710" y="308" width="266" height="46" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="720" y="327" font-size="11.5" font-weight="700">Advisory output to an autopilot</text><text x="720" y="343" font-size="10.5" fill="#5d6975">product step (D3), not implemented</text>
+  <line x1="767" y1="288" x2="767" y2="306" stroke="#8a96a3" stroke-width="1.5" marker-end="url(#arg)"/>
+  <text x="314" y="320" font-size="10.5" fill="#5d6975">Storage: session folder = MCAP log + raw IQ + sidecars + meta.yaml</text>
+  <text x="314" y="336" font-size="10.5" fill="#5d6975">Truth (sim) and Estimate records share the same time base</text>
+  <text x="10" y="398" font-size="11" fill="#36414c">Solid: implemented and exercised on real recordings. Dashed: simulated input, reference data, or future product interface.</text>
+</svg>
+<figcaption><b>Figure 1. System block diagram.</b> Every element downstream of the Source runs identically on simulated, replayed and live data.</figcaption>
+</figure>
+
+<h3>3.2 Payload hardware</h3>
+<table>
+<thead><tr><th style="width:20%">Function</th><th style="width:30%">Part</th><th>Interface and notes</th></tr></thead>
+<tbody>
+<tr><td>Computer, recorder</td><td>Raspberry Pi 4B</td><td>Both SDRs on USB 2 ports; USB 3 left empty to keep its noise away from GPS L1 and 2.4 GHz</td></tr>
+<tr><td>LTE receiver</td><td>NooElec NESDR SMArt v5 (8-bit RTL-SDR, 0.5 ppm TCXO), Bingfu antenna</td><td>One LTE carrier (EARFCN 2460) at 1.92 MS/s, covering the central 1.08 MHz that holds PSS/SSS</td></tr>
+<tr><td>ADS-B receiver</td><td>AirNav FlightStick</td><td>1090 MHz with built-in filter; cannot receive LTE</td></tr>
+<tr><td>GPS and time</td><td>GPS HAT with external active antenna</td><td>NMEA and satellite reports via gpsd; PPS on GPIO; chrony disciplines the system clock</td></tr>
+<tr><td>Inertial, height</td><td>MPU6050, BMP180</td><td>I²C on the Pi; IMU noise and bias measured on the bench</td></tr>
+<tr><td>Storage</td><td>USB drive</td><td>SD card lost 2.9 % of IQ in 4 gaps per 10 min; USB drive: none in 10 min</td></tr>
+<tr><td>Carrier</td><td>Hand, vehicle, 5-inch quadcopter (Betaflight 4.5.5)</td><td>Pilot-flown with RC kill switch; the payload is removable and never feeds the flight controller</td></tr>
+</tbody>
+</table>
+
+<h3>3.3 Ground software components</h3>
+<table>
+<thead><tr><th style="width:18%">Component</th><th>Function</th><th style="width:21%">Evidence</th></tr></thead>
+<tbody>
+<tr><td>Source</td><td>Yields a time-ordered stream of Measurement records from simulation, a recorded session or the live link; one contract test covers all three</td><td>Automated test</td></tr>
+<tr><td>LTE front end</td><td>PSS/SSS search and time-of-arrival tracking from the 3GPP specifications; pseudorange records at 10 Hz with SNR and a reported σ. Sync signals only</td><td>Synthetic baseband; 15 real captures</td></tr>
+<tr><td>Cell lookup</td><td>Maps (EARFCN, PCI) to one registered eNB site; unknown or colliding cells are dropped and counted, never guessed</td><td>Registry audit (4,059 rows); real captures</td></tr>
+<tr><td>GNSS health</td><td>Jamming indicator from the C/N0 of the four strongest satellites (reference 40 dB-Hz, loss 25 dB-Hz, TBC)</td><td>Real session, 595 s</td></tr>
+<tr><td>Estimators</td><td>EKF family (§4.6)</td><td>Monte Carlo; real replays</td></tr>
+<tr><td>Integrity</td><td>Protection levels and monitors (§5)</td><td>Monte Carlo; injected faults</td></tr>
+<tr><td>Operator panel</td><td>Web panel over Server-Sent Events with canvas plots; NO DATA on stream stall</td><td>D2 demonstration</td></tr>
+<tr><td>Simulator</td><td>Trajectories, per-source error models with provenance labels, attack library, scenario sets; fault injection into recordings</td><td>§7.2</td></tr>
+</tbody>
+</table>
+
+<h3>3.4 Interfaces and data</h3>
+<p>Three record types flow through the pipeline, encoded as JSON in MCAP logs and as msgpack on the live stream. Interface changes require both software owners' approval.</p>
+<table>
+<caption>Table 3-1. Measurement record (one observable from one source)</caption>
+<thead><tr><th style="width:18%">Field</th><th style="width:14%">Type</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>t_ns</code></td><td>int64</td><td>GPS time of validity, ns since the GPS epoch</td></tr>
+<tr><td><code>source</code></td><td>str</td><td><code>gnss</code>, <code>imu</code>, <code>baro</code>, <code>lte</code>, <code>adsb</code>, <code>vor</code>, <code>wifi</code>, <code>leo</code> (sim), …</td></tr>
+<tr><td><code>kind</code></td><td>str</td><td><code>pseudorange</code>, <code>position_enu</code>, <code>accel_gyro</code>, <code>altitude</code>, <code>gnss_health</code>, <code>adsb_report</code>, …</td></tr>
+<tr><td><code>emitter</code></td><td>str</td><td>Transmitter ID, e.g. <code>lte:&lt;earfcn&gt;:&lt;pci&gt;</code>, <code>adsb:&lt;icao&gt;</code>; Wi-Fi BSSIDs hashed</td></tr>
+<tr><td><code>receiver</code></td><td>str</td><td><code>payload</code> (default) or <code>reference</code></td></tr>
+<tr><td><code>value</code>, <code>sigma</code></td><td>tuple[float]</td><td>Observable and the front end's own 1σ, in the units of the kind</td></tr>
+<tr><td><code>meta</code></td><td>dict</td><td>SNR, emitter position, raw-file offset, flags</td></tr>
+</tbody>
+</table>
+<table>
+<caption>Table 3-2. Estimate record (navigation output)</caption>
+<thead><tr><th style="width:26%">Field</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>pos_enu</code>, <code>vel_enu</code>, <code>pos_cov</code></td><td>Position, velocity, 3×3 position covariance</td></tr>
+<tr><td><code>clock_bias_s</code>, <code>clock_sigma_s</code></td><td>Receiver clock offset from GPS time and its 1σ</td></tr>
+<tr><td><code>hpl_m</code>, <code>vpl_m</code></td><td>Horizontal and vertical protection levels</td></tr>
+<tr><td><code>status</code></td><td><code>nominal</code> | <code>degraded</code> | <code>unsafe</code></td></tr>
+<tr><td><code>trust</code>, <code>flags</code></td><td>Per-source trust in [0, 1]; flags such as <code>gnss_excluded</code>, <code>spoof_suspected</code></td></tr>
+</tbody>
+</table>
+<p class="small"><b>Session layout:</b> one folder per session with the MCAP log, raw IQ per SDR (<code>.cu8</code>) and a sidecar per SDR (sample rate, centre frequency, GPS time of sample 0, gain, hops, outages), and <code>meta.yaml</code> (payload, commit, seed for simulated sessions). <b>Transport:</b> ZeroMQ PUB/SUB secured with CurveZMQ; the payload admits only enrolled laptop keys.</p>
+
+<h2>4 Navigation design</h2>
+<h3>4.1 Concept of operations</h3>
+<p>The mission assumed by the mentors is GPS at the start, then lost or degraded in one area. SEAN uses the period of trusted GPS to learn tower clocks and noise, coasts on towers, barometer and IMU when GPS is lost, refuses GPS that is detected to be lying, and re-admits GPS only when it is consistent again (Figure 2).</p>
+<figure>
+<svg viewBox="0 0 1000 310" role="img" aria-label="Concept of operations timeline">
+  <g font-size="11.5">
+    <rect x="60" y="8" width="252" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="70" y="25" font-weight="700">1 GPS trusted: calibrate</text><text x="70" y="40" font-size="10.5" fill="#5d6975">learn tower clocks and noise (gated)</text>
+    <rect x="318" y="8" width="252" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="328" y="25" font-weight="700">2 GPS lost: coast</text><text x="328" y="40" font-size="10.5" fill="#5d6975">towers + barometer + IMU; bound grows</text>
+    <rect x="576" y="8" width="200" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="586" y="25" font-weight="700">3 GPS spoofed: refuse</text><text x="586" y="40" font-size="10.5" fill="#5d6975">jump latched; GPS excluded</text>
+    <rect x="782" y="8" width="208" height="40" rx="4" fill="#f4f6f7" stroke="#d4d9de"/><text x="792" y="25" font-weight="700">4 GPS consistent: re-admit</text><text x="792" y="40" font-size="10.5" fill="#5d6975">stream steps back by the jump</text>
+  </g>
+  <line x1="60" y1="255" x2="990" y2="255" stroke="#36414c" stroke-width="1.3"/>
+  <line x1="60" y1="64" x2="60" y2="255" stroke="#36414c" stroke-width="1.3"/>
+  <text x="54" y="70" font-size="10.5" text-anchor="end" fill="#5d6975">m</text>
+  <text x="990" y="272" font-size="10.5" text-anchor="end" fill="#5d6975">time</text>
+  <line x1="60" y1="168" x2="990" y2="168" stroke="#c03a3a" stroke-dasharray="6 4" stroke-width="1.3"/>
+  <text x="66" y="162" font-size="10.5" fill="#c03a3a">alert limit</text>
+  <path d="M60,238 L318,238 C380,236 420,205 470,170 C520,135 548,108 576,98 L640,92 C700,88 760,84 782,82 C794,170 804,233 990,238" fill="none" stroke="#2f5fae" stroke-width="2.4"/>
+  <path d="M60,248 L318,248 C380,246 420,233 470,214 C520,190 550,170 576,162 C604,154 640,143 700,133 C740,127 770,123 782,122 C794,205 804,245 990,248" fill="none" stroke="#1d8a50" stroke-width="2.4"/>
+  <text x="640" y="84" font-size="10.5" fill="#2f5fae" font-weight="700">HPL</text>
+  <text x="700" y="148" font-size="10.5" fill="#1d8a50" font-weight="700">true error</text>
+  <g font-size="10" font-family="Red Hat Mono" font-weight="600">
+    <rect x="60" y="282" width="412" height="18" fill="#1d8a50"/><text x="68" y="295" fill="#fff">NOMINAL</text>
+    <rect x="472" y="282" width="18" height="18" fill="#a86a08"/>
+    <rect x="490" y="282" width="292" height="18" fill="#c03a3a"/><text x="498" y="295" fill="#fff">UNSAFE</text>
+    <rect x="782" y="282" width="208" height="18" fill="#1d8a50"/><text x="790" y="295" fill="#fff">NOMINAL</text>
+  </g>
+</svg>
+<figcaption><b>Figure 2. Concept of operations (schematic).</b> The status follows the protection level against the alert limit, so the state changes while the true error is still within the bound. Real traces of each phase are shown in D2 and §7.</figcaption>
+</figure>
+
+<h3>4.2 LTE front end and cell identification</h3>
+<p>The front end searches the 1.92 MS/s IQ for the three PSS roots and the 168 SSS sequences, which identify the physical cell ID (PCI = 3·N<sub>ID</sub><sup>(1)</sup> + N<sub>ID</sub><sup>(2)</sup>), and tracks each cell's frame timing to produce a pseudorange record at 10 Hz with SNR and a reported σ. Only synchronisation and broadcast system fields are processed. The receiver cannot decode SIB1 (it needs the full carrier), so identity is resolved by matching (EARFCN, PCI) to one registered site in the ISED extract; a cell that matches no site or several is dropped. A cell re-acquired after a loss of lock starts a new tracking arc with its own range bias, because weak cells were found to keep reporting after losing lock.</p>
+
+<h3>4.3 State and measurement models</h3>
+<div class="eq">x = [ p<sub>ENU</sub>, v<sub>ENU</sub>, b, ḃ, {c<sub>s</sub>, ċ<sub>s</sub>}<sub>sites</sub>, {d, ḋ}<sub>radios</sub>, {m<sub>k</sub>}<sub>cells</sub> ]<br>
+ρ<sub>k</sub> = ‖p − s<sub>k</sub>‖ + c·(b + d − c<sub>s(k)</sub>) + m<sub>k</sub> + ε<sub>k</sub><br>
+m<sub>k</sub>: first-order Gauss–Markov, τ = 30 s, σ<sub>m</sub> = σ<sub>ε</sub> (TBC) · ε<sub>k</sub>: white, σ<sub>ε</sub> learned per cell from a 40 m prior</div>
+<p>p and v are position and velocity; b is our receiver clock (driven by PPS while GPS is valid), d the SDR dongle clock, c<sub>s</sub> the clock of tower site s, s<sub>k</sub> the registered position of the site serving cell k. The barometer provides height; the IMU drives the prediction in the IMU variants once aligned. GPS position fixes are gated with a 3-degree-of-freedom χ² test at 99.9 %; when only the vertical component fails (barometer drift), the horizontal part is still used and the height flagged.</p>
+<p class="small"><b>Why the slow-error state.</b> Real captures show range jitter of 0.73 m on strong cells but a slowly varying error with a median of 8.1 m at 1 s that the radio does not report. Told only the white σ, the filter over-trusts each accepted range and its covariance collapses; after GPS loss its bound was exceeded in 45 % of epochs (sim) and understated the error in 34 % of real checks.</p>
+
+<h3>4.4 Tower clock model</h3>
+<p>Each LTE site (sectors on one EARFCN, grouped by PCI div 3) carries a clock offset and drift. Sites share a common term per network builder (one network builder serves two of the three local operators), because FDD sites are only frequency-locked: each keeps its own offset, while builder-wide timing faults move all its sites together. Clocks are learned only after GPS has been trusted for a gating period (30 s, TBC) and while the GPS-independent evidence (barometer, our clock) agrees; a calibration learned under GPS that is later flagged is rolled back. A tower whose clock steps by more than its predicted σ is treated as a site fault, not absorbed.</p>
+
+<h3>4.5 GPS-dependency classes</h3>
+<div class="cols c2" style="grid-template-columns: 1.15fr 1fr; gap: 5mm; align-items: start">
+<figure style="margin-top:0">
+<svg viewBox="0 0 560 290" role="img" aria-label="GPS-dependency classes">
+  <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#36414c"/></marker></defs>
+  <g font-size="12">
+    <rect x="6" y="8" width="170" height="156" rx="4" fill="#fff" stroke="#36414c"/><text x="18" y="30" font-weight="700">Independent</text>
+    <text x="18" y="52" fill="#36414c">barometer, IMU</text><text x="18" y="70" fill="#36414c">our clock in holdover</text><text x="18" y="88" fill="#36414c">VOR</text>
+    <text x="18" y="136" font-size="10.5" fill="#5d6975">may confirm or</text><text x="18" y="151" font-size="10.5" fill="#5d6975">refute GPS</text>
+    <rect x="194" y="8" width="170" height="156" rx="4" fill="#fff" stroke="#36414c"/><text x="206" y="30" font-weight="700">GPS-timed</text>
+    <text x="206" y="52" fill="#36414c">LTE towers</text><text x="206" y="72" font-size="10.5" fill="#36414c">geometry survives a GPS</text><text x="206" y="86" font-size="10.5" fill="#36414c">fault; time does not</text>
+    <text x="206" y="136" font-size="10.5" fill="#5d6975">may refute GPS time,</text><text x="206" y="151" font-size="10.5" fill="#5d6975">never confirm it</text>
+    <rect x="382" y="8" width="170" height="156" rx="4" fill="#fff" stroke="#36414c"/><text x="394" y="30" font-weight="700">GPS-derived</text>
+    <text x="394" y="52" fill="#36414c">ADS-B positions</text><text x="394" y="70" fill="#36414c">our GPS, SBAS</text>
+    <text x="394" y="136" font-size="10.5" fill="#5d6975">inside the GPS common-</text><text x="394" y="151" font-size="10.5" fill="#5d6975">mode fault; never confirms</text>
+  </g>
+  <g stroke="#36414c" stroke-width="1.6" marker-end="url(#a2)"><line x1="91" y1="164" x2="250" y2="222"/><line x1="279" y1="164" x2="279" y2="220"/><line x1="467" y1="164" x2="310" y2="222"/></g>
+  <rect x="180" y="224" width="200" height="50" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="280" y="246" text-anchor="middle" font-size="12.5" font-weight="700">GPS consistency decision</text><text x="280" y="263" text-anchor="middle" fill="#5d6975" font-size="10.5">no evidence counted twice</text>
+</svg>
+<figcaption><b>Figure 3. GPS-dependency classes.</b></figcaption>
+</figure>
+<div>
+<p>Without classes, a GPS spoof echoed by ADS-B positions and by GPS-disciplined tower clocks appears as three agreeing sources. With classes, only independent evidence can confirm GPS. A two-class scheme (independent or dependent) was rejected because it discards tower geometry, which survives a GPS fault even though tower time does not.</p>
+<p class="small">Limit by design: a wide-area time spoof that also captures tower timing is detectable only through independent evidence (our clock in holdover), and is outside the current fault model.</p>
+</div>
+</div>
+
+<h3>4.6 Estimator family</h3>
+<table>
+<thead><tr><th style="width:22%">Estimator</th><th>Description</th><th style="width:12%">Default</th></tr></thead>
+<tbody>
+<tr><td><code>baseline</code></td><td>Deliberately simple reference filter (control)</td><td>control</td></tr>
+<tr><td><code>ekf</code></td><td>Position, velocity, receiver clock, per-tower and per-radio clocks; real-capture records told the measured σ; re-acquired arcs get their own bias</td><td>yes</td></tr>
+<tr><td><code>ekf-calibrated</code></td><td>Tower clocks per site under a builder term, gated calibration with rollback (§4.4)</td><td>opt-in</td></tr>
+<tr><td><code>ekf-imu</code></td><td>IMU-driven prediction</td><td>opt-in</td></tr>
+<tr><td><code>ekf-learned-noise</code></td><td>Learns each cell's range noise from its innovations, from a 40 m prior; never shrinks without GPS</td><td>opt-in</td></tr>
+<tr><td><code>ekf-honest-guard</code></td><td>Learned noise plus slow-error states (§4.3) plus the jump guard (§5.3). <b>Selected configuration</b></td><td>opt-in</td></tr>
+<tr><td><code>ekf-mhss</code></td><td>Multiple-hypothesis solution separation with exclusion</td><td>opt-in</td></tr>
+<tr><td><code>ekf-base(-imu)</code></td><td>Differenced against the reference station; falls back to <code>ekf</code> if the base is lost</td><td>sim only</td></tr>
+</tbody>
+</table>
+<p class="small muted">Selection rule, fixed in advance (§7.9): ≤ 1 % of epochs above the bound on real and simulated tuning data, then the lowest real error at 300 s, subject to ≤ 5 % degradation in simulation and no hazardous epoch. Seven further configurations (slow-error sizing, IMU propagation, process noise, cell-count gates, consistency gates, Huber weighting, frozen learning) were evaluated against it and none passed.</p>
+
+<h2>5 Integrity and confidence monitoring</h2>
+<h3>5.1 Protection levels</h3>
+<div class="eq">HPL = K<sub>H</sub> · σ<sub>max</sub>,&nbsp;&nbsp; K<sub>H</sub> = √(2 ln(1/P<sub>IR</sub>)) = √(2 ln 10⁷) = 5.68<br>
+TPL = K<sub>T</sub> · σ<sub>clock</sub>,&nbsp;&nbsp; K<sub>T</sub> = 5.33<br>
+<span class="muted">σ<sub>max</sub>: largest standard deviation of the 2×2 horizontal covariance · P<sub>IR</sub> = 10⁻⁷ per epoch (TBC) · exposure time TBD</span></div>
+<p>For a circular two-dimensional Gaussian error, P(r &gt; kσ) = e<sup>−k²/2</sup>, so an integrity risk of 10⁻⁷ requires k = 5.68. The one-dimensional value 5.33, used in our code until it was found in review, gives 6.8 × 10⁻⁷ for a horizontal error; the factor was corrected, and results computed before the correction are labelled (the correction can only raise coverage). The clock is a single state, so the time factor remains 5.33. In the solution-separation estimator the HPL is the multiple-hypothesis bound at the same risk, with fault priors per site 10⁻³, builder 10⁻⁴, sensor layer 10⁻⁴ and GPS common mode 10⁻³ (all TBC). Alert limits: 50 m (UC-01), 556 m (UC-02, RNP 0.3), 1.5 µs (UC-03).</p>
+
+<h3>5.2 Fault hypotheses and monitors</h3>
+<table>
+<thead><tr><th style="width:18%">Hypothesis</th><th style="width:35%">Covers</th><th>Monitored by</th></tr></thead>
+<tbody>
+<tr><td>GPS common mode</td><td>GPS position or time wrong, with every GPS-derived source</td><td>χ² gate; jump guard (§5.3); sky-map spoof decision (§5.4); time-drift gate; MHSS GPS-free subset; ADS-B warning raises its prior (§5.5)</td></tr>
+<tr><td>Tower site</td><td>One site's clock step; wrong or moved registry entry; rogue cell on a valid PCI</td><td>MHSS site subsets; per-arc bias; tower displacement monitor (opt-in)</td></tr>
+<tr><td>Network builder</td><td>One builder's timing source in holdover or captured</td><td>MHSS builder subset</td></tr>
+<tr><td>Sensor layer</td><td>A whole sensor type wrong</td><td>MHSS layer subset</td></tr>
+<tr><td>Reference station</td><td>Base moved, clock step, link lost</td><td>Base consistency check (sim)</td></tr>
+</tbody>
+</table>
+
+<h3>5.3 GPS jump guard</h3>
+<ol class="small">
+<li><b>Step test.</b> The GPS stream is checked against a straight line fitted to its own last 2 s; the mean of the newest 1–3 fixes stepping away with NIS &gt; 30.66 (χ², 3 dof, 10⁻⁶) is a step.</li>
+<li><b>Latch.</b> A step at a fix whose innovation against the filter also exceeds 30.66, while GPS was in use within 2 s, latches the guard. The step is taken as the offset GPS is holding.</li>
+<li><b>While latched.</b> GPS position is excluded (<code>gnss_excluded</code>); further steps of the stream accumulate into the offset and its covariance. The filter coasts.</li>
+<li><b>Re-admit.</b> When the accumulated offset is consistent with zero (NIS ≤ 16.27, the gate's 99.9 % bound), GPS is back on its pre-jump track; fixes then bypass the gate until the filter has agreed with GPS for a settling period.</li>
+</ol>
+<p class="small">Rationale: once GPS is rejected, the coasting covariance grows until the same spoofed fix passes the gate, so a spoofer need only wait. Re-admission on the stream's own steps is independent of the filter covariance. A fix returning after an outage longer than 2 s is not judged by the guard (stated limit, §9).</p>
+
+<h3>5.4 Spoof decision from the sky</h3>
+<p class="small">Each GPS satellite report is compared with the almanac (SGP4 from a dated TLE set) at the current estimate. A satellite received with C/N0 &gt; 0 but predicted below −5° elevation, in two consecutive reports, is a hard cue. With at least five satellites above the mask, a C/N0 spread under 3 dB or a correlation with predicted elevation under 0.2 is a soft cue (suppressed while the jamming indicator is ≥ 0.5). Cues and the estimator's own spoof flags are combined by noisy-OR into an advisory level: unknown, suspect, spoofed. The decision is advisory and changes no estimate.</p>
+
+<h3>5.5 ADS-B interference warning</h3>
+<p class="small">An aircraft that earlier reported good quality and drops below NACp 9 or NIC 7 for 5 s, or makes a confirmed track jump over 300 m, is evidence of interference. The warning is raised while at least two aircraft within 50 km show a drop, or any shows a confirmed jump, and for 300 s after. While raised, the GPS common-mode prior in the solution-separation estimator is raised to 10⁻¹, widening the bound before our own GPS is affected. Position is never derived from ADS-B.</p>
+
+<h3>5.6 Status logic</h3>
+<table>
+<thead><tr><th style="width:16%">Status</th><th>Condition (drone limits, TBC)</th><th style="width:30%">Operator meaning</th></tr></thead>
+<tbody>
+<tr><td><span class="st s-ok">NOMINAL</span></td><td>HPL &lt; 40 m and no source flagged</td><td>Navigate on this position</td></tr>
+<tr><td><span class="st s-warn">DEGRADED</span></td><td>HPL 40–50 m, or a source flagged (e.g. GPS rejected, height excluded)</td><td>Usable; prepare for loss</td></tr>
+<tr><td><span class="st s-bad">UNSAFE</span></td><td>HPL ≥ 50 m (alert limit), or no HPL</td><td>Do not navigate on this position</td></tr>
+</tbody>
+</table>
+<p class="small">Monitors act through the estimate: a refused or excluded source is flagged (DEGRADED) and the coasting filter's HPL grows until it crosses the limit (UNSAFE). The sky-map spoof decision and the ADS-B warning are shown as separate readouts and do not change the status directly. Alerts latch with their start time until acknowledged. The approach use case reports ANP (the 95 % radius from the covariance) against RNP 0.3; the timing use case reports TPL and the predicted time to its alert limit.</p>
+
+<h3>5.7 Operator display</h3>
+<div class="cols c2" style="grid-template-columns: 1.3fr 1fr; gap: 5mm; align-items: start">
+<figure style="margin:0"><img src="assets/fig/panel-unsafe.jpg" alt="Operator panel 40 s after GPS loss"><figcaption><b>Figure 4. Operator panel</b>, simulated drone over real tower sites, 40 s after GPS loss: UNSAFE, HPL 895 m, true error 325 m.</figcaption></figure>
+<table style="margin-top:0">
+<thead><tr><th>#</th><th>Readout</th></tr></thead>
+<tbody>
+<tr><td class="n">1</td><td>Status, colour and text</td></tr>
+<tr><td class="n">2</td><td>HPL against the alert limit</td></tr>
+<tr><td class="n">3</td><td>ANP against RNP</td></tr>
+<tr><td class="n">4</td><td>GPS trust state</td></tr>
+<tr><td class="n">5</td><td>Spoof decision and cue</td></tr>
+<tr><td class="n">6</td><td>Per-source trust and weight</td></tr>
+<tr><td class="n">7</td><td>TPL and time to alert</td></tr>
+<tr><td class="n">8</td><td>Map: HPL circle, track coloured by confidence</td></tr>
+<tr><td class="n">9</td><td>HPL history with pre-flight forecast</td></tr>
+<tr><td class="n">10</td><td>Latched alerts</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>6 Design rationale</h2>
+<p>Each decision below is recorded with its options and consequences (§10). The selected option is in bold.</p>
+<h3>6.1 Signal selection</h3>
+<table>
+<thead><tr><th style="width:13%">Signal</th><th style="width:31%">Advantages</th><th style="width:33%">Disadvantages</th><th>Role</th></tr></thead>
+<tbody>
+<tr><td><b>LTE downlink</b></td><td>Ubiquitous, strong, fixed registered sites; PSS/SSS fully known and within 1.08 MHz, so a low-cost SDR can range on them; in a cabled testbed, denial needed about 30 dB more jamming power against PSS/SSS than against reference signals</td><td>GPS-timed; one carrier hears few sites; unreported slowly varying error; no global cell ID without full-band decoding</td><td class="sel">Primary</td></tr>
+<tr><td>ADS-B</td><td>Position and quality of every equipped aircraft</td><td>GPS-derived; unauthenticated; spoofed aircraft observed retaining high integrity indicators</td><td>Interference warning only</td></tr>
+<tr><td>VOR</td><td>GPS-independent</td><td>No lock on our captures; poor geometry at low altitude</td><td>Front end built</td></tr>
+<tr><td>Wi-Fi</td><td>Dense in urban areas</td><td>Short range; cloneable beacons; ranging (FTM) requires transmitting</td><td>Not used for position</td></tr>
+<tr><td>Iridium (LEO)</td><td>Global, strong; receivable by our SDR</td><td>Published open-burst fixes 100–200 m, static, over minutes; unauthenticated; commercial service already available</td><td>Simulated; roadmap (D3)</td></tr>
+<tr><td>Starlink</td><td>Dense constellation</td><td>A terminal transmits; downlink-only opportunistic use</td><td>Simulated</td></tr>
+<tr><td>Broadcast time</td><td>Independent time</td><td>CHU ended June 2026; WWVB needs an LF receiver; FM RDS has minute resolution</td><td>Not used</td></tr>
+</tbody>
+</table>
+
+<h3>6.2 Architecture decisions</h3>
+<table>
+<thead><tr><th style="width:15%">Decision</th><th style="width:33%">Options considered</th><th>Rationale for the selection</th></tr></thead>
+<tbody>
+<tr><td>Solution emphasis</td><td>Accuracy-first; <b>integrity-first</b>; hostile emitters or space-based</td><td>Accuracy-first reproduces published work; space-based is simulation-only. Integrity-first covers all three use cases</td></tr>
+<tr><td>Spoof testing</td><td>Transmit-capable SDR; <b>receive-only with software injection</b></td><td>No spectrum risk; injection into real recordings exercises real receiver data</td></tr>
+<tr><td>Processing location</td><td>On board; <b>record raw, process on ground</b></td><td>Captures can be re-processed as algorithms improve; one code path for sim, replay and live</td></tr>
+<tr><td>Tower clocks</td><td>Independent random walk per tower; one clock per network; <b>per site with a builder term, gated learning</b>; base-station differencing only</td><td>Per tower: no redundancy or drift. Per network: wrong for FDD (sites only frequency-locked). Differencing needs hardware and has no fallback</td></tr>
+<tr><td>Dependency model</td><td>None; two classes; <b>three classes</b></td><td>Three classes retain tower geometry while excluding tower time from confirming GPS</td></tr>
+<tr><td>Detected GPS jump</td><td>Gate only; <b>refuse until stream steps back</b>; refuse for the flight; re-admit on covariance test</td><td>Runs with hazardous epochs: gate 49/50; covariance test 46/50; selected 3/50, with honest GPS re-admitted 0.1 s after the jump ends; refuse-for-flight never re-admits</td></tr>
+<tr><td>Bound honesty</td><td>Larger factor after GPS loss; larger process noise; <b>slow error as a state</b></td><td>A factor hides a model error and depends on tuning; process noise inflates the bound everywhere; the state matches the measured error</td></tr>
+<tr><td>HPL factor</td><td>5.33; <b>5.68</b>; SBAS 6.0/6.18</td><td>5.68 is derived from the stated risk for a 2-D error; SBAS factors belong to SBAS's own risk allocation</td></tr>
+<tr><td>Spoof decision</td><td>Sky map; power pattern; <b>both, advisory</b>; both, excluding GPS</td><td>Each cue alone is blind or soft; exclusion on soft evidence costs accuracy; the jump guard already acts</td></tr>
+<tr><td>ADS-B use</td><td><b>Raise GPS fault prior</b>; graded prior; de-weight GPS; display only</td><td>Widens the bound early without letting GPS-derived data steer position</td></tr>
+<tr><td>Reference station</td><td>None; hardware; <b>simulation, hardware later</b></td><td>Best GPS-loss accuracy in simulation (677 → 332 m) but follows spoofs without a guard; parts not available by the cut-off</td></tr>
+<tr><td>Payload</td><td><b>Pi 4B alone</b> or Pi + microcontroller hub; <b>USB drive</b> or SD card</td><td>One board and one clock; the SD card dropped 2.9 % of IQ</td></tr>
+</tbody>
+</table>
+
+<h2>7 Verification</h2>
+<h3>7.1 Method</h3>
+<ul class="small">
+<li><b>Benchmark set.</b> One scenario leg per use case over real ISED tower sites, emitting LTE records shaped as the real front end writes them, plus a 15-attack realistic set (outages, jumps, ramps, meaconing, time spoofing, tower faults).</li>
+<li><b>Monte Carlo.</b> 50 seeded runs per scenario (200 for the bound study), paired across estimators. Tuning uses seeds 100–109, never reported.</li>
+<li><b>Real data.</b> Static and walking sessions with GPS as truth; GPS removed in software at several cut times; faults injected into recordings.</li>
+<li><b>Statistics.</b> Accuracy as defined in §1.5; bound coverage as the share of epochs with HPL ≥ error; hazardous epochs; detection time; false alarms per hour.</li>
+</ul>
+
+<h3>7.2 Simulation validity</h3>
+<table>
+<thead><tr><th style="width:28%">Model</th><th>Source of parameters</th><th style="width:14%">Status</th></tr></thead>
+<tbody>
+<tr><td>IMU noise and bias instability</td><td>Overnight static bench capture</td><td><span class="st s-ok">measured</span></td></tr>
+<tr><td>LTE white range noise</td><td>15 static captures; σ as a function of SNR (0.73 m on strong cells, 22.5 m at −14 to −11 dB)</td><td><span class="st s-ok">measured</span></td></tr>
+<tr><td>LTE slow error</td><td>Same captures; 2.4–17 m, median 8.1 m at 1 s; persists in same-site sector differences, so it is not a clock</td><td><span class="st s-ok">measured</span></td></tr>
+<tr><td>Payload clock</td><td>PPS discipline on the payload</td><td><span class="st s-ok">measured</span></td></tr>
+<tr><td>GPS fix, C/N0</td><td>Static sessions</td><td><span class="st s-warn">partial</span></td></tr>
+<tr><td>Cells heard per carrier</td><td>1–4 per carrier in real captures; antenna placement mattered by ≥ 25.7 dB</td><td><span class="st s-warn">partial</span></td></tr>
+<tr><td>Tower clocks, multipath in motion, barometer</td><td>Literature</td><td><span class="st s-bad">placeholder</span></td></tr>
+<tr><td>Attacks</td><td>Software injection, simulated and into real recordings</td><td><span class="st s-bad">placeholder</span></td></tr>
+</tbody>
+</table>
+<p class="small">The same comparison tool runs on simulated and real records: the original simulated LTE residual was white with 49 m RMS; the real residual is smooth (lag-1 correlation 1.00) at 21 m. This finding drove the slow-error state (§4.3). Injection into real recordings: a 300 m jump was flagged 0.6 s after onset; a fake sky was flagged in 59 of 59 reports, with 0 of 120 genuine reports flagged.</p>
+
+<h3>7.3 Results summary</h3>
+<table>
+<thead><tr><th style="width:32%">Target</th><th>Result</th><th style="width:8%">Kind</th><th style="width:13%">Verdict</th></tr></thead>
+<tbody>
+<tr><td>Location jump ≥ 20 m flagged within 2 s</td><td class="n">1.1 s, 50 of 50</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td>No hazardous epoch from a held jump</td><td class="n">0 with guard; 17,042 without</td><td>sim</td><td><span class="st s-ok">Met (opt-in)</span></td></tr>
+<tr><td>Meaconing (5 s replay)</td><td class="n">1,995 misleading epochs/run → 0</td><td>sim</td><td><span class="st s-ok">Met (opt-in)</span></td></tr>
+<tr><td>Bound covers error after GPS loss</td><td class="n">0 of 3,005 understated; default 1,025</td><td>real</td><td><span class="st s-ok">Met (opt-in)</span></td></tr>
+<tr><td>Bound covers ≥ 99.9 % of epochs</td><td class="n">99.55 % pooled; worst run 81.5 %</td><td>sim</td><td><span class="st s-warn">Not met</span></td></tr>
+<tr><td>Time drift 50 ns/s within 60 s</td><td class="n">3.3 s median, 50 of 50</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td>≤ 1 false alarm per hour</td><td class="n">0.0 /h, all estimators and legs</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td>SoOP primary (ablation)</td><td class="n">+1,961 m without LTE; +78 m baro; +0 m IMU</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td>Interference warning on approach</td><td class="n">50 of 50; 48–78 s lead; 1.94 false/h</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
+<tr><td>Time ≤ 1.5 µs after 10 min</td><td class="n">0.44 µs mean; 1.55 µs worst</td><td>sim</td><td><span class="st s-warn">49 of 50</span></td></tr>
+<tr><td>Approach within 556 m</td><td class="n">approach towers synthetic</td><td>sim</td><td><span class="st s-warn">Not scored</span></td></tr>
+<tr><td>Position ≤ 25 m for 300 s</td><td class="n">449 m payload; 105 m all fixes; 10 m clean</td><td>sim</td><td><span class="st s-bad">Not met</span></td></tr>
+<tr><td>2 m/s position ramp within 30 s</td><td class="n">0 of 50; 50 of 50 at 127 s with hopping</td><td>sim</td><td><span class="st s-bad">Not met</span></td></tr>
+</tbody>
+</table>
+
+<h3>7.4 Positioning after GPS loss</h3>
+<figure><img src="assets/fig/ladder.png" alt="Worst-second 95th-percentile error by configuration"><figcaption><b>Figure 5. Accuracy after GPS loss by configuration</b> (sim, drone leg, worst second of 0–300 s, 95th percentile of 50 runs; clean-range row 20 runs). Believing the front end's reported σ (2 m) is worse than using no towers, because each accepted range collapses the covariance. Learned noise and 13 hopped carriers (about 27 sites heard instead of 2) give 132 m; with the measured white noise, 105 m; with multipath at its measured at-rest size, 51 m. Ideal ranges from all 17 sites within 3 km give 10 m, within 25 m for all 300 s: the geometry is sufficient and range quality is the limit. Hopping is a study configuration; the payload records one carrier.</figcaption></figure>
+<div class="cols c2" style="gap:5mm">
+<figure style="margin:0"><img src="assets/fig/towers-holding.png" alt="Panel in the hopping study"><figcaption><b>Figure 6.</b> Hopping study on the operator panel, seed 0, 45 s after GPS loss: error 17.9 m, LTE in use, HPL 108.7 m.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/ablation.png" alt="Ablation"><figcaption><b>Figure 7. Ablation</b> (sim, 50 paired runs, long outage): added error when each source is removed.</figcaption></figure>
+</div>
+
+<h3>7.5 Performance on real captures</h3>
+<table>
+<thead><tr><th style="width:52%">Measurement (two 10-min static sessions, GPS as truth)</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Share of time the best cell is above the usable SNR (−8 dB, TBC)</td><td class="n">43.1 % (other cells 0.6–6.6 %)</td></tr>
+<tr><td>Share of time any two cells are usable together</td><td class="n">0–1.4 %</td></tr>
+<tr><td>Cells needed together for a 2-D fix with an unknown receiver clock</td><td class="n">3</td></tr>
+<tr><td>White range noise, strong cells</td><td class="n">0.73 m (best cell at 10 Hz: 0.86 m)</td></tr>
+<tr><td>Weak cells after loss of lock</td><td class="n">keep reporting; 1.5–12.9 km error while reporting 21–31 m</td></tr>
+<tr><td>Position after a software GPS cut, 300 s, default filter / no LTE</td><td class="n">364–595 m / 0.6–1.3 m (median of 5 cuts)</td></tr>
+<tr><td>Published reference: research-grade receiver on a UAV, 3 eNodeBs</td><td class="n">8.15 m RMSE (Shamaei, Khalife, Kassas, 2018)</td></tr>
+</tbody>
+</table>
+<p>The limiting factor on real data is the receiver: a single 8-bit SDR on one carrier rarely tracks more than one cell at a time, while a fix requires three. On static real data the towers therefore do not yet improve position over a stationary receiver on the barometer; the protection level nonetheless remains a bound on the same data (§7.6). Increasing simultaneous cells (a hopping front end or additional SDRs), measuring multipath in motion and moving to carrier phase with a disciplined oscillator are the next steps (D3).</p>
+
+<h3>7.6 Integrity</h3>
+<figure><img src="assets/fig/honest-bound-top.png" alt="Error against HPL before and after the slow-error state"><figcaption><b>Figure 8. Error against protection level</b> (sim, drone leg, 600 s outage, 200 runs). Points above the diagonal are epochs where the error exceeded the bound: 41.6 % over the whole run (45.3 % from GPS loss) for the default filter; 0.4 % (0.45 %) with slow-error states, no hazardous epoch. The worst single run still exceeds the bound in 18.5 % of its epochs. On real captures with GPS removed, the bound understated the error in 0 of 3,005 checks against 1,025 for the default filter, although at kilometre scale.</figcaption></figure>
+
+<h3>7.7 Accuracy budget and handover</h3>
+<div class="cols c2" style="gap:5mm">
+<figure style="margin:0"><img src="assets/fig/budget-vs-mc.png" alt="Accuracy budget against Monte Carlo"><figcaption><b>Figure 9. Error budget</b>: tower clock, multipath, registered-position error, receiver clock and noise, each propagated from GPS loss and summed (lines), against 20 Monte Carlo runs (points). Clean route: within the 50 m fallback. Realistic towers: multipath alone 215 m at 120 s.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/handover-clean.png" alt="Error against good-GPS time before loss"><figcaption><b>Figure 10. Handover.</b> 95 % error against the duration of good GPS before loss (clean route). The drift-learning filter needs ≥ 150 s to stay under 50 m; the other filters do not depend on it.</figcaption></figure>
+</div>
+
+<h3>7.8 Timing</h3>
+<div class="cols c2" style="grid-template-columns: 1fr 1fr; gap:5mm; align-items:start">
+<figure style="margin:0"><img src="assets/fig/t3-timing.png" alt="Time error after 10 min without GPS"><figcaption><b>Figure 11.</b> Time error 10 min after GPS loss, one point per run (sim, 50 runs); dashed line 1.5 µs.</figcaption></figure>
+<div class="small">
+<p>Mean 0.44 µs; 49 of 50 runs within 1.5 µs (worst 1.55 µs); the reported 1σ covers the error in 99.5 % of epochs. A 50 ns/s GPS time ramp is flagged in 3.3 s median (4.1 s worst), with no false alarm on nominal runs. On hardware, the payload clock follows the GPS PPS at −35 ± 364 ns.</p>
+<p>Because towers are GPS-timed, tower time is used to refute GPS time, never to confirm it. On harder sets the time bound is over-confident since the receiver clock was added to the tower ranges; this cost was accepted and is listed in §9.</p>
+</div>
+</div>
+
+<h3>7.9 Estimator trade-off</h3>
+<table>
+<thead><tr><th style="width:27%">Estimator (15 attacks × 50 runs)</th><th>Error, worst second, 300 s</th><th>Bound coverage, worst run</th><th>Hazardous epochs, held jump</th><th>Unavailable</th></tr></thead>
+<tbody>
+<tr><td><code>ekf</code> (default)</td><td class="n">677 m</td><td class="n">69.2 %</td><td class="n">17,042 (20/50 runs)</td><td class="n">14.9 %</td></tr>
+<tr><td><code>ekf-guard</code></td><td class="n">677 m</td><td class="n">69.2 %</td><td class="n">0</td><td class="n">19.3 %</td></tr>
+<tr><td><b><code>ekf-honest-guard</code></b> (selected)</td><td class="n"><b>449 m</b></td><td class="n"><b>100 %</b></td><td class="n"><b>0</b></td><td class="n">19.1 %</td></tr>
+<tr><td><code>ekf-mhss</code></td><td class="n">677 m</td><td class="n">100 %</td><td class="n">0</td><td class="n">100 %</td></tr>
+<tr><td><code>ekf-base-imu</code> (sim only)</td><td class="n">332 m</td><td class="n">100 %</td><td class="n">68,537 (49/50)</td><td class="n">12.4 %</td></tr>
+</tbody>
+</table>
+<p class="small">The selected configuration trades availability for integrity: refusing a spoofed GPS converts 17,042 hazardous epochs into unavailable ones (14.9 → 19.1 %). Solution separation is never misleading because its bound always exceeds the limit with the current tower model. The reference-station filter is the most accurate after GPS loss but has no guard and follows a held jump.</p>
+<p class="small muted">Sources: <code>systems/results.md</code> (b)–(e); <code>analysis/results/headline</code> (24aa5d1, seeds 0–49); <code>honest-bound</code> (seeds 0–199); <code>stacked-fixes</code>, <code>stacked-fixes-measured</code>; <code>tower-count</code>; <code>lte-gps-truth-20261111</code>; <code>lte-measured-noise</code> (8892fca); <code>real-replay-256</code>; <code>final</code> (d66c929). Results that predate the HPL factor correction were computed with 5.33; at 5.68 each bound is 6.5 % larger.</p>
+
+<h2>8 Safety, security and regulatory</h2>
+<table>
+<thead><tr><th style="width:18%">Area</th><th>Approach</th></tr></thead>
+<tbody>
+<tr><td>RF / spectrum (ISED)</td><td>Receive-only: no transmit-capable radio on the payload and no transmit path in code (automated test). Jamming and spoofing exist only as software injection. No activity that could interfere with licensed spectrum.</td></tr>
+<tr><td>Interception law</td><td>Only synchronisation signals and broadcast fields intended for general reception are decoded; no communication content (Radiocommunication Act s.9(2)). No ruling was found on whether deriving timing from them constitutes use; a legal opinion is required before commercialisation.</td></tr>
+<tr><td>Privacy</td><td>Wi-Fi BSSIDs hashed at capture. The panel does not display where a recording was made. Reference data cites its public source.</td></tr>
+<tr><td>Cybersecurity</td><td>Payload–ground link authenticated and encrypted (CurveZMQ, enrolled keys only). Every source, including towers and the reference station, is a fault hypothesis. Tamper-evident logs: planned.</td></tr>
+<tr><td>Flight operations</td><td>Pilot-flown, physical kill switch, RC-loss disarm; throttle limited and flattened near hover; low, close, over open ground; pre-flight checklist. The payload never commands the aircraft.</td></tr>
+<tr><td>Aviation role</td><td>Advisory: it warns, it does not steer. No standard was found for opportunistic navigation or for protection levels on non-GNSS sources (RTCA SC-159 covers GNSS equipment); no certification claim is made.</td></tr>
+</tbody>
+</table>
+<table>
+<caption>Table 8-1. Navigation hazards and architectural mitigations</caption>
+<thead><tr><th style="width:32%">Hazard</th><th>Mitigation</th></tr></thead>
+<tbody>
+<tr><td>Misleading position displayed as safe</td><td>Status driven by HPL; monitors exclude faulty sources so the bound grows; slow-error states keep HPL a bound after GPS loss; latched alerts</td></tr>
+<tr><td>Spoofer waits for GPS re-admission</td><td>Jump guard re-admits only when the GPS stream steps back, not on a covariance test</td></tr>
+<tr><td>Tower fault (clock step, moved site, rogue cell)</td><td>Site and builder hypotheses; ambiguous cells dropped; per-arc bias on re-acquisition</td></tr>
+<tr><td>Time spoof that also captures tower timing</td><td>Tower time may refute, never confirm GPS time; wide-area capture is a stated limit</td></tr>
+<tr><td>Calibration learned under spoofed GPS</td><td>Gated on GPS-independent agreement; rolled back when GPS is flagged</td></tr>
+<tr><td>Interference ahead of the aircraft</td><td>ADS-B quality of other aircraft raises the GPS fault prior</td></tr>
+</tbody>
+</table>
+
+<h2>9 Limitations and open items</h2>
+<table>
+<thead><tr><th style="width:30%">Limitation</th><th style="width:35%">Impact</th><th>Planned resolution (D3)</th></tr></thead>
+<tbody>
+<tr><td>Single SDR, single carrier</td><td>Rarely three cells at once; REQ-01 not met on the payload</td><td>Hopping front end or additional SDRs; then carrier phase with a disciplined oscillator</td></tr>
+<tr><td>Static, ground-level captures only</td><td>Multipath in motion and reception at altitude (antenna downtilt) unmeasured</td><td>Moving captures with independent truth; flight captures</td></tr>
+<tr><td>2 m/s position ramp</td><td>Detected in 127 s at best, not 30 s</td><td>More sites heard; tower displacement monitor with hopping</td></tr>
+<tr><td>Bound coverage per run</td><td>Pooled 99.55 %; worst run 81.5 %; no exposure time set</td><td>Fault statistics from hours of tower data; exposure-time definition</td></tr>
+<tr><td>GPS returning after a long outage</td><td>Not judged by the jump guard; normal gate may reject honest GPS after large drift</td><td>Re-admission logic for long outages</td></tr>
+<tr><td>Time bound over-confident on harder sets</td><td>Accepted cost of modelling the receiver clock in tower ranges</td><td>Clock model revision</td></tr>
+<tr><td>Simultaneous faults in two groups; wide-area time capture</td><td>Outside the fault model</td><td>Multi-fault hypotheses; independent time reference</td></tr>
+<tr><td>Approach use case</td><td>Synthetic towers; not scored</td><td>Real approach-area tower geometry</td></tr>
+<tr><td>Reference station, LEO</td><td>Simulation only</td><td>Hardware station with a guard; Iridium layer</td></tr>
+</tbody>
+</table>
+
+<h2>10 Traceability and reproducibility</h2>
+<p>The repository holds requirements, assumptions, risks, safety, verification, interface control documents and 57 decision records beside the code. Each reported result names its scenario or session, seeds and commit; 1,485 automated tests run before every merge, including tests that enforce the receive-only and privacy rules.</p>
+<table>
+<caption>Table 10-1. Decision records referenced in this document</caption>
+<thead><tr><th style="width:11%">ADR</th><th>Decision</th><th style="width:18%">Status</th></tr></thead>
+<tbody>
+<tr><td class="n">0001</td><td>The payload is receive-only</td><td>Accepted</td></tr>
+<tr><td class="n">0002</td><td>Record raw on board, process on the ground</td><td>Accepted</td></tr>
+<tr><td class="n">0004</td><td>Sim, replay and live are interchangeable sources</td><td>Accepted</td></tr>
+<tr><td class="n">0007, 0008</td><td>MCAP logs with raw IQ beside them; time in GPS ns, positions in ENU m</td><td>Accepted</td></tr>
+<tr><td class="n">0009, 0026</td><td>ZeroMQ transport; authenticated ground links (CurveZMQ)</td><td>Accepted</td></tr>
+<tr><td class="n">0011</td><td>Privacy enforced at capture</td><td>Accepted</td></tr>
+<tr><td class="n">0013</td><td>LEO (Iridium) simulated, not received</td><td>Accepted</td></tr>
+<tr><td class="n">0015</td><td>Simulation calibrated against real measurements</td><td>Accepted</td></tr>
+<tr><td class="n">0018, 0042</td><td>Pi 4B recorder; IQ to a USB drive</td><td>Proposed; Accepted</td></tr>
+<tr><td class="n">0020</td><td>Ground reference station for differential LTE (simulation only)</td><td>Proposed, amended</td></tr>
+<tr><td class="n">0021</td><td>Integrity-first navigation treating signals of opportunity as fallible</td><td>Accepted</td></tr>
+<tr><td class="n">0022, 0023</td><td>Tower clock model; tower identity from the ISED registry</td><td>Proposed</td></tr>
+<tr><td class="n">0024</td><td>GNSS-dependency classes</td><td>Proposed</td></tr>
+<tr><td class="n">0027</td><td>Panel over Server-Sent Events and canvas</td><td>Accepted</td></tr>
+<tr><td class="n">0031, 0033</td><td>GNSS jam indicator; ADS-B raises the GNSS fault prior</td><td>Proposed</td></tr>
+<tr><td class="n">0034</td><td>Targets after the mentors' answers</td><td>Accepted (T1, T4 jump)</td></tr>
+<tr><td class="n">0036, 0039</td><td>Measured LTE error model; learned range noise</td><td>Proposed</td></tr>
+<tr><td class="n">0037, 0040</td><td>Tower displacement monitor; carrier hopping as a study</td><td>Proposed</td></tr>
+<tr><td class="n">0038</td><td>Refuse a detected GNSS jump until undone</td><td>Proposed</td></tr>
+<tr><td class="n">0041</td><td>Spoof decision from sky, power and cues</td><td>Accepted</td></tr>
+<tr><td class="n">0045, 0046</td><td>Horizontal GNSS use when only height fails; slow-error states</td><td>Proposed</td></tr>
+<tr><td class="n">0047, 0050</td><td>Receiver clock in tower ranges; real-capture LTE handling</td><td>Accepted</td></tr>
+<tr><td class="n">0052</td><td>Field A/B: keep the honest filter</td><td>Proposed</td></tr>
+<tr><td class="n">0056</td><td>Horizontal protection-level factor 5.68</td><td>Accepted</td></tr>
+</tbody>
+</table>
+
+<h3>10.1 Reproduction</h3>
+<div class="eq">just setup&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# environment<br>
+just sim gps-outage&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# one scenario: session + metrics<br>
+just eval gps-outage 50&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Monte Carlo<br>
+just replay &lt;session&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# estimators on a recorded session<br>
+just qa&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# lint and the full test suite</div>
+
+<h3>10.2 Document map</h3>
+<table>
+<thead><tr><th style="width:30%">Topic</th><th>Repository location</th></tr></thead>
+<tbody>
+<tr><td>Requirements, use cases, assumptions, risks</td><td><code>systems/requirements.md</code>, <code>use-cases.md</code>, <code>assumptions.md</code>, <code>risks.md</code></td></tr>
+<tr><td>Interfaces</td><td><code>systems/icd/measurement.md</code>, <code>session.md</code>, <code>pnt.xml</code></td></tr>
+<tr><td>Verification plan and results</td><td><code>systems/verification.md</code>, <code>systems/results.md</code>, <code>analysis/results/</code></td></tr>
+<tr><td>Safety and threat model</td><td><code>systems/safety.md</code>, <code>systems/threat-model.md</code></td></tr>
+<tr><td>Roadmap (D3)</td><td><code>systems/roadmap.md</code></td></tr>
+</tbody>
+</table>
+
+<h2>Appendix A Abbreviations</h2>
+<table>
+<tbody>
+<tr><td style="width:13%"><b>ADR</b></td><td>Architecture decision record</td><td style="width:13%"><b>MHSS</b></td><td>Multiple-hypothesis solution separation</td></tr>
+<tr><td><b>ANP / RNP</b></td><td>Actual / required navigation performance</td><td><b>NACp / NIC</b></td><td>ADS-B navigation accuracy / integrity categories</td></tr>
+<tr><td><b>C/N0</b></td><td>Carrier-to-noise density ratio</td><td><b>NIS</b></td><td>Normalised innovation squared</td></tr>
+<tr><td><b>EARFCN</b></td><td>E-UTRA absolute radio-frequency channel number</td><td><b>PCI</b></td><td>LTE physical cell identity</td></tr>
+<tr><td><b>EKF</b></td><td>Extended Kalman filter</td><td><b>PPS</b></td><td>Pulse per second</td></tr>
+<tr><td><b>ENU</b></td><td>East–north–up local frame</td><td><b>PSS / SSS</b></td><td>LTE primary / secondary synchronisation signals</td></tr>
+<tr><td><b>HPL / TPL</b></td><td>Horizontal / time protection level</td><td><b>SDR</b></td><td>Software-defined radio</td></tr>
+<tr><td><b>ISED</b></td><td>Innovation, Science and Economic Development Canada</td><td><b>SoOP</b></td><td>Signals of opportunity</td></tr>
+<tr><td><b>LEO</b></td><td>Low Earth orbit</td><td><b>TOA</b></td><td>Time of arrival</td></tr>
+</tbody>
+</table>
+
+</body>
+</html>
