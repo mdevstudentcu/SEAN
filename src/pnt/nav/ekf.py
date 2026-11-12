@@ -885,6 +885,8 @@ class EKF:
             if m.kind == "position_enu":
                 self._init(m)
             return
+        if self.imu is not None and (m.source, m.kind) == ("gnss", "position_enu"):
+            self.imu.fix(m)  # where the fixes say the receiver is: its still test (ADR-0053)
         model = MODELS.get(m.kind)
         if model is None:
             return  # not modelled yet

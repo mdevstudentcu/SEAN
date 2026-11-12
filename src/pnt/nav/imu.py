@@ -46,12 +46,12 @@ takes over.
 
 Start-up calibration (ADR-0053, #214). `ImuSpec`'s biases are what is left after a start-up
 calibration; a real MPU6050 starts degrees per second off (the real walk: -3.95 deg/s gyro,
--1.37 m/s^2 vertical). Before alignment, a stretch where GNSS steers and the filter's position
-stays within `still_radius_m` for `still_min_s` is that calibration: the mean rate is the gyro
-bias, the mean specific force's excess over gravity the accelerometer bias along it, each with
-the standard error of its 1 s means (at least the spec's). The alignment window integrates the
-corrected samples and the bias states start from them. No window runs while still: heading needs
-motion, and an uncalibrated bias turning the specific force would pass for it.
+-1.37 m/s^2 vertical). Before alignment, a stretch where GNSS steers and its fixes stay within
+`still_radius_m` for `still_min_s` is that calibration: the mean rate is the gyro bias, the mean
+specific force's excess over gravity the accelerometer bias along it, each with the standard error
+of its 1 s means (at least the spec's). The alignment window integrates the corrected samples and
+the bias states start from them. No window runs while still: heading needs motion, and an
+uncalibrated bias turning the specific force would pass for it.
 
 Velocity lag (#119). In a turn the constant-velocity filter's velocity lags the truth, and a
 lagged velocity looks to the fit like a heading error (6 to 22 deg on a 14 deg-tilt turn with
@@ -179,7 +179,7 @@ class ImuMotion:
         max_lag_s: float = 3.0,  # s: longest velocity lag the fit corrects (TBC)
         lag_error: float = 0.5,  # fraction of the lag correction counted as heading error (TBC)
         still_calibration: bool = True,  # start-up bias calibration while still (ADR-0053)
-        still_radius_m: float = 3.0,  # m: still while the filter stays this close (TBC)
+        still_radius_m: float = 3.0,  # m: still while the GNSS fixes stay this close (TBC)
         still_min_s: float = 20.0,  # s: shortest still stretch that calibrates (TBC)
         still_guard_s: int = 5,  # s: still after this long; the last ones left out (TBC)
     ):
@@ -204,6 +204,7 @@ class ImuMotion:
         self.still_calibration, self.still_radius = still_calibration, still_radius_m
         self.still_min_s, self.still_guard = still_min_s, still_guard_s
         self._still: dict | None = None  # still stretch in progress
+        self._fix: np.ndarray | None = None  # the latest GNSS fix, horizontal (still test)
         # Start-up calibration (ADR-0053): the latest still stretch's biases and their 1-sigma
         self.cal: dict | None = None
 
@@ -223,6 +224,11 @@ class ImuMotion:
         self.att, self.ba, self.bg = slice(n, n + 3), slice(n + 3, n + 6), slice(n + 6, n + 9)
         self.nav = np.r_[np.arange(pos.start, pos.stop), np.arange(vel.start, vel.stop)]
         self.nav = np.r_[self.nav, np.arange(n, n + N_STATES)]
+
+    def fix(self, m: Measurement) -> None:
+        """Note a GNSS position fix for the still test (ADR-0053): the fixes, not the filter,
+        whose position other sources (LTE) can drag by metres while the receiver stands."""
+        self._fix = np.asarray(m.value[:2], float)
 
     def add(self, ekf: EKF, m: Measurement) -> None:
         """Buffer one `accel_gyro` sample."""
@@ -426,8 +432,8 @@ class ImuMotion:
 
     def _still_step(self, ekf: EKF, steering: bool, segs) -> bool:
         """Start-up calibration (ADR-0053); returns whether the receiver is still. A stretch
-        lasts while GNSS steers, no IMU sample is missing, and the filter's horizontal position
-        stays within `still_radius_m` of where it began; the receiver is still once the stretch
+        lasts while GNSS steers, no IMU sample is missing, and the GNSS fixes stay within
+        `still_radius_m` of the one it began at; the receiver is still once the stretch
         has lasted `still_guard_s` (so anything faster than radius / guard never is). The
         stretch's samples are summed in 1 s blocks, less the last `still_guard_s` of them (a
         receiver about to move may already be turning). Once the rest lasts `still_min_s`, it
@@ -437,9 +443,9 @@ class ImuMotion:
         1-sigma is the standard error of the 1 s means, at least the spec's: a hand-held
         receiver sways, and sway does not average out as white noise does. A later stretch
         replaces an earlier one (biases drift with temperature)."""
-        p = ekf.x[self.nav[0:2]]
+        p = self._fix
         st = self._still
-        if not steering or any(f is None for _, f, _ in segs):
+        if not steering or p is None or any(f is None for _, f, _ in segs):
             self._still = None
             return False
         if st is None or math.hypot(*(p - st["p0"])) >= self.still_radius:
