@@ -135,7 +135,7 @@ class: topo-light
   <div class="arrow"></div>
   <div class="node panel"><div class="nt">Operator panel</div><div class="ns"><span class="ok">green</span> · <span class="warn">amber</span> · <span class="bad">red</span>, with the number</div></div>
   <div style="grid-column: 3 / 10; margin-top: 0.45rem; height: 0.55rem; border: 1.5px solid var(--contour); border-top: 0; border-radius: 0 0 8px 8px"></div>
-  <div style="grid-column: 3 / 10; text-align: center; font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.08em; color: var(--muted); margin-top: 0.3rem">GROUND STATION · LAPTOP</div>
+  <div style="grid-column: 3 / 10; text-align: center; font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.08em; color: var(--muted); margin-top: 0.3rem">GROUND LAPTOP</div>
 </div>
 
 <div class="cols" style="grid-template-columns: 1fr 1fr 1fr 0.95fr; margin-top: 1rem; gap: 1rem; align-items: stretch">
@@ -643,7 +643,7 @@ Here are the headline results. [down the rows] Fake GPS jumps caught in 1.1 seco
 
 **Why our pick:** the default follows a held jump (17,042 hazardous moments). The guard turns those into unavailable ones (14.9 → 19.1 %), and the honest bound adds coverage. → backup *What each defence costs*.
 
-**The ground station** would be the best result for GPS loss (332 m, bound 100 %), but it follows a spoof without a guard and is sim only → backup *A ground station cancels tower clocks*.
+**The ground station** is the zone row: inside its zone the error falls 96 → 64 m with the radius honest in every flight, and with the jump guard plugged in a held spoof gives 0 dangerous moments (slides 7–8; 50-run headline set: 677 → 332 m, backup *A ground station cancels tower clocks*).
 
 **If asked:**
 - *"Opt-in"?* Our pick is a filter you select by name; the default `ekf` stays as the reference until the owners switch it.
@@ -764,8 +764,8 @@ class: topo-content
 </div>
 <div class="card small">
 <h3>What it costs, and what's next</h3>
-<p><span class="bad">Follows a held spoof jump in 49 of 50 runs</span> (68,537 hazardous moments against the default's 17,042): there is no guarded station filter yet.</p>
-<p>Parts weren't in hand by the cut-off: our second radio is the ADS-B one, filtered to 1090 MHz, and the only GPS with a timing pulse is on the payload.</p>
+<p>Without a guard it follows a held spoof jump (68,537 hazardous moments in 49 of 50 runs). <span class="ok">With the jump guard plugged in: 0</span> (station-zones study, 10 runs, every noise setting).</p>
+<p>Next: build it ($92.34 of parts). This week our second radio is the ADS-B one, filtered to 1090 MHz, and the only GPS with a timing pulse is on the payload.</p>
 </div>
 </div>
 
@@ -774,20 +774,20 @@ class: topo-content
 <!--
 **Use when:** "what about a ground station?", "differential?", "how would you fix the tower clocks?"
 
-**Say:** We designed a ground reference station: a second receiver at a known point hearing the same towers. Subtract the two and the towers' clock errors cancel, the way GBAS works for aircraft. In simulation it's our best result for GPS loss: worst-second error 677 → 332 m with the IMU, and its bound covers the error 100 % of the time in the worst run. But it can't defend against spoofing yet: without a jump guard it follows a held jump in 49 of 50 runs. And we didn't build it: the parts weren't in hand by our cut-off.
+**Say:** We designed a ground reference station: a second receiver at a known point hearing the same towers. Subtract the two and the towers' clock errors cancel, the way GBAS works for aircraft. In simulation it's our best result for GPS loss: worst-second error 677 → 332 m with the IMU, and its bound covers the error 100 % of the time in the worst run. On its own it would follow a held spoof jump, like any filter that trusts GPS while learning; with our jump guard plugged in, that drops to zero dangerous moments. Building it is the next step: $92.34 of parts.
 
 **Why we chose this design over the alternatives (ADR-0020, ADR-0022):**
 - *No station, learn tower clocks only:* no hardware, but the error grows with outage length and a lone tower clock can't be tested.
 - *Station on hardware:* real evidence for the strongest part of the integrity story, $92.34 of parts, but set-up, a zero-baseline test and a new single point of failure. Planned, then deferred.
-- *Station in sim only* (**where we are**): free, but no real evidence.
+- *Station designed, simulated with the guard, and costed* (**where we are**): the zone result in simulation; hardware next.
 
 **Design details if pressed:**
 - The base and payload share GPS time through their own PPS-disciplined clocks over a wired link: NTP gives only milliseconds, and 1 µs is 300 m.
 - A zero-baseline test before each session: both side by side for 5–10 min to measure their receiver bias.
 - The link to the laptop is authenticated; the station is a fault hypothesis of its own (a moved or spoofed base corrupts every correction).
-- The sim assumes the link is always up with no latency; that's the mentors' condition ("if you can reliably communicate") taken as true, not shown.
+- A 60 s link loss during the outage gave 0 hazardous moments (the filter falls back to the payload). Link latency is not simulated: the mentors' condition ("if you can reliably communicate").
 
-**Next:** build it with a guard, and run the zero-baseline test. It's on the roadmap.
+**Next:** build it, run the zero-baseline test, and fly a zone. It's on the roadmap.
 -->
 
 ---

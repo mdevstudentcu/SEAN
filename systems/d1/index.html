@@ -20,7 +20,7 @@
 }
 @page { size: Letter; margin: 16mm 17mm 16mm 17mm;
   @top-left { content: "SEAN · D1 Engineering Architecture"; font: 7.5pt "Red Hat Mono", monospace; color: #8a96a3; }
-  @top-right { content: "Team 12 · Rev 1.1 · 2026-11-12"; font: 7.5pt "Red Hat Mono", monospace; color: #8a96a3; }
+  @top-right { content: "Team 12 · Rev 1.2 · 2026-11-12"; font: 7.5pt "Red Hat Mono", monospace; color: #8a96a3; }
   @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 7.5pt "Red Hat Mono", monospace; color: #8a96a3; } }
 @page :first { @top-left { content: none; } @top-right { content: none; } @bottom-right { content: none; } }
 
@@ -85,13 +85,13 @@ dl.terms dt { font-weight: 700; } dl.terms dd { margin: 0; }
   <div class="exp">Signals-of-opportunity, Error-bounded, Assured Navigation</div>
   <div class="doc">D1 · Engineering Architecture</div>
   <figure class="hero"><img src="assets/fig/payload-drone.jpg" alt="The SEAN payload beside the test drone"><figcaption>The payload (left: receivers, GPS, motion sensor and altimeter in a taped enclosure) and the test drone that carries it.</figcaption></figure>
-  <div class="abs">SEAN keeps an aircraft's position and time going when GPS is jammed, faked or lost, using the cell towers that are already around it, and tells the operator, with a number, how far to trust that position and time. It only listens; it never transmits. This document describes what it must do, how it is built, why it is built that way, and what our tests show.</div>
+  <div class="abs">SEAN keeps an aircraft's position and time going when GPS is jammed, faked or lost, using the cell towers that are already around it, and tells the operator, with a number, how far to trust that position and time. It only listens; it never transmits. Add a small ground station, and the area around it becomes a zone where position holds up without GPS. This document describes what it must do, how it is built, why it is built that way, and what our tests show.</div>
   <div class="ctl">
     <table>
       <tbody>
         <tr><td>Document</td><td>D1 Engineering Architecture</td></tr>
         <tr><td>Team</td><td>Team 12</td></tr>
-        <tr><td>Revision / date</td><td>1.1 · 12 November 2026</td></tr>
+        <tr><td>Revision / date</td><td>1.2 · 12 November 2026</td></tr>
         <tr><td>Configuration baseline</td><td>Repository <code>main</code> at <code>ffb201ae</code>; each result names its own commit</td></tr>
         <tr><td>Principal use cases</td><td>Keeping the aircraft navigating (navigation continuity); telling the operator how far to trust it (status and confidence monitoring)</td></tr>
         <tr><td>Companion deliverables</td><td>D2 live demonstration; D3 roadmap to a product</td></tr>
@@ -106,7 +106,7 @@ dl.terms dt { font-weight: 700; } dl.terms dd { margin: 0; }
       <div>1 Introduction</div><div class="l2">1.1 Purpose · 1.2 The solution in brief · 1.3 Status · 1.4 Where each requirement of the brief is answered · 1.5 Terms used</div>
       <div>2 Requirements</div><div class="l2">2.1 Users · 2.2 Constraints · 2.3 Requirements · 2.4 Assumptions</div>
       <div>3 System architecture</div><div class="l2">3.1 Overview · 3.2 Payload · 3.3 Ground software · 3.4 Data records</div>
-      <div>4 How position and time are estimated</div><div class="l2">4.1 Mission timeline · 4.2 Measuring distance to towers · 4.3 The filter · 4.4 Tower clocks · 4.5 Which sources can vouch for GPS · 4.6 Filter versions</div>
+      <div>4 How position and time are estimated</div><div class="l2">4.1 Mission timeline · 4.2 Measuring distance to towers · 4.3 The filter · 4.4 Tower clocks · 4.5 Which sources can vouch for GPS · 4.6 Filter versions · 4.7 Ground-station zones</div>
       <div>5 How confidence is computed and shown</div><div class="l2">5.1 Protection levels · 5.2 What can go wrong · 5.3 Jump guard · 5.4 Sky check · 5.5 Warning from other aircraft · 5.6 Status · 5.7 Operator panel</div>
       <div>6 Why it is built this way</div><div class="l2">6.1 Which signals · 6.2 Key decisions</div>
       <div>7 Verification</div><div class="l2">7.1 Method · 7.2 Simulation against reality · 7.3 Results · 7.4 Position · 7.5 Real recordings · 7.6 Confidence · 7.7 Error budget · 7.8 Timing · 7.9 Trade-offs</div>
@@ -122,7 +122,7 @@ dl.terms dt { font-weight: 700; } dl.terms dd { margin: 0; }
 <p>The challenge asks for a navigation solution that keeps position and time accurate when GPS is degraded or unavailable, uses communication signals (such as cell towers) as the main technology, and gives crews and drone operators a number that says how reliable the position and time are. This document is the engineering architecture (D1). The live demonstration (D2) and the roadmap to a product (D3) are separate.</p>
 
 <h3>1.2 The solution in brief</h3>
-<p>SEAN has two parts. A small <b>payload</b> on the aircraft (a Raspberry Pi with two low-cost radio receivers, a GPS receiver, a motion sensor and a pressure altimeter) records what it hears. A <b>ground station</b> (a laptop) turns the cell-tower signals into distances, combines them with the other sensors to estimate position and time, works out how wrong that estimate could be, and shows the result live.</p>
+<p>SEAN has two parts. A small <b>payload</b> on the aircraft (a Raspberry Pi with two low-cost radio receivers, a GPS receiver, a motion sensor and a pressure altimeter) records what it hears. A <b>ground laptop</b> turns the cell-tower signals into distances, combines them with the other sensors to estimate position and time, works out how wrong that estimate could be, and shows the result live.</p>
 <p>The design puts trustworthiness first. Three ideas set it apart from published work on navigating with cell towers:</p>
 <ol>
 <li><b>Towers can be wrong too.</b> Most work treats towers as reliable reference points. We treat each tower like GPS: something that can fail (its clock can jump, its listed location can be wrong, a fake tower can copy a real one's ID), and we check for each failure.</li>
@@ -138,6 +138,7 @@ dl.terms dt { font-weight: 700; } dl.terms dd { margin: 0; }
 <tr><td>Stated uncertainty stays honest after GPS loss</td><td><span class="st s-ok">Verified on real data</span></td><td>Real recordings, GPS removed in software: the radius was never smaller than the true error (0 of 3,005 checks, against 1,025 for a standard filter). Simulation, 200 flights: the error stayed inside the radius 99.55 % of the time with no dangerous moments (target 99.9 %)</td></tr>
 <tr><td>Keeping time without GPS; detecting faked time</td><td><span class="st s-ok">Met in 49 of 50 runs</span></td><td>0.44 µs average error after 10 min, a third of the 1.5 µs target (one run reached 1.55 µs). A clock being dragged at 50 ns/s is caught in 3.3 s, 18 times faster than required</td></tr>
 <tr><td>Position from towers after GPS loss</td><td><span class="st s-ok">Proven in simulation</span><br><span class="st s-warn">Receiver-limited in the field</span></td><td>Simulation: with clean signals from the towers in range, 10 m for the full 5 minutes, inside the 25 m target; with every improvement on our measured radio noise, 105 m. In the field our one-channel receiver rarely hears the 3 towers a fix needs (§7.5); a better receiver is the next step</td></tr>
+<tr><td>Ground-station navigation zones</td><td><span class="st s-ok">Shown in simulation</span></td><td>Inside a station's zone: typical error 96 → 64 m, radius honest in every flight, zero dangerous moments under a held spoof with the jump guard (§4.7)</td></tr>
 <tr><td>Live monitoring</td><td><span class="st s-ok">Demonstrated</span></td><td>Operator panel updating at least once a second (D2)</td></tr>
 <tr><td>Never transmits; privacy</td><td><span class="st s-ok">Verified</span></td><td>No transmit path; enforced by automated tests</td></tr>
 </tbody>
@@ -244,7 +245,7 @@ dl.terms dt { font-weight: 700; } dl.terms dd { margin: 0; }
   <line x1="240" y1="240" x2="296" y2="240" stroke="#36414c" stroke-width="1.8" marker-end="url(#ar)"/>
   <text x="244" y="226" font-size="10.5" fill="#36414c">encrypted</text><text x="244" y="258" font-size="10.5" fill="#36414c">link or file</text>
   <rect x="300" y="20" width="690" height="350" rx="6" fill="#fff" stroke="#36414c" stroke-width="1.5"/>
-  <text x="314" y="44" font-size="14" font-weight="700">Ground station (laptop)</text>
+  <text x="314" y="44" font-size="14" font-weight="700">Ground laptop</text>
   <text x="314" y="61" font-size="11" fill="#5d6975">every reading carries a GPS timestamp in nanoseconds; positions in metres east, north, up</text>
   <g font-size="12">
     <rect x="314" y="190" width="114" height="98" rx="4" fill="#f4f6f7" stroke="#36414c"/><text x="371" y="212" text-anchor="middle" font-weight="700">Input</text><text x="371" y="231" text-anchor="middle" font-size="10.5" fill="#5d6975">simulation,</text><text x="371" y="246" text-anchor="middle" font-size="10.5" fill="#5d6975">recording, or</text><text x="371" y="261" text-anchor="middle" font-size="10.5" fill="#5d6975">live link: same</text><text x="371" y="276" text-anchor="middle" font-size="10.5" fill="#5d6975">format</text>
@@ -257,7 +258,7 @@ dl.terms dt { font-weight: 700; } dl.terms dd { margin: 0; }
   <g font-size="11.5">
     <rect x="314" y="90" width="196" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="324" y="110" font-weight="700">Simulator and attacks</text><text x="324" y="127" font-size="10.5" fill="#5d6975">flights, sensor errors, faults</text>
     <rect x="528" y="90" width="168" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="538" y="110" font-weight="700">Tower database</text><text x="538" y="127" font-size="10.5" fill="#5d6975">ID → location (ISED)</text>
-    <rect x="714" y="90" width="262" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="724" y="110" font-weight="700">Ground reference station (sim)</text><text x="724" y="127" font-size="10.5" fill="#5d6975">a fixed receiver that measures tower clocks</text>
+    <rect x="714" y="90" width="262" height="52" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="724" y="110" font-weight="700">Ground reference station (§4.7)</text><text x="724" y="127" font-size="10.5" fill="#5d6975">a fixed receiver that measures tower clocks</text>
   </g>
   <g stroke="#8a96a3" stroke-width="1.5" marker-end="url(#arg)"><line x1="371" y1="142" x2="371" y2="188"/><line x1="590" y1="142" x2="525" y2="188"/><line x1="620" y1="142" x2="630" y2="188"/><line x1="790" y1="142" x2="668" y2="188"/></g>
   <rect x="710" y="308" width="266" height="46" rx="4" fill="#fff" stroke="#8a96a3" stroke-dasharray="4 3"/><text x="720" y="327" font-size="11.5" font-weight="700">Warning to an autopilot</text><text x="720" y="343" font-size="10.5" fill="#5d6975">product step (D3), not built</text>
@@ -398,10 +399,57 @@ dl.terms dt { font-weight: 700; } dl.terms dd { margin: 0; }
 <tr><td>With learned noise (<code>ekf-learned-noise</code>)</td><td>Estimates how noisy each tower really is from its readings, instead of trusting the radio's figure</td><td>optional</td></tr>
 <tr><td><b>Honest filter with jump guard</b> (<code>ekf-honest-guard</code>)</td><td>Learned noise, plus the slow error per tower (§4.3), plus the jump guard (§5.3). <b>This is the version we recommend</b></td><td>optional</td></tr>
 <tr><td>Cross-checking (<code>ekf-mhss</code>)</td><td>Runs extra copies of the filter, each leaving out one group of sources, and raises an alarm if they disagree (the literature calls this solution separation)</td><td>optional</td></tr>
-<tr><td>With ground station (<code>ekf-base</code>)</td><td>Subtracts a fixed ground receiver's view of the same towers, which cancels the tower clocks</td><td>simulation only</td></tr>
+<tr><td>With ground station (<code>ekf-base-imu</code>, with the jump guard)</td><td>Subtracts a fixed station's view of the same towers, which cancels the tower clocks; the jump guard plugs in unchanged (§4.7)</td><td>simulated</td></tr>
 </tbody>
 </table>
 <p class="small muted">How the recommended version was chosen: the rule was written before testing. A version had to keep the true error inside its radius at least 99 % of the time on both real and simulated test data; among those, the lowest real error after 5 minutes won, provided it was no more than 5 % worse in simulation and produced no dangerous moments. We then tried seven further tweaks (different slow-error sizes, motion-sensor prediction, process settings, requiring several towers, consistency checks, outlier down-weighting, freezing the learning) and none beat it.</p>
+
+
+<h3>4.7 Ground reference station: GPS-free navigation zones</h3>
+<p>The payload alone has to learn every tower's clock while GPS is good and then hold those clocks through the outage. A <b>ground reference station</b> removes that burden. It is a second receiver at a known, surveyed spot that hears the same towers. Because it knows exactly where it is, every reading it takes measures that tower's clock error directly. The drone subtracts the station's measurement from its own, the tower clock errors cancel, and only the drone's position is left to solve. Everywhere the drone and the station hear the same towers (a few kilometres around the station; TBC from an RF survey) becomes a <b>zone</b> where position holds up without GPS. Airports already sharpen GPS with fixed reference stations (GBAS); this does the same for cell towers, so it keeps working when GPS doesn't. The mentors confirmed a station is a valid part of the solution if the link to it is reliable.</p>
+<div class="cols c2" style="grid-template-columns: 0.9fr 1.1fr; gap: 5mm; align-items: start">
+<figure style="margin-top:0">
+<svg viewBox="0 0 520 300" role="img" aria-label="A ground station at a known spot hears the same towers as the drone; inside its zone the towers' clock errors cancel">
+  <circle cx="250" cy="160" r="128" fill="#e6f3eb" stroke="#1d8a50" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="250" y="20" text-anchor="middle" fill="#1d8a50" style="font-size:13px" font-family="Red Hat Mono">ZONE: TOWER CLOCK ERRORS CANCEL</text>
+  <g stroke="#8a96a3" stroke-width="1.2" stroke-dasharray="3 4">
+    <line x1="70" y1="80" x2="250" y2="190"/><line x1="430" y1="70" x2="250" y2="190"/><line x1="450" y1="250" x2="250" y2="190"/><line x1="60" y1="255" x2="250" y2="190"/>
+    <line x1="70" y1="80" x2="315" y2="110"/><line x1="430" y1="70" x2="315" y2="110"/><line x1="450" y1="250" x2="315" y2="110"/><line x1="60" y1="255" x2="315" y2="110"/>
+  </g>
+  <g fill="#5d6975" style="font-size:12px">
+    <path d="M70 80 l-9 18 h18 z"/><text x="70" y="112" text-anchor="middle">tower</text>
+    <path d="M430 70 l-9 18 h18 z"/><text x="430" y="102" text-anchor="middle">tower</text>
+    <path d="M450 250 l-9 18 h18 z"/><text x="450" y="282" text-anchor="middle">tower</text>
+    <path d="M60 255 l-9 18 h18 z"/><text x="60" y="287" text-anchor="middle">tower</text>
+  </g>
+  <rect x="236" y="178" width="28" height="24" rx="3" fill="#a86a08"/>
+  <text x="250" y="222" text-anchor="middle" fill="#a86a08" style="font-size:13px" font-weight="700">station at a known spot</text>
+  <circle cx="315" cy="110" r="9" fill="#1b2128"/>
+  <text x="331" y="106" fill="#1b2128" style="font-size:13px" font-weight="700">drone</text>
+</svg>
+<figcaption><b>Figure 4. A ground-station zone.</b> Station and drone hear the same towers; subtracting the station's readings removes each tower's clock error for anything inside the zone.</figcaption>
+</figure>
+<div>
+<table>
+<caption>Table 4-1. Inside the zone (sim, same 10 flights with and without the station)</caption>
+<thead><tr><th style="width:44%">Measure</th><th>Payload alone</th><th>+ station + jump guard</th></tr></thead>
+<tbody>
+<tr><td>Typical error after GPS loss (median)</td><td>96 m</td><td><b>64 m</b></td></tr>
+<tr><td>Worst moment, first 5 min (95 % of flights)</td><td>520 m</td><td><b>316 m</b></td></tr>
+<tr><td>Radius honest, worst flight</td><td>91 %</td><td><b>100 %</b></td></tr>
+<tr><td>Dangerous moments, held 300 m spoof</td><td>2,257</td><td><b>0</b></td></tr>
+<tr><td>Station faults during the outage (moved, clock jump, link lost)</td><td>—</td><td><b>0 dangerous</b></td></tr>
+</tbody>
+</table>
+<p class="small">The same pattern holds with the noise we measured on our radio: the payload alone becomes over-confident (worst moment 3,263 m, radius honest 7 % in the worst flight), and the station brings it to 982 m with no dangerous moments; with reflections as small as measured at rest, the radius is honest in every flight (67 → 100 %). In every setting the jump guard plugs straight into the station filter, and a held spoof gives zero dangerous moments.</p>
+</div>
+</div>
+<div class="cols c2" style="gap:4mm">
+<figure style="margin:0"><img src="assets/fig/station-alone.jpg" alt="Panel, payload alone, 90 s after GPS loss"><figcaption><b>Figure 5a.</b> Payload alone, 90 s after GPS loss: 163 m off.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/station-with.jpg" alt="Panel, with the station, same moment"><figcaption><b>Figure 5b.</b> With the station, same flight and moment: 71 m off, the radius still covering the error.</figcaption></figure>
+</div>
+<p><b>Design.</b> Station and drone each keep their clocks on GPS time through the timing pulse while GPS is good, and a 5–10 minute side-by-side "zero-baseline" test measures their offset before a session. The station's link to the laptop is authenticated like the payload's. The station is itself one of the faults the filter checks for: if it moves, its clock jumps or its link drops, the filter notices and falls back to the payload alone. Parts: a second LTE radio, an identical antenna, a GPS with timing pulse and a spare Pi, $92.34 in total. <b>Status:</b> designed, simulated and costed; building it is the next step (§9).</p>
+<p><b>Where zones go.</b> Wherever position must survive a GPS outage: drone delivery corridors, vertiports, approach paths. A product deploys the payload's trust monitor everywhere, and stations where assured position is needed.</p>
 
 <h2>5 How confidence is computed and shown</h2>
 <h3>5.1 Protection levels</h3>
@@ -452,7 +500,7 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 
 <h3>5.7 Operator panel</h3>
 <div class="cols c2" style="grid-template-columns: 1.3fr 1fr; gap: 5mm; align-items: start">
-<figure style="margin:0"><img src="assets/fig/panel-unsafe.jpg" alt="Operator panel 40 s after GPS loss"><figcaption><b>Figure 4. Operator panel</b>, simulated drone over real tower locations, 40 s after GPS loss: UNSAFE, radius 895 m, true error 325 m (inside it).</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/panel-unsafe.jpg" alt="Operator panel 40 s after GPS loss"><figcaption><b>Figure 6. Operator panel</b>, simulated drone over real tower locations, 40 s after GPS loss: UNSAFE, radius 895 m, true error 325 m (inside it).</figcaption></figure>
 <table style="margin-top:0">
 <thead><tr><th>#</th><th>Shows</th></tr></thead>
 <tbody>
@@ -500,7 +548,7 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <tr><td>Radius multiplier</td><td>5.33; <b>5.68</b>; 6.0 (aviation SBAS value)</td><td>5.68 follows from our stated probability for a 2-D error; the SBAS value belongs to that system's own budget</td></tr>
 <tr><td>Sky check</td><td>Positions only; strengths only; <b>both, advisory</b>; both, and drop GPS</td><td>Each clue alone misses some fakes or false-alarms indoors; dropping GPS on a soft clue costs accuracy; the jump guard already acts</td></tr>
 <tr><td>Other aircraft's broadcasts</td><td><b>Treat GPS as more likely to fail</b>; graded; trust GPS less in the position; display only</td><td>Widens the radius early without letting another aircraft's GPS steer ours</td></tr>
-<tr><td>Ground station</td><td>None; build it; <b>simulate now, build later</b></td><td>Best accuracy after GPS loss in simulation (677 → 332 m), but it follows a spoof without a guard; parts not available in time</td></tr>
+<tr><td>Ground station</td><td>None; <b>design, simulate and cost it, then build</b></td><td>Creates GPS-free zones: typical error 96 → 64 m, radius honest in every flight, and with the jump guard plugged in, zero dangerous moments under a held spoof (§4.7). Hardware is the next step</td></tr>
 <tr><td>Payload</td><td><b>One Pi</b> or Pi plus a microcontroller; <b>USB drive</b> or SD card</td><td>One board means one clock for all sensors; the SD card dropped 2.9 % of radio samples</td></tr>
 </tbody>
 </table>
@@ -545,6 +593,7 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <tr><td>Warning of interference on approach</td><td>50 of 50; 48–78 s before reaching it; 1.94 false warnings per hour</td><td>sim</td><td><span class="st s-ok">Met</span></td></tr>
 <tr><td>Time within 1.5 µs after 10 min</td><td>0.44 µs average; 1.55 µs worst</td><td>sim</td><td><span class="st s-ok">49 of 50</span></td></tr>
 <tr><td>Approach within 556 m</td><td>crew warning verified (50 of 50); position awaits real airport tower data</td><td>sim</td><td><span class="st s-warn">Next</span></td></tr>
+<tr><td>Inside a ground-station zone</td><td>error 96 → 64 m; radius honest 100 %; held spoof 0 dangerous (10 runs)</td><td>sim</td><td><span class="st s-ok">Shown</span></td></tr>
 <tr><td>Within 25 m for 5 min</td><td>10 m with clean tower signals; 105 m with every improvement; 449 m on the payload as built</td><td>sim</td><td><span class="st s-warn">Met with clean signals</span></td></tr>
 <tr><td>Slow 2 m/s drag caught within 30 s</td><td>50 of 50 caught when the radio switches channels, after 127 s; not caught on one channel</td><td>sim</td><td><span class="st s-warn">Caught, slower</span></td></tr>
 </tbody>
@@ -552,10 +601,10 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <p class="small muted">"Optional" means the result comes from the recommended filter version, selected by name; the standard version is kept as the reference for comparison.</p>
 
 <h3>7.4 Position after GPS loss</h3>
-<figure><img src="assets/fig/ladder.png" alt="Error after GPS loss for each improvement"><figcaption><b>Figure 5. What each improvement buys</b> (simulated drone, worst moment of the first 5 minutes after GPS loss, error that 95 % of 50 runs stay under). Believing the radio's own 2 m accuracy claim is worse than not using towers at all: each reading is trusted too much and drags the position off. Learning each tower's real noise, and listening to 13 channels in turn so that about 27 towers are heard instead of 2, brings it to 132 m; with our measured radio noise, 105 m; with reflections as small as we measured standing still, 51 m. With clean signals from all 17 towers within 3 km, it stays at 10 m, inside 25 m for the full 5 minutes. So the tower geometry is good enough; the quality of the distance readings is the limit. Switching channels is a study: the payload listens to one channel today.</figcaption></figure>
+<figure><img src="assets/fig/ladder.png" alt="Error after GPS loss for each improvement"><figcaption><b>Figure 7. What each improvement buys</b> (simulated drone, worst moment of the first 5 minutes after GPS loss, error that 95 % of 50 runs stay under). Believing the radio's own 2 m accuracy claim is worse than not using towers at all: each reading is trusted too much and drags the position off. Learning each tower's real noise, and listening to 13 channels in turn so that about 27 towers are heard instead of 2, brings it to 132 m; with our measured radio noise, 105 m; with reflections as small as we measured standing still, 51 m. With clean signals from all 17 towers within 3 km, it stays at 10 m, inside 25 m for the full 5 minutes. So the tower geometry is good enough; the quality of the distance readings is the limit. Switching channels is a study: the payload listens to one channel today.</figcaption></figure>
 <div class="cols c2" style="gap:5mm">
-<figure style="margin:0"><img src="assets/fig/towers-holding.png" alt="Operator panel in the channel-switching study"><figcaption><b>Figure 6.</b> The channel-switching study on the operator panel, 45 s after GPS loss: 17.9 m off, towers in use, radius 109 m.</figcaption></figure>
-<figure style="margin:0"><img src="assets/fig/ablation.png" alt="Error added when each source is removed"><figcaption><b>Figure 7.</b> Error added when each source is removed (simulation, 50 matched runs, long outage).</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/towers-holding.png" alt="Operator panel in the channel-switching study"><figcaption><b>Figure 8.</b> The channel-switching study on the operator panel, 45 s after GPS loss: 17.9 m off, towers in use, radius 109 m.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/ablation.png" alt="Error added when each source is removed"><figcaption><b>Figure 9.</b> Error added when each source is removed (simulation, 50 matched runs, long outage).</figcaption></figure>
 </div>
 
 <h3>7.5 Real recordings</h3>
@@ -574,17 +623,17 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <p>The measurements themselves are good: when a tower is heard, its distance jitters by under a metre, and every tower heard matched its licensed location. The limit on real data is how many towers our receiver hears at once. One low-cost radio on one channel rarely hears more than one usable tower at a time, and a position needs three. With so few towers heard, the radius on real data is wide, and correctly so: it never claimed more than it knew (§7.6). Accuracy then comes from hearing more towers, which the simulation shows takes the same filter to 10 m. The fixes are hearing more towers at once (a radio that switches channels, or more radios), measuring reflections while moving, and then measuring the signal's phase with a better clock (D3).</p>
 
 <h3>7.6 Is the radius honest?</h3>
-<figure><img src="assets/fig/honest-bound-top.png" alt="True error against radius, before and after tracking the slow error"><figcaption><b>Figure 8. True error against radius</b> (simulated drone, 10-minute outage, 200 runs). Every point above the diagonal is a moment when the true error was outside the radius. Standard filter: 41.6 % of the time over the whole flight (45.3 % counting only after GPS loss). Honest filter: 0.4 % (0.45 %), with no dangerous moments. No flight had a dangerous moment. On real recordings with GPS removed, the radius was never smaller than the error (0 of 3,005 checks, against 1,025 for the standard filter); with one or two towers heard it was wide, as an honest radius should be.</figcaption></figure>
+<figure><img src="assets/fig/honest-bound-top.png" alt="True error against radius, before and after tracking the slow error"><figcaption><b>Figure 10. True error against radius</b> (simulated drone, 10-minute outage, 200 runs). Every point above the diagonal is a moment when the true error was outside the radius. Standard filter: 41.6 % of the time over the whole flight (45.3 % counting only after GPS loss). Honest filter: 0.4 % (0.45 %), with no dangerous moments. No flight had a dangerous moment. On real recordings with GPS removed, the radius was never smaller than the error (0 of 3,005 checks, against 1,025 for the standard filter); with one or two towers heard it was wide, as an honest radius should be.</figcaption></figure>
 
 <h3>7.7 Error budget and how long GPS must be good first</h3>
 <div class="cols c2" style="gap:5mm">
-<figure style="margin:0"><img src="assets/fig/budget-vs-mc.png" alt="Error budget against simulation"><figcaption><b>Figure 9. Error budget.</b> Each source of error (tower clocks, reflections, error in the tower's listed location, our clock, noise) is grown from the moment GPS is lost and added up (lines), then compared with 20 simulated runs (points). They agree. On a clean route the total stays inside 50 m; with realistic towers, reflections alone reach 215 m after 2 minutes.</figcaption></figure>
-<figure style="margin:0"><img src="assets/fig/handover-clean.png" alt="Error against how long GPS was good before loss"><figcaption><b>Figure 10.</b> Error against how long GPS was good before it was lost. The filter that learns tower clock drift needs at least 150 s of good GPS to stay under 50 m; the other versions do not depend on it.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/budget-vs-mc.png" alt="Error budget against simulation"><figcaption><b>Figure 11. Error budget.</b> Each source of error (tower clocks, reflections, error in the tower's listed location, our clock, noise) is grown from the moment GPS is lost and added up (lines), then compared with 20 simulated runs (points). They agree. On a clean route the total stays inside 50 m; with realistic towers, reflections alone reach 215 m after 2 minutes.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/handover-clean.png" alt="Error against how long GPS was good before loss"><figcaption><b>Figure 12.</b> Error against how long GPS was good before it was lost. The filter that learns tower clock drift needs at least 150 s of good GPS to stay under 50 m; the other versions do not depend on it.</figcaption></figure>
 </div>
 
 <h3>7.8 Timing</h3>
 <div class="cols c2" style="grid-template-columns: 1fr 1fr; gap:5mm; align-items:start">
-<figure style="margin:0"><img src="assets/fig/t3-timing.png" alt="Time error after 10 minutes without GPS"><figcaption><b>Figure 11.</b> Time error 10 minutes after GPS loss, one point per run (simulation, 50 runs); dashed line 1.5 µs.</figcaption></figure>
+<figure style="margin:0"><img src="assets/fig/t3-timing.png" alt="Time error after 10 minutes without GPS"><figcaption><b>Figure 13.</b> Time error 10 minutes after GPS loss, one point per run (simulation, 50 runs); dashed line 1.5 µs.</figcaption></figure>
 <div class="small">
 <p>Average 0.44 µs; 49 of 50 runs within 1.5 µs (worst 1.55 µs). The stated uncertainty covers the real error 99.5 % of the time. A GPS clock being dragged at 50 ns per second is caught in 3.3 s (4.1 s worst), with no false alarms. On the real payload, the clock follows the GPS timing pulse to within 35 ns on average.</p>
 <p>Because tower clocks follow GPS, they are only used to catch a wrong GPS time, never to confirm it. Tuning the clock model further for the hardest scenarios is a next step (§9).</p>
@@ -602,8 +651,8 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <tr><td>Ground station + motion sensor (sim only)</td><td>332 m</td><td>100 %</td><td>68,537 (49 of 50)</td><td>12.4 %</td></tr>
 </tbody>
 </table>
-<p class="small">The recommended version gives up some availability for safety: refusing a faked GPS turns 17,042 dangerous moments into honest "do not navigate" ones (unavailable 14.9 % → 19.1 % of the time). The cross-checking version is never wrong because, with today's tower model, it never claims a small enough radius to be usable. The ground station is the most accurate after GPS loss; giving it the same jump guard is the next step.</p>
-<p class="small muted">Sources: <code>systems/results.md</code>; <code>analysis/results/</code> folders <code>headline</code> (commit 24aa5d1), <code>honest-bound</code>, <code>stacked-fixes-measured</code>, <code>tower-count</code>, <code>lte-gps-truth-20261111</code>, <code>lte-measured-noise</code>, <code>real-replay-256</code>, <code>final</code> (d66c929). Results made before the 5.68 correction used 5.33; with 5.68 every radius is 6.5 % larger, so the error can only fall inside it more often.</p>
+<p class="small">The recommended version gives up some availability for safety: refusing a faked GPS turns 17,042 dangerous moments into honest "do not navigate" ones (unavailable 14.9 % → 19.1 % of the time). The cross-checking version is never wrong because, with today's tower model, it never claims a small enough radius to be usable. The ground station is the most accurate after GPS loss; with the jump guard plugged into it, a held spoof gives zero dangerous moments (§4.7, table 4-1).</p>
+<p class="small muted">Sources: <code>systems/results.md</code>; <code>analysis/results/</code> folders <code>headline</code> (commit 24aa5d1), <code>honest-bound</code>, <code>stacked-fixes-measured</code>, <code>tower-count</code>, <code>lte-gps-truth-20261111</code>, <code>lte-measured-noise</code>, <code>real-replay-256</code>, <code>final</code> (d66c929), <code>station-zones</code> (9dc524f, 10 runs). Results made before the 5.68 correction used 5.33; with 5.68 every radius is 6.5 % larger, so the error can only fall inside it more often.</p>
 
 <h2>8 Safety, security and regulation</h2>
 <table>
@@ -643,7 +692,7 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <tr><td>Time uncertainty on hard scenarios</td><td>Covers the error 99.5 % of the time on the main timing scenario; too small on the hardest ones</td><td>Revise the clock model</td></tr>
 <tr><td>Two faults at once; wide-area time spoofing</td><td>Every single fault is covered by a named check (§5.2)</td><td>Multi-fault checks; an independent time source</td></tr>
 <tr><td>Approach use case</td><td>Crews warned of interference 48–78 s early in all 50 runs; position not yet scored on real airport towers</td><td>Real tower geometry near an airport</td></tr>
-<tr><td>Ground station, satellites</td><td>Ground station is the most accurate option in simulation (332 m worst moment, radius always honest)</td><td>Build the station with a jump guard; add the Iridium layer</td></tr>
+<tr><td>Ground station, satellites</td><td>Station zones shown in simulation: error 96 → 64 m, radius honest 100 %, held spoof 0 dangerous with the guard</td><td>Build the station ($92.34 of parts) and test a zone; add the Iridium layer</td></tr>
 </tbody>
 </table>
 
@@ -662,7 +711,7 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 <tr><td>0013</td><td>Iridium satellites simulated, not received</td><td>Accepted</td></tr>
 <tr><td>0015</td><td>Simulation calibrated against real measurements</td><td>Accepted</td></tr>
 <tr><td>0018, 0042</td><td>One-Pi payload; radio samples to a USB drive</td><td>Proposed; Accepted</td></tr>
-<tr><td>0020</td><td>Ground reference station (simulation only for now)</td><td>Proposed, amended</td></tr>
+<tr><td>0020</td><td>Ground reference station (designed and simulated; build next)</td><td>Proposed, amended</td></tr>
 <tr><td>0021</td><td>Trustworthiness first; signals of opportunity can fail</td><td>Accepted</td></tr>
 <tr><td>0022, 0023</td><td>Tower clock model; tower identity from the ISED database</td><td>Proposed</td></tr>
 <tr><td>0024</td><td>Three groups by dependence on GPS</td><td>Proposed</td></tr>
@@ -685,6 +734,7 @@ time protection level (TPL) = 5.33 × the clock's standard deviation<br>
 just sim gps-outage&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# fly one scenario<br>
 just eval gps-outage 50&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# fly it 50 times<br>
 just replay &lt;recording&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# run the filters on a real recording<br>
+python analysis/station_zones.py --runs 10&nbsp;&nbsp;# ground-station zones (§4.7)<br>
 just qa&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# all checks and tests</div>
 
 <h3>10.2 Where to find things</h3>
