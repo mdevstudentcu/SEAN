@@ -59,7 +59,7 @@ Ctrl-C stops any segment and frees the port. Each switch may print `ERROR: Cance
 
 ## The stage sequence, second by second
 
-**Wall** is seconds after pressing Enter on `deploy/demo/demo.sh stage`, from the timed runs below (±3 s). **T+** is the panel's own clock, top right: move on by watching T+, not a stopwatch. All values: simulation, seed 0, commit `d3beadd`.
+**Wall** is seconds after pressing Enter on `deploy/demo/demo.sh stage`, from the timed runs below (±3 s). **T+** is the panel's own clock, top right: move on by watching T+, not a stopwatch. All values: simulation, seed 0, commit `9aed72b`.
 
 Where to look: the big coloured word top right (NOMINAL / DEGRADED / UNSAFE); **HPL** under it (our bound on the error) and **Error against truth** (the real error, known only because this is a simulation); the **HPL chart** bottom left (blue: HPL, green: true error, red dashed: the 50 m alert limit); **What is wrong now** and **Alerts** on the right.
 
@@ -122,7 +122,7 @@ Segment 2: "A spoofer moves GPS 300 metres. Caught at the first fake fix: red. B
 | Stage sequence (Enter at T+105, T+188, T+212) | **72.9** and **75.9** |
 | Real towers | 0.4 to print, ~15 to talk |
 
-Measured twice back to back on 2026-11-11 at `ec5da67`, a local commit never pushed, so not reproducible from the repository (the same change before its rebase onto `main` `8892fca`, now `d3beadd`; after the rebase only `demo.sh check`, `demo.sh real` and the two jump segments' outcomes were re-checked, not the timings), clean tree, macOS, this laptop, each run a fresh `demo.sh stage` (Python caches warm, not a rebooted laptop), load average 7.8 from two other jobs. Enter was pressed by a script reading the panel clock, not by hand, and no browser was open: a browser reconnects 0–3 s after each switch, which delays what is visible but not the sequence. The segment switch took 3.1–5.3 s. Event times on the panel clock agreed exactly between runs. A just-booted laptop's first Python start is slower (`TBD`, not measured): hence the warm-up. Re-time the stage sequence at the commit that will be shown (`TBD`).
+Measured twice back to back on 2026-11-11 at `ec5da67`, a local commit never pushed, so not reproducible from the repository (the same change before its rebase onto `main` `8892fca`, now `9aed72b`; after the rebase only `demo.sh check`, `demo.sh real` and the two jump segments' outcomes were re-checked, not the timings), clean tree, macOS, this laptop, each run a fresh `demo.sh stage` (Python caches warm, not a rebooted laptop), load average 7.8 from two other jobs. Enter was pressed by a script reading the panel clock, not by hand, and no browser was open: a browser reconnects 0–3 s after each switch, which delays what is visible but not the sequence. The segment switch took 3.1–5.3 s. Event times on the panel clock agreed exactly between runs. A just-booted laptop's first Python start is slower (`TBD`, not measured): hence the warm-up. Re-time the stage sequence at the commit that will be shown (`TBD`).
 
 ## Numbers you may quote
 
@@ -156,7 +156,7 @@ lte:5060:492        594   10.0    -6.3      9.0  eNB 102790, Vidéotron, <site>
 
 Say: "This is real: a 60-second capture with a low-cost RTL-SDR radio dongle. Three cells tracked ten times a second, two consistent with one registered tower site." Say "consistent with", never "identified": the match is made around Carleton, not around the receiver. The terminal prints the site name where `<site>` is shown here (left out of this file: with the cells heard it hints at where the capture was made).
 
-**What the real segment can show today (2026-11-11):** only this table. `demo.sh real` runs at `d3beadd` (checked after the rebase). One local session now has a GPS fix (`20261111-0845-live-laptop-gps`), and cutting GPS in software on a real session is on `main` (`analysis/real_gps_cut.py`, #233 through #250). A real-session panel segment has not been built or rehearsed, so the real segment on stage is still only this table.
+**What the real segment can show today (2026-11-11):** only this table. `demo.sh real` runs at `9aed72b` (checked after the rebase). One local session now has a GPS fix (`20261111-0845-live-laptop-gps`), and cutting GPS in software on a real session is on `main` (`analysis/real_gps_cut.py`, #233 through #250). A real-session panel segment has not been built or rehearsed, so the real segment on stage is still only this table.
 
 ## Fallbacks
 
@@ -197,7 +197,7 @@ Unchanged since 2026-11-10 except where noted. The 2026-11-10 run (`20261110-175
 
 ## Evidence
 
-Headless Google Chrome at 1920×1080, panel served by `deploy/demo/demo.sh jump` and `deploy/demo/demo.sh outage` at commit `d3beadd`, clean tree. All **simulation**, seed 0. T+ and values as on screen. Files in `analysis/pr-evidence/elshoubky-docs-28-demo-guard/`.
+Headless Google Chrome at 1920×1080, panel served by `deploy/demo/demo.sh jump` and `deploy/demo/demo.sh outage` at commit `9aed72b`, clean tree. All **simulation**, seed 0. T+ and values as on screen. Files in `analysis/pr-evidence/elshoubky-docs-28-demo-guard/`.
 
 | File | Scenario | Estimator | Panel time | Shows |
 | --- | --- | --- | --- | --- |
@@ -211,4 +211,4 @@ Headless Google Chrome at 1920×1080, panel served by `deploy/demo/demo.sh jump`
 | `guard-2-before-end.png` | `challenge-drone-gps-return` | `ekf-guard` | T+193.9 | UNSAFE, HPL 947.6 m above the 254.6 m error, just before the spoofer stops at T+200 |
 | `guard-3-readmitted.png` | `challenge-drone-gps-return` | `ekf-guard` | T+210.0 | NOMINAL, HPL 6.9 m, error 0.8 m: real GPS back; alerts cleared at T+199.9, still listed |
 
-The 2026-11-10 screenshots in `analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/` (commit `8cea8cf`) still show the time spoof and the real-session panel (`real-dash-today.png`: NO DATA, no origin in a real session). Their wording predates the fix in `6ddb001` (*GPS lost … towers*, *Low trust*).
+The 2026-11-10 screenshots in `analysis/pr-evidence/elshoubky-docs-28-demo-rehearsal/` (commit `8cea8cf`) still show the time spoof and the real-session panel (`real-dash-today.png`: NO DATA, no origin in a real session). Their wording predates the fix in `ade3bbc` (*GPS lost … towers*, *Low trust*).
