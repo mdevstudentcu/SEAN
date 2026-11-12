@@ -106,8 +106,7 @@ button.on { border-color: var(--est); color: var(--est); }
 .ln.conf.amber { border-color: var(--warning); }
 .ln.conf.red { border-color: var(--critical); }
 
-.status { border-left: 6px solid var(--good); }
-.status { border-left-width: 10px; }
+.status { border-left: 10px solid var(--good); }
 .status-word { font-size: 48px; line-height: 1.05; font-weight: 800; letter-spacing: .06em; }
 .status-text { margin-top: 4px; color: var(--ink); font-size: 15px; line-height: 1.35; }
 .status.nominal { border-left-color: var(--good); }
@@ -119,7 +118,7 @@ button.on { border-color: var(--est); color: var(--est); }
 .status.lost { border-left-color: var(--critical); }
 .status.lost .status-word { color: #ff6b6b; }
 
-/* GPS trust (health.gps_trust): one word, the reasons, and the ADR-0041 sky check under them */
+/* GPS trust (health.gps_trust): one word, how long GPS has been unused, and the reasons */
 .trust { border-left: 10px solid var(--muted); }
 .trust-line { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
 .trust-word { font-size: 38px; line-height: 1.05; font-weight: 800; letter-spacing: .05em; color: var(--ink-2); }
@@ -161,7 +160,7 @@ button.on { border-color: var(--est); color: var(--est); }
 .bound-al { font-size: 18px; color: var(--ink-2); }
 .bound-al b { color: var(--ink); }
 .zgauge { position: relative; display: flex; height: 16px; margin: 10px 0 2px; border-radius: 4px; }
-.zgauge .z { display: block; height: 100%; opacity: .45; }
+.zgauge .z { display: block; height: 100%; opacity: .45; }  /* widths set from the info (app.js) */
 .zgauge .z.green { width: 53.333%; background: var(--good); border-radius: 4px 0 0 4px; }
 .zgauge .z.amber { width: 13.333%; background: var(--warning); }
 .zgauge .z.red { width: 33.334%; background: var(--critical); border-radius: 0 4px 4px 0; }
