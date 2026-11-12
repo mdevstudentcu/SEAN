@@ -10,7 +10,7 @@
 
 ## Bars on held-out seeds (`stress`)
 
-`python analysis/honest_bound.py --plan stress --part plain:13c --seeds 0-19 --jobs 5 --host g14` at `1385a48` on g14 (Python 3.12.13), seeds 0–19, 71 min; `python analysis/honest_bound.py --plan stress --part plain:1c --seeds 0-199 --jobs 5 --host g14` at `1385a48` on g14 (Python 3.12.13), seeds 0–199, 71 min; `python analysis/honest_bound.py --plan stress --part plain:6c --seeds 0-19 --jobs 2 --host g14` at `1385a48` on g14 (Python 3.12.13), seeds 0–19, 54 min
+`python analysis/honest_bound.py --plan stress --part plain:13c --seeds 0-19 --jobs 5 --host g14` at `2500f86` on g14 (Python 3.12.13), seeds 0–19, 71 min; `python analysis/honest_bound.py --plan stress --part plain:1c --seeds 0-199 --jobs 5 --host g14` at `2500f86` on g14 (Python 3.12.13), seeds 0–199, 71 min; `python analysis/honest_bound.py --plan stress --part plain:6c --seeds 0-19 --jobs 2 --host g14` at `2500f86` on g14 (Python 3.12.13), seeds 0–19, 54 min
 
 | Scenario | Fix | above HPL from fault (pooled) | worst run | hazardous | Honest (≤ 1 %, ≤ 5 %, 0) | T5 99.9 % | tightness | Useful (≤ 3) | HPL ≤ 50 m | p95 worst: fix / unfixed / default (m) | No harm (≤ 1.05×) | p95 worst, whole outage: fix / unfixed (m) | No harm, whole outage (≤ 1.05×) | false alarms /h added |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -205,7 +205,7 @@ Why the median grows late on 1 carrier ([late-outage.md](late-outage.md), the sa
 
 The approach leg's `stress` rows were computed before `ekf-honest` gained the receiver-clock switch (its records carry our clock and no `rx_clock`), so they are left out above and rerun here (`legs`); the drone and timing records all have `rx_clock`, which the switch does not touch (`tests/test_ekf_honest.py`).
 
-`python analysis/honest_bound.py --plan legs --seeds 0-199 --jobs 2 --host g14` at `1385a48` on g14 (Python 3.12.13), seeds 0–199, 5 min
+`python analysis/honest_bound.py --plan legs --seeds 0-199 --jobs 2 --host g14` at `2500f86` on g14 (Python 3.12.13), seeds 0–199, 5 min
 
 | Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run | hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | unsafe after loss (median s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -218,7 +218,7 @@ The approach leg's `stress` rows were computed before `ekf-honest` gained the re
 
 ## `realistic-long-outage` and the barometer, held-out seeds (`realistic`, #228)
 
-`python analysis/honest_bound.py --plan realistic --seeds 0-199 --jobs 3 --host g14` at `1385a48` on g14 (Python 3.12.13), seeds 0–199, 41 min
+`python analysis/honest_bound.py --plan realistic --seeds 0-199 --jobs 3 --host g14` at `2500f86` on g14 (Python 3.12.13), seeds 0–199, 41 min
 
 | Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run | hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | unsafe after loss (median s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -255,7 +255,7 @@ The approach leg's `stress` rows were computed before `ekf-honest` gained the re
 
 ## Sweep of the new settings (`sweep`)
 
-`python analysis/honest_bound.py --plan sweep --seeds 0-49 --jobs 5 --host g14` at `1385a48` on g14 (Python 3.12.13), seeds 0–49, 19 min
+`python analysis/honest_bound.py --plan sweep --seeds 0-49 --jobs 5 --host g14` at `2500f86` on g14 (Python 3.12.13), seeds 0–49, 19 min
 
 | Scenario | Setting | above HPL from fault | worst run | hazardous | tightness | p95 worst (m) | p95 worst / unfixed | Honest | Useful | No harm |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -276,7 +276,7 @@ The approach leg's `stress` rows were computed before `ekf-honest` gained the re
 
 ## Solution separation as the reference (`mhss`)
 
-`python analysis/honest_bound.py --plan mhss --seeds 0-19 --jobs 2 --host g14` at `1385a48` on g14 (Python 3.12.13), seeds 0–19, 48 min
+`python analysis/honest_bound.py --plan mhss --seeds 0-19 --jobs 2 --host g14` at `2500f86` on g14 (Python 3.12.13), seeds 0–19, 48 min
 
 | Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run | hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | unsafe after loss (median s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -358,7 +358,7 @@ The set's towers report their true white noise (50 m) but carry 50 m / 30 s mult
 
 ## Step 1: the existing estimators on tuning seeds (`measure`)
 
-`python analysis/honest_bound.py --plan measure --part calibrated:1c --seeds 1000-1049 --jobs 5 --host g14` at `1385a48` on g14 (Python 3.12.13), seeds 1000–1049, 7 min; `python analysis/honest_bound.py --plan measure --part plain --seeds 1000-1049 --jobs 5 --host g14` at `1385a48` on g14 (Python 3.12.13), seeds 1000–1049, 17 min
+`python analysis/honest_bound.py --plan measure --part calibrated:1c --seeds 1000-1049 --jobs 5 --host g14` at `2500f86` on g14 (Python 3.12.13), seeds 1000–1049, 7 min; `python analysis/honest_bound.py --plan measure --part plain --seeds 1000-1049 --jobs 5 --host g14` at `2500f86` on g14 (Python 3.12.13), seeds 1000–1049, 17 min
 
 | Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run | hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | unsafe after loss (median s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -397,7 +397,7 @@ The set's towers report their true white noise (50 m) but carry 50 m / 30 s mult
 
 ## Step 2: one term changed at a time, tuning seeds (`diagnose`)
 
-`python analysis/honest_bound.py --plan diagnose --seeds 1000-1049 --jobs 2 --host g14` at `1385a48` on g14 (Python 3.12.13), seeds 1000–1049, 19 min
+`python analysis/honest_bound.py --plan diagnose --seeds 1000-1049 --jobs 2 --host g14` at `2500f86` on g14 (Python 3.12.13), seeds 1000–1049, 19 min
 
 | Scenario | Estimator | runs | above HPL, whole run | above HPL, from fault | worst run | hazardous (runs) | NEES mean | tightness | HPL ≤ 50 m | p95 worst (m, s) | unsafe after loss (median s) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -423,4 +423,4 @@ Runs that raised: 0.
 - **Calibrated family:** `ekf-calibrated` and `-learned-noise` were measured on 1 carrier (tuning seeds) only; their 6- and 13-carrier runs (8 min and 1.6 GB a run) were stopped. No fix is proposed for them.
 - **PR #241** (keep a GNSS fix's horizontal when only its height fails the 3-D gate; not on this branch) would change only epochs where GNSS is present and the barometer has drifted: the last 60 s of the drone `outage-baro-drift` runs (GPS back at 660 s after 96 m of baro drift; HPL ≤ 50 m on 0.7 % of epochs against 9.8 % on `outage`) and `realistic/baro-drift` (GNSS never lost, refused once the drift exceeds the gate). It cannot change an outage epoch.
 - **Real barometer.** A BMP180 told 0.3 m read −3.4 to +77.5 m on a static receiver (PR #241); the sim's barometer is white 0.5 m plus a 1 m bias. Not modelled here.
-- **Commits:** every plan ran at `1385a48` (provenance lines).
+- **Commits:** every plan ran at `2500f86` (provenance lines).

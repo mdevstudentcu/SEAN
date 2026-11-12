@@ -1,13 +1,13 @@
 # Filter A/B on real cuts and the sim drone leg (#286)
 
-The protocol, the selection rule, the tuning tables and the choice of held-out rows were committed before the held-out data was opened (`69cadc7`, `26c402b`); the held-out results, the bars and the stress rows follow them.
+The protocol, the selection rule, the tuning tables and the choice of held-out rows were committed before the held-out data was opened (`26aa48b`, `79f9aa0`); the held-out results, the bars and the stress rows follow them.
 
 ## Protocol (fixed in advance)
 
 - **Tuning data:** real session `20261111-0040-static-fullsuite` (GPS cut in software at 99, 149, 199, 249, 299 s; scored 300 s against the withheld 1 Hz fixes) and sim seeds 100–109 on `challenge-drone-outage` (1 carrier, `1c`) and `challenge-drone-hop-outage` (13 carriers, `13c`).
 - **Held out, not run while choosing:** real session `20261111-1937-static-fullsuite3` and sim seeds 0–49 on both legs. Read before choosing: #283's committed summary and `diagnosis.json` of `1937` (cells heard, double-difference spreads, the existing filters' numbers), which the issue already quoted. No arm of this study was run on `1937` or on seeds 0–49 before the selection below was committed.
 - **Control:** `ekf-honest` as registered on this branch. Always shown: no LTE, `main`'s default `ekf`, `ekf-learned-noise`.
-- **Harness:** `analysis/filter_ab.py` (scoring from `real_gps_cut.py` and `stacked_fixes.py`; tightness as `honest_bound.py`, #226). Real error at an instant: the withheld fix on it, else the nearest within 0.5 s (`25e712e`); on `0040` every row of #283's table reproduces exactly.
+- **Harness:** `analysis/filter_ab.py` (scoring from `real_gps_cut.py` and `stacked_fixes.py`; tightness as `honest_bound.py`, #226). Real error at an instant: the withheld fix on it, else the nearest within 0.5 s (`9f113fc`); on `0040` every row of #283's table reproduces exactly.
 
 ## Selection rule (fixed before held-out data)
 
@@ -17,7 +17,7 @@ Among arms and combinations, prefer the one that on tuning data
 (c) sim worst-second p95 on seeds 100–109 no more than 5 % worse than the control on both legs (both windows, 0–120 and 0–300 s) and 0 hazardous epochs.
 Ties: fewer new settings. If no arm passes, the control stays the winner.
 
-## Tuning: single arms (commit `ea410c2`)
+## Tuning: single arms (commit `b057293`)
 
 Real `0040`: error median (worst) over the five cuts, m; HPL median, m.
 
@@ -71,7 +71,7 @@ Sim seeds 100–109 (sim, every value `TBC`): worst-second p95 of the across-run
 | common-step | 505 / 1,256 | 0.00% | 0 | 1.25 | 141 / 141 | 0.02% | 0 | 1.95 |
 | no-lte | 1,258 / 2,729 | 0.00% | 0 | 4.18 | 1,258 / 2,729 | 0.00% | 0 | 4.18 |
 
-## Tuning: combination round (commit `c8b357d`)
+## Tuning: combination round (commit `3389bd9`)
 
 Arms dropped from combinations after the single-arm table: IMU propagation (never aligns on a static receiver: identical to the control on real data), Huber (no effect: the control rejects 2 updates), the shared reset (no effect), lower `q_accel` (error above HPL 25–88 % on sim). Added: a per-cell consistency gate (a cell whose normalised innovations over the last 30/60/120 s of trusted GNSS have an RMS above 2/3/4 model sigmas may update position only with 3 cells heard, `cells3`, or not at all, `skip`); the cell gate counted over 3 and 5 s; curvature inflation (a range too curved for the linear update is kept with R grown by the term instead of dropped).
 
@@ -166,7 +166,7 @@ Zero-velocity update when the IMU's 2 s variance is at its noise level (threshol
 | zupt | 478 / 478 | 74.18% | 1,245 | 0.47 | 364 / 364 | 72.18% | 2,403 | 0.38 |
 | no-lte | 1,258 / 2,729 | 0.00% | 0 | 4.18 | 1,258 / 2,729 | 0.00% | 0 | 4.18 |
 
-## Stationary hold with a relative trigger (round 3, commit `aeb44b5`; tuning data)
+## Stationary hold with a relative trigger (round 3, commit `20c6612`; tuning data)
 
 `hold<N>-v<limit>-k<k>`: arms at GNSS loss only if the GNSS fixes of the last N s (20, 30) moved no faster than the limit (0.3, 0.5 m/s; displacement of the mean of the first and last 5 s of fixes); while armed, a zero-velocity update (sigma 0.1 m/s, gated) each second as long as every IMU axis's 1 s standard deviation stays within k (2, 3) times its rest-window value and the mean specific-force magnitude within k rest standard deviations; the first exceedance disarms it until GNSS returns. Not armed, it changes nothing.
 
@@ -211,7 +211,7 @@ Every hold arm with LTE fails (a) on real data (12.6–16.3 % above HPL). The `@
 
 ## Held-out evaluation (run once)
 
-**Real, session `20261111-1937-static-fullsuite3`** (replay, GPS cut in software at 99, 149, 199, 249, 299 s; 1,500 withheld fixes; commit `3614d2e`, clean; front end recorded in the session's meta as the pre-rebase twin of `a6c28c9`). The first held-out run (`26c402b`) had no value at +300 s: the fix that stands for it is 2.6 ms past the 300 s horizon. The scorer was fixed to let the instants look up to 0.5 s past the horizon (`3614d2e`, test added; `0040`'s 200 per-run values are unchanged) and the same rows were run again on the same data. The filters, settings and rows did not change; only the 300 s column (and the 300 s HPL) was empty before.
+**Real, session `20261111-1937-static-fullsuite3`** (replay, GPS cut in software at 99, 149, 199, 249, 299 s; 1,500 withheld fixes; commit `d810c5c`, clean; front end recorded in the session's meta as the pre-rebase twin of `a6c28c9`). The first held-out run (`79f9aa0`) had no value at +300 s: the fix that stands for it is 2.6 ms past the 300 s horizon. The scorer was fixed to let the instants look up to 0.5 s past the horizon (`d810c5c`, test added; `0040`'s 200 per-run values are unchanged) and the same rows were run again on the same data. The filters, settings and rows did not change; only the 300 s column (and the 300 s HPL) was empty before.
 
 | Row | 60 s | 120 s | 300 s | p95 0–300 s (worst cut) | Error > HPL | HPL 120 s | HPL 300 s | LTE after cut: accepted / unchecked / rejected | Speed after cut (m/s) |
 |---|---|---|---|---|---|---|---|---|---|
@@ -227,7 +227,7 @@ Every hold arm with LTE fails (a) on real data (12.6–16.3 % above HPL). The `@
 
 Control per cut (300 s error, m): 339, 231, 705, 524, 492; 0 of 300 withheld fixes above HPL at every cut; median speed after the cut 1.6–2.9 m/s.
 
-**Sim, seeds 0–49** (sim, every value `TBC`; `analysis/filter_ab.py sim --seeds 0-49 --arms control cells4 hold30-v0.5-k2 --jobs 8` at `5836f8b`, clean, on the Linux box; the same rows on the Mac at `3614d2e` gave identical tables; per-run estimate hashes differ between the two machines, Python 3.12 against 3.14):
+**Sim, seeds 0–49** (sim, every value `TBC`; `analysis/filter_ab.py sim --seeds 0-49 --arms control cells4 hold30-v0.5-k2 --jobs 8` at `fb50552`, clean, on the Linux box; the same rows on the Mac at `d810c5c` gave identical tables; per-run estimate hashes differ between the two machines, Python 3.12 against 3.14):
 
 | Row | 1c: worst-second p95 0–120 / 0–300 s (m) | 1c: above HPL | 1c: hazardous | 1c: tightness | 13c: worst-second p95 0–120 / 0–300 s (m) | 13c: above HPL | 13c: hazardous | 13c: tightness |
 |---|---|---|---|---|---|---|---|---|
@@ -275,7 +275,7 @@ Real, each session's five cuts, error median (worst), m:
 
 Each cut separately: the per-cut lines above (`1937`) and `tune-real-0040.json` (`0040`: 953, 1,282, 1,229, 164, 3,262 m at 300 s; 0 above HPL at every cut).
 
-Sim, seeds 0–49, `f3a8800` (clean, Linux box):
+Sim, seeds 0–49, `e2493e7` (clean, Linux box):
 
 | Entry | Row | Worst-second p95 0–120 / 0–300 s (m) | Above HPL | Hazardous | Notes |
 |---|---|---|---|---|---|
@@ -288,7 +288,7 @@ Sim, seeds 0–49, `f3a8800` (clean, Linux box):
 ## Hashes (defaults unchanged)
 
 `analysis/filter_ab.py hashes`: sha256 of every field of every estimate, `challenge-drone-outage`, `challenge-drone-spoof-jump`, `realistic-long-outage`, seeds 0 and 1, on the Linux box.
-- This branch at `5836f8b` (its last code commit) against its base `2fbb84f`: **132 of 132 identical** (the 18 estimators registered on `main` and `ekf-learned-noise`, `ekf-calibrated-learned-noise`, `ekf-honest`, `ekf-honest-guard`).
+- This branch at `fb50552` (its last code commit) against its base `2fbb84f`: **132 of 132 identical** (the 18 estimators registered on `main` and `ekf-learned-noise`, `ekf-calibrated-learned-noise`, `ekf-honest`, `ekf-honest-guard`).
 - Against today's `origin/main` `8f992ed`: 59 of 108 identical. `main`'s merge-base with this branch, `3493cfb`, equals this branch on all 108 and equals `8f992ed` on the same 59: every difference comes from `main`'s 21 commits since, whose only change under `src/pnt/nav` is ADR-0045's GNSS-height fallback (`ekf.py`). The branch could not be rebased onto `8f992ed` (the first #156 commit conflicts with ADR-0045 in `ekf.py`), so the base was kept.
 
 ## What a presenter can say (true on the held-out data)
